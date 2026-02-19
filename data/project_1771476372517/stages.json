@@ -1,0 +1,109 @@
+{
+  "stages": {
+    "1": {
+      "aiVersion": "{\n  \"video_goal\": \"\",\n  \"target_audience\": \"\",\n  \"company_or_brand_name\": \"\",\n  \"tone_and_style\": \"professional\",\n  \"format_or_platform\": \"general\",\n  \"desired_length\": \"60\",\n  \"show_face\": \"No\",\n  \"cta\": \"\",\n  \"video_type\": \"How-to Video\",\n  \"user_inputs\": \"Use Google NotebookLM\\n\\n--- Reference Materials ---\\n\\n[Link: https://notebooklm.google/]\\nGoogle NotebookLM | AI Research Tool & Thinking Partner + How-to Video\",\n  \"key_points\": [\n    \"AI-powered tool for organizing and synthesizing information\",\n    \"Integrates machine learning for deeper insights\",\n    \"Streamlines research with automated information management\"\n  ],\n  \"constraints\": [\n    \"Do not claim: specific user testimonials or case studies\",\n    \"Do not claim: detailed market share information for Google NotebookLM\",\n    \"Mention: robust data privacy measures compliance\"\n  ],\n  \"problem\": \"Users manually gather and organize research materials, often using basic tools like text documents or spreadsheets.\",\n  \"core_interaction_steps\": [\n    \"Organize research materials in Google NotebookLM\",\n    \"Utilize AI-driven analysis for insights\",\n    \"Receive recommendations and synthesize information\"\n  ],\n  \"common_pitfalls\": null,\n  \"field_states\": {\n    \"key_points\": {\n      \"status\": \"auto_filled\",\n      \"confidence\": \"high\",\n      \"sources\": [\n        {\n          \"url\": \"https://notebooklm.google/\",\n          \"title\": \"Google NotebookLM\"\n        }\n      ],\n      \"reason\": \"Extracted from product_context and typical_workflows.optimized_process\"\n    },\n    \"constraints\": {\n      \"status\": \"auto_filled\",\n      \"confidence\": \"high\",\n      \"sources\": [\n        {\n          \"url\": \"https://notebooklm.google/\",\n          \"title\": \"Google NotebookLM\"\n        },\n        {\n          \"url\": \"https://www.forbes.com/sites/forbestechcouncil/2023/01/12/top-ai-trends-to-watch-in-2023/\",\n          \"title\": \"Top AI Trends to Watch in 2023\"\n        }\n      ],\n      \"reason\": \"Derived from uncertainties and industry context\"\n    },\n    \"problem\": {\n      \"status\": \"auto_filled\",\n      \"confidence\": \"medium\",\n      \"sources\": [\n        {\n          \"url\": \"https://notebooklm.google/how-it-works\",\n          \"title\": \"How Google NotebookLM Works\"\n        }\n      ],\n      \"reason\": \"Based on typical_workflows.traditional_process\"\n    },\n    \"core_interaction_steps\": {\n      \"status\": \"auto_filled\",\n      \"confidence\": \"medium\",\n      \"sources\": [\n        {\n          \"url\": \"https://notebooklm.google/how-it-works\",\n          \"title\": \"How Google NotebookLM Works\"\n        }\n      ],\n      \"reason\": \"Derived from typical_workflows.optimized_process\"\n    },\n    \"common_pitfalls\": {\n      \"status\": \"not_applicable\",\n      \"confidence\": \"high\",\n      \"sources\": [],\n      \"reason\": \"Common pitfalls are not clearly stated and are optional for How-to Videos\"\n    }\n  },\n  \"auto_filled_fields\": [\n    \"key_points\",\n    \"constraints\",\n    \"problem\",\n    \"core_interaction_steps\"\n  ],\n  \"inferred_fields\": [],\n  \"missing_fields\": [\n    \"video_goal\",\n    \"target_audience\",\n    \"company_or_brand_name\",\n    \"cta\"\n  ],\n  \"not_applicable_fields\": [\n    \"common_pitfalls\"\n  ],\n  \"user_override_fields\": [],\n  \"unresolved_questions\": [\n    {\n      \"field\": \"video_goal\",\n      \"note\": \"What specific outcome should the viewer achieve after watching the video?\",\n      \"context\": \"The video goal is not provided by the user or the research.\"\n    },\n    {\n      \"field\": \"target_audience\",\n      \"note\": \"Who is the intended audience for this video?\",\n      \"context\": \"The target audience is not specified in the user input or research.\"\n    },\n    {\n      \"field\": \"company_or_brand_name\",\n      \"note\": \"Please confirm or provide the company or brand name to be featured.\",\n      \"context\": \"The company or brand name is not specified in the user input.\"\n    },\n    {\n      \"field\": \"cta\",\n      \"note\": \"What is the desired call to action for the viewers after watching the video?\",\n      \"context\": \"The call to action is not provided by the user or the research.\"\n    }\n  ]\n}",
+      "humanVersion": null,
+      "contextPack": {
+        "video_type_context": "how_to",
+        "company_context": "Google is a multinational technology company founded in 1998, known for its search engine and various digital products and services. Its mission is to organize the world's information and make it universally accessible and useful.",
+        "company_context_sources": [
+          {
+            "url": "https://about.google/",
+            "title": "About Google",
+            "confidence": "high"
+          }
+        ],
+        "product_context": "Google NotebookLM is an AI-powered research tool designed to assist in organizing, synthesizing, and understanding information. It differentiates itself by integrating machine learning to provide insights and a deeper understanding of user notes and research materials.",
+        "product_context_sources": [
+          {
+            "url": "https://notebooklm.google/",
+            "title": "Google NotebookLM",
+            "confidence": "high"
+          }
+        ],
+        "industry_context": "The AI research tool industry is rapidly growing, driven by advancements in machine learning and a need for efficient information management solutions. Standards emphasize user-friendly interfaces and robust data privacy measures.",
+        "industry_context_sources": [
+          {
+            "url": "https://www.forbes.com/sites/forbestechcouncil/2023/01/12/top-ai-trends-to-watch-in-2023/",
+            "title": "Top AI Trends to Watch in 2023",
+            "confidence": "medium"
+          }
+        ],
+        "terminology_glossary": {
+          "AI": "Artificial Intelligence - the simulation of human intelligence processes by machines.",
+          "Machine Learning": "A subset of AI involving the creation of algorithms that allow software applications to become more accurate at predicting outcomes without being explicitly programmed to do so.",
+          "Synthesis": "The combination of ideas to form a theory or system."
+        },
+        "typical_workflows": {
+          "traditional_process": "Users manually gather and organize research materials, often using basic tools like text documents or spreadsheets.",
+          "optimized_process": "With Google NotebookLM, users can automate the organization and synthesis of information, gaining insights through AI-driven analysis and recommendations."
+        },
+        "typical_workflows_sources": [
+          {
+            "url": "https://notebooklm.google/how-it-works",
+            "title": "How Google NotebookLM Works",
+            "confidence": "medium"
+          }
+        ],
+        "uncertainties": [
+          "[uncertain: specific user testimonials or case studies]",
+          "[uncertain: detailed market share information for Google NotebookLM]"
+        ],
+        "searches_performed": [
+          {
+            "query": "Google company mission",
+            "purpose": "To find the company's mission statement and background",
+            "results_used": [
+              "https://about.google/"
+            ]
+          },
+          {
+            "query": "Google NotebookLM features",
+            "purpose": "To understand what the product does and its key differentiators",
+            "results_used": [
+              "https://notebooklm.google/"
+            ]
+          },
+          {
+            "query": "AI research tool market trends 2023",
+            "purpose": "To learn about industry trends and standards",
+            "results_used": [
+              "https://www.forbes.com/sites/forbestechcouncil/2023/01/12/top-ai-trends-to-watch-in-2023/"
+            ]
+          }
+        ],
+        "key_value_propositions": {},
+        "target_decision_makers": {},
+        "technology_context": {},
+        "user_inputs": {
+          "original_prompt": "Use Google NotebookLM\n\n--- Reference Materials ---\n\n[Link: https://notebooklm.google/]\nGoogle NotebookLM | AI Research Tool & Thinking Partner + How-to Video",
+          "video_type": "How-to Video",
+          "video_goal": "",
+          "target_audience": "",
+          "company_or_brand_name": "",
+          "parsed_materials": []
+        }
+      }
+    }
+  },
+  "currentStageId": 1,
+  "stageStatuses": [
+    {
+      "id": 1,
+      "status": "needs_review"
+    },
+    {
+      "id": 2,
+      "status": "not_started"
+    },
+    {
+      "id": 3,
+      "status": "not_started"
+    },
+    {
+      "id": 4,
+      "status": "not_started"
+    }
+  ],
+  "lastSaved": "2026-02-18T20:46:40.762888"
+}

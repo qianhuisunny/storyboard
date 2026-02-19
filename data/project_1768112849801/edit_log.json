@@ -1,0 +1,24 @@
+{
+  "project_id": "1768112849801",
+  "user_id": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "stages": {
+    "brief": {
+      "ai_version": "**Video Brief for Project: \"Hi\"**\n\n1. **Concept**: \n   The video aims to introduce a new community platform designed to connect people with shared interests. The purpose is to encourage viewers to join and engage with the platform by highlighting its unique features and benefits.\n\n2. **Target Audience**: \n   This video is intended for tech-savvy individuals aged 18-35 who are active on social media and interested in joining online communities. They are likely to be students, young professionals, or hobbyists passionate about networking and learning from others with similar interests.\n\n3. **Key Messages**:\n   - **Community Connection**: Emphasize how the platform brings together like-minded individuals, fostering meaningful connections and collaborations.\n   - **Unique Features**: Highlight the platform's innovative tools, such as personalized group recommendations and real-time chat options.\n   - **User-Friendly Experience**: Showcase the platform's intuitive design and easy navigation, making it accessible for all users.\n   - **Safety and Privacy**: Assure potential users of the platform's commitment to maintaining a safe and secure environment.\n   - **Call to Action**: Encourage viewers to sign up and start engaging with the community today.\n\n4. **Tone & Style**:\n   The tone should be upbeat, inclusive, and engaging, capturing the excitement of joining a new community. The style should be modern and visually appealing, incorporating vibrant colors and dynamic animations to keep the audience engaged.\n\n5. **Estimated Duration**:\n   The video should be around 1-2 minutes long, ensuring it is concise enough to maintain interest while providing all necessary information.",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": null,
+      "created_at": "2026-01-10T23:09:47.703493",
+      "sources": [
+        {
+          "type": "user_input",
+          "reference": "hi"
+        }
+      ]
+    }
+  },
+  "created_at": "2026-01-10T22:27:34.478738",
+  "last_updated": "2026-01-10T23:09:47.703559"
+}

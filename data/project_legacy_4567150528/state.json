@@ -1,0 +1,104 @@
+{
+  "project_id": "legacy_4567150528",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to clean your fridge",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company or product was provided in the user materials.]",
+    "product_context": "Fridge cleaning products typically include specialized sprays, wipes, or solutions designed to safely clean and disinfect the interior surfaces of refrigerators without damaging them. Key differentiators often include non-toxic ingredients, eco-friendly formulations, and antibacterial properties.",
+    "industry_context": "The home cleaning products market has been growing with a focus on eco-friendly and non-toxic solutions as consumers become more health and environmentally conscious.",
+    "terminology_glossary": {
+      "Disinfectant": "A chemical agent used to destroy bacteria and viruses on surfaces.",
+      "Eco-friendly": "Products designed to have minimal harmful effects on the environment.",
+      "Non-toxic": "Substances that are not harmful to human health."
+    },
+    "typical_workflows": {
+      "traditional_process": "A traditional fridge cleaning workflow involves: 1) Removing all items from the fridge, 2) Disposing of expired or unwanted items, 3) Using a cleaning solution to wipe down all surfaces, 4) Drying surfaces before returning items. Optimized cleaning products may offer faster drying times or require less scrubbing.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific cleaning product recommendations]",
+      "[uncertain: specific company associated with the inquiry]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video",
+    "user_inputs": "How to clean your fridge",
+    "key_points": [
+      "Use non-toxic and eco-friendly cleaning products",
+      "Ensure antibacterial properties for effective cleaning",
+      "Steps to remove odors and maintain hygiene"
+    ],
+    "constraints": [
+      "Do not claim: specific cleaning product recommendations",
+      "Do not claim: specific company associated with the inquiry"
+    ],
+    "problem": "The traditional process of cleaning a fridge is time-consuming and may not adequately disinfect surfaces.",
+    "core_interaction_steps": [
+      "Step 1: Remove all items from the fridge.",
+      "Step 2: Dispose of expired or unwanted items.",
+      "Step 3: Use a non-toxic cleaning solution to wipe down all surfaces.",
+      "Step 4: Dry surfaces before returning items."
+    ],
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "Please specify what you want viewers to achieve or learn after watching the video.",
+        "context": "The video goal is crucial to tailor the content effectively."
+      },
+      {
+        "field": "target_audience",
+        "note": "Please specify who the target audience is for this video.",
+        "context": "Understanding the target audience helps in setting the right tone and content level."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "Please specify if there is a company or brand name to be featured in the video.",
+        "context": "Brand identification is important for marketing and brand recognition."
+      },
+      {
+        "field": "cta",
+        "note": "Please specify the call to action for the video.",
+        "context": "A call to action guides the viewer on what to do next after watching the video."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T15:31:52.021897",
+  "updated_at": "2026-01-11T15:32:02.180613"
+}

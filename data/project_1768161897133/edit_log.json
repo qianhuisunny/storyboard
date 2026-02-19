@@ -1,0 +1,61 @@
+{
+  "project_id": "1768161897133",
+  "user_id": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "stages": {
+    "brief": {
+      "ai_version": "{\n  \"video_goal\": \"\",\n  \"target_audience\": \"\",\n  \"company_or_brand_name\": \"\",\n  \"tone_and_style\": \"professional\",\n  \"format_or_platform\": \"general\",\n  \"desired_length\": \"60\",\n  \"show_face\": \"No\",\n  \"cta\": \"\",\n  \"video_type\": \"Product Release\",\n  \"user_inputs\": \"how to grow strawberries\",\n  \"key_points\": [\n    \"Interest in organic and sustainable strawberry farming is rising.\",\n    \"Hydroponics and vertical farming maximize yield and reduce land use.\",\n    \"Adopting modern agricultural technology can enhance productivity.\"\n  ],\n  \"constraints\": [\n    \"Do not claim: Specific company information not provided\",\n    \"Do not claim: Specific product information not provided\"\n  ],\n  \"problem\": \"Traditionally, growing strawberries involves selecting a suitable location, preparing the soil, planting runners or seeds, managing pests and diseases, and harvesting.\",\n  \"key_features\": [\n    \"Hydroponics as a method for growing without soil\",\n    \"Vertical farming for maximizing space\",\n    \"Organic farming methods avoiding synthetic chemicals\"\n  ],\n  \"typical_use_cases\": [\n    \"Using hydroponics for urban strawberry farming\",\n    \"Implementing vertical farming to optimize small spaces\",\n    \"Adopting organic farming practices for healthier strawberries\"\n  ],\n  \"core_interaction_steps\": [],\n  \"auto_filled_fields\": [\n    \"key_points\",\n    \"constraints\",\n    \"problem\",\n    \"key_features\",\n    \"typical_use_cases\"\n  ],\n  \"unresolved_questions\": [\n    {\n      \"field\": \"video_goal\",\n      \"note\": \"The specific goal of the video is not provided. What should the viewers know or do after watching?\",\n      \"context\": \"Understanding the desired outcome will help tailor the content.\"\n    },\n    {\n      \"field\": \"target_audience\",\n      \"note\": \"The target audience is not specified. Who is the intended viewer (e.g., novice gardeners, commercial farmers)?\",\n      \"context\": \"Knowing the audience will help adjust the language and content focus.\"\n    },\n    {\n      \"field\": \"company_or_brand_name\",\n      \"note\": \"The company or brand name is not provided. Is there a specific brand associated with this product release?\",\n      \"context\": \"Branding can influence the tone and messaging.\"\n    },\n    {\n      \"field\": \"cta\",\n      \"note\": \"The call to action is missing. What action should viewers take after watching the video?\",\n      \"context\": \"A clear CTA helps guide viewer engagement.\"\n    },\n    {\n      \"field\": \"core_interaction_steps\",\n      \"note\": \"Optimized process steps for modern strawberry farming techniques are not detailed. What specific actions or processes should be highlighted?\",\n      \"context\": \"Detailed steps are crucial for a product release video to demonstrate new methods or technologies.\"\n    }\n  ]\n}",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": null,
+      "created_at": "2026-01-11T12:19:58.012066",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via brief stage"
+        }
+      ]
+    },
+    "outline": {
+      "ai_version": "",
+      "human_version": "hi",
+      "edited": true,
+      "edit_summary": {
+        "characters_added": 2,
+        "characters_removed": 0,
+        "was_edited": true,
+        "edit_time_seconds": null
+      },
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": "2026-01-11T12:06:39.307266",
+      "created_at": "2026-01-11T12:06:12.844014",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via outline stage"
+        }
+      ]
+    },
+    "panels": {
+      "ai_version": "",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": null,
+      "created_at": "2026-01-11T12:06:39.312485",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via panels stage"
+        }
+      ]
+    }
+  },
+  "created_at": "2026-01-11T12:05:11.439287",
+  "last_updated": "2026-01-11T12:19:58.012206"
+}

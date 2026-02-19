@@ -1,0 +1,18 @@
+{
+  "id": "1771477396585",
+  "userId": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "type": 1,
+  "typeName": "Product Release Video",
+  "userInput": "How to do startup fundraising in 2026 (for first-time founders) ",
+  "createdAt": "2026-02-18T21:03:16.590406",
+  "lastUpdated": "2026-02-18T21:03:16.837129",
+  "storyboard": null,
+  "fetchedLinks": [
+    {
+      "url": "https://derekyan.com/ma-book/index.html",
+      "title": "The Toughest Sell: A Founder's Guide to Startup Exits | Derek Yan",
+      "path": "links/derekyan.com_1771477396.836778.txt",
+      "fetchedAt": "2026-02-18T21:03:16.837127"
+    }
+  ]
+}

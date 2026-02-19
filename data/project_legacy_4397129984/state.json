@@ -1,0 +1,116 @@
+{
+  "project_id": "legacy_4397129984",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "The best tomatoes in the world",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "The user-provided information is not sufficient to identify a specific company. If the company is a tomato producer or distributor, it could be involved in agriculture, food production, or distribution. Many companies in this sector focus on sustainable farming practices and supplying fresh produce to markets worldwide.",
+    "product_context": "Without a specific company or product name, it's assumed that 'the best tomatoes in the world' refers to a high-quality variety or brand of tomatoes known for superior taste, freshness, or nutritional value. Key differentiators might include organic certification, unique growing techniques, or exclusive distribution agreements.",
+    "industry_context": "The global tomato industry is characterized by increasing demand for organic and locally-sourced produce. There is also a growing trend towards sustainable and environmentally friendly farming practices. The market is competitive with numerous players ranging from small local farms to large-scale agricultural companies.",
+    "terminology_glossary": {
+      "Heirloom Tomatoes": "Varieties of tomatoes that are open-pollinated and have been passed down through several generations.",
+      "Hydroponics": "A method of growing plants without soil, using mineral nutrient solutions in an aqueous solvent.",
+      "Organic Farming": "A method of farming that uses natural substances and processes to enhance ecological balance and biodiversity."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional tomato farming involves planting seeds, nurturing plants in fields or greenhouses, harvesting, and distributing to markets. Optimized processes may include using hydroponics for year-round growth, implementing sustainable practices, and utilizing advanced logistics for fresh delivery.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company name and details]",
+      "[uncertain: exact characteristics of 'the best tomatoes in the world']",
+      "[uncertain: whether this is a new variety, brand, or distribution method]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "The best tomatoes in the world",
+    "key_points": [
+      "Focus on sustainable and environmentally friendly farming practices",
+      "Increasing demand for organic and locally-sourced produce",
+      "Potential use of unique growing techniques like hydroponics or organic farming"
+    ],
+    "constraints": [
+      "Do not claim: specific company name and details",
+      "Do not claim: exact characteristics of 'the best tomatoes in the world'",
+      "Do not claim: whether this is a new variety, brand, or distribution method"
+    ],
+    "problem": "Traditional tomato farming involves planting seeds, nurturing plants in fields or greenhouses, harvesting, and distributing to markets. This process can be inefficient and less sustainable.",
+    "key_features": [
+      "Potential for organic certification",
+      "Use of unique growing techniques",
+      "Exclusive distribution agreements"
+    ],
+    "typical_use_cases": [
+      "Supply to organic markets",
+      "Use in gourmet restaurants",
+      "Direct sales to health-conscious consumers"
+    ],
+    "core_interaction_steps": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "The specific goal of the video is unclear. What should viewers know or do after watching?",
+        "context": "Understanding the intended impact on the audience will help tailor the content effectively."
+      },
+      {
+        "field": "target_audience",
+        "note": "The specific target audience is not provided. Who are the intended viewers? (e.g., consumers, retailers, distributors)",
+        "context": "Identifying the audience will guide the tone and content focus."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "The company or brand name associated with 'the best tomatoes in the world' is not specified. This information is crucial for branding and positioning in the video.",
+        "context": "Including the brand name will help in marketing and establishing recognition."
+      },
+      {
+        "field": "cta",
+        "note": "The specific call to action is missing. What action should the audience take after watching the video?",
+        "context": "A clear CTA will help achieve the video's goal, whether it's to visit a website, make a purchase, or contact the company."
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "The optimized process for interaction is not described. What are the steps for engaging with the product or service?",
+        "context": "Understanding the interaction steps will help in demonstrating the product's usability and benefits."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:58:39.691048",
+  "updated_at": "2026-01-10T23:58:50.280345"
+}

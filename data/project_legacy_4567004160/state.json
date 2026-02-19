@@ -1,0 +1,91 @@
+{
+  "project_id": "legacy_4567004160",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to clean up your fridge",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "As no specific company or product is provided, this context pack will focus on general practices for cleaning a refrigerator. Typically, guides on this topic are provided by appliance manufacturers or home improvement brands.",
+    "product_context": "This context pack addresses the process of cleaning a refrigerator. The key considerations include removing expired items, cleaning shelves and drawers, and ensuring proper organization to maintain hygiene and efficiency.",
+    "industry_context": "There is a growing trend towards eco-friendly and non-toxic cleaning products in the home cleaning industry. Consumers are increasingly interested in methods that ensure safety and reduce environmental impact.",
+    "terminology_glossary": {
+      "Defrost": "The process of removing ice build-up in freezers or refrigerators to ensure efficient operation.",
+      "Deodorize": "To remove or mask unpleasant odors, often using baking soda or specialized products.",
+      "Compressor": "The part of the refrigerator that circulates refrigerant to keep the interior cool.",
+      "Shelf Life": "The length of time food items can be stored before they spoil or become unsafe to eat."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional refrigerator cleaning involves unplugging the appliance, removing all items, cleaning shelves and drawers with soapy water, and wiping down surfaces. Optimized processes may incorporate time-saving tools like detachable shelves, vacuum attachments for tight spaces, and eco-friendly cleaning agents.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or product details]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Guide viewers on effectively cleaning their refrigerator using professional methods",
+    "target_audience": "Individuals looking to improve home cleaning practices",
+    "company_or_brand_name": "General Home Improvement",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Try these methods to keep your fridge clean and organized",
+    "video_type": "How-to Video",
+    "user_inputs": "How to clean up your fridge",
+    "key_points": [
+      "Remove expired items to maintain hygiene",
+      "Clean shelves and drawers with soapy water for thorough sanitation",
+      "Use eco-friendly products to ensure safety and environmental care"
+    ],
+    "constraints": [
+      "Do not claim: specific company or product details"
+    ],
+    "problem": "Traditional refrigerator cleaning can be time-consuming and may not use eco-friendly methods.",
+    "core_interaction_steps": [
+      "Unplug the refrigerator for safety",
+      "Remove all items and separate expired goods",
+      "Clean shelves and drawers with a soapy water solution",
+      "Wipe down all surfaces with an eco-friendly cleaner",
+      "Reorganize items to optimize space and maintain freshness"
+    ],
+    "common_pitfalls": [
+      "Not removing expired items can lead to odors and contamination",
+      "Using harsh chemicals can be harmful to health and the environment"
+    ],
+    "auto_filled_fields": [
+      "target_audience",
+      "company_or_brand_name",
+      "video_goal",
+      "cta",
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps",
+      "common_pitfalls"
+    ],
+    "unresolved_questions": []
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T15:31:18.538240",
+  "updated_at": "2026-01-11T15:31:29.409877"
+}

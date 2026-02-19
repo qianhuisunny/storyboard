@@ -1,0 +1,8 @@
+{
+  "id": "1766172252209",
+  "type": 2,
+  "typeName": "How-to Video",
+  "userInput": "How to use Langflow to create a vector RAG chatbot (How-to article) \nSource:  https://docs.langflow.org/chat-with-rag\nApply the lessons you learnt from dissembling good video storyboards, make an engaging video storyboard for LearnFlow AI. You should include {screentype, voiceover, annotation, image, duration} in your scene-by-scene output. \nWe\u2019re launching LearnFlow AI, an AI-powered tool that helps instructional designers automatically generate storyboards and training videos from text prompts. The product\u2019s main features include instant scene generation, voiceover integration, and editable scripts. Key benefits: saves 80% of production time, maintains brand tone, and supports SCORM export.\nTarget audience: corporate learning teams, customer education professionals, and eLearning agencies.\nTone: modern, confident, and inspiring \u2014 focus on how LearnFlow AI transforms instructional design from a manual process into a creative, AI-assisted workflow.\nCall to action: \u201cStart your first storyboard for free.\u201d\n",
+  "createdAt": "2025-12-19T11:24:12.218278",
+  "storyboard": null
+}

@@ -1,11 +1,13 @@
-
 @import "tailwindcss";
 
 @theme {
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* Border radius tokens */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+
+  /* Map to Tailwind color utilities */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -21,6 +23,11 @@
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -37,82 +44,162 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+
+  /* Font families */
+  --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-cal: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Cal.com Neutral Scale (Light Mode) */
+  --neutral-1: 255, 255, 255;
+  --neutral-2: 252, 252, 252;
+  --neutral-3: 247, 247, 247;
+  --neutral-4: 242, 242, 242;
+  --neutral-5: 237, 237, 237;
+  --neutral-6: 229, 229, 229;
+  --neutral-7: 219, 219, 219;
+  --neutral-8: 204, 204, 204;
+  --neutral-9: 120, 120, 120;
+  --neutral-10: 102, 102, 102;
+  --neutral-11: 61, 61, 61;
+  --neutral-12: 29, 29, 29;
+
+  /* Semantic Color Bases */
+  --warning-base: 254, 154, 0;
+  --danger-base: 251, 44, 54;
+  --success-base: 0, 201, 80;
+  --info-base: 120, 120, 120;
+
+  /* Mapped Variables (Light Mode) */
+  --radius: 0.5rem;
+  --background: rgb(var(--neutral-1));
+  --foreground: rgb(var(--neutral-12));
+  --card: rgb(var(--neutral-1));
+  --card-foreground: rgb(var(--neutral-12));
+  --popover: rgb(var(--neutral-1));
+  --popover-foreground: rgb(var(--neutral-12));
+  --primary: rgb(var(--neutral-12));
+  --primary-foreground: rgb(var(--neutral-1));
+  --secondary: rgb(var(--neutral-3));
+  --secondary-foreground: rgb(var(--neutral-12));
+  --muted: rgb(var(--neutral-4));
+  --muted-foreground: rgb(var(--neutral-9));
+  --accent: rgb(var(--neutral-3));
+  --accent-foreground: rgb(var(--neutral-12));
+  --destructive: rgb(var(--danger-base));
+  --destructive-foreground: rgb(var(--neutral-1));
+  --warning: rgb(var(--warning-base));
+  --warning-foreground: rgb(var(--neutral-12));
+  --success: rgb(var(--success-base));
+  --success-foreground: rgb(var(--neutral-1));
+  --border: rgb(var(--neutral-6));
+  --input: rgb(var(--neutral-6));
+  --ring: rgb(var(--neutral-9));
+
+  /* Chart colors */
+  --chart-1: rgb(59, 130, 246);
+  --chart-2: rgb(16, 185, 129);
+  --chart-3: rgb(139, 92, 246);
+  --chart-4: rgb(245, 158, 11);
+  --chart-5: rgb(239, 68, 68);
+
+  /* Sidebar */
+  --sidebar: rgb(var(--neutral-2));
+  --sidebar-foreground: rgb(var(--neutral-12));
+  --sidebar-primary: rgb(var(--neutral-12));
+  --sidebar-primary-foreground: rgb(var(--neutral-1));
+  --sidebar-accent: rgb(var(--neutral-4));
+  --sidebar-accent-foreground: rgb(var(--neutral-12));
+  --sidebar-border: rgb(var(--neutral-6));
+  --sidebar-ring: rgb(var(--neutral-9));
+
+  /* Header (white in light mode) */
+  --header-background: rgb(var(--neutral-1));
+  --header-foreground: rgb(var(--neutral-12));
+  --header-border: rgb(var(--neutral-6));
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Cal.com Neutral Scale (Dark Mode - Inverted) */
+  --neutral-1: 29, 29, 29;
+  --neutral-2: 35, 35, 35;
+  --neutral-3: 43, 43, 43;
+  --neutral-4: 51, 51, 51;
+  --neutral-5: 60, 60, 60;
+  --neutral-6: 70, 70, 70;
+  --neutral-7: 78, 78, 78;
+  --neutral-8: 91, 91, 91;
+  --neutral-9: 255, 255, 255;
+  --neutral-10: 219, 219, 219;
+  --neutral-11: 180, 180, 180;
+  --neutral-12: 255, 255, 255;
+
+  /* Mapped Variables (Dark Mode) */
+  --background: rgb(var(--neutral-1));
+  --foreground: rgb(var(--neutral-12));
+  --card: rgb(var(--neutral-3));
+  --card-foreground: rgb(var(--neutral-12));
+  --popover: rgb(var(--neutral-3));
+  --popover-foreground: rgb(var(--neutral-12));
+  --primary: rgb(var(--neutral-12));
+  --primary-foreground: rgb(29, 29, 29);
+  --secondary: rgb(var(--neutral-4));
+  --secondary-foreground: rgb(var(--neutral-12));
+  --muted: rgb(var(--neutral-4));
+  --muted-foreground: rgb(var(--neutral-10));
+  --accent: rgb(var(--neutral-4));
+  --accent-foreground: rgb(var(--neutral-12));
+  --destructive: rgb(var(--danger-base));
+  --destructive-foreground: rgb(29, 29, 29);
+  --warning: rgb(var(--warning-base));
+  --warning-foreground: rgb(29, 29, 29);
+  --success: rgb(var(--success-base));
+  --success-foreground: rgb(29, 29, 29);
+  --border: rgb(var(--neutral-6));
+  --input: rgb(var(--neutral-6));
+  --ring: rgb(var(--neutral-9));
+
+  /* Chart colors (adjusted for dark mode) */
+  --chart-1: rgb(96, 165, 250);
+  --chart-2: rgb(52, 211, 153);
+  --chart-3: rgb(167, 139, 250);
+  --chart-4: rgb(251, 191, 36);
+  --chart-5: rgb(248, 113, 113);
+
+  /* Sidebar (Dark Mode) */
+  --sidebar: rgb(var(--neutral-2));
+  --sidebar-foreground: rgb(var(--neutral-12));
+  --sidebar-primary: rgb(96, 165, 250);
+  --sidebar-primary-foreground: rgb(var(--neutral-1));
+  --sidebar-accent: rgb(var(--neutral-4));
+  --sidebar-accent-foreground: rgb(var(--neutral-12));
+  --sidebar-border: rgb(var(--neutral-6));
+  --sidebar-ring: rgb(var(--neutral-9));
+
+  /* Header (dark in dark mode) */
+  --header-background: rgb(var(--neutral-2));
+  --header-foreground: rgb(var(--neutral-12));
+  --header-border: rgb(var(--neutral-6));
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    box-sizing: border-box;
+  }
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
+    font-family: var(--font-inter);
+  }
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-cal);
+    font-weight: 600;
   }
 }

@@ -1,0 +1,24 @@
+{
+  "project_id": "1768118333141",
+  "user_id": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "stages": {
+    "brief": {
+      "ai_version": "{\n  \"video_goal\": \"\",\n  \"target_audience\": \"\",\n  \"company_or_brand_name\": \"\",\n  \"tone_and_style\": \"professional\",\n  \"format_or_platform\": \"general\",\n  \"desired_length\": \"60\",\n  \"show_face\": \"No\",\n  \"cta\": \"\",\n  \"video_type\": \"Product Release\",\n  \"user_inputs\": \"how to grow tomatoes\",\n  \"key_points\": [\n    \"Growing tomatoes with unique techniques\",\n    \"Focus on organic practices\",\n    \"Tips on soil preparation, watering, and pest control\"\n  ],\n  \"constraints\": [\n    \"Do not claim: specific company or product details related to tomato growing\",\n    \"Do not claim: exact market data on home gardening trends\"\n  ],\n  \"problem\": {\n    \"description\": \"Traditional workflow for growing tomatoes involves selecting a variety, preparing the soil, planting, watering, supporting plants with stakes or cages, and managing pests and diseases.\",\n    \"source\": \"auto_filled_from_research\"\n  },\n  \"key_features\": {\n    \"description\": [\n      \"Unique growing techniques\",\n      \"Organic practices\",\n      \"Tips on soil preparation\",\n      \"Watering and pest control\"\n    ],\n    \"source\": \"auto_filled_from_research\"\n  },\n  \"typical_use_cases\": {\n    \"description\": [\n      \"Home gardening enthusiasts looking to grow tomatoes\",\n      \"Individuals interested in sustainable and organic food production\"\n    ],\n    \"source\": \"auto_filled_from_research\"\n  },\n  \"core_interaction_steps\": null,\n  \"auto_filled_fields\": [\n    \"key_points\",\n    \"constraints\",\n    \"problem\",\n    \"key_features\",\n    \"typical_use_cases\"\n  ],\n  \"user_override_fields\": [],\n  \"unresolved_questions\": [\n    {\n      \"field\": \"video_goal\",\n      \"note\": \"The specific goal of the video is not provided. What should viewers know or do after watching?\",\n      \"context\": \"Define the desired outcome or action for viewers.\"\n    },\n    {\n      \"field\": \"target_audience\",\n      \"note\": \"The target audience is not specified. Who is the intended viewer of this guide or tool for growing tomatoes?\",\n      \"context\": \"Identify the primary audience for better targeting.\"\n    },\n    {\n      \"field\": \"company_or_brand_name\",\n      \"note\": \"No company or brand name is provided. Is there a specific brand being featured in this video?\",\n      \"context\": \"If applicable, identify the brand to ensure accurate representation.\"\n    },\n    {\n      \"field\": \"cta\",\n      \"note\": \"The call to action is not specified. What action should viewers take after watching the video?\",\n      \"context\": \"Define the CTA to guide viewer engagement.\"\n    },\n    {\n      \"field\": \"core_interaction_steps\",\n      \"note\": \"The optimized process for growing tomatoes is not detailed. What high-level steps should be demonstrated in the video?\",\n      \"context\": \"For a Product Release video, outlining the process can help illustrate the product's benefits.\"\n    }\n  ]\n}",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": null,
+      "created_at": "2026-01-11T12:26:22.612155",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via brief stage"
+        }
+      ]
+    }
+  },
+  "created_at": "2026-01-10T23:59:06.738809",
+  "last_updated": "2026-01-11T12:26:22.612344"
+}

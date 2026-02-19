@@ -1,0 +1,107 @@
+{
+  "project_id": "legacy_4397283200",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "how to grow tomatoes",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company provided for context. Please provide a company name for accurate research.]",
+    "product_context": "[uncertain: No specific product provided for context. Please provide a product name for accurate research.]",
+    "industry_context": "The home gardening industry has seen a resurgence in popularity, especially post-2020, as more people focus on sustainable living and self-sufficiency. The trend towards organic and home-grown produce is driving innovation in gardening tools and techniques.",
+    "terminology_glossary": {
+      "Heirloom Tomatoes": "Varieties of tomatoes that have been passed down through generations due to their valued characteristics.",
+      "Hybrid Tomatoes": "Tomatoes that are bred from two different varieties to combine specific desirable traits.",
+      "Indeterminate": "Type of tomato plant that continues to grow and produce fruit throughout the growing season.",
+      "Determinate": "Type of tomato plant that grows to a fixed size and produces all its fruit around the same time.",
+      "Pruning": "The practice of trimming plants to improve their structure and encourage healthy growth."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional tomato growing includes selecting seeds or seedlings, preparing soil, planting, watering, and managing pests. Optimized processes might include using advanced soil testing kits, automated watering systems, and organic pest management solutions.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company and product details missing from user materials]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "how to grow tomatoes",
+    "key_points": [],
+    "constraints": [
+      "Do not claim: No specific company or product details provided"
+    ],
+    "problem": "Traditional tomato growing includes selecting seeds or seedlings, preparing soil, planting, watering, and managing pests.",
+    "key_features": [],
+    "typical_use_cases": [],
+    "core_interaction_steps": [],
+    "auto_filled_fields": [
+      "constraints",
+      "problem"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "Please specify what the viewer should know or do after watching the video."
+      },
+      {
+        "field": "target_audience",
+        "note": "Please specify who the target audience is for this video."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "Please provide a company or brand name to feature in the video."
+      },
+      {
+        "field": "cta",
+        "note": "Please provide a call to action for the video."
+      },
+      {
+        "field": "key_points",
+        "note": "No key value propositions are provided. Please specify any key points or benefits to highlight."
+      },
+      {
+        "field": "key_features",
+        "note": "Please provide specific features of the product related to tomato growing."
+      },
+      {
+        "field": "typical_use_cases",
+        "note": "Please specify typical use cases for the product if applicable."
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "Please provide core interaction steps for using the product, if applicable."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:59:06.742796",
+  "updated_at": "2026-01-10T23:59:14.442725"
+}

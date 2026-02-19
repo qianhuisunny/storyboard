@@ -1,0 +1,111 @@
+{
+  "project_id": "legacy_4397240704",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "The best tomatoes in the world",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "The company is a premium agricultural producer specializing in high-quality tomatoes, known for their exceptional taste and nutritional value. Their mission is to provide the best-tasting tomatoes using sustainable farming practices.",
+    "product_context": "The product is a variety of tomatoes marketed as 'the best tomatoes in the world,' focusing on superior flavor and texture. Key differentiators include heirloom varieties, organic farming methods, and a commitment to freshness and quality.",
+    "industry_context": "The specialty produce market is experiencing growth as consumers increasingly seek out high-quality, organic, and sustainably farmed products. Farm-to-table and local sourcing trends are driving demand for premium produce.",
+    "terminology_glossary": {
+      "Heirloom": "A type of plant that is open-pollinated and has been passed down through generations without genetic modification.",
+      "Organic farming": "A method of farming that uses natural substances and processes to cultivate crops, avoiding synthetic chemicals and genetically modified organisms (GMOs).",
+      "Farm-to-table": "A social movement that encourages sourcing food directly from local farmers to ensure freshness and support local economies."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditionally, consumers purchase tomatoes from large grocery chains that may source from industrial farms. With the product, customers can expect a direct-to-consumer model where they order fresh tomatoes online or via specialty retailers, emphasizing freshness and sustainable sourcing.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific tomato variety names]",
+      "[uncertain: distribution channels beyond direct-to-consumer]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "The best tomatoes in the world",
+    "key_points": [
+      "Heirloom varieties for superior flavor and texture",
+      "Organic farming methods ensure no synthetic chemicals or GMOs",
+      "Direct-to-consumer model for ultimate freshness",
+      "Commitment to sustainable farming practices"
+    ],
+    "constraints": [
+      "Do not claim: specific tomato variety names",
+      "Do not claim: distribution channels beyond direct-to-consumer"
+    ],
+    "problem": "Traditionally, consumers purchase tomatoes from large grocery chains that may source from industrial farms, which can result in lesser quality and freshness.",
+    "key_features": [
+      "Heirloom tomato varieties",
+      "Organic farming methods",
+      "Direct-to-consumer sales channel",
+      "Commitment to freshness and quality"
+    ],
+    "typical_use_cases": [
+      "Consumers seeking high-quality, flavorful tomatoes for cooking",
+      "Health-conscious buyers looking for organic produce",
+      "Food enthusiasts interested in specialty heirloom varieties"
+    ],
+    "core_interaction_steps": "",
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "The video goal is missing. Please specify what the viewer should know or do after watching."
+      },
+      {
+        "field": "target_audience",
+        "note": "The target audience is missing. Please specify who is watching, including role, expertise level, and context."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "The company or brand name is missing. Please specify the name of the company or product being featured."
+      },
+      {
+        "field": "cta",
+        "note": "The call to action is missing. Please specify what action you want the viewer to take after watching the video."
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "The optimized process is not described in the research. Please define what specific steps the product release video should highlight."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:52:54.447834",
+  "updated_at": "2026-01-10T23:53:02.963383"
+}

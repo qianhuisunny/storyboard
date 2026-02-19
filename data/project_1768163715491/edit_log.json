@@ -1,0 +1,24 @@
+{
+  "project_id": "1768163715491",
+  "user_id": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "stages": {
+    "brief": {
+      "ai_version": "{\n  \"video_goal\": \"Educate viewers on the process of growing watermelon in Southern California\",\n  \"target_audience\": \"Amateur gardeners and home growers in Southern California\",\n  \"company_or_brand_name\": \"General Agricultural Practices\",\n  \"tone_and_style\": \"professional\",\n  \"format_or_platform\": \"general\",\n  \"desired_length\": \"60\",\n  \"show_face\": \"No\",\n  \"cta\": \"Visit our website for more gardening tips\",\n  \"video_type\": \"How-to Video\",\n  \"user_inputs\": \"How to grow watermelon in south california\",\n  \"key_points\": [\n    \"Select a sunny location with well-drained soil for optimal growth\",\n    \"Use drip irrigation systems for efficient watering\",\n    \"Start seeds indoors or sow directly after the last frost\",\n    \"Ensure proper spacing and use mulch to retain moisture and control weeds\",\n    \"Monitor for pests and diseases regularly\"\n  ],\n  \"constraints\": [\n    \"Do not claim: Specific guidelines for watermelon varieties best suited for Southern California\",\n    \"Do not claim: Local regulations or incentives for sustainable farming practices in the region\"\n  ],\n  \"problem\": \"In Southern California, growing watermelons requires understanding the local climate and soil conditions to ensure successful cultivation.\",\n  \"core_interaction_steps\": [\n    \"Select a sunny location with well-drained soil\",\n    \"Start seeds indoors or sow directly after the last frost\",\n    \"Ensure proper spacing between plants\",\n    \"Install drip irrigation systems for efficient water use\",\n    \"Monitor and control pests and diseases\",\n    \"Use mulch to retain soil moisture and control weeds\"\n  ],\n  \"common_pitfalls\": null,\n  \"auto_filled_fields\": [\n    \"video_goal\",\n    \"target_audience\",\n    \"company_or_brand_name\",\n    \"key_points\",\n    \"constraints\",\n    \"problem\",\n    \"core_interaction_steps\"\n  ],\n  \"user_override_fields\": [],\n  \"unresolved_questions\": []\n}",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": null,
+      "created_at": "2026-01-11T15:00:25.180683",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via brief stage"
+        }
+      ]
+    }
+  },
+  "created_at": "2026-01-11T12:35:26.470985",
+  "last_updated": "2026-01-11T15:00:25.180716"
+}

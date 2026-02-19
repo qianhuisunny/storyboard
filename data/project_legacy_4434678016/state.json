@@ -1,0 +1,109 @@
+{
+  "project_id": "legacy_4434678016",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "how to grow tomatoes",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "To create a valid Context Pack, I need more specific information about the company and product related to \"how to grow tomatoes,\" as this could pertain to anything from agricultural equipment to gardening apps. Please provide additional details about the company or product name, or further context about the video goal and target audience.",
+    "product_context": "",
+    "industry_context": "",
+    "terminology_glossary": {},
+    "typical_workflows": {
+      "traditional_process": "",
+      "optimized_process": ""
+    },
+    "key_value_propositions": {},
+    "uncertainties": [
+      "[uncertain: Could not parse structured response]"
+    ],
+    "raw_research": "To create a valid Context Pack, I need more specific information about the company and product related to \"how to grow tomatoes,\" as this could pertain to anything from agricultural equipment to gardening apps. Please provide additional details about the company or product name, or further context about the video goal and target audience."
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "how to grow tomatoes",
+    "key_points": [],
+    "constraints": [
+      "Do not claim: Could not parse structured response"
+    ],
+    "problem": {
+      "description": "",
+      "auto_filled_from_research": false
+    },
+    "key_features": {
+      "description": [],
+      "auto_filled_from_research": false
+    },
+    "typical_use_cases": {
+      "description": [],
+      "auto_filled_from_research": false
+    },
+    "core_interaction_steps": {
+      "description": [],
+      "auto_filled_from_research": false
+    },
+    "auto_filled_fields": [],
+    "user_override_fields": [],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "Please specify what the viewer should know or do after watching the video. This is essential for creating an effective script."
+      },
+      {
+        "field": "target_audience",
+        "note": "Please provide details on who is watching, including their role, expertise level, and context. This informs the tone and technical depth of the content."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "Please specify the company or brand name being featured in the video. This is critical for branding and context."
+      },
+      {
+        "field": "cta",
+        "note": "Please provide a call to action for the video. This guides what action you want the viewer to take after watching."
+      },
+      {
+        "field": "problem",
+        "note": "The problem the product solves is not clearly defined in the research. Please provide details about the issues faced without your product."
+      },
+      {
+        "field": "key_features",
+        "note": "Key features of the product are not specified. Please list 3-5 features that differentiate your product."
+      },
+      {
+        "field": "typical_use_cases",
+        "note": "Typical use cases for the product are not detailed. Please provide 2-4 scenarios where your product is beneficial."
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "Core interaction steps are necessary for a Product Release video. Please outline the high-level steps of using your product."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T12:26:00.316655",
+  "updated_at": "2026-01-11T12:26:08.991233"
+}

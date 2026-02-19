@@ -1,0 +1,109 @@
+{
+  "project_id": "legacy_4397184448",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "The best tomatoes in the world",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "Heirloom Tomato Co. is a boutique agricultural business founded in 2005, specializing in the cultivation of heirloom tomatoes known for their superior flavor and diverse varieties. The company is positioned as a leader in sustainable farming practices and local food movements.",
+    "product_context": "Heirloom Tomato Co.'s flagship product is a variety of heirloom tomatoes, renowned for their unique flavors and vibrant colors, which are marketed directly to gourmet restaurants and high-end grocery stores. The key differentiator is their commitment to organic farming and biodiversity, ensuring premium quality and taste.",
+    "industry_context": "The specialty produce market is experiencing growth due to increasing consumer demand for organic and locally-sourced products. Heirloom and specialty tomatoes have become popular among chefs and food enthusiasts for their distinct taste profiles.",
+    "terminology_glossary": {
+      "Heirloom Tomato": "A variety of tomato that is open-pollinated and has been passed down through generations, typically valued for flavor and diversity.",
+      "Organic Farming": "An agricultural method that avoids synthetic fertilizers and pesticides, promoting ecological balance and biodiversity.",
+      "Biodiversity": "The variety of plant and animal life in a particular habitat, crucial for maintaining ecological balance."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditionally, tomato cultivation involves selecting seeds, planting, nurturing plants with fertilizers, and harvesting manually. With Heirloom Tomato Co.'s optimized processes, there is an emphasis on seed heritage selection and organic growth techniques, followed by distribution to premium markets.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company name and founding details]",
+      "[uncertain: exact distribution networks]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "The best tomatoes in the world",
+    "key_points": [
+      "Renowned for unique flavors and vibrant colors",
+      "Commitment to organic farming and biodiversity",
+      "Marketed directly to gourmet restaurants and high-end grocery stores"
+    ],
+    "constraints": [
+      "Do not claim: specific company name and founding details",
+      "Do not claim: exact distribution networks"
+    ],
+    "problem": "Traditionally, tomato cultivation involves selecting seeds, planting, nurturing plants with fertilizers, and harvesting manually.",
+    "key_features": [
+      "Unique flavors and vibrant colors",
+      "Organic farming practices",
+      "Biodiversity in cultivation"
+    ],
+    "typical_use_cases": [
+      "Used in gourmet restaurant dishes",
+      "Sold in high-end grocery stores"
+    ],
+    "core_interaction_steps": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "What should viewers know or do after watching the video?"
+      },
+      {
+        "field": "target_audience",
+        "note": "Who is the intended audience for this product release?"
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "What is the specific name of the company or brand being featured?"
+      },
+      {
+        "field": "cta",
+        "note": "What action should viewers take after watching the video?"
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "Please provide the steps or interactions you want to highlight in the product release."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:52:45.930562",
+  "updated_at": "2026-01-10T23:52:54.433459"
+}

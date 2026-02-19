@@ -1,0 +1,94 @@
+{
+  "project_id": "legacy_4405621824",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "how to grow tomatoes",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: specific company related to tomato growing]",
+    "product_context": "Growing tomatoes typically involves selecting the right variety, preparing the soil, planting seeds or seedlings, and providing proper care through watering, fertilizing, and pest control. Key differentiators in products related to tomato growing could include organic fertilizers, disease-resistant seed varieties, or innovative gardening tools.",
+    "industry_context": "Home gardening has seen a resurgence in popularity, especially during the COVID-19 pandemic, as more people take interest in sustainable and self-sufficient living. There is a growing trend towards organic and sustainable gardening practices.",
+    "terminology_glossary": {
+      "Heirloom tomatoes": "Tomato varieties that have been passed down through generations due to their valued characteristics.",
+      "Indeterminate": "Tomato plants that continue to grow and produce fruit throughout the growing season until frost.",
+      "Determinate": "Tomato plants that grow to a fixed size and produce all their fruit in a short period.",
+      "Blossom end rot": "A common physiological disorder in tomatoes caused by calcium deficiency, leading to dark, sunken areas on the fruit."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional tomato growing involves: 1) Selecting a variety, 2) Preparing the soil with compost or fertilizer, 3) Planting seeds or seedlings, 4) Regular watering and sunlight exposure, 5) Monitoring for pests and diseases, 6) Harvesting when ripe. Optimized workflows might include using raised beds for better drainage, drip irrigation systems for efficient watering, and organic pest management strategies.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or product focusing on growing tomatoes]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Educate viewers on the step-by-step process of growing tomatoes successfully.",
+    "target_audience": "Home gardeners, both novice and experienced, interested in growing tomatoes.",
+    "company_or_brand_name": "General Home Gardening",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Encourage viewers to start their tomato growing journey using the tips provided.",
+    "video_type": "How-to Video",
+    "user_inputs": "how to grow tomatoes",
+    "key_points": [
+      "Choose the right tomato variety for your climate and taste preferences.",
+      "Prepare soil with compost or organic fertilizer for optimal growth.",
+      "Implement regular watering and sunlight exposure for healthy plants.",
+      "Monitor and manage pests and diseases organically."
+    ],
+    "constraints": [
+      "Do not claim: specific company or product focusing on growing tomatoes"
+    ],
+    "problem": {
+      "description": "Traditional tomato growing involves several steps that can be challenging for beginners, such as selecting the right variety, preparing soil, and managing pests.",
+      "auto_filled_from_research": true
+    },
+    "core_interaction_steps": {
+      "description": [
+        "Select a tomato variety suitable for your region.",
+        "Prepare the soil with compost or organic fertilizer.",
+        "Plant seeds or seedlings at the appropriate depth.",
+        "Ensure plants receive regular watering and adequate sunlight.",
+        "Monitor plants for any signs of pests or diseases and address them promptly."
+      ],
+      "auto_filled_from_research": true
+    },
+    "common_pitfalls": {
+      "description": "Without proper soil preparation and pest management, tomato plants may suffer from issues like blossom end rot and pest infestations.",
+      "auto_filled_from_research": true
+    },
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps",
+      "common_pitfalls"
+    ],
+    "unresolved_questions": []
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T12:33:48.649793",
+  "updated_at": "2026-01-11T12:34:04.407418"
+}

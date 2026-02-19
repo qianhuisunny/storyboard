@@ -1,0 +1,671 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "32",
+        "title": "Define TypeScript types and BriefBuilder props",
+        "description": "Create core TypeScript interfaces for StoryBrief, ContextPack, ProcessingLog, and the BriefBuilder component props as specified in the PRD.",
+        "details": "- Create `types.ts` exporting:\n  - `StoryBrief` interface containing all fields from the sample JSON and PRD: `video_goal`, `target_audience`, `company_or_brand_name`, `tone_and_style`, `format_or_platform`, `desired_length`, `show_face`, `cta`, `video_type`, `user_inputs`, `key_points`, `constraints`, `problem`, `core_interaction_steps`, `common_pitfalls`, `auto_filled_fields`, `user_override_fields`, `unresolved_questions`.\n  - Define nested types, e.g. `Problem = { description: string; auto_filled_from_research?: boolean }`.\n  - Define `UnresolvedQuestion = { id: string; note: string; context?: string; answer_type?: \"text\" | \"textarea\" | \"select\" | \"boolean\" | \"number\"; options?: string[]; value?: unknown }` based on PRD hints.\n  - Define `ContextPack` (shape can be partial/loosely typed with index signatures for now, but include likely fields like `key_value_propositions`, etc.).\n  - Define `ProcessingLogEntry` for Processing view with minimal fields: `{ id: string; step: string; timestamp?: string; details?: string; data?: unknown }` to keep it flexible.\n  - Define `BriefBuilderProps`:\n    ```ts\n    interface BriefBuilderProps {\n      briefData: StoryBrief;\n      contextPack: ContextPack;\n      processingLog: ProcessingLogEntry[];\n      onBriefUpdate: (brief: StoryBrief) => void;\n      onConfirm: () => void;\n    }\n    ```\n- Ensure all list fields (`key_points`, `constraints`, `core_interaction_steps`) are typed as `string[]` and `common_pitfalls` as `string[] | null`.\n- Add discriminated type or helper for `FieldStatus` (`\"auto_filled\" | \"needs_review\" | \"empty\"`) used to drive StatusBadge.\n- Keep the file free of React imports to avoid circular dependencies.\n- Pseudo-code example usage:\n  ```ts\n  import { StoryBrief } from \"./types\";\n\n  function normalizeBrief(raw: any): StoryBrief {\n    return {\n      video_goal: raw.video_goal ?? \"\",\n      // ...other fields\n      common_pitfalls: raw.common_pitfalls ?? null,\n      auto_filled_fields: raw.auto_filled_fields ?? [],\n      user_override_fields: raw.user_override_fields ?? [],\n      unresolved_questions: raw.unresolved_questions ?? [],\n    };\n  }\n  ```",
+        "testStrategy": "- Add unit tests (or TypeScript-only tests) to verify that sample JSON from PRD type-checks as `StoryBrief` without errors.\n- Validate that `BriefBuilder` props enforce correct types by trying to pass incompatible types in a test file (should trigger TS errors).\n- Add a small utility test for `FieldStatus` helper (e.g., auto-filled vs empty detection based on value and `auto_filled_fields`).\n- Run TypeScript compiler in strict mode to ensure no implicit `any` types remain.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-11T23:23:38.554Z"
+      },
+      {
+        "id": "33",
+        "title": "Implement TabToggle component with accessible three-tab navigation",
+        "description": "Create the TabToggle.tsx component that renders the three-tab system (User, Processing, Output) with accessible behaviors and styling hooks.",
+        "details": "- Implement `TabToggle.tsx` as a controlled component:\n  ```tsx\n  type TabKey = \"user\" | \"processing\" | \"output\";\n\n  interface TabToggleProps {\n    activeTab: TabKey;\n    onChange: (tab: TabKey) => void;\n  }\n  ```\n- Render three buttons with clear labels: \"User\", \"Processing\", \"Output\".\n- Follow WAI-ARIA tab patterns: use a tablist and tab roles, similar to patterns described in React tab tutorials.[1][2]\n  - Container: `role=\"tablist\"`.\n  - Each tab button: `role=\"tab\"`, `aria-selected`, `aria-controls`, proper `tabIndex` management.\n- Keyboard interactions:\n  - Left/Right arrow to switch between tabs.\n  - Enter/Space to activate focused tab.\n- Visually indicate active tab with a bottom border or background to match Plotline aesthetic (classNames only; actual CSS done elsewhere).\n- Do not perform validation or state resets on tab switch; the parent component will handle preserving state.\n- Pseudo-code core:\n  ```tsx\n  const tabs: { key: TabKey; label: string }[] = [\n    { key: \"user\", label: \"User\" },\n    { key: \"processing\", label: \"Processing\" },\n    { key: \"output\", label: \"Output\" },\n  ];\n  ```",
+        "testStrategy": "- Write React tests to ensure:\n  - Clicking each tab button triggers `onChange` with correct key.\n  - `aria-selected` is `true` only for the active tab.\n  - Arrow key navigation moves focus and changes the selected tab in a controlled test harness.\n  - Snapshot or DOM test confirms `role=\"tablist\"` and `role=\"tab\"` are present.\n- Manually verify that switching tabs does not unmount Unexpected components in a parent test harness (state preservation is parent responsibility).",
+        "priority": "high",
+        "dependencies": [
+          "32"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-11T23:24:12.314Z"
+      },
+      {
+        "id": "34",
+        "title": "Build BriefBuilder.tsx main container and tabbed layout",
+        "description": "Implement the main BriefBuilder container that wires TabToggle, UserView, ProcessingView, and OutputView using provided props and internal UI state.",
+        "details": "- Implement `BriefBuilder.tsx` with the following responsibilities:\n  - Hold local UI state: `activeTab` (default \"user\"), `userStage` (`1 | 2`), possibly `localBrief` mirror if needed, or rely solely on `briefData` + `onBriefUpdate`.\n  - Render `TabToggle` at the top, passing `activeTab` and `setActiveTab`.\n  - Conditional render per tab:\n    ```tsx\n    {activeTab === \"user\" && (\n      <UserView\n        brief={briefData}\n        onBriefChange={onBriefUpdate}\n        stage={userStage}\n        onStageChange={setUserStage}\n        onConfirm={onConfirm}\n      />\n    )}\n    {activeTab === \"processing\" && (\n      <ProcessingView\n        brief={briefData}\n        contextPack={contextPack}\n        processingLog={processingLog}\n      />\n    )}\n    {activeTab === \"output\" && (\n      <OutputView brief={briefData} />\n    )}\n    ```\n  - Ensure that User View edits propagate directly via `onBriefUpdate`, and OutputView receives updated props so JSON reflects changes in real-time.\n  - Do not block tab switching based on validation; only Stage 1 → Stage 2 transition should enforce required fields.\n  - Optionally support an `autoSave` indicator via debounced callback wrapper if provided later.\n- Ensure the default view is User View (Stage 1) on initial render.\n- Provide layout containers and minimal classNames/hooks for styling consistent with Plotline (e.g., `brief-builder`, `brief-builder-tabs`, `brief-builder-content`).",
+        "testStrategy": "- Integration tests with a mock parent component managing `briefData` in state, verifying:\n  - Tab switching changes which view is visible while keeping the same `briefData` reference.\n  - Editing in UserView updates parent `briefData`, and OutputView JSON updates immediately when switching tabs.\n  - Stage transitions (1 to 2 and back) do not reset fields.\n- Simulate rapid tab switching to ensure no errors and state remains consistent.\n- Verify initial render shows User View, Stage 1, and the default tab is \"user\".",
+        "priority": "high",
+        "dependencies": [
+          "32",
+          "33"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Set up BriefBuilder component structure and props interface",
+            "description": "Create the main BriefBuilder.tsx component with proper TypeScript interfaces for all required props including briefData, onBriefUpdate, contextPack, processingLog, onConfirm, and userStage handlers.",
+            "dependencies": [],
+            "details": "Define Props interface matching the conditional renders: briefData: StoryBrief, onBriefUpdate: (brief: StoryBrief) => void, contextPack, processingLog, onConfirm, setUserStage. Add className 'brief-builder' container div with flex layout.",
+            "status": "pending",
+            "testStrategy": "Unit test verifies component renders without crashing with required props and displays correct container className.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement local UI state with useState hooks",
+            "description": "Add useState hooks for activeTab (default 'user') and userStage ('1' | '2') following React best practices for local component state management.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use const [activeTab, setActiveTab] = useState<'user' | 'processing' | 'output'>('user'); const [userStage, setUserStage] = useState<'1' | '2'>('1'); Ensure type safety and default to User View Stage 1 on initial render.",
+            "status": "pending",
+            "testStrategy": "Test initial state: activeTab === 'user', userStage === '1'; verify setActiveTab and setUserStage update state correctly.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Render TabToggle component at the top",
+            "description": "Add TabToggle component with proper activeTab and onChange props, wrapped in styled container with className 'brief-builder-tabs'.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Place <TabToggle activeTab={activeTab} onChange={setActiveTab} /> inside div with role='tablist' container styling. Add appropriate spacing and Plotline-consistent styling hooks.",
+            "status": "pending",
+            "testStrategy": "Snapshot test confirms TabToggle renders with correct props; verify tablist container className present.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement conditional tab content rendering",
+            "description": "Add conditional rendering for UserView, ProcessingView, and OutputView based on activeTab state with all specified props passed correctly.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Implement exact conditional structure: UserView with brief, onBriefChange, stage, onStageChange, onConfirm; ProcessingView with brief, contextPack, processingLog; OutputView with brief. Use className 'brief-builder-content' wrapper.",
+            "status": "pending",
+            "testStrategy": "Render test verifies correct view renders for each activeTab value; props match expected interfaces.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Add layout styling containers and finalize component",
+            "description": "Complete the full layout structure with proper flexbox containers, spacing, and Plotline styling classes ensuring responsive design.",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4
+            ],
+            "details": "Structure: outer 'brief-builder' flex-col, 'brief-builder-tabs' flex-row justify-start, 'brief-builder-content' flex-1 overflow-auto. Ensure no validation blocks tab switching, only Stage 1→2 transition enforces fields.",
+            "status": "pending",
+            "testStrategy": "Integration test with mock parent: verify tab switching shows correct view, UserView edits propagate via onBriefUpdate, OutputView reflects real-time briefData changes.",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2026-01-17T22:42:39.585Z"
+      },
+      {
+        "id": "35",
+        "title": "Implement UserView container, stages, and shared header copy",
+        "description": "Create UserView.tsx to orchestrate Stage 1 (required fields) and Stage 2 (optional/unresolved questions) with the specified conversational headers and actions.",
+        "details": "- Implement `UserView.tsx` with props similar to:\n  ```ts\n  interface UserViewProps {\n    brief: StoryBrief;\n    onBriefChange: (brief: StoryBrief) => void;\n    stage: 1 | 2;\n    onStageChange: (stage: 1 | 2) => void;\n    onConfirm: () => void; // called on Finish Brief\n  }\n  ```\n- Stage handling:\n  - If `stage === 1`, render `RequiredFieldsForm`.\n  - If `stage === 2`, render `OptionalQuestionsForm`.\n- Headers:\n  - Stage 1 header text exactly as PRD requires.\n  - Stage 2 header text exactly as PRD requires.\n- Buttons and flows:\n  - Stage 1 primary button: label \"Confirm & Continue\" or \"Looks Good, Next\" (configurable via prop or constant). On click:\n    - Trigger validation for required fields via callback from `RequiredFieldsForm`.\n    - If valid, call `onStageChange(2)`.\n  - Stage 2 action buttons:\n    - Primary: \"Finish Brief\" → call `onConfirm()`.\n    - Secondary: \"Back to Edit\" → `onStageChange(1)`.\n- Ensure stage changes do not mutate brief data; they only alter UI steps.\n- Provide small sub-header text or description area that can be styled separately.\n- Pseudo-code layout:\n  ```tsx\n  return (\n    <section className=\"user-view\">\n      <header> ... </header>\n      {stage === 1 ? (\n        <RequiredFieldsForm ... />\n      ) : (\n        <OptionalQuestionsForm ... />\n      )}\n    </section>\n  );\n  ```",
+        "testStrategy": "- Component tests for `UserView` mocking child forms:\n  - Verify correct header text renders for each stage.\n  - Confirm Stage 1 shows the Stage 1 header and Stage 2 shows the Stage 2 header when `stage` prop changes.\n  - Simulate clicking primary button in Stage 1; if child reports `isValid=true`, ensure `onStageChange(2)` is called.\n  - In Stage 2, clicking \"Finish Brief\" calls `onConfirm`, and \"Back to Edit\" calls `onStageChange(1)`.\n- Integration test with real `RequiredFieldsForm` to ensure invalid required fields prevent stage change.",
+        "priority": "high",
+        "dependencies": [
+          "32",
+          "34"
+        ],
+        "status": "done",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create UserView.tsx with props interface and basic structure",
+            "description": "Set up the UserView functional component with the specified UserViewProps interface and basic section layout including className.",
+            "dependencies": [],
+            "details": "Define interface UserViewProps matching the provided spec with brief, onBriefChange, stage, onStageChange, onConfirm. Create functional component returning <section className='user-view'> with header and conditional form rendering placeholder.",
+            "status": "pending",
+            "testStrategy": "Unit test: Verify component renders without crashing with valid props. Snapshot test for basic structure.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement conditional rendering of Stage 1 and Stage 2 forms",
+            "description": "Add logic to render RequiredFieldsForm when stage===1 and OptionalQuestionsForm when stage===2, passing required props to each.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use ternary operator in JSX: {stage === 1 ? <RequiredFieldsForm brief={brief} onBriefChange={onBriefChange} /> : <OptionalQuestionsForm brief={brief} onBriefChange={onBriefChange} />}. Ensure props match child component expectations from dependencies.",
+            "status": "pending",
+            "testStrategy": "Component tests: Verify RequiredFieldsForm renders when stage=1, OptionalQuestionsForm renders when stage=2. Test prop passing with mock components.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Add stage-specific headers with exact PRD copy",
+            "description": "Implement header section that displays Stage 1 header text when stage=1 and Stage 2 header text when stage=2, plus small sub-header area.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create header JSX with conditional text: stage===1 ? 'Stage 1 PRD header text' : 'Stage 2 PRD header text'. Add sub-header div with separate styling class for future customization. Use exact wording from PRD.",
+            "status": "pending",
+            "testStrategy": "Render tests: Assert exact header text matches PRD for stage=1 and stage=2. Verify sub-header div renders with correct className.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement Stage 1 Confirm & Continue button with validation flow",
+            "description": "Add primary button for Stage 1 that triggers validation callback from RequiredFieldsForm and calls onStageChange(2) if valid.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "In Stage 1 section, add button 'Confirm & Continue' that calls RequiredFieldsForm's validation callback. On valid response, invoke onStageChange(2). Ensure no brief mutation - only UI state change. Handle invalid case by showing errors.",
+            "status": "pending",
+            "testStrategy": "Integration test: Mock RequiredFieldsForm validation callback returning true/false. Verify onStageChange(2) called only when valid. Test error state display.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 5,
+            "title": "Implement Stage 2 action buttons and complete integration",
+            "description": "Add Finish Brief and Back to Edit buttons for Stage 2. Finalize all flows ensuring no brief data mutation on stage changes.",
+            "dependencies": [
+              2,
+              3,
+              4
+            ],
+            "details": "In Stage 2 section, add two buttons: primary 'Finish Brief' calls onConfirm(), secondary 'Back to Edit' calls onStageChange(1). Ensure all stage transitions only change UI stage prop, never mutate brief object directly.",
+            "status": "pending",
+            "testStrategy": "Full component tests: Verify Finish Brief calls onConfirm, Back to Edit calls onStageChange(1). Test complete stage transitions without brief mutation. Snapshot final component.",
+            "parentId": "undefined"
+          }
+        ],
+        "updatedAt": "2026-01-17T22:46:53.370Z"
+      },
+      {
+        "id": "36",
+        "title": "Create FormField and StatusBadge components with field status logic",
+        "description": "Build reusable FormField.tsx and StatusBadge.tsx components to render individual fields with labels, inputs, and status badges (Auto-filled, Needs review, Empty).",
+        "details": "- Implement `StatusBadge.tsx`:\n  - Props: `{ status: \"auto_filled\" | \"needs_review\" | \"empty\" }`.\n  - Render small inline badge with:\n    - Auto-filled: green badge, text \"Auto-filled\" and optionally icon.\n    - Needs review: yellow/amber badge, text \"Needs review\".\n    - Empty: gray badge, text \"Empty\".\n  - Provide CSS hook classes: `status-badge`, `status-auto`, `status-review`, `status-empty`.\n- Implement a utility to determine status based on field value and metadata:\n  ```ts\n  function getFieldStatus(fieldName: keyof StoryBrief, brief: StoryBrief): FieldStatus {\n    const value = (brief as any)[fieldName];\n    if (value == null || value === \"\" || (Array.isArray(value) && value.length === 0)) {\n      return \"empty\";\n    }\n    if (brief.auto_filled_fields?.includes(fieldName as string)) {\n      return \"auto_filled\";\n    }\n    // Optionally treat some as needs_review if not auto-filled\n    return \"needs_review\";\n  }\n  ```\n- Implement `FormField.tsx`:\n  - Props: generic over value type with at least: `label`, `name`, `value`, `onChange`, `type`, `options?`, `helperText?`, `required?`, `status`, `inputProps?`.\n  - Render label, inline `StatusBadge`, and an appropriate input element based on `type`:\n    - `\"textarea\"`: `<textarea>`.\n    - `\"text\"`: `<input type=\"text\">`.\n    - `\"select\"`: `<select>` with provided options.\n    - `\"toggle\"`: yes/no toggle using checkbox or two-button group.\n  - Show inline validation error text, passed as prop from parent.\n- Ensure fields are fully controlled: `value` from props and `onChange` calls parent with new value.\n- Apply accessibility best practices: label `htmlFor`, `id` linking, and `aria-describedby` for helper text and errors.\n- Use monospace or normal font depending on design (normal for User View).",
+        "testStrategy": "- Unit tests for `getFieldStatus` with various values (empty string, null, non-empty string, arrays, presence in `auto_filled_fields`).\n- Snapshot or DOM tests for `StatusBadge` verifying classes and text per status.\n- Component tests for `FormField`:\n  - Ensure correct input type renders based on `type` prop.\n  - Simulate typing and verify `onChange` is called with the new value.\n  - Confirm label is associated with input via `htmlFor`/`id` and badges render correctly.\n- Visually inspect different field configurations in Storybook or a demo page.",
+        "priority": "high",
+        "dependencies": [
+          "32",
+          "35"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-17T22:49:27.867Z"
+      },
+      {
+        "id": "37",
+        "title": "Implement RequiredFieldsForm with validation and field-type mapping",
+        "description": "Create RequiredFieldsForm.tsx to render all required brief fields with appropriate input types, status badges, and validation before moving to Stage 2.",
+        "details": "- Implement `RequiredFieldsForm.tsx` with props:\n  ```ts\n  interface RequiredFieldsFormProps {\n    brief: StoryBrief;\n    onBriefChange: (brief: StoryBrief) => void;\n    onValidatedNext: () => void; // called when form passes validation\n  }\n  ```\n- Render fields using `FormField` according to PRD table:\n  - `video_goal`: textarea.\n  - `target_audience`: text.\n  - `company_or_brand_name`: text.\n  - `tone_and_style`: select with options [\"professional\", \"casual\", \"inspirational\", \"technical\"].\n  - `format_or_platform`: select or text; implement as select with common options plus free text fallback.\n  - `desired_length`: text input with suffix \"seconds\" (could be a text field with adornment or two elements inline).\n  - `show_face`: Yes/No toggle.\n  - `cta`: text.\n  - `video_type`: select dropdown (use PRD’s values, plus ability to support additional like \"How-to Video\").\n  - `key_points`: use `EditableList` (string array).\n  - `constraints`: `EditableList`.\n  - `problem`: textarea bound to `problem.description`.\n  - `core_interaction_steps`: ordered `EditableList`.\n  - `common_pitfalls`: optional `EditableList` (can be empty).\n- Integrate `StatusBadge` via `getFieldStatus` for each field.\n- Implement `EditableList.tsx` used here:\n  - Props: `items: string[]`, `onChange`, `ordered?: boolean`.\n  - Provide add, remove, and re-order (up/down buttons or drag handles where available).\n  - Pseudo-code reordering:\n    ```ts\n    function moveItem(idx: number, direction: 1 | -1) {\n      const newItems = [...items];\n      const target = idx + direction;\n      if (target < 0 || target >= newItems.length) return;\n      [newItems[idx], newItems[target]] = [newItems[target], newItems[idx]];\n      onChange(newItems);\n    }\n    ```\n- Validation logic:\n  - Define list of required fields (e.g., `video_goal`, `target_audience`, `company_or_brand_name`, `tone_and_style`, `desired_length`, `video_type`, maybe `show_face` and `cta`).\n  - On primary button click, check each required field is non-empty.\n  - Store validation error messages in local component state; display inline below each invalid field.\n- On any field change, create an updated `brief` object immutably and call `onBriefChange(updated)`, so OutputView sees changes in real-time.\n- Do not perform async calls; just in-memory editing and validation.",
+        "testStrategy": "- Component tests verifying:\n  - All specified fields render with correct input type and labels.\n  - Editing a field updates the `brief` passed to `onBriefChange` with a new object reference and updated value.\n  - Leaving required fields empty and clicking Next sets validation errors and does not call `onValidatedNext`.\n  - Filling them and clicking Next clears errors and calls `onValidatedNext` exactly once.\n- Tests for `EditableList`:\n  - Add, remove, and reorder items update the list correctly and call `onChange` with expected arrays.\n  - Ordered lists maintain index order labels when `ordered=true`.\n- Verify that `common_pitfalls` can be empty/no list without errors.",
+        "priority": "high",
+        "dependencies": [
+          "32",
+          "35",
+          "36"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-17T22:49:27.868Z"
+      },
+      {
+        "id": "38",
+        "title": "Implement OptionalQuestionsForm with unresolved questions and optional enhancements",
+        "description": "Build OptionalQuestionsForm.tsx to render unresolved questions and video-type-specific optional enhancements with skip functionality.",
+        "details": "- Implement `OptionalQuestionsForm.tsx` with props:\n  ```ts\n  interface OptionalQuestionsFormProps {\n    brief: StoryBrief;\n    onBriefChange: (brief: StoryBrief) => void;\n    onFinish: () => void;\n    onBack: () => void;\n  }\n  ```\n- Handle `unresolved_questions` array:\n  - For each question, display:\n    - Question text from `note`.\n    - Helper text from `context` (muted style).\n    - Input type determined by `answer_type` or default to text.\n    - A \"Skip\" button for each question that marks it as skipped (e.g., internal UI state) but does not require an answer.\n  - On answer change, update the `unresolved_questions` entry in the `brief` and call `onBriefChange`.\n- Optional enhancements based on `video_type`:\n  - If `common_pitfalls` is null or empty and `video_type` indicates tutorials/how-to (e.g., contains \"How-to\" or equals \"How-to Video\"), show a suggestion block:\n    - Text like \"Would you like to add common pitfalls to warn viewers about?\".\n    - A button to \"Add common pitfalls\" which initializes `common_pitfalls` as `[]` and reveals an `EditableList` to fill them.\n  - Additional hooks could be added for other video types (e.g., product release suggestions) via simple conditionals.\n- Layout:\n  - Top header with PRD-provided text.\n  - List of unresolved questions as stacked `FormField`s.\n  - Bottom action bar with:\n    - Primary button \"Finish Brief\" → calls `onFinish`.\n    - Secondary button \"Back to Edit\" → calls `onBack`.\n- Ensure that skipping questions does not block finishing.\n- Keep validation light: optional questions should generally not block completion unless PRD later requires it.",
+        "testStrategy": "- Tests verifying:\n  - All `unresolved_questions` entries render question text, context text, and appropriate input types.\n  - Editing an unresolved question updates `brief.unresolved_questions` via `onBriefChange`.\n  - Clicking skip does not require answers and does not throw errors.\n  - When `video_type` is a how-to variant and `common_pitfalls` is null, the optional enhancement prompt is visible; clicking its button creates an empty array and shows `EditableList`.\n- Test that clicking \"Finish Brief\" triggers `onFinish` and \"Back to Edit\" triggers `onBack` without validating unresolved questions as required.\n- Confirm that OutputView reflects any answers added in Stage 2 after editing and switching tabs.",
+        "priority": "medium",
+        "dependencies": [
+          "32",
+          "35",
+          "37"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-17T22:49:27.870Z"
+      },
+      {
+        "id": "39",
+        "title": "Build ProcessingView and CollapsibleSection components for technical log",
+        "description": "Implement the ProcessingView and reusable CollapsibleSection components to display original input, context pack extraction, auto-fill decisions, and gaps identified.",
+        "details": "- Implement `CollapsibleSection.tsx`:\n  - Props: `{ title: string; defaultOpen?: boolean; children: ReactNode; subtitle?: string }`.\n  - Internals:\n    - Local `isOpen` state; toggle on header click.\n    - Header displays title and optional subtitle, plus an expand/collapse icon.\n    - Body is conditionally rendered when `isOpen` is true.\n- Implement `ProcessingView.tsx` with props:\n  ```ts\n  interface ProcessingViewProps {\n    brief: StoryBrief;\n    contextPack: ContextPack;\n    processingLog: ProcessingLogEntry[];\n  }\n  ```\n- Sections per PRD:\n  1. **Original Input**:\n     - Show raw user intake data: at minimum `brief.user_inputs` and any original payload from `processingLog`.\n     - Render using a `<pre>` with monospace font and subdued color classes.\n  2. **Context Pack Extraction**:\n     - Show mappings from contextPack to brief fields, e.g. `key_points ← context_pack.key_value_propositions`.\n     - If processingLog has structured mapping info, leverage that; otherwise, generate simple mapping text from known fields.\n  3. **Auto-Fill Decisions**:\n     - Iterate over `brief.auto_filled_fields` and for each, show:\n       - Field name.\n       - Field value (stringified or truncated for long text).\n       - Confidence level and source if available in `processingLog`.\n  4. **Gaps Identified**:\n     - Identify fields that are empty by `getFieldStatus === \"empty\"`.\n     - For each, show: field name and a simple reason like \"No reliable data in Context Pack\" or use data from `processingLog` if present.\n- Every section uses monospace fonts for technical strings and more muted backgrounds than User View.\n- Optionally include timestamps or step numbers derived from `processingLogEntry.timestamp`.\n- Ensure large JSON chunks scroll within their section if needed, not the entire page.",
+        "testStrategy": "- Component tests for `CollapsibleSection`:\n  - Verify defaultOpen behavior and toggle on header click.\n  - Ensure children are not in the DOM when collapsed.\n- Tests for `ProcessingView` using mock `brief`, `contextPack`, and `processingLog`:\n  - Confirm that all four sections render with titles.\n  - Ensure Original Input section includes `brief.user_inputs` text.\n  - For auto-filled fields, verify that a row is rendered for each `auto_filled_fields` entry.\n  - For gaps, ensure fields with empty values appear in the Gaps section.\n- Visual/manual test to ensure monospace styling and subdued colors are applied via classNames and that long content scrolls correctly.",
+        "priority": "medium",
+        "dependencies": [
+          "32",
+          "34",
+          "36"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-17T22:49:27.871Z"
+      },
+      {
+        "id": "40",
+        "title": "Implement OutputView and JsonDisplay with syntax highlighting and export actions",
+        "description": "Create OutputView.tsx and JsonDisplay.tsx to render the full brief JSON with syntax highlighting, line numbers, copy-to-clipboard, and download as .json.",
+        "details": "- Choose a JSON highlighter library compatible with React/TypeScript, e.g. `react-syntax-highlighter` or `Prism.js` wrapper, as the PRD suggests.[1][5]\n- Implement `JsonDisplay.tsx`:\n  - Props: `{ data: unknown }`.\n  - Convert `data` to pretty-printed JSON: `const json = JSON.stringify(data, null, 2);`.\n  - Use the chosen library component (e.g., `Prism` or `SyntaxHighlighter`) with:\n    - Language: `json`.\n    - Line numbers enabled.\n    - Option for wrapping long lines or horizontal scroll: set `wrapLongLines` or custom CSS with `overflow-x: auto`.\n  - Keep styling muted but readable consistent with Output view background.\n- Implement copy-to-clipboard button in `OutputView.tsx`:\n  - Use `navigator.clipboard.writeText(json)` inside a try/catch.\n  - Provide small toast or inline text change like \"Copied\" for feedback (optional but recommended).\n- Implement \"Download as .json\" button:\n  - Create a Blob with MIME `application/json` and use `URL.createObjectURL` to trigger a download of `plotline-brief.json`.\n  - Clean up object URL after download.\n- `OutputView.tsx` props:\n  ```ts\n  interface OutputViewProps {\n    brief: StoryBrief;\n  }\n  ```\n  Render a header and a top-right action bar housing the copy and download buttons, then `JsonDisplay`.\n- Ensure this view is read-only; no editing capabilities here.\n- Use monospace fonts and a slightly darker/muted background relative to User View, per PRD styling guidelines.",
+        "testStrategy": "- Component tests for `JsonDisplay` verifying:\n  - It renders pretty-printed JSON (check for newlines and indentation).\n  - Line numbers appear in the DOM as expected for the chosen library.\n- Tests for copy button:\n  - Mock `navigator.clipboard.writeText` and assert it is called with the current brief JSON string when the copy button is clicked.\n- Tests for download button:\n  - Mock `URL.createObjectURL` and `document.createElement('a')` to assert that a link is created with a `download` attribute and that `click()` is called.\n- Integration test with `BriefBuilder` to ensure that changes made in User View appear in Output JSON after props update.\n- Manual test for very long JSON lines to ensure either wrapping or horizontal scroll works as intended.",
+        "priority": "medium",
+        "dependencies": [
+          "32",
+          "34"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-17T22:49:27.872Z"
+      },
+      {
+        "id": "41",
+        "title": "Apply Plotline-consistent styling and responsive layout",
+        "description": "Add CSS/SCSS or styled-components to match the existing Plotline UI aesthetic, ensuring clear tab differentiation and responsive behavior.",
+        "details": "- Use existing Plotline design system tokens if available; otherwise, approximate based on PRD:\n  - White/light background for User View.\n  - Slightly darker/muted backgrounds for Processing and Output views.\n  - Grayscale palette with subtle accent colors for active tab and focus states.\n- Styling tasks:\n  - Tabs: horizontal layout, clear active state (font-weight change, underline, or background), subtle hover.\n  - Form fields: clear borders, focus ring (e.g., 1–2px accent outline), comfortable spacing between fields.\n  - Status badges: small, inline chips with green/yellow/gray backgrounds and high-contrast text.\n  - EditableList: clear add/remove/reorder controls with minimal icons.\n  - Processing/Output sections: monospace font for technical content, subtle panel backgrounds.\n- Responsive design:\n  - Use CSS grid or flexbox for layout.\n  - On narrow screens, stack fields vertically with full-width inputs.\n  - Ensure tabs remain touch-friendly with sufficient hit area.\n- Add utility classes to allow future theme adjustments without refactoring components.\n- Pseudo-code structure (CSS):\n  ```css\n  .brief-builder { display: flex; flex-direction: column; height: 100%; }\n  .brief-builder-tabs { border-bottom: 1px solid #e0e0e0; }\n  .brief-builder-content { flex: 1; overflow: auto; padding: 16px 24px; }\n  @media (max-width: 768px) { /* stack layout adjustments */ }\n  ```",
+        "testStrategy": "- Manually test across viewport widths (mobile, tablet, desktop) to confirm responsive behavior and readability.\n- Use automated visual regression tests (if available) to catch unintended style changes.\n- Run accessibility audits (Lighthouse/axe) to ensure sufficient color contrast, visible focus indicators, and tap target sizes.\n- Verify that content within each tab scrolls correctly while the tab bar remains visible if desired.",
+        "priority": "medium",
+        "dependencies": [
+          "33",
+          "35",
+          "36",
+          "37",
+          "38",
+          "39",
+          "40"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-17T22:49:27.873Z"
+      },
+      {
+        "id": "42",
+        "title": "Implement form validation helpers and non-blocking tab behavior",
+        "description": "Create shared validation utilities for required fields and ensure validation only gates Stage 1→2, not tab switching.",
+        "details": "- Implement `validation.ts` with helpers:\n  ```ts\n  const REQUIRED_FIELDS: (keyof StoryBrief)[] = [\n    \"video_goal\",\n    \"target_audience\",\n    \"company_or_brand_name\",\n    \"tone_and_style\",\n    \"desired_length\",\n    \"video_type\",\n  ];\n\n  interface ValidationErrors { [K in keyof StoryBrief]?: string }\n\n  function validateRequiredFields(brief: StoryBrief): ValidationErrors {\n    const errors: ValidationErrors = {};\n    for (const field of REQUIRED_FIELDS) {\n      const value = (brief as any)[field];\n      if (value == null || value === \"\") {\n        errors[field] = \"This field is required.\";\n      }\n    }\n    return errors;\n  }\n  ```\n- Wire this helper into `RequiredFieldsForm` (on primary action) via callbacks already planned, passing errors back into local form state.\n- Ensure `BriefBuilder` does not prevent tab changes based on validation state:\n  - `TabToggle` onChange should always update `activeTab`.\n  - Validation occurs only when Stage 1’s \"Confirm & Continue\" button is clicked.\n- Consider future extensibility: allow optional per-field custom validation, e.g., numeric-only check for `desired_length`.\n- Keep validation synchronous and side-effect free.\n- Add small error summary hook if needed (e.g., focusing first invalid field).",
+        "testStrategy": "- Unit tests for `validateRequiredFields` verifying:\n  - It returns errors for each empty required field.\n  - It returns an empty object for a fully valid brief.\n- Integration tests in `RequiredFieldsForm`:\n  - Mock `validateRequiredFields` results and assert errors appear under the correct fields.\n- Test non-blocking behavior:\n  - With invalid required fields, verify that user can still click to \"Processing\" or \"Output\" tab and see those views.\n  - Ensure that they cannot proceed to Stage 2 via the Stage 1 button until fields are corrected.",
+        "priority": "medium",
+        "dependencies": [
+          "32",
+          "37",
+          "34"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-17T22:49:27.874Z"
+      },
+      {
+        "id": "43",
+        "title": "Add debounced auto-save mechanism (optional enhancement)",
+        "description": "Implement an optional debounced auto-save mechanism that triggers on brief edits and shows a simple saving/saved indicator.",
+        "details": "- Implement a custom hook `useDebouncedSave`:\n  ```ts\n  function useDebouncedSave<T>(value: T, delay: number, onSave: (value: T) => void) {\n    const [status, setStatus] = useState<\"idle\" | \"saving\" | \"saved\">(\"idle\");\n    useEffect(() => {\n      if (!onSave) return;\n      setStatus(\"saving\");\n      const handler = setTimeout(() => {\n        onSave(value);\n        setStatus(\"saved\");\n        const timeout = setTimeout(() => setStatus(\"idle\"), 1000);\n        return () => clearTimeout(timeout);\n      }, delay);\n      return () => clearTimeout(handler);\n    }, [value, delay, onSave]);\n    return status;\n  }\n  ```\n- Integrate into `BriefBuilder` or parent container, depending on architecture:\n  - Option A: `BriefBuilder` receives an optional `onAutoSave` prop; if provided, wrap `briefData` changes and pass into `useDebouncedSave`.\n  - Option B: Provide only hook and example usage so the hosting app wires persistence.\n- Display a small status indicator near the top-right of the User View (and optionally other views):\n  - \"Saving...\" when status is `saving`.\n  - \"Saved\" when status is `saved`.\n  - Hidden or subtle icon when `idle`.\n- Ensure auto-save is non-blocking; it should not affect validation or user navigation.\n- Use a reasonable default debounce delay (e.g., 500–1000 ms) and allow override via prop if needed.",
+        "testStrategy": "- Unit tests for `useDebouncedSave` using Jest fake timers:\n  - Verify that `onSave` is called only after the specified delay and only with the latest value after multiple rapid changes.\n  - Confirm that status transitions from `idle` → `saving` → `saved` → `idle` over time.\n- Integration test in a test harness component:\n  - Simulate typing into form fields and ensure auto-save callback is invoked debounced.\n  - Confirm that navigating between tabs does not reset or interrupt the autosave beyond normal unmount behavior (if autosave is host-level, prefer it stays mounted).",
+        "priority": "low",
+        "dependencies": [
+          "34",
+          "37",
+          "38"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-17T22:49:27.875Z"
+      },
+      {
+        "id": "44",
+        "title": "Refactor Context Pack extraction to be video-type-aware and add source transparency",
+        "description": "Three issues identified: 1) Context Pack schema is product-focused (company_context, product_context, key_value_propositions) but doesn't adapt to video type - Knowledge Share videos need different fields like topic_expertise, learning_objectives, knowledge_sources. 2) No visibility into what web searches were performed or which sources informed each field. 3) UI shows only 'Auto-filled' or 'undefined' instead of four-state system.",
+        "details": "**Solution:**\n\n1. **Update TOPIC_RESEARCHER_SYSTEM_PROMPT.md** to generate video-type-specific Context Packs:\n   - For Product/Brand videos: keep existing fields (company_context, product_context, key_value_propositions)\n   - For Knowledge Share videos: use topic_expertise, learning_objectives, knowledge_sources, key_concepts\n   - For How-to videos: use step_prerequisites, common_mistakes, success_criteria\n   - Include source URLs for each extracted field\n\n2. **Update BRIEF_BUILDER_SYSTEM_PROMPT.md** to output field states with the four-state system:\n   - `auto-filled`: High confidence with source URL and confidence score\n   - `inferred`: Needs user confirmation (derived from context but uncertain)\n   - `missing`: Ask user to provide (no reliable data found)\n   - `not-applicable`: With reason (field doesn't apply to this video type)\n\n3. **Update frontend Processing tab** to display:\n   - The four states with appropriate visual indicators\n   - Source citations (clickable URLs) for auto-filled fields\n   - Confidence scores where applicable\n   - Clear indication of what web searches were performed",
+        "testStrategy": "- Verify Context Pack generates different schemas based on video_type\n- Test that source URLs are captured and passed through\n- Verify UI displays all four field states correctly\n- Test that clicking source citations opens correct URLs\n- Validate that Knowledge Share videos don't show product-focused fields",
+        "priority": "high",
+        "dependencies": [
+          "39",
+          "36"
+        ],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-01-23T04:46:10.650Z"
+      },
+      {
+        "id": "45",
+        "title": "Implement Database Schemas for CompanyContext and CampaignContext",
+        "description": "Create database tables and TypeScript interfaces matching the specified data models for persistent Company and Campaign contexts.",
+        "details": "Use TypeORM or Prisma to define entities based on provided interfaces. CompanyContext: id (UUID primary key), name (string), brand_voice (JSON with tone/vocabulary/avoid arrays), company_background (text), products (JSON array of ProductContext), audiences (JSON array of AudiencePersona), created_at/updated_at (timestamps). CampaignContext: id (UUID), company_id (UUID foreign key), name (string), goals (JSON array), target_segment (string), messaging_pillars (JSON array), product_focus (string optional). Add indexes on company_id and ids. Run migrations.",
+        "testStrategy": "Unit tests: validate schema creation, foreign key constraints, JSON field serialization/deserialization. Integration tests: CRUD operations for both entities, verify relationships. Seed test data and assert queries return expected structures.",
+        "priority": "low",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Define TypeScript Interfaces for CompanyContext and CampaignContext",
+            "description": "Create TypeScript interface definitions matching the exact data models specified for both CompanyContext and CampaignContext entities.",
+            "dependencies": [],
+            "details": "Define interfaces with all specified fields: CompanyContext (id: string UUID, name: string, brand_voice: object, company_background: string, products: ProductContext[], audiences: AudiencePersona[], created_at/updated_at: Date). CampaignContext (id: string UUID, company_id: string UUID, name: string, goals: any[], target_segment: string, messaging_pillars: any[], product_focus?: string). Export from entities file.",
+            "status": "pending",
+            "testStrategy": "Unit tests: validate interface structure using type guards or zod schemas, ensure all required/optional fields match specification exactly.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Create TypeORM Entity Classes for CompanyContext and CampaignContext",
+            "description": "Implement TypeORM @Entity decorators with proper column types, relationships, and indexes based on the TypeScript interfaces.",
+            "dependencies": [
+              1
+            ],
+            "details": "Use @Entity() for both. CompanyContext: @PrimaryGeneratedColumn('uuid'), @Column(), @Column('json'), @Column('text'), @Column('json'), @CreateDateColumn/@UpdateDateColumn. CampaignContext: @ManyToOne(() => CompanyContext, company => company.campaigns), @Index on company_id. Add @Index(['id']) on both entities.",
+            "status": "pending",
+            "testStrategy": "Unit tests: validate entity metadata using TypeORM getMetadataArgs, confirm column types, relationships, and index definitions match schema.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Register Entities in TypeORM DataSource and Generate Migration",
+            "description": "Update TypeORM configuration to include new entities and generate initial migration file for schema creation.",
+            "dependencies": [
+              2
+            ],
+            "details": "Add entities to AppDataSource.entities array. Configure synchronize: false for production. Run 'npm run typeorm migration:generate CreateCompanyCampaignTables' to create migration with table creation, foreign keys, JSON columns, UUID primaries, timestamps, and indexes on company_id/ids.",
+            "status": "pending",
+            "testStrategy": "Integration test: initialize DataSource, verify entities are registered via dataSource.entityMetadatas.length and metadata inspection.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Run Migration and Verify Database Schema with CRUD Tests",
+            "description": "Execute the generated migration and implement comprehensive tests to validate schema, constraints, and data operations.",
+            "dependencies": [
+              3
+            ],
+            "details": "Run 'npm run typeorm migration:run'. Test JSON serialization/deserialization for brand_voice/products/etc., foreign key constraints (reject invalid company_id), index performance on queries by company_id, timestamp auto-updates on create/update.",
+            "status": "pending",
+            "testStrategy": "Integration tests: full CRUD for both entities with valid/invalid data, verify relationships (campaign.company populated), JSON field roundtrip, constraint violations throw expected errors, seed data queries use indexes efficiently.",
+            "parentId": "undefined"
+          }
+        ]
+      },
+      {
+        "id": "46",
+        "title": "Develop File Upload and AI Extraction Pipeline for Brand Documents",
+        "description": "Build backend service for uploading PDF/Word files and using AI to extract structured CompanyContext data.",
+        "details": "Use Multer for file uploads (limit 10MB). Integrate PDF.js or Mammoth.js for parsing. Call OpenAI/Groq API with prompt: 'Extract brand voice (tone/vocab/avoid), background, products, audiences from this doc into CompanyContext JSON schema.' Validate extracted JSON against TypeScript interface. Store via CompanyContext repo. Handle errors: invalid files, extraction failures. Support Option A in onboarding.",
+        "testStrategy": "Unit tests: file parsing, API prompt/response validation. Integration tests: upload sample PDFs/Word docs, assert extracted JSON matches expected CompanyContext. Mock AI responses. E2E: upload->extract->DB store->query verification.",
+        "priority": "low",
+        "dependencies": [
+          "45"
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement File Upload Endpoint with Multer",
+            "description": "Create Express route for handling PDF/Word file uploads using Multer with 10MB limit and file type validation.",
+            "dependencies": [],
+            "details": "Configure Multer with diskStorage or memoryStorage, set limits: { fileSize: 10*1024*1024 }, filter for PDF/DOC/DOCX mime types (application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document). Store temporarily and return file path/buffer.",
+            "status": "pending",
+            "testStrategy": "Unit test Multer config: valid PDF/Word uploads succeed, invalid types/size rejected with 400 errors. Verify req.file contains expected properties.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Add Document Parsing with PDF.js and Mammoth.js",
+            "description": "Parse uploaded PDF/Word files to extract text content using appropriate libraries.",
+            "dependencies": [
+              1
+            ],
+            "details": "Integrate pdf-parse for PDFs and mammoth for Word docs. Detect file type from mime/extension, extract full text content as string. Handle parsing errors by rejecting invalid/corrupted files. Clean extracted text (remove extra whitespace).",
+            "status": "pending",
+            "testStrategy": "Unit tests with sample PDF/Word files: verify text extraction accuracy, handle empty/corrupted files. Mock file buffers from upload endpoint.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Integrate AI Extraction and JSON Validation",
+            "description": "Call OpenAI/Groq API with document text and validate extracted CompanyContext JSON against TypeScript interface.",
+            "dependencies": [
+              2
+            ],
+            "details": "Construct prompt with extracted text and CompanyContext schema. Call AI API (OpenAI/Groq), parse response as JSON. Use zod/runtime type checking to validate against CompanyContext interface. Retry once on parsing failures, return detailed validation errors.",
+            "status": "pending",
+            "testStrategy": "Mock AI responses: valid JSON passes validation, invalid schemas fail with specific errors. Test edge cases: missing required fields, wrong types, malformed JSON.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement Storage, Error Handling, and Onboarding Integration",
+            "description": "Store validated CompanyContext via repository, add comprehensive error handling, and integrate with Option A onboarding flow.",
+            "dependencies": [
+              3
+            ],
+            "details": "Save to CompanyContext repo with user/company association. Centralized error handling: 400 for invalid files/parsing, 500 for AI/repo failures with user-friendly messages. Add endpoint to onboarding Option A flow, cleanup temp files, add logging.",
+            "status": "pending",
+            "testStrategy": "Integration tests: full pipeline with real sample docs, verify DB storage matches expected schema. E2E: upload->extract->store->query. Error path tests for all failure modes.",
+            "parentId": "undefined"
+          }
+        ]
+      },
+      {
+        "id": "47",
+        "title": "Build Admin UI for Managing Persistent Company and Campaign Contexts",
+        "description": "Create user-facing interface for viewing, editing, creating Company and Campaign contexts.",
+        "details": "React/Next.js components: CompanyContextForm (JSON editor for brand_voice/products/audiences), CampaignContextForm (linked to company dropdown). Use React Hook Form + Zod for validation matching TS interfaces. API endpoints: GET/POST/PUT/DELETE /api/company-context/:id, /api/campaign-context. Auth guard for user-owned contexts only. List views with search/filter by name.",
+        "testStrategy": "Unit tests: form validation, API hooks. Cypress E2E: CRUD flows (create company, add campaign, edit fields, delete). Assert UI matches data, permissions enforced. Snapshot testing for forms.",
+        "priority": "low",
+        "dependencies": [
+          "45"
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create CompanyContext list view and form component",
+            "description": "Build the list view for companies with search/filter by name and the CompanyContextForm using JSON editor for brand_voice/products/audiences.",
+            "dependencies": [],
+            "details": "Use React Hook Form + Zod for validation matching TS interfaces from Task 32. Implement GET /api/company-context with auth guard for user-owned contexts. Add create/edit buttons linking to form modal.",
+            "status": "pending",
+            "testStrategy": "Unit tests for form validation and list search/filter. Snapshot testing for form UI. Cypress E2E for list rendering and create flow.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement CompanyContext CRUD API integration",
+            "description": "Add POST/PUT/DELETE endpoints for /api/company-context/:id with proper auth guards ensuring only user-owned contexts are accessible.",
+            "dependencies": [
+              1
+            ],
+            "details": "Create React Query or SWR hooks for optimistic updates. Implement form submission handling with error states. Add loading states and success notifications for CRUD operations.",
+            "status": "pending",
+            "testStrategy": "Unit tests for API hooks with MSW mocking. Test auth guard redirects unauthorized access. Integration tests for full CRUD cycle.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Build CampaignContext list view and form with company dropdown",
+            "description": "Create CampaignContext list view with search/filter and CampaignContextForm linked to company dropdown populated from company list.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Fetch companies via API for dropdown. Use React Hook Form + Zod validation. Implement GET /api/campaign-context with auth filtering. Link campaigns to parent company.",
+            "status": "pending",
+            "testStrategy": "Unit tests for dropdown population and form validation. Snapshot tests for list and form. Cypress tests for campaign creation linked to existing company.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Add full CRUD operations and admin UI polish",
+            "description": "Complete CampaignContext API endpoints (POST/PUT/DELETE) and polish both admin UIs with consistent styling, error handling, and responsive design.",
+            "dependencies": [
+              2,
+              3
+            ],
+            "details": "Implement delete confirmations, bulk actions if needed, responsive table layouts. Add StatusBadge from Task 36 to show context completeness. Ensure mobile-friendly design.",
+            "status": "pending",
+            "testStrategy": "Cypress E2E for complete flows: create company → add campaign → edit → delete. Test permissions enforcement. Snapshot testing for responsive breakpoints.",
+            "parentId": "undefined"
+          }
+        ]
+      },
+      {
+        "id": "48",
+        "title": "Implement Context Resolution Logic in Context Pack Generation",
+        "description": "Modify existing Context Pack generator to layer Company -> Campaign -> Per-Video research with gap detection.",
+        "details": "In research agent pipeline: 1. Fetch user CompanyContext if exists. 2. Fetch linked CampaignContext. 3. Identify gaps (e.g., missing topic-specific facts). 4. Run targeted research only for gaps. 5. Merge: deepMerge(company, campaign, research). Set context_source: 'user_provided' | 'researched' | 'hybrid'. Output final Context Pack JSON with source field. Use Lodash merge for hierarchy.",
+        "testStrategy": "Unit tests: merge logic with mock contexts (full company+campaign, gaps only, no persistent). Assert correct source field and no overwrites. Integration: trigger Context Pack gen with/without contexts, verify reduced research calls and merged output.",
+        "priority": "low",
+        "dependencies": [
+          "45"
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement Fetching of Company and Campaign Contexts",
+            "description": "Add logic to retrieve user CompanyContext if exists and linked CampaignContext from database in the Context Pack generator pipeline.",
+            "dependencies": [],
+            "details": "Use Task 45 schemas to query CompanyContext by user ID and CampaignContext by company_id foreign key. Handle cases where contexts do not exist, returning empty objects. Import necessary repository functions.",
+            "status": "pending",
+            "testStrategy": "Unit tests: Mock DB queries for existing/non-existing contexts, assert correct objects returned with all fields populated.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Develop Gap Detection Logic for Context Fields",
+            "description": "Create function to analyze fetched contexts against per-video requirements and identify missing topic-specific facts or fields.",
+            "dependencies": [
+              1
+            ],
+            "details": "Define gap criteria e.g., missing brand_voice for video_goal, absent product_focus for product mentions. Compare required fields from StoryBrief against context keys. Return array of gap descriptors for targeted research.",
+            "status": "pending",
+            "testStrategy": "Unit tests: Test with full contexts (no gaps), partial contexts (specific gaps), empty contexts (all gaps). Assert correct gap identification.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Add Targeted Research for Identified Gaps Only",
+            "description": "Integrate research agent to perform targeted research exclusively for detected gaps, skipping if no gaps found.",
+            "dependencies": [
+              1,
+              2
+            ],
+            "details": "Call research agent with gap descriptors as prompts. Collect research results into structured JSON matching context schemas. Ensure research calls are conditional on gaps.length > 0 to optimize.",
+            "status": "pending",
+            "testStrategy": "Integration tests: Mock research agent, verify calls only when gaps exist, assert research results structured correctly.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Implement Deep Merge and Context Source Tracking",
+            "description": "Merge company, campaign, and research contexts using Lodash deepMerge, set context_source field, and output final Context Pack JSON.",
+            "dependencies": [
+              1,
+              2,
+              3
+            ],
+            "details": "Use lodash.mergeWith for hierarchical merge preserving arrays/objects. Determine source: 'user_provided' (no research), 'researched' (only research), 'hybrid' (mixed). Add source field to each context entry and root.",
+            "status": "pending",
+            "testStrategy": "Unit tests: Mock merge inputs (full user_provided, gaps+researched, hybrid), assert no overwrites, correct source fields, and valid JSON output.",
+            "parentId": "undefined"
+          }
+        ]
+      },
+      {
+        "id": "49",
+        "title": "Add Guided Interview Onboarding Flow for Context Creation",
+        "description": "Implement conversational UI (Option B) using AI chat to build CompanyContext from user responses.",
+        "details": "Streamlit or React chat UI. Multi-turn prompts: 'Describe your brand tone?', 'Company background?', 'List products?', 'Target audiences?'. Collect responses, batch to AI: 'Structure into CompanyContext JSON'. Save to DB. Fallback to manual edit. Integrate into signup flow post-auth.",
+        "testStrategy": "Unit tests: prompt sequences, JSON structuring. E2E: simulate chat interview, assert generated CompanyContext saved correctly. User journey: signup -> interview -> context created -> used in video gen.",
+        "priority": "low",
+        "dependencies": [
+          "45",
+          "47"
+        ],
+        "status": "pending",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Build Conversational Chat UI Component",
+            "description": "Create the multi-turn chat interface using Streamlit or React to display prompts and collect user responses for brand tone, company background, products, and target audiences.",
+            "dependencies": [],
+            "details": "Implement chat UI with message history, input field, send button. Display sequential prompts: 1. 'Describe your brand tone?', 2. 'Company background?', 3. 'List products?', 4. 'Target audiences?'. Store responses in session state or React state. Add loading indicators and error handling for smooth UX.",
+            "status": "pending",
+            "testStrategy": "Unit test: render prompts correctly, capture/send responses. Integration test: multi-turn conversation flow completes without errors.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 2,
+            "title": "Implement AI JSON Structuring from Chat Responses",
+            "description": "Batch collected user responses and send to AI model with prompt to structure into CompanyContext JSON format.",
+            "dependencies": [
+              1
+            ],
+            "details": "After all responses collected, construct prompt: 'Structure into CompanyContext JSON: [responses]'. Use existing AI service endpoint. Parse AI response to validate JSON schema matches CompanyContext (company_name, brand_tone, background, products[], audiences[]). Handle parsing errors gracefully.",
+            "status": "pending",
+            "testStrategy": "Unit tests: various response combinations produce valid CompanyContext JSON. Mock AI responses to test parsing and validation.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 3,
+            "title": "Add Fallback Manual Edit and Database Save",
+            "description": "Provide manual editing interface for generated CompanyContext JSON and implement save to database with fallback handling.",
+            "dependencies": [
+              2
+            ],
+            "details": "Display generated JSON in editable form fields. Add 'Save Context' and 'Edit Manually' buttons. On save, validate and persist to user-specific CompanyContext table in DB. Show preview of structured data. Include 'Use Manual Entry' fallback if AI fails.",
+            "status": "pending",
+            "testStrategy": "Unit tests: edit/save workflow updates JSON correctly. DB integration: assert CompanyContext saved with correct user_id and fields populated.",
+            "parentId": "undefined"
+          },
+          {
+            "id": 4,
+            "title": "Integrate into Post-Auth Signup Flow",
+            "description": "Embed the guided interview flow into the signup process after authentication completion.",
+            "dependencies": [
+              3
+            ],
+            "details": "Modify signup route: after auth success, redirect to /onboarding/interview. Add completion redirect to dashboard or video gen. Track flow completion status in user profile. Ensure seamless navigation with back/forward controls and session persistence.",
+            "status": "pending",
+            "testStrategy": "E2E tests: full signup -> interview -> context saved -> dashboard. Verify integration points don't break existing auth flow.",
+            "parentId": "undefined"
+          }
+        ]
+      },
+      {
+        "id": "50",
+        "title": "Cleanup PRD and Prompts Folder Structure",
+        "description": "Reorganize and consolidate the PRD documents and prompts folder for better maintainability and clearer ownership.",
+        "details": "**Current State:**\n- PRDs scattered in `.taskmaster/docs/` with inconsistent naming\n- Prompts in `/prompts/` folder with flat structure\n- Design docs mixed with PRDs (MODULAR_RESEARCH_AGENTS.md, CONVERSATIONAL_BRIEF_BUILDER.md, FUTURE_PERSISTENT_CONTEXT.md)\n\n**Cleanup Tasks:**\n\n1. **PRD Organization** (`.taskmaster/docs/`):\n   - Keep domain PRDs: `core-creation-prd.md`, `ai-prompts-prd.md`, `analytics-dashboard-prd.md`, `enterprise-context-prd.md`\n   - Keep master index: `PM_DOMAIN_OWNERSHIP.md`\n   - Archive or merge legacy docs into appropriate PRDs:\n     - `brief_builder_prd.md` → merge into `core-creation-prd.md`\n     - `MODULAR_RESEARCH_AGENTS.md` → already incorporated into `ai-prompts-prd.md`, can archive\n     - `CONVERSATIONAL_BRIEF_BUILDER.md` → already incorporated into `ai-prompts-prd.md`, can archive\n     - `FUTURE_PERSISTENT_CONTEXT.md` → superseded by `enterprise-context-prd.md`, can archive\n\n2. **Prompts Folder Reorganization** (`/prompts/`):\n   - Create subdirectories by agent category:\n     - `/prompts/core/` - Brief Builder, Storyboard Director, Storyboard Writer\n     - `/prompts/research/` - Topic Researcher, future modular agents\n     - `/prompts/utilities/` - Duration Calculator, Image Researcher\n   - Update agent base.py to load from new paths\n   - Add README.md to prompts folder explaining structure\n\n3. **Naming Conventions:**\n   - PRDs: `{domain}-prd.md` (lowercase, hyphenated)\n   - Prompts: `{AGENT_NAME}_SYSTEM_PROMPT.md` (uppercase, underscored)\n   - Design docs: Move to `/docs/design/` or archive\n\n4. **Create Archive Folder:**\n   - `.taskmaster/docs/archive/` for superseded docs\n   - Keep git history, just move files",
+        "testStrategy": "- Verify all agent imports still work after prompt reorganization\n- Run backend to confirm agents load prompts from new paths\n- Check all PRD links in PM_DOMAIN_OWNERSHIP.md are valid\n- Ensure no broken references in CLAUDE.md",
+        "priority": "low",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "51",
+        "title": "Refactor Research Agents: Thinking Prompts vs Fixed Questions",
+        "description": "Replace fixed sub-questions per research category with 'thinking prompts' that guide the LLM to generate dynamic, context-appropriate research questions.",
+        "details": "**Problem Statement:**\n\nThe current MODULAR_RESEARCH_AGENTS.md design risks sliding back toward rigid menus:\n- Too vague (\"Entity Context\") → LLM doesn't know what to research\n- Too specific (4 fixed questions per category) → Back to menu-picking we killed\n\n**Proposed Solution: Thinking Prompts**\n\nEach category provides *thinking prompts* (what to consider) instead of *research questions* (what to ask). The LLM generates actual questions dynamically based on the specific video context.\n\n**Example Transformation:**\n\n```\nCATEGORY A: Entity Context\n\n❌ OLD (Fixed Questions):\n- What is this company's history?\n- Who founded it and why?\n- What are the core products?\n- Who are the competitors?\n\n✅ NEW (Thinking Prompts):\n- Is there a credibility story worth telling?\n- Is origin/founding relevant to THIS video's message?\n- What makes THIS entity different from competitors?\n- What context would make the audience trust this source?\n\n↓ LLM generates for \"Notion Forms\" video:\n- \"What user pain led Notion to finally build Forms?\"\n- \"How does Forms fit into Notion's 'all-in-one' positioning?\"\n```\n\n**Implementation Tasks:**\n\n1. **Update Router Agent Prompt:**\n   - Replace category sub-questions with thinking prompts\n   - Add instruction: \"Use these prompts to GENERATE specific research questions for this video\"\n   - Include 2-3 examples of input → generated questions\n\n2. **Refactor Category Definitions:**\n   - Category A (Entity): Credibility, differentiation, trust signals\n   - Category B (Market): Timing, trends, why-now relevance\n   - Category C (Problem/Value): Pain severity, transformation story\n   - Category D (Knowledge): Conceptual clarity, misconceptions\n   - Category E (Procedural): Prerequisites, pitfalls, success criteria\n   - Category F (Meta): Terminology, examples needed\n\n3. **Add Dynamic Question Generation Step:**\n   - Router receives user input + video type\n   - For each relevant category, Router generates 1-3 specific questions\n   - Questions are tailored to the actual video topic\n\n4. **Update Assembler to Handle Dynamic Questions:**\n   - Accept variable question sets per category\n   - Track which generated questions were answered vs unanswered\n\n**Benefits:**\n- Preserves flexibility (questions adapt to context)\n- Adds guidance (thinking prompts prevent aimless research)\n- Avoids rigidity (no fixed 24-question menu)\n- Enables better research (questions are topic-specific)",
+        "testStrategy": "- Test Router with 5 diverse video topics, verify generated questions are contextually appropriate\n- Compare research quality: fixed questions vs dynamic questions on same inputs\n- Measure: Are generated questions more specific than category defaults?\n- Validate Assembler handles variable-length question sets without errors\n- User feedback: Do research results feel more relevant?",
+        "priority": "high",
+        "dependencies": [
+          "44"
+        ],
+        "status": "pending",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2026-01-23T04:46:10.650Z",
+      "taskCount": 20,
+      "completedCount": 13,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

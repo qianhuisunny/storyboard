@@ -1,0 +1,226 @@
+{
+  "project_id": "1771477396585",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to do startup fundraising in 2026 (for first-time founders) \n\n--- Reference Materials ---\n\n[Link: https://derekyan.com/ma-book/index.html]\nThe Toughest Sell: A Founder's Guide to Startup Exits | Derek Yan The Toughest Sell A Founder's Guide to Startup Exits by Derek Z. H. Yan It was May 15th, 2024. My mom's 60th birthday. Instead of planning a birthday message, I was checking my phone for an acquisition term sheet from a $40 billion company. Unfortunately, when I finally got the email, it was not the yes or no response I had been hoping for. It took almost four years before we finally found the right buyer. I wished a book like this existed at the time. If you are going through an M&A as a founder or are curious about my journey, I hope this book will be helpful to you. Start Reading \u2192 Table of Contents Foreword Part I: Before You Begin 1. Chances Are, It is Already Too Late 2. An Exit is Not the Silver Bullet You've Been Looking for 3. It's Not You, It's the Acquirer 4. Caught Off Guard: Handling M&A Inquiries Before You're Ready 5. Manufacturing an M&A Market When None is There 6. Know Thyself 7. Sell for the Right Reasons 8. Rewire Your Brain: Getting Into Exit Mode 9. Prepare for the Most Likely Case of No Acceptable Offer 10. Valuation Fantasies and the Art of Disappointment 11. Get Your Personal Finances in Order 12. Herding Cats: Aligning Spouses, Cofounders, Investors, and Employees 13. Paint the Walls: Nobody Buys a Fixer-Upper 14. Come Up with an Outreach List of Potential Acquirers 15. Outbound Slide Decks: Incomplete Canvas with Details To Be Filled In 16. Should You Hire a Banker? 17. Find a Law Firm Who Knows M&A 18. Get Your (Data) Room in Order 19. Checklist Before Engaging with Potential Buyers Part II: The Opening Moves 20. Don't Forget You Still Have a Company to Run 21. Engage Inbound, Lean In and Learn 22. The Inside View from an Inbound Reach Out 23. Activate Outbound, Plant the Seed 24. The Inside View from an Outbound Reach Out 25. Expect Radio Silence from Outbound Reach Outs 26. First Meetings Are Typically Smoke Tests 27. Second Meetings Are When Things Get Real 28. Should You Run an Official Process? 29. Common Pitfalls in the Opening Game Part III: The Middle Game 30. The $$$ Expectation Alignment Conversation 31. Initial Due Diligence 32. Key Employee Interviews 33. Surviving the Middle Game 34. Staying in the Race Part IV: Managing a Losing Position 35. It's Not You, Not Your Bankers, Not Your Board, It's the Market 36. There is No Shame Approaching Your Competitors 37. Act on What You Learned 38. Managing Stakeholders When You Can't Sell 39. What Not to Do 40. It's Okay to Shut it All Down, But Do it On Your Own Terms Part V: The End Game 41. Pre Term Sheet Negotiations with the Buyer 42. Term Sheet Received - Where to Go from Here 43. Term Sheet Signed, Start of a Thousand Paper Cuts 44. More Negotiations with the Buyer 45. 280G Analysis 46. What to Do When the Buyer Stops Answering Emails 47. Final Definitive Agreement 48. Final Approval Process 49. Where the Deal Could Still Blow Up 50. Closing It Out Part VI: Aftermath 51. Finding What Brings You Joy Again 52. Thank Those Who Helped You Along the Way 53. Your Best Days Are Ahead Epilogue Note: Many readers on Hacker News expressed a preference for the raw, non-LLM-edited version of this book. You can read the unedited manuscript here . Download PDF version \u00a9 2024-2026 Derek Z. H. Yan. All rights reserved. This work is licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) . You are free to share this work for non-commercial purposes with attribution. You may not modify, adapt, or build upon this work. Commercial use and traditional publishing rights are reserved by the author. For permissions beyond this license, contact me . By Derek Yan | Back to Startup M&A + Product Release",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "video_type_context": "product_brand",
+    "company_context": "Derek Yan is an author and entrepreneur known for his work on startup exits and mergers and acquisitions (M&A). His book, 'The Toughest Sell: A Founder's Guide to Startup Exits,' provides insight into the complex process of selling a startup and is geared towards first-time founders navigating this challenging landscape.",
+    "company_context_sources": [
+      {
+        "url": "https://derekyan.com/ma-book/index.html",
+        "title": "The Toughest Sell: A Founder's Guide to Startup Exits",
+        "confidence": "high"
+      }
+    ],
+    "product_context": "The book offers a comprehensive guide to startup exits, detailing the stages from preparation to closing a sale. Key differentiators include practical advice drawn from Derek Yan's personal experience, a focus on both inbound and outbound M&A strategies, and addressing common pitfalls and misconceptions in the startup exit process.",
+    "product_context_sources": [
+      {
+        "url": "https://derekyan.com/ma-book/index.html",
+        "title": "The Toughest Sell: A Founder's Guide to Startup Exits",
+        "confidence": "high"
+      }
+    ],
+    "industry_context": "The startup industry is seeing a growing trend towards strategic acquisitions as a popular exit strategy. Market conditions such as economic fluctuations and technological advancements are influencing how startups approach M&A. Founders are increasingly looking to integrate their startups with larger corporations to leverage resources and scale operations.",
+    "industry_context_sources": [
+      {
+        "url": "https://www.forbes.com/sites/forbestechcouncil/2023/09/20/why-more-startups-are-choosing-acquisitions-as-their-exit-strategy/",
+        "title": "Why More Startups Are Choosing Acquisitions As Their Exit Strategy",
+        "confidence": "medium"
+      }
+    ],
+    "terminology_glossary": {
+      "M&A": "Mergers and Acquisitions, a strategy where companies buy or merge with other companies.",
+      "Term Sheet": "A non-binding agreement setting forth the basic terms and conditions under which an investment will be made.",
+      "Due Diligence": "A comprehensive appraisal of a business undertaken by a prospective buyer, especially to establish its assets and liabilities and evaluate its commercial potential."
+    },
+    "typical_workflows": {
+      "traditional_process": "Founders often rely on organic growth and bootstrapping before considering exits. They may not actively seek buyers, waiting instead for inbound interest.",
+      "optimized_process": "Utilizing a proactive approach with outbound strategies, founders can better position their startups for acquisition. This includes preparing detailed slide decks and engaging with potential acquirers early."
+    },
+    "typical_workflows_sources": [
+      {
+        "url": "https://derekyan.com/ma-book/index.html",
+        "title": "The Toughest Sell: A Founder's Guide to Startup Exits",
+        "confidence": "high"
+      }
+    ],
+    "uncertainties": [
+      "[uncertain: specific impact of the book on recent startup exits]"
+    ],
+    "searches_performed": [
+      {
+        "query": "Derek Yan startup exits book",
+        "purpose": "To find official information on Derek Yan and his book for context",
+        "results_used": [
+          "https://derekyan.com/ma-book/index.html"
+        ]
+      },
+      {
+        "query": "current trends in startup exits 2023",
+        "purpose": "To understand the current trends and context in the startup exit industry",
+        "results_used": [
+          "https://www.forbes.com/sites/forbestechcouncil/2023/09/20/why-more-startups-are-choosing-acquisitions-as-their-exit-strategy/"
+        ]
+      }
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {},
+    "user_inputs": {
+      "original_prompt": "How to do startup fundraising in 2026 (for first-time founders) \n\n--- Reference Materials ---\n\n[Link: https://derekyan.com/ma-book/index.html]\nThe Toughest Sell: A Founder's Guide to Startup Exits | Derek Yan The Toughest Sell A Founder's Guide to Startup Exits by Derek Z. H. Yan It was May 15th, 2024. My mom's 60th birthday. Instead of planning a birthday message, I was checking my phone for an acquisition term sheet from a $40 billion company. Unfortunately, when I finally got the email, it was not the yes or no response I had been hoping for. It took almost four years before we finally found the right buyer. I wished a book like this existed at the time. If you are going through an M&A as a founder or are curious about my journey, I hope this book will be helpful to you. Start Reading \u2192 Table of Contents Foreword Part I: Before You Begin 1. Chances Are, It is Already Too Late 2. An Exit is Not the Silver Bullet You've Been Looking for 3. It's Not You, It's the Acquirer 4. Caught Off Guard: Handling M&A Inquiries Before You're Ready 5. Manufacturing an M&A Market When None is There 6. Know Thyself 7. Sell for the Right Reasons 8. Rewire Your Brain: Getting Into Exit Mode 9. Prepare for the Most Likely Case of No Acceptable Offer 10. Valuation Fantasies and the Art of Disappointment 11. Get Your Personal Finances in Order 12. Herding Cats: Aligning Spouses, Cofounders, Investors, and Employees 13. Paint the Walls: Nobody Buys a Fixer-Upper 14. Come Up with an Outreach List of Potential Acquirers 15. Outbound Slide Decks: Incomplete Canvas with Details To Be Filled In 16. Should You Hire a Banker? 17. Find a Law Firm Who Knows M&A 18. Get Your (Data) Room in Order 19. Checklist Before Engaging with Potential Buyers Part II: The Opening Moves 20. Don't Forget You Still Have a Company to Run 21. Engage Inbound, Lean In and Learn 22. The Inside View from an Inbound Reach Out 23. Activate Outbound, Plant the Seed 24. The Inside View from an Outbound Reach Out 25. Expect Radio Silence from Outbound Reach Outs 26. First Meetings Are Typically Smoke Tests 27. Second Meetings Are When Things Get Real 28. Should You Run an Official Process? 29. Common Pitfalls in the Opening Game Part III: The Middle Game 30. The $$$ Expectation Alignment Conversation 31. Initial Due Diligence 32. Key Employee Interviews 33. Surviving the Middle Game 34. Staying in the Race Part IV: Managing a Losing Position 35. It's Not You, Not Your Bankers, Not Your Board, It's the Market 36. There is No Shame Approaching Your Competitors 37. Act on What You Learned 38. Managing Stakeholders When You Can't Sell 39. What Not to Do 40. It's Okay to Shut it All Down, But Do it On Your Own Terms Part V: The End Game 41. Pre Term Sheet Negotiations with the Buyer 42. Term Sheet Received - Where to Go from Here 43. Term Sheet Signed, Start of a Thousand Paper Cuts 44. More Negotiations with the Buyer 45. 280G Analysis 46. What to Do When the Buyer Stops Answering Emails 47. Final Definitive Agreement 48. Final Approval Process 49. Where the Deal Could Still Blow Up 50. Closing It Out Part VI: Aftermath 51. Finding What Brings You Joy Again 52. Thank Those Who Helped You Along the Way 53. Your Best Days Are Ahead Epilogue Note: Many readers on Hacker News expressed a preference for the raw, non-LLM-edited version of this book. You can read the unedited manuscript here . Download PDF version \u00a9 2024-2026 Derek Z. H. Yan. All rights reserved. This work is licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) . You are free to share this work for non-commercial purposes with attribution. You may not modify, adapt, or build upon this work. Commercial use and traditional publishing rights are reserved by the author. For permissions beyond this license, contact me . By Derek Yan | Back to Startup M&A + Product Release",
+      "video_type": "Product Release",
+      "video_goal": "",
+      "target_audience": "",
+      "company_or_brand_name": "",
+      "parsed_materials": []
+    }
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "How to do startup fundraising in 2026 (for first-time founders) \n\n--- Reference Materials ---\n\n[Link: https://derekyan.com/ma-book/index.html]\nThe Toughest Sell: A Founder's Guide to Startup Exits | Derek Yan The Toughest Sell A Founder's Guide to Startup Exits by Derek Z. H. Yan It was May 15th, 2024. My mom's 60th birthday. Instead of planning a birthday message, I was checking my phone for an acquisition term sheet from a $40 billion company. Unfortunately, when I finally got the email, it was not the yes or no response I had been hoping for. It took almost four years before we finally found the right buyer. I wished a book like this existed at the time. If you are going through an M&A as a founder or are curious about my journey, I hope this book will be helpful to you. Start Reading \u2192 Table of Contents Foreword Part I: Before You Begin 1. Chances Are, It is Already Too Late 2. An Exit is Not the Silver Bullet You've Been Looking for 3. It's Not You, It's the Acquirer 4. Caught Off Guard: Handling M&A Inquiries Before You're Ready 5. Manufacturing an M&A Market When None is There 6. Know Thyself 7. Sell for the Right Reasons 8. Rewire Your Brain: Getting Into Exit Mode 9. Prepare for the Most Likely Case of No Acceptable Offer 10. Valuation Fantasies and the Art of Disappointment 11. Get Your Personal Finances in Order 12. Herding Cats: Aligning Spouses, Cofounders, Investors, and Employees 13. Paint the Walls: Nobody Buys a Fixer-Upper 14. Come Up with an Outreach List of Potential Acquirers 15. Outbound Slide Decks: Incomplete Canvas with Details To Be Filled In 16. Should You Hire a Banker? 17. Find a Law Firm Who Knows M&A 18. Get Your (Data) Room in Order 19. Checklist Before Engaging with Potential Buyers Part II: The Opening Moves 20. Don't Forget You Still Have a Company to Run 21. Engage Inbound, Lean In and Learn 22. The Inside View from an Inbound Reach Out 23. Activate Outbound, Plant the Seed 24. The Inside View from an Outbound Reach Out 25. Expect Radio Silence from Outbound Reach Outs 26. First Meetings Are Typically Smoke Tests 27. Second Meetings Are When Things Get Real 28. Should You Run an Official Process? 29. Common Pitfalls in the Opening Game Part III: The Middle Game 30. The $$$ Expectation Alignment Conversation 31. Initial Due Diligence 32. Key Employee Interviews 33. Surviving the Middle Game 34. Staying in the Race Part IV: Managing a Losing Position 35. It's Not You, Not Your Bankers, Not Your Board, It's the Market 36. There is No Shame Approaching Your Competitors 37. Act on What You Learned 38. Managing Stakeholders When You Can't Sell 39. What Not to Do 40. It's Okay to Shut it All Down, But Do it On Your Own Terms Part V: The End Game 41. Pre Term Sheet Negotiations with the Buyer 42. Term Sheet Received - Where to Go from Here 43. Term Sheet Signed, Start of a Thousand Paper Cuts 44. More Negotiations with the Buyer 45. 280G Analysis 46. What to Do When the Buyer Stops Answering Emails 47. Final Definitive Agreement 48. Final Approval Process 49. Where the Deal Could Still Blow Up 50. Closing It Out Part VI: Aftermath 51. Finding What Brings You Joy Again 52. Thank Those Who Helped You Along the Way 53. Your Best Days Are Ahead Epilogue Note: Many readers on Hacker News expressed a preference for the raw, non-LLM-edited version of this book. You can read the unedited manuscript here . Download PDF version \u00a9 2024-2026 Derek Z. H. Yan. All rights reserved. This work is licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0 International (CC BY-NC-ND 4.0) . You are free to share this work for non-commercial purposes with attribution. You may not modify, adapt, or build upon this work. Commercial use and traditional publishing rights are reserved by the author. For permissions beyond this license, contact me . By Derek Yan | Back to Startup M&A + Product Release",
+    "key_points": [
+      "Comprehensive guide to startup exits from preparation to closing.",
+      "Practical advice from Derek Yan's personal experience.",
+      "Focus on both inbound and outbound M&A strategies.",
+      "Addresses common pitfalls and misconceptions in startup exit process."
+    ],
+    "constraints": [
+      "Do not claim: specific impact of the book on recent startup exits."
+    ],
+    "problem": {
+      "description": "Founders often rely on organic growth and bootstrapping before considering exits. They may not actively seek buyers, waiting instead for inbound interest.",
+      "auto_filled_from_research": true
+    },
+    "key_features": {
+      "features": [
+        "Comprehensive guide to startup exits",
+        "Practical advice from personal experience",
+        "Focus on inbound and outbound strategies",
+        "Addresses common misconceptions"
+      ],
+      "auto_filled_from_research": true
+    },
+    "typical_use_cases": {
+      "scenarios": [
+        "Founders preparing for potential acquisition.",
+        "Startups looking to understand M&A strategies.",
+        "Entrepreneurs seeking practical advice on exits."
+      ],
+      "auto_filled_from_research": true
+    },
+    "core_interaction_steps": {
+      "steps": [
+        "Utilizing outbound strategies for better positioning.",
+        "Preparing detailed slide decks.",
+        "Engaging with potential acquirers early."
+      ],
+      "auto_filled_from_research": true
+    },
+    "field_states": {
+      "key_points": {
+        "status": "auto_filled",
+        "confidence": "high",
+        "sources": [
+          {
+            "url": "https://derekyan.com/ma-book/index.html",
+            "title": "The Toughest Sell: A Founder's Guide to Startup Exits"
+          }
+        ],
+        "reason": "Extracted directly from product_context"
+      },
+      "constraints": {
+        "status": "auto_filled",
+        "confidence": "medium",
+        "sources": [
+          {
+            "url": "https://derekyan.com/ma-book/index.html",
+            "title": "The Toughest Sell: A Founder's Guide to Startup Exits"
+          }
+        ],
+        "reason": "Extracted from uncertainties in Context Pack"
+      },
+      "problem": {
+        "status": "auto_filled",
+        "confidence": "high",
+        "sources": [
+          {
+            "url": "https://derekyan.com/ma-book/index.html",
+            "title": "The Toughest Sell: A Founder's Guide to Startup Exits"
+          }
+        ],
+        "reason": "Derived from typical_workflows.traditional_process"
+      },
+      "key_features": {
+        "status": "auto_filled",
+        "confidence": "high",
+        "sources": [
+          {
+            "url": "https://derekyan.com/ma-book/index.html",
+            "title": "The Toughest Sell: A Founder's Guide to Startup Exits"
+          }
+        ],
+        "reason": "Extracted from product_context"
+      },
+      "typical_use_cases": {
+        "status": "auto_filled",
+        "confidence": "high",
+        "sources": [
+          {
+            "url": "https://derekyan.com/ma-book/index.html",
+            "title": "The Toughest Sell: A Founder's Guide to Startup Exits"
+          }
+        ],
+        "reason": "Inferred from product_context and target decision-makers"
+      },
+      "core_interaction_steps": {
+        "status": "auto_filled",
+        "confidence": "high",
+        "sources": [
+          {
+            "url": "https://derekyan.com/ma-book/index.html",
+            "title": "The Toughest Sell: A Founder's Guide to Startup Exits"
+          }
+        ],
+        "reason": "Derived from typical_workflows.optimized_process"
+      }
+    },
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases",
+      "core_interaction_steps"
+    ],
+    "unresolved_questions": []
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-02-18T21:03:16.890532",
+  "updated_at": "2026-02-18T21:03:46.463322"
+}

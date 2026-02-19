@@ -1,0 +1,9 @@
+{
+  "screen_number": 7,
+  "screen_title": "Feature: SCORM Export",
+  "voiceover_text": "Export your finished training in SCORM format, ready for any LMS. Deliver learning at scale, effortlessly.",
+  "visual_description": "UI: Clicks 'Export as SCORM', download animation, LMS dashboard preview.",
+  "screen_type": "screencast",
+  "target_duration_sec": 6,
+  "image_url": []
+}

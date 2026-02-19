@@ -1,0 +1,97 @@
+{
+  "project_id": "legacy_4567109312",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to clean up your fridge",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company or product mentioned for cleaning fridges]",
+    "product_context": "Refrigerator cleaning typically involves a series of steps to ensure hygiene and efficiency. Products commonly used include multi-surface cleaners, baking soda, and microfiber cloths. Specialized fridge cleaning products may offer antibacterial properties or environmentally friendly ingredients.",
+    "industry_context": "The home cleaning industry is increasingly focusing on eco-friendly and non-toxic cleaning solutions due to rising consumer awareness about health and environmental impact. Multi-purpose and natural cleaners are trending.",
+    "terminology_glossary": {
+      "Multi-surface cleaner": "A cleaning agent suitable for use on various surfaces without causing damage.",
+      "Baking soda": "A common household product used for cleaning and deodorizing.",
+      "Microfiber cloth": "A type of cloth made from synthetic fibers known for its high absorbency and ability to capture dust and dirt."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional fridge cleaning involves: 1) Removing all items, 2) Disposing of expired products, 3) Cleaning shelves and drawers with a suitable cleaner, 4) Wiping down surfaces with a cloth, 5) Reorganizing items back into the fridge. Optimized workflows may involve using specialized cleaners or tools for more efficient cleaning and sanitization.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or brand associated with fridge cleaning]",
+      "[uncertain: any proprietary cleaning methods or products]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Teach viewers how to effectively clean their fridge using common household products.",
+    "target_audience": "Homeowners and renters looking to maintain a clean and hygienic refrigerator.",
+    "company_or_brand_name": "General Household",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Try cleaning your fridge today for a fresher and more organized kitchen.",
+    "video_type": "How-to Video",
+    "user_inputs": "How to clean up your fridge",
+    "key_points": [
+      "Use multi-surface cleaners for versatility and efficiency.",
+      "Baking soda helps eliminate odors naturally.",
+      "Microfiber cloths are effective for dust and dirt removal."
+    ],
+    "constraints": [
+      "Do not claim: specific company or brand associated with fridge cleaning",
+      "Do not claim: any proprietary cleaning methods or products"
+    ],
+    "problem": {
+      "content": "Traditional fridge cleaning can be time-consuming and may not effectively eliminate odors or bacteria.",
+      "auto_filled_from_research": true
+    },
+    "core_interaction_steps": {
+      "content": [
+        "Remove all items from the fridge.",
+        "Dispose of expired products.",
+        "Clean shelves and drawers with a multi-surface cleaner.",
+        "Wipe down surfaces with a microfiber cloth.",
+        "Reorganize items back into the fridge."
+      ],
+      "auto_filled_from_research": true
+    },
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": [
+      {
+        "field": "core_interaction_steps",
+        "note": "The optimized process is not specified. Confirm if there are additional steps or products to highlight for a more efficient clean.",
+        "context": "For How-to Videos, specific steps are crucial. Detail any non-standard procedures or use of specialized products."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T15:31:08.400370",
+  "updated_at": "2026-01-11T15:31:18.535432"
+}

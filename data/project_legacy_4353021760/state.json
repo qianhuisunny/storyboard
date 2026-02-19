@@ -1,0 +1,97 @@
+{
+  "project_id": "legacy_4353021760",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to make a simple paper airplane that flies far",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: specific company was not provided; assuming general context]",
+    "product_context": "The 'product' in this context is a paper airplane design. Paper airplanes are simple aerodynamic models made from sheets of paper, designed to glide through the air when thrown. The key differentiator for a paper airplane that 'flies far' is its design, which optimizes lift, weight distribution, and aerodynamic stability.",
+    "industry_context": "Paper airplanes are a part of educational and recreational activities, often used to teach basic physics and aerodynamics. Trends include exploring various designs for optimal flight performance and using environmentally friendly materials.",
+    "terminology_glossary": {
+      "Aerodynamics": "The study of the properties of moving air and the interaction with solid bodies moving through it.",
+      "Lift": "The force that directly opposes the weight of an airplane and holds the airplane in the air.",
+      "Glide Ratio": "The measure of the distance a plane can travel horizontally compared to the vertical distance it falls."
+    },
+    "typical_workflows": {
+      "traditional_process": "The traditional process of making a paper airplane involves selecting a paper type, following a folding pattern to create the desired shape, and then adjusting folds to optimize flight. For a plane that flies far, adjustments may include changing the wing shape or adding weight to the nose for balance.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or branded product information]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Teach viewers how to make a paper airplane that flies far",
+    "target_audience": "Individuals interested in recreational activities, including students and hobbyists looking to learn about paper airplane design",
+    "company_or_brand_name": "General Paper Airplane Design",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Try making your own paper airplane and see how far it flies!",
+    "video_type": "Product Release",
+    "user_inputs": "How to make a simple paper airplane that flies far",
+    "key_points": [
+      "Optimized design for extended flight distance",
+      "Focus on aerodynamic stability and weight distribution",
+      "Educational tool for understanding basic physics"
+    ],
+    "constraints": [
+      "Do not claim: specific company or branded product information"
+    ],
+    "problem": "The traditional process of making a paper airplane involves selecting a paper type, following a folding pattern to create the desired shape, and then adjusting folds to optimize flight. For a plane that flies far, adjustments may include changing the wing shape or adding weight to the nose for balance.",
+    "key_features": [
+      "Optimized wing shape for better lift",
+      "Balanced weight distribution for stability",
+      "Easy-to-follow folding pattern"
+    ],
+    "typical_use_cases": [
+      "Educational activities in classrooms",
+      "Recreational hobby for enthusiasts",
+      "Physics demonstration tool"
+    ],
+    "core_interaction_steps": [],
+    "auto_filled_fields": [
+      "video_goal",
+      "target_audience",
+      "company_or_brand_name",
+      "cta",
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": [
+      {
+        "field": "core_interaction_steps",
+        "note": "The research does not describe specific steps for making the paper airplane. What exact steps should we demonstrate? (e.g., Step 1: Choose a paper type, Step 2: Fold paper into a specific pattern...)",
+        "context": "For Product Release videos, we need precise step-by-step instructions to demonstrate the making process."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:35:43.850613",
+  "updated_at": "2026-01-10T23:35:53.067509"
+}

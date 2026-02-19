@@ -1,0 +1,120 @@
+{
+  "project_id": "legacy_4397178688",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "The best tomatoes in the world",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "The company is not specified, but it could be a producer or distributor of tomatoes claiming to offer the best quality in the world. They are likely positioned in the agricultural or food distribution industry, focusing on delivering high-quality produce.",
+    "product_context": "The product in question appears to be tomatoes, marketed as the best in the world. Key differentiators could include superior taste, organic growing methods, or unique varietal offerings, although specifics are not provided.",
+    "industry_context": "The produce industry is increasingly focused on sustainability and organic farming due to consumer demand for healthier and environmentally-friendly options. Traceability and farm-to-table transparency are also significant trends.",
+    "terminology_glossary": {
+      "Heirloom Tomatoes": "Varieties of tomatoes passed down through generations, valued for their rich flavors.",
+      "Organic Farming": "Agricultural system that seeks to produce food using natural substances and processes, avoiding synthetic chemicals.",
+      "Farm-to-Table": "A movement that promotes serving local food at restaurants and school cafeterias, preferably through direct acquisition from the producer."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional workflows in the tomato industry involve planting, growing, harvesting, and distributing through various channels. Optimized workflows might include direct-to-consumer sales, enhanced quality control processes, and the use of technology for precision agriculture.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or brand name]",
+      "[uncertain: exact differentiators of the tomatoes]",
+      "[uncertain: any specific certifications or awards]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "The best tomatoes in the world",
+    "key_points": [
+      "Tomatoes marketed as the best in the world",
+      "Potential unique varietal offerings",
+      "Possible emphasis on superior taste or organic growing methods"
+    ],
+    "constraints": [
+      "Do not claim: specific company or brand name",
+      "Do not claim: exact differentiators of the tomatoes",
+      "Do not claim: any specific certifications or awards"
+    ],
+    "problem": {
+      "description": "Traditional workflows in the tomato industry involve planting, growing, harvesting, and distributing through various channels.",
+      "auto_filled_from_research": true
+    },
+    "key_features": {
+      "description": [
+        "Superior taste",
+        "Organic growing methods",
+        "Unique varietal offerings"
+      ],
+      "auto_filled_from_research": true
+    },
+    "typical_use_cases": {
+      "description": [
+        "Use in gourmet cooking",
+        "Direct-to-consumer sales",
+        "Farm-to-table restaurant offerings"
+      ],
+      "auto_filled_from_research": true
+    },
+    "core_interaction_steps": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "core_interaction_steps",
+        "note": "The research does not specify an optimized workflow or direct interaction steps. What specific processes should be demonstrated or highlighted in the release?"
+      },
+      {
+        "field": "video_goal",
+        "note": "The goal of the video is not specified. What should the viewer know or do after watching?"
+      },
+      {
+        "field": "target_audience",
+        "note": "The target audience is not defined. Who is the intended viewer of this video?"
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "The company or brand name is not specified. What is the name associated with these tomatoes?"
+      },
+      {
+        "field": "cta",
+        "note": "The call to action is not specified. What should viewers be encouraged to do after watching the video?"
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:58:50.283148",
+  "updated_at": "2026-01-10T23:58:58.258108"
+}

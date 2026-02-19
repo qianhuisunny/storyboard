@@ -1,0 +1,93 @@
+{
+  "project_id": "1768115628747",
+  "user_id": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "stages": {
+    "brief": {
+      "ai_version": "Certainly! Below is a structured video brief for the project.\n\n---\n\n**Concept**: \nThe purpose of this video is to introduce and promote a new product, service, or concept (details unspecified). The video aims to engage the audience by highlighting the unique features and benefits, inspiring them to learn more or take action.\n\n**Target Audience**: \nThe video is aimed at potential customers or clients who are interested in innovative solutions and are looking for products or services that add value to their lives. It could also target stakeholders or partners who might be interested in investing or collaborating.\n\n**Key Messages**:\n1. Introduction to the product/service/concept, emphasizing its unique selling points.\n2. Demonstration of how it solves a common problem or enhances the user\u2019s life.\n3. Showcase of customer testimonials or expert endorsements to build trust.\n4. Call-to-action encouraging viewers to visit a website, contact for more information, or make a purchase.\n5. Brief mention of any special offers, promotions, or upcoming events related to the launch.\n\n**Tone & Style**:\nThe video should have an engaging and informative tone, combining professionalism with approachability. The style should be visually appealing, using high-quality graphics or animations to illustrate key points. It should maintain a balance between being persuasive and informative, encouraging viewers to take interest without feeling overwhelmed.\n\n**Estimated Duration**:\nThe suggested length is 2 to 3 minutes. This duration is sufficient to convey the key messages effectively while keeping the audience engaged.\n\n--- \n\nThis brief serves as a foundation for creating a storyboard that aligns with the strategic goals of the video.",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": "2026-01-10T23:27:09.063567",
+      "created_at": "2026-01-10T23:14:00.345818",
+      "sources": [
+        {
+          "type": "user_input",
+          "reference": "HI"
+        }
+      ]
+    },
+    "outline": {
+      "ai_version": "",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": "2026-01-10T23:28:28.068075",
+      "created_at": "2026-01-10T23:27:09.116005",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via outline stage"
+        }
+      ]
+    },
+    "panels": {
+      "ai_version": "",
+      "human_version": "Panel 1: Opening scene with product introduction\nPanel 2: Key features demonstration\nPanel 3: Customer testimonials\nPanel 4: Call to action",
+      "edited": true,
+      "edit_summary": {
+        "characters_added": 139,
+        "characters_removed": 0,
+        "was_edited": true,
+        "edit_time_seconds": null
+      },
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": "2026-01-10T23:31:34.118742",
+      "created_at": "2026-01-10T23:30:24.998262",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via panels stage"
+        }
+      ]
+    },
+    "draft": {
+      "ai_version": "",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": "2026-01-10T23:31:55.066754",
+      "created_at": "2026-01-10T23:31:34.124169",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via draft stage"
+        }
+      ]
+    },
+    "polish": {
+      "ai_version": "",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": "2026-01-10T23:32:17.060729",
+      "created_at": "2026-01-10T23:31:55.124061",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via polish stage"
+        }
+      ]
+    }
+  },
+  "created_at": "2026-01-10T23:13:55.274336",
+  "last_updated": "2026-01-10T23:32:17.060762"
+}

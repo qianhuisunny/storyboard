@@ -1,0 +1,125 @@
+{
+  "project_id": "legacy_4434676224",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "how to grow tomatoes",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company information provided. Focus on general context for tomato growing.]",
+    "product_context": "The product would likely be a guide or tool for growing tomatoes, possibly providing tips on soil preparation, watering, and pest control. Key differentiators might include unique growing techniques or organic practices.",
+    "industry_context": "Home gardening has seen a resurgence in popularity, particularly with a growing interest in sustainable and organic homegrown food. Tomatoes remain one of the most popular crops for home gardeners due to their versatility and relatively easy cultivation.",
+    "terminology_glossary": {
+      "Companion Planting": "The practice of planting different crops in proximity for pest control, pollination, and maximizing space.",
+      "Heirloom Tomatoes": "Varieties of tomatoes that are open-pollinated and have been passed down through generations.",
+      "Determinate": "Tomato plants that grow to a fixed size and produce all their fruit at once.",
+      "Indeterminate": "Tomato plants that grow and produce fruit continuously throughout the growing season."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional workflow for growing tomatoes involves selecting a variety, preparing the soil, planting, watering, supporting plants with stakes or cages, and managing pests and diseases. An optimized process might include using advanced soil testing kits, automated watering systems, and digital apps for monitoring plant health.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or product details related to tomato growing]",
+      "[uncertain: exact market data on home gardening trends]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "how to grow tomatoes",
+    "key_points": [
+      "Growing tomatoes with unique techniques",
+      "Focus on organic practices",
+      "Tips on soil preparation, watering, and pest control"
+    ],
+    "constraints": [
+      "Do not claim: specific company or product details related to tomato growing",
+      "Do not claim: exact market data on home gardening trends"
+    ],
+    "problem": {
+      "description": "Traditional workflow for growing tomatoes involves selecting a variety, preparing the soil, planting, watering, supporting plants with stakes or cages, and managing pests and diseases.",
+      "source": "auto_filled_from_research"
+    },
+    "key_features": {
+      "description": [
+        "Unique growing techniques",
+        "Organic practices",
+        "Tips on soil preparation",
+        "Watering and pest control"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "typical_use_cases": {
+      "description": [
+        "Home gardening enthusiasts looking to grow tomatoes",
+        "Individuals interested in sustainable and organic food production"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "core_interaction_steps": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "The specific goal of the video is not provided. What should viewers know or do after watching?",
+        "context": "Define the desired outcome or action for viewers."
+      },
+      {
+        "field": "target_audience",
+        "note": "The target audience is not specified. Who is the intended viewer of this guide or tool for growing tomatoes?",
+        "context": "Identify the primary audience for better targeting."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "No company or brand name is provided. Is there a specific brand being featured in this video?",
+        "context": "If applicable, identify the brand to ensure accurate representation."
+      },
+      {
+        "field": "cta",
+        "note": "The call to action is not specified. What action should viewers take after watching the video?",
+        "context": "Define the CTA to guide viewer engagement."
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "The optimized process for growing tomatoes is not detailed. What high-level steps should be demonstrated in the video?",
+        "context": "For a Product Release video, outlining the process can help illustrate the product's benefits."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T12:26:08.999562",
+  "updated_at": "2026-01-11T12:26:22.608745"
+}

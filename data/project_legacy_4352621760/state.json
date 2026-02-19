@@ -1,0 +1,108 @@
+{
+  "project_id": "legacy_4352621760",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to make a simple paper airplane that flies far",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "The context provided does not specify a company or product related to the creation of paper airplanes. Typically, resources for making paper airplanes are provided by educational platforms or hobbyist groups rather than a specific company.",
+    "product_context": "The 'product' in this context is a simple paper airplane designed for distance flying. The key differentiator of such designs is their ability to maintain stability and glide over long distances, often achieved through precise folds and aerodynamic adjustments.",
+    "industry_context": "Paper airplane making is a popular hobby and educational activity. It is often used in educational settings to teach principles of aerodynamics and physics. There is a community-driven interest in optimizing designs for performance, with trends focusing on achieving longer flight distances and innovative folding techniques.",
+    "terminology_glossary": {
+      "Aerodynamics": "The study of the properties of moving air and the interaction between the air and solid bodies moving through it.",
+      "Glide Ratio": "The distance a glider can travel forward compared to the altitude it loses. Higher glide ratios indicate better long-distance performance.",
+      "Wing Loading": "The amount of weight a wing supports; in paper airplanes, this affects how fast the plane must move to stay aloft.",
+      "Dihedral Angle": "The angle between two wings of an airplane, which affects stability and turning ability."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditionally, making a paper airplane involves selecting a design, folding the paper according to specific instructions, and then testing and adjusting the plane for optimal performance. An optimized process might include using templates, experimenting with different paper types, and adjusting folds for improved aerodynamics.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or brand relevant to paper airplanes]",
+      "[uncertain: detailed market size or specific trends in paper airplane hobbyists]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Teach viewers how to make a simple paper airplane that flies far.",
+    "target_audience": "Hobbyists, students, or educators interested in creating paper airplanes.",
+    "company_or_brand_name": "N/A",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Try making your own paper airplane and see how far it can fly!",
+    "video_type": "Product Release",
+    "user_inputs": "How to make a simple paper airplane that flies far",
+    "key_points": [
+      "Design focuses on maximizing glide ratio for long-distance flying.",
+      "Precise folds and aerodynamic adjustments are key to performance.",
+      "Engaging hobby that also educates on basic principles of aerodynamics."
+    ],
+    "constraints": [
+      "Do not claim: specific company or brand relevant to paper airplanes",
+      "Do not claim: detailed market size or specific trends in paper airplane hobbyists"
+    ],
+    "problem": {
+      "content": "Traditionally, making a paper airplane involves selecting a design, folding the paper according to specific instructions, and then testing and adjusting the plane for optimal performance.",
+      "source": "auto_filled_from_research"
+    },
+    "key_features": {
+      "content": [
+        "Maximized glide ratio",
+        "Precise folding techniques",
+        "Aerodynamic stability"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "typical_use_cases": {
+      "content": [
+        "Educational demonstrations in classrooms",
+        "Hobbyist competitions for distance",
+        "Recreational activities for children and adults"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "core_interaction_steps": {
+      "content": "unresolved_questions",
+      "note": "The research does not provide a specific optimized process or step-by-step instructions for making the paper airplane. What are the exact steps to fold and adjust the airplane for maximum distance?",
+      "context": "For a Product Release video on paper airplane making, specific folding and adjustment instructions are necessary."
+    },
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "core_interaction_steps",
+        "note": "The research does not provide a specific optimized process or step-by-step instructions for making the paper airplane. What are the exact steps to fold and adjust the airplane for maximum distance?",
+        "context": "For a Product Release video on paper airplane making, specific folding and adjustment instructions are necessary."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:34:43.020192",
+  "updated_at": "2026-01-10T23:35:06.397073"
+}

@@ -1,4 +1,4 @@
-import React, { forwardRef, useImperativeHandle, useRef, useCallback } from "react";
+import { forwardRef, useImperativeHandle, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import StoryboardPanel, { type StoryboardPanelType } from "@/components/StoryboardPanel";
 

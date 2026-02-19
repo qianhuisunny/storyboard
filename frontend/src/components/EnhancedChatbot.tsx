@@ -29,7 +29,7 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
 
       try {
         // Load chat history from backend
-        const response = await fetch(`http://localhost:8001/api/chat/history/${currentProjectId}`);
+        const response = await fetch(`/api/chat/history/${currentProjectId}`);
 
         if (response.ok) {
           const data = await response.json();
@@ -108,7 +108,7 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
       if (!projectId || messages.length === 0) return;
 
       try {
-        const response = await fetch("http://localhost:8001/api/chat/save", {
+        const response = await fetch("/api/chat/save", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -166,7 +166,7 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 380000); // 6 minutes 20 seconds
 
-      const response = await fetch("http://localhost:8001/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -241,7 +241,7 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 380000); // 6 minutes 20 seconds
 
-      const response = await fetch("http://localhost:8001/api/chat", {
+      const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -294,18 +294,18 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
   return (
     <Card
       className={cn(
-        "fixed right-0 top-0 h-screen w-1/4 bg-background border-l border-border shadow-lg flex flex-col z-50",
+        "fixed right-0 top-0 h-screen w-1/4 bg-card border-l border-border shadow-lg flex flex-col z-50 rounded-none",
         className
       )}
     >
-      {/* Header */}
-      <div className="bg-primary text-primary-foreground p-4 rounded-t-lg">
+      {/* Header - Cal.com inverted style */}
+      <div className="bg-[var(--header-background)] text-[var(--header-foreground)] p-4">
         <div className="flex items-center space-x-2">
           <Bot className="w-5 h-5" />
-          <h3 className="font-medium">Storyboard AI Assistant</h3>
+          <h3 className="font-semibold">Storyboard AI Assistant</h3>
         </div>
         <div className="flex">
-          <p className="text-xs text-primary-foreground/80 mt-1">
+          <p className="text-xs opacity-80 mt-1">
             Edit and iterate your storyboard
           </p>
         </div>

@@ -100,13 +100,13 @@ pip install fastapi uvicorn python-dotenv requests pydantic
 Create a `.env` file in the backend directory:
 ```env
 # AI Configuration
-OPENAI_API_KEY=your_openai_key
+OPENAI_API_KEY=
 GEMINI_API_KEY=your_gemini_key
 
 # Langflow Configuration
-LANGFLOW_API_KEY=your_langflow_key
+LANGFLOW_API_KEY=sk-lBi7UN-5-eNxRuRFVsxVzCqNtLYYb3pmu8HhOuxGltY
 LANGFLOW_HOST=localhost:7860
-LANGFLOW_FLOW_ID=your_flow_id
+LANGFLOW_FLOW_ID=4440b94d-d026-467b-acc9-734d01987c3c
 
 # Google Search Configuration
 GOOGLE_CSE_API_KEY=your_google_api_key

@@ -1,0 +1,103 @@
+{
+  "project_id": "legacy_4567043264",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to grow watermelon in south california ",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company or product mentioned for how-to video on growing watermelons]",
+    "product_context": "[uncertain: No specific product mentioned for how-to video on growing watermelons]",
+    "industry_context": "The agriculture industry in Southern California is known for its diverse crop production due to the region's Mediterranean climate, which is suitable for growing a variety of fruits and vegetables, including watermelons. Recent trends focus on sustainable farming practices and water-efficient irrigation methods due to frequent droughts.",
+    "terminology_glossary": {
+      "Irrigation": "The artificial application of water to soil to assist in the growing of crops.",
+      "Pollination": "The process by which pollen is transferred from the male part of a plant to the female part, enabling fertilization and the production of seeds.",
+      "Germination": "The process by which a plant grows from a seed.",
+      "Cultivar": "A plant variety that has been produced in cultivation by selective breeding.",
+      "Mulching": "The practice of covering the soil with organic or inorganic materials to conserve moisture, improve fertility, and reduce weed growth."
+    },
+    "typical_workflows": {
+      "traditional_process": "For growing watermelons in Southern California, the process typically involves: 1) Selecting appropriate watermelon cultivars for the climate, 2) Preparing the soil with necessary nutrients, 3) Planting seeds or seedlings after the last frost, 4) Regular watering with efficient irrigation systems, 5) Implementing pest and weed control measures, and 6) Harvesting once the watermelons reach maturity.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: Specific company or product related to growing watermelons]",
+      "[uncertain: Detailed market trends specific to watermelon production in Southern California]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video",
+    "user_inputs": "How to grow watermelon in south california ",
+    "key_points": [
+      "Southern California's Mediterranean climate is ideal for watermelon cultivation",
+      "Sustainable farming practices are critical due to frequent droughts",
+      "Efficient irrigation is essential for successful watermelon growth"
+    ],
+    "constraints": [
+      "Do not claim: Specific company or product related to growing watermelons",
+      "Do not claim: Detailed market trends specific to watermelon production in Southern California"
+    ],
+    "problem": {
+      "description": "For growing watermelons in Southern California, the process typically involves: 1) Selecting appropriate watermelon cultivars for the climate, 2) Preparing the soil with necessary nutrients, 3) Planting seeds or seedlings after the last frost, 4) Regular watering with efficient irrigation systems, 5) Implementing pest and weed control measures, and 6) Harvesting once the watermelons reach maturity.",
+      "source": "auto_filled_from_research"
+    },
+    "core_interaction_steps": [
+      "Select appropriate watermelon cultivars for the Southern California climate",
+      "Prepare the soil with necessary nutrients",
+      "Plant seeds or seedlings after the last frost date",
+      "Water regularly using efficient irrigation systems",
+      "Implement pest and weed control measures",
+      "Harvest when watermelons reach maturity"
+    ],
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "What specific action or knowledge should viewers take or gain after watching the video?"
+      },
+      {
+        "field": "target_audience",
+        "note": "Who is the intended audience for this video? (e.g., amateur gardeners, professional farmers in Southern California)"
+      },
+      {
+        "field": "cta",
+        "note": "What is the call to action for viewers at the end of the video?"
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T14:35:27.332258",
+  "updated_at": "2026-01-11T14:35:39.678307"
+}

@@ -1,0 +1,9 @@
+{
+  "screen_number": 4,
+  "screen_title": "Feature: Instant Scene Generation",
+  "voiceover_text": "Simply enter your learning objectives, and watch as LearnFlow AI instantly generates scenes tailored to your content.",
+  "visual_description": "Screencast: User types objectives, scenes auto-populate in a storyboard timeline.",
+  "screen_type": "screencast",
+  "target_duration_sec": 6,
+  "image_url": []
+}

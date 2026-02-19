@@ -1,0 +1,35 @@
+{
+  "project_id": "test_review_goback_1768117681",
+  "phase": "gate2",
+  "intake_form": {
+    "video_goal": "Test"
+  },
+  "context_pack": null,
+  "story_brief": {
+    "video_goal": "Test",
+    "target_audience": "Devs",
+    "key_points": [
+      "a"
+    ]
+  },
+  "screen_outline": [
+    {
+      "screen_number": 1
+    },
+    {
+      "screen_number": 2
+    },
+    {
+      "screen_number": 3
+    }
+  ],
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": true,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:48:01.994720",
+  "updated_at": "2026-01-10T23:48:01.995135"
+}

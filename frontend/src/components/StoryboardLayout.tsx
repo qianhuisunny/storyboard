@@ -47,7 +47,7 @@ const StoryboardLayout: React.FC = () => {
 
       try {
         const response = await fetch(
-          `http://localhost:8001/api/project/${projectId}`
+          `/api/project/${projectId}`
         );
 
         if (!response.ok) {

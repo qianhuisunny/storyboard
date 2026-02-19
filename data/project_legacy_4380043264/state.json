@@ -1,0 +1,97 @@
+{
+  "project_id": "legacy_4380043264",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "how to wash tomotoes",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No company name or specific product provided related to 'how to wash tomatoes'.]",
+    "product_context": "[uncertain: No specific product identified. If the focus is on a product that aids in washing tomatoes, additional details are needed.]",
+    "industry_context": "The food safety and produce washing market emphasize reducing pesticide residue and ensuring consumer safety. There has been a rise in demand for effective produce washing solutions due to increasing consumer awareness about food safety.",
+    "terminology_glossary": {
+      "Produce wash": "A solution or method used to clean fruits and vegetables to remove dirt, bacteria, and pesticide residues.",
+      "Pesticide residue": "Traces of chemicals that remain on food products after they have been applied to crops.",
+      "Food safety": "Practices that prevent foodborne illnesses by handling, preparing, and storing food safely."
+    },
+    "typical_workflows": {
+      "traditional_process": "[uncertain: Specific workflows for washing tomatoes without a particular product in focus. Generally, the process involves rinsing under running water, possibly using a produce wash, and drying with a clean cloth.]",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: No specific company or product identified for washing tomatoes.]",
+      "[uncertain: Details about a specific product's differentiators and functionalities.]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "how to wash tomotoes",
+    "key_points": [
+      "Increased consumer awareness about food safety",
+      "Demand for effective produce washing solutions",
+      "Focus on reducing pesticide residue on tomatoes"
+    ],
+    "constraints": [
+      "Do not claim: specific product details or company name related to washing tomatoes",
+      "Do not claim: specific product's differentiators and functionalities"
+    ],
+    "problem": "[auto_filled_from_research] Traditional tomato washing involves rinsing under running water, possibly using a produce wash, without a specific product focus.",
+    "key_features": "[auto_filled_from_research] No specific product features identified, as no product is provided.",
+    "typical_use_cases": "[auto_filled_from_research] General use case of washing tomatoes to ensure they are free from dirt, bacteria, and pesticide residues.",
+    "core_interaction_steps": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "The video goal is not specified. What should viewers know or do after watching the video?"
+      },
+      {
+        "field": "target_audience",
+        "note": "The target audience is not specified. Who is the intended audience for this video?"
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "No company or brand name provided. Is there a specific brand associated with this video?"
+      },
+      {
+        "field": "cta",
+        "note": "Call to action is not specified. What action should viewers take after watching the video?"
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:51:41.740585",
+  "updated_at": "2026-01-10T23:51:50.221313"
+}

@@ -1,0 +1,40 @@
+{
+  "project_id": "test_gate2_empty_1768117681",
+  "phase": "gate2",
+  "intake_form": null,
+  "context_pack": null,
+  "story_brief": {
+    "video_goal": "Test",
+    "target_audience": "Devs",
+    "key_points": [
+      "a"
+    ]
+  },
+  "screen_outline": [
+    {
+      "screen_number": 1,
+      "voiceover_text": "Hi",
+      "screen_type": "Hook",
+      "visual_direction": "Text"
+    },
+    {
+      "screen_number": 2,
+      "voiceover_text": "There"
+    },
+    {
+      "screen_number": 3,
+      "voiceover_text": "Bye",
+      "screen_type": "CTA",
+      "visual_direction": "Button"
+    }
+  ],
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:48:01.993623",
+  "updated_at": "2026-01-10T23:48:01.994437"
+}

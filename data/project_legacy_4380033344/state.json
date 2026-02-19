@@ -1,0 +1,103 @@
+{
+  "project_id": "legacy_4380033344",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "how to wash tomotoes",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: company not specified]",
+    "product_context": "Washing tomatoes is a process involving cleaning the surface of the tomatoes to remove dirt, pesticides, and bacteria. Key differentiators for products related to washing tomatoes could include natural ingredients, effectiveness in removing residues, and ease of use.",
+    "industry_context": "There is a growing trend towards organic and natural cleaning products in the food industry, driven by consumer demand for safer and more eco-friendly solutions.",
+    "terminology_glossary": {
+      "Pesticides": "Chemicals used to eliminate pests that affect agricultural productivity.",
+      "Organic": "Produced or involving production without the use of chemical fertilizers, pesticides, or other artificial agents.",
+      "Eco-friendly": "Products that are not harmful to the environment."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditionally, tomatoes are washed under running water and sometimes scrubbed with a brush. Optimized methods may involve using specialized fruit and vegetable wash products that claim to remove more pesticides and bacteria than water alone.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company and product details not provided]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "how to wash tomotoes",
+    "key_points": [
+      "Natural ingredients for safer cleaning",
+      "Effective removal of residues",
+      "Ease of use in washing processes"
+    ],
+    "constraints": [
+      "Do not claim: specific company and product details not provided"
+    ],
+    "problem": {
+      "content": "Traditionally, tomatoes are washed under running water and sometimes scrubbed with a brush. This method may not effectively remove all pesticides and bacteria.",
+      "source": "auto_filled_from_research"
+    },
+    "key_features": {
+      "content": [
+        "Natural ingredient formulation",
+        "Enhanced effectiveness in residue removal",
+        "User-friendly application"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "typical_use_cases": {
+      "content": [
+        "Use in household kitchens for washing tomatoes",
+        "Applicable in food industry settings for cleaning produce"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "core_interaction_steps": {
+      "content": null,
+      "source": "unresolved"
+    },
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "core_interaction_steps",
+        "note": "The research describes general benefits but not specific interaction steps. What exact process should we demonstrate?",
+        "context": "For Product Release videos, we need to outline the key steps in using the product."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:51:50.223032",
+  "updated_at": "2026-01-10T23:51:58.181131"
+}

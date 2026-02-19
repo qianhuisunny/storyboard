@@ -1,0 +1,92 @@
+{
+  "project_id": "legacy_4567115776",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to grow watermelon in south california ",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company or product was provided. The research focus is on the general topic of growing watermelon in South California.]",
+    "product_context": "[uncertain: No specific product was mentioned. The context will focus on general agricultural practices and guidelines for watermelon cultivation in the region.]",
+    "industry_context": "The agricultural industry in Southern California is diverse, with a favorable climate for growing a variety of crops, including watermelon. Watermelons are typically grown in warmer climates, making Southern California an ideal location. The demand for locally grown produce is increasing as consumers prefer fresh and sustainable options.",
+    "terminology_glossary": {
+      "Cucurbitaceae": "A plant family that includes gourds, melons, and cucumbers, to which watermelon belongs.",
+      "Transplanting": "The process of moving a plant from one growing location to another, often used in watermelon cultivation to start seedlings indoors before planting outside.",
+      "Drip irrigation": "A type of micro-irrigation system that saves water and fertilizer by allowing water to drip slowly to the roots of plants.",
+      "Pollination": "The transfer of pollen from the male part of a plant to the female part, necessary for fruit production in watermelons."
+    },
+    "typical_workflows": {
+      "traditional_process": "In Southern California, growing watermelons typically involves selecting a sunny location with well-drained soil, starting seeds indoors or directly sowing them after the last frost, ensuring proper spacing, utilizing drip irrigation systems for efficient watering, and monitoring for pests and diseases. Farmers often use mulch to retain soil moisture and control weeds.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: Specific guidelines for watermelon varieties best suited for Southern California]",
+      "[uncertain: Local regulations or incentives for sustainable farming practices in the region]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Educate viewers on the process of growing watermelon in Southern California",
+    "target_audience": "Amateur gardeners and home growers in Southern California",
+    "company_or_brand_name": "General Agricultural Practices",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Visit our website for more gardening tips",
+    "video_type": "How-to Video",
+    "user_inputs": "How to grow watermelon in south california",
+    "key_points": [
+      "Select a sunny location with well-drained soil for optimal growth",
+      "Use drip irrigation systems for efficient watering",
+      "Start seeds indoors or sow directly after the last frost",
+      "Ensure proper spacing and use mulch to retain moisture and control weeds",
+      "Monitor for pests and diseases regularly"
+    ],
+    "constraints": [
+      "Do not claim: Specific guidelines for watermelon varieties best suited for Southern California",
+      "Do not claim: Local regulations or incentives for sustainable farming practices in the region"
+    ],
+    "problem": "In Southern California, growing watermelons requires understanding the local climate and soil conditions to ensure successful cultivation.",
+    "core_interaction_steps": [
+      "Select a sunny location with well-drained soil",
+      "Start seeds indoors or sow directly after the last frost",
+      "Ensure proper spacing between plants",
+      "Install drip irrigation systems for efficient water use",
+      "Monitor and control pests and diseases",
+      "Use mulch to retain soil moisture and control weeds"
+    ],
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "video_goal",
+      "target_audience",
+      "company_or_brand_name",
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": []
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T15:00:13.321679",
+  "updated_at": "2026-01-11T15:00:25.180084"
+}

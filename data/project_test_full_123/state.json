@@ -1,0 +1,345 @@
+{
+  "project_id": "test_full_123",
+  "phase": "done",
+  "intake_form": {
+    "video_goal": "Explain our AI-powered inventory management solution",
+    "target_audience": "Supply chain managers at mid-size retailers",
+    "company_or_brand_name": "SmartStock AI",
+    "tone_and_style": "Professional yet approachable",
+    "format_or_platform": "LinkedIn video ad",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Book a demo at smartstock.ai",
+    "video_type": "Product Release",
+    "user_inputs": "We help retailers reduce overstock by 30% using predictive AI. Key features: real-time tracking, automated reordering, demand forecasting."
+  },
+  "context_pack": {
+    "company_context": "SmartStock AI is a technology company focused on providing AI-driven inventory management solutions for the retail sector. The company aims to optimize supply chain operations by reducing overstock and improving inventory accuracy through advanced predictive analytics.",
+    "product_context": "SmartStock AI's inventory management solution leverages artificial intelligence to deliver real-time tracking, automated reordering, and demand forecasting. A key differentiator is its ability to integrate seamlessly with existing retail systems and predict inventory needs with high accuracy, helping retailers cut down overstock by up to 30%.",
+    "industry_context": "The inventory management software market is experiencing growth due to increased demand for automation and efficiency post-pandemic. Retailers are adopting AI and cloud-based solutions to better manage supply chain disruptions and improve real-time decision-making capabilities.",
+    "terminology_glossary": {
+      "Predictive AI": "Artificial intelligence techniques used to predict future events based on historical data.",
+      "Overstock": "Excess inventory that exceeds the demand for a product.",
+      "Real-time tracking": "The ability to monitor and update inventory data continuously as it changes.",
+      "Automated reordering": "A system that automatically places orders for new stock when inventory levels reach a predefined threshold.",
+      "Demand forecasting": "The process of predicting future consumer demand for a product using historical sales data and analytics."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditionally, supply chain managers manually monitor inventory levels and place orders based on historical sales and intuition, often leading to overstock or stockouts. With SmartStock AI, managers can automate these processes: 1) System continuously tracks inventory in real-time, 2) Utilizes predictive AI to forecast demand, 3) Automatically triggers reorders when needed, reducing manual intervention and errors.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: exact founding year of SmartStock AI]",
+      "[uncertain: specific integration capabilities with other retail systems]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Explain our AI-powered inventory management solution",
+    "target_audience": "Supply chain managers at mid-size retailers",
+    "company_or_brand_name": "SmartStock AI",
+    "tone_and_style": "Professional yet approachable",
+    "format_or_platform": "LinkedIn video ad",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Book a demo at smartstock.ai",
+    "video_type": "Product Release",
+    "user_inputs": "We help retailers reduce overstock by 30% using predictive AI. Key features: real-time tracking, automated reordering, demand forecasting.",
+    "key_points": [
+      "Reduce overstock by up to 30% with predictive AI",
+      "Seamless integration with existing retail systems",
+      "Real-time inventory tracking and automated reordering",
+      "High accuracy demand forecasting"
+    ],
+    "constraints": [
+      "Do not claim: exact founding year of SmartStock AI",
+      "Do not claim: specific integration capabilities with other retail systems"
+    ],
+    "problem": {
+      "description": "Traditionally, supply chain managers manually monitor inventory levels and place orders based on historical sales and intuition, often leading to overstock or stockouts.",
+      "source": "auto_filled_from_research"
+    },
+    "key_features": {
+      "features": [
+        "Real-time tracking",
+        "Automated reordering",
+        "Demand forecasting",
+        "Seamless integration with retail systems"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "typical_use_cases": {
+      "scenarios": [
+        "Mid-size retailers looking to automate inventory processes",
+        "Retailers wanting to reduce overstock and improve accuracy"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "core_interaction_steps": {
+      "steps": [
+        "System continuously tracks inventory in real-time",
+        "Predictive AI forecasts demand",
+        "Automatically triggers reorders when needed"
+      ],
+      "source": "auto_filled_from_research"
+    },
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases",
+      "core_interaction_steps"
+    ],
+    "unresolved_questions": []
+  },
+  "screen_outline": [
+    {
+      "screen_number": 1,
+      "purpose": "Hook - highlight traditional inventory challenges",
+      "rough_duration": 6,
+      "screen_type": "stock video",
+      "voiceover_text": "Traditional inventory management relies on manual monitoring and intuition, leading to costly overstock or stockouts.",
+      "visual_direction": "Footage of a retail warehouse filled with excess stock and an overwhelmed manager manually checking inventory levels.",
+      "notes": "Establish the problem immediately with a relatable and emotional visual of traditional inventory chaos."
+    },
+    {
+      "screen_number": 2,
+      "purpose": "Problem - inefficiency of manual processes",
+      "rough_duration": 7,
+      "screen_type": "slides/text overlay",
+      "voiceover_text": "Manually tracking inventory can result in overstock, stockouts, and missed sales opportunities.",
+      "visual_direction": "Text overlay with bullet points: Overstock, Stockouts, Missed Sales Opportunities, accompanied by simple icons for each.",
+      "notes": "Reinforce the pain points supply chain managers face with clear, visual text."
+    },
+    {
+      "screen_number": 3,
+      "purpose": "Solution Intro - SmartStock AI",
+      "rough_duration": 6,
+      "screen_type": "stock video",
+      "voiceover_text": "Meet SmartStock AI, your solution for seamless, AI-powered inventory management.",
+      "visual_direction": "Dynamic animation showing the SmartStock AI logo with a backdrop of a digitally transforming warehouse.",
+      "notes": "Introduce the product with a professional yet approachable tone, focusing on transformation."
+    },
+    {
+      "screen_number": 4,
+      "purpose": "Feature 1 - Real-time tracking",
+      "rough_duration": 7,
+      "screen_type": "screencast",
+      "voiceover_text": "Our real-time tracking gives you up-to-the-minute visibility into your inventory across all locations.",
+      "visual_direction": "Screencast of the SmartStock AI dashboard showing live inventory updates across various retail locations.",
+      "notes": "Highlight the real-time tracking feature with an interface demonstration."
+    },
+    {
+      "screen_number": 5,
+      "purpose": "Feature 2 - Automated reordering",
+      "rough_duration": 7,
+      "screen_type": "screencast",
+      "voiceover_text": "Automated reordering ensures you never run out of stock, optimizing your supply chain effortlessly.",
+      "visual_direction": "Screencast showing the automated reordering process with notifications and stock level adjustments.",
+      "notes": "Focus on the automation aspect which reduces manual labor and errors."
+    },
+    {
+      "screen_number": 6,
+      "purpose": "Feature 3 - Demand forecasting",
+      "rough_duration": 7,
+      "screen_type": "screencast",
+      "voiceover_text": "Predict future inventory needs accurately with our high-accuracy demand forecasting.",
+      "visual_direction": "Screencast of demand forecasting charts and predictive analytics on the SmartStock AI platform.",
+      "notes": "Emphasize the accuracy and predictive power of the AI."
+    },
+    {
+      "screen_number": 7,
+      "purpose": "Benefits - Reduce overstock",
+      "rough_duration": 6,
+      "screen_type": "slides/text overlay",
+      "voiceover_text": "SmartStock AI helps reduce overstock by up to 30%, saving you space and money.",
+      "visual_direction": "Graphical representation of inventory reduction with a highlighted 30% decrease and dollar savings.",
+      "notes": "Use clear visuals to communicate the key benefit of inventory reduction."
+    },
+    {
+      "screen_number": 8,
+      "purpose": "Use Case - Mid-size retailers",
+      "rough_duration": 6,
+      "screen_type": "stock video",
+      "voiceover_text": "Mid-size retailers like you can automate inventory management and boost efficiency.",
+      "visual_direction": "Video showing a successful mid-size retail operation using SmartStock AI, with staff efficiently managing stock.",
+      "notes": "Relate directly to the target audience with a practical use case."
+    },
+    {
+      "screen_number": 9,
+      "purpose": "Summary - Seamless integration",
+      "rough_duration": 5,
+      "screen_type": "slides/text overlay",
+      "voiceover_text": "Experience seamless integration with your existing systems for a smooth transition.",
+      "visual_direction": "Animated flowchart showing integration steps without specific system names.",
+      "notes": "Highlight integration benefits without specifying exact systems to avoid constraints."
+    },
+    {
+      "screen_number": 10,
+      "purpose": "CTA - Book a demo",
+      "rough_duration": 5,
+      "screen_type": "CTA",
+      "voiceover_text": "Book a demo today at smartstock.ai and see the future of inventory management.",
+      "visual_direction": "Call-to-action screen with smartstock.ai URL prominently displayed and a 'Book a Demo' button.",
+      "notes": "Clear and direct call-to-action to drive viewer engagement."
+    }
+  ],
+  "storyboard": [
+    {
+      "screen_number": 1,
+      "screen_type": "stock video",
+      "target_duration_sec": 7.0,
+      "voiceover_text": "Traditional inventory management relies on manual monitoring and intuition, leading to costly overstock or stockouts.",
+      "visual_direction": [
+        "Footage of a retail warehouse filled",
+        "excess stock",
+        "an overwhelmed manager manually checking inventory levels."
+      ],
+      "on_screen_visual": "https://c8.alamy.com/comp/2H0EH56/luis-diaz-warehouse-specialist-at-fort-hunter-liggetts-equipment-concentration-site-170-is-one-of-a-half-dozen-employees-who-staff-the-110000-square-feet-warehouse-filled-with-all-sorts-of-dress-right-dress-shelved-equipment-from-radios-to-generators-to-tents-there-are-technical-manuals-for-every-type-of-equipment-and-a-daily-log-to-show-what-type-of-maintenance-was-done-and-when-anything-issued-out-to-the-customer-is-maintained-before-it-goes-out-said-diaz-we-make-sure-its-working-properly-we-do-all-the-procedures-and-after-we-know-its-good-we-set-it-up-for-them-to-take-2H0EH56.jpg",
+      "action_notes": "Hook - highlight traditional inventory challenges. Establish the problem immediately with a relatable and emotional visual of traditional inventory chaos. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 2,
+      "screen_type": "slides/text overlay",
+      "target_duration_sec": 6.0,
+      "voiceover_text": "Manually tracking inventory can result in overstock, stockouts, and missed sales opportunities.",
+      "visual_direction": [
+        "Text overlay",
+        "bullet points: Overstock",
+        "Missed Sales Opportunities",
+        "accompanied by simple icons for each."
+      ],
+      "on_screen_visual": "GRAPHIC: Text-Overlay-With",
+      "action_notes": "Problem - inefficiency of manual processes. Reinforce the pain points supply chain managers face with clear, visual text. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 3,
+      "screen_type": "stock video",
+      "target_duration_sec": 4.5,
+      "voiceover_text": "Meet SmartStock AI, your solution for seamless, AI-powered inventory management.",
+      "visual_direction": [
+        "Setting: Dynamic animation showing the SmartStock AI logo w...",
+        "People and actions visible in frame",
+        "Key objects prominently shown",
+        "Appropriate mood and atmosphere",
+        "Realistic environment"
+      ],
+      "on_screen_visual": "https://www.shutterstock.com/image-vector/3d-dynamic-double-digital-wave-260nw-2212075117.jpg",
+      "action_notes": "Solution Intro - SmartStock AI. Introduce the product with a professional yet approachable tone, focusing on transformation. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 4,
+      "screen_type": "screencast",
+      "target_duration_sec": 6.5,
+      "voiceover_text": "Our real-time tracking gives you up-to-the-minute visibility into your inventory across all locations.",
+      "visual_direction": [
+        "UI screen: Screencast of the SmartStock AI dashboard showing ...",
+        "Key interface elements highlighted",
+        "User interaction demonstrated",
+        "Data/results visible"
+      ],
+      "on_screen_visual": "SCREENCAST: Screencast-The-Smartstock",
+      "action_notes": "Feature 1 - Real-time tracking. Highlight the real-time tracking feature with an interface demonstration. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 5,
+      "screen_type": "screencast",
+      "target_duration_sec": 7.0,
+      "voiceover_text": "Automated reordering ensures you never run out of stock, optimizing your supply chain effortlessly.",
+      "visual_direction": [
+        "Screencast showing the automated reordering process",
+        "notifications",
+        "stock level adjustments."
+      ],
+      "on_screen_visual": "SCREENCAST: Screencast-Showing-The",
+      "action_notes": "Feature 2 - Automated reordering. Focus on the automation aspect which reduces manual labor and errors. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 6,
+      "screen_type": "screencast",
+      "target_duration_sec": 5.0,
+      "voiceover_text": "Predict future inventory needs accurately with our high-accuracy demand forecasting.",
+      "visual_direction": [
+        "UI screen: Screencast of demand forecasting charts and predic...",
+        "Key interface elements highlighted",
+        "User interaction demonstrated",
+        "Data/results visible"
+      ],
+      "on_screen_visual": "SCREENCAST: Screencast-Demand-Forecasting",
+      "action_notes": "Feature 3 - Demand forecasting. Emphasize the accuracy and predictive power of the AI. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 7,
+      "screen_type": "slides/text overlay",
+      "target_duration_sec": 6.5,
+      "voiceover_text": "SmartStock AI helps reduce overstock by up to thirty percent, saving you space and money.",
+      "visual_direction": [
+        "Graphical representation of inventory reduction",
+        "a highlighted 30% decrease",
+        "dollar savings."
+      ],
+      "on_screen_visual": "GRAPHIC: Graphical-Representation-Inventory",
+      "action_notes": "Benefits - Reduce overstock. Use clear visuals to communicate the key benefit of inventory reduction. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 8,
+      "screen_type": "stock video",
+      "target_duration_sec": 5.0,
+      "voiceover_text": "Mid-size retailers like you can automate inventory management and boost efficiency.",
+      "visual_direction": [
+        "Setting: Video showing a successful mid-size retail operati...",
+        "People and actions visible in frame",
+        "Key objects prominently shown",
+        "Appropriate mood and atmosphere",
+        "Realistic environment"
+      ],
+      "on_screen_visual": "https://upload.wikimedia.org/wikipedia/commons/2/20/MKr378512_M%C3%A9lanie_Laurent_%28Qui_brille_au_combat%2C_Cannes_2025%29.jpg",
+      "action_notes": "Use Case - Mid-size retailers. Relate directly to the target audience with a practical use case. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 9,
+      "screen_type": "slides/text overlay",
+      "target_duration_sec": 5.5,
+      "voiceover_text": "Experience seamless integration with your existing systems for a smooth transition.",
+      "visual_direction": [
+        "Graphic: Animated flowchart showing integration steps witho...",
+        "Key data points visible",
+        "Clean visual hierarchy",
+        "Brand-consistent styling"
+      ],
+      "on_screen_visual": "GRAPHIC: Animated-Flowchart-Showing",
+      "action_notes": "Summary - Seamless integration. Highlight integration benefits without specifying exact systems to avoid constraints. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    },
+    {
+      "screen_number": 10,
+      "screen_type": "CTA",
+      "target_duration_sec": 6.0,
+      "voiceover_text": "Book a demo today at smartstock.ai and see the future of inventory management.",
+      "visual_direction": [
+        "Call-to-action screen",
+        "smartstock.ai URL prominently displayed",
+        "a 'Book a Demo' button."
+      ],
+      "on_screen_visual": "CTA-TEMPLATE: Demo-Booking",
+      "action_notes": "CTA - Book a demo. Clear and direct call-to-action to drive viewer engagement. Constraints: Do not claim: exact founding year of SmartStock AI; Do not claim: specific integration capabilities with other retail systems Tone: Professional yet approachable."
+    }
+  ],
+  "revision_history": [
+    {
+      "gate": 2,
+      "feedback": "Screen 7 about reducing overstock should come earlier, right after introducing SmartStock AI. Move it to position 4.",
+      "timestamp": "2026-01-10T23:31:12.228604",
+      "resolved": true
+    }
+  ],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 1,
+  "max_revisions": 3,
+  "brief_locked": true,
+  "outline_locked": true,
+  "created_at": "2026-01-10T23:28:57.418496",
+  "updated_at": "2026-01-10T23:32:24.382414"
+}

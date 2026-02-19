@@ -1,0 +1,99 @@
+{
+  "project_id": "legacy_4397183936",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "Test video about AI",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "To create a Context Pack, I need more specific information about the company and product in question. Could you provide the name of the company or product, or any other relevant details? This will help me narrow down the research to provide accurate and relevant information.",
+    "product_context": "",
+    "industry_context": "",
+    "terminology_glossary": {},
+    "typical_workflows": {
+      "traditional_process": "",
+      "optimized_process": ""
+    },
+    "key_value_propositions": {},
+    "uncertainties": [
+      "[uncertain: Could not parse structured response]"
+    ],
+    "raw_research": "To create a Context Pack, I need more specific information about the company and product in question. Could you provide the name of the company or product, or any other relevant details? This will help me narrow down the research to provide accurate and relevant information."
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "Test video about AI",
+    "key_points": [],
+    "constraints": [
+      "Do not claim: Could not parse structured response"
+    ],
+    "problem": "",
+    "key_features": [],
+    "typical_use_cases": [],
+    "core_interaction_steps": "",
+    "auto_filled_fields": [
+      "constraints"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "The video goal is missing. What should the viewer know or do after watching the video?"
+      },
+      {
+        "field": "target_audience",
+        "note": "The target audience is missing. Who is the intended viewer of this video?"
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "The company or brand name is missing. Which company or product is being featured in this video?"
+      },
+      {
+        "field": "cta",
+        "note": "The call to action is missing. What action should the viewer take after watching the video?"
+      },
+      {
+        "field": "problem",
+        "note": "What problem does the product solve? Please describe the 'before' state or challenges."
+      },
+      {
+        "field": "key_features",
+        "note": "What are the key features of the product? Please list specific capabilities or differentiators."
+      },
+      {
+        "field": "typical_use_cases",
+        "note": "What are the typical use cases for the product? Please describe common scenarios where the product is used."
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "The core interaction steps are missing. Please provide a high-level description of how the product is used."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:59:49.316958",
+  "updated_at": "2026-01-11T00:00:12.810916"
+}

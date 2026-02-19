@@ -1,0 +1,88 @@
+{
+  "project_id": "legacy_4566992256",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to grow watermelon in south california ",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: no specific company provided]",
+    "product_context": "[uncertain: no specific product provided]",
+    "industry_context": "The agricultural industry in Southern California is known for its diverse crop production, benefiting from a Mediterranean climate that supports a wide range of fruits and vegetables. Watermelon farming in this region is part of a broader trend towards sustainable agriculture practices and efficient water usage due to frequent droughts.",
+    "terminology_glossary": {
+      "Drip irrigation": "An efficient watering system that delivers water directly to the plant's roots, reducing water waste.",
+      "Mulching": "The practice of covering the soil with organic or inorganic material to retain moisture, suppress weeds, and improve soil health.",
+      "Transplanting": "Moving a plant from one location to another, usually from a nursery or container to open ground.",
+      "Pollination": "The process by which pollen is transferred from the male part of a flower to the female part, leading to the production of seeds and fruit."
+    },
+    "typical_workflows": {
+      "traditional_process": "To grow watermelon in Southern California, farmers typically start by selecting a suitable variety for the climate. Seeds are often started indoors or in greenhouses, then transplanted outdoors once seedlings are established. Drip irrigation is commonly used to manage water efficiently. Regular monitoring for pests and diseases is crucial. Harvesting typically occurs when the fruit reaches the desired size and sound when tapped.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company involvement in watermelon production in Southern California]",
+      "[uncertain: specific product used for watermelon cultivation]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video",
+    "user_inputs": "How to grow watermelon in south california ",
+    "key_points": [
+      "Utilize drip irrigation to conserve water and ensure efficient watering directly to roots.",
+      "Select watermelon varieties suitable for Southern California's Mediterranean climate.",
+      "Implement mulching to retain soil moisture and suppress weeds.",
+      "Regularly monitor for pests and diseases to maintain healthy crops."
+    ],
+    "constraints": [
+      "Do not claim: specific company involvement in watermelon production in Southern California",
+      "Do not claim: specific product used for watermelon cultivation"
+    ],
+    "problem": "To grow watermelon in Southern California, farmers face challenges such as selecting suitable varieties for the climate, managing water efficiently due to frequent droughts, and controlling pests and diseases.",
+    "core_interaction_steps": null,
+    "common_pitfalls": [
+      "Inefficient water use can lead to resource wastage and affect crop yields.",
+      "Failing to monitor for pests and diseases can result in crop damage."
+    ],
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "common_pitfalls"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "core_interaction_steps",
+        "note": "The research does not provide specific step-by-step instructions for growing watermelon. What exact steps should be demonstrated in the video? (e.g., Step 1: Start seeds indoors, Step 2: Transplant seedlings outdoors, Step 3: Set up drip irrigation system)"
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T13:08:53.927375",
+  "updated_at": "2026-01-11T14:35:27.325820"
+}

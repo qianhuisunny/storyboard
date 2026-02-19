@@ -1,0 +1,98 @@
+{
+  "project_id": "1768178572230",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to grow tomatoes in your backyard + How-to Video",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company provided]",
+    "product_context": "[uncertain: No specific product provided]",
+    "industry_context": "Home gardening, particularly growing tomatoes, has seen increased interest as people seek sustainable and self-sufficient food sources. The popularity of home gardening surged during the COVID-19 pandemic as individuals spent more time at home and pursued gardening as a hobby.",
+    "terminology_glossary": {
+      "Transplanting": "Moving a plant from one location to another, typically from a pot to the ground in a garden.",
+      "Pruning": "The selective removal of certain parts of a plant, such as branches or stems, to improve its health and growth.",
+      "Mulching": "The practice of covering the soil with a layer of material to retain moisture and suppress weeds.",
+      "Heirloom Tomatoes": "Varieties of tomatoes that are open-pollinated and have been passed down through generations.",
+      "Blossom End Rot": "A common disorder in tomatoes characterized by a dark, sunken spot on the blossom end of the fruit, usually caused by calcium deficiency."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional tomato growing involves selecting a suitable variety, preparing the soil, planting seeds or seedlings, providing regular watering and fertilization, supporting plants with stakes or cages, and monitoring for pests and diseases. An optimized process may include using raised beds for better drainage, employing drip irrigation systems for consistent moisture, and using organic fertilizers and pest control methods.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: Specific company and product details not provided]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video",
+    "user_inputs": "How to grow tomatoes in your backyard + How-to Video",
+    "key_points": [
+      "Increased interest in home gardening for sustainability and self-sufficiency",
+      "Popularity surged during the COVID-19 pandemic as a hobby",
+      "Traditional tomato growing includes soil preparation, planting, and pest monitoring"
+    ],
+    "constraints": [
+      "Do not claim: Specific company and product details"
+    ],
+    "problem": "Traditional tomato growing involves selecting a suitable variety, preparing the soil, planting seeds or seedlings, providing regular watering and fertilization, supporting plants with stakes or cages, and monitoring for pests and diseases.",
+    "core_interaction_steps": null,
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "What specific outcome or action should viewers take after watching this video?"
+      },
+      {
+        "field": "target_audience",
+        "note": "Who is the target audience for this video? Please specify their role, expertise level, or context."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "Is there a specific company or brand associated with this content?"
+      },
+      {
+        "field": "cta",
+        "note": "What is the desired call to action for this video?"
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "The research does not provide specific steps for growing tomatoes. Please provide detailed interaction steps for the how-to demonstration."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T16:42:52.417136",
+  "updated_at": "2026-01-11T16:43:02.710200"
+}

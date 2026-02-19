@@ -1,0 +1,96 @@
+{
+  "project_id": "legacy_4392322624",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to grow watermelon in south california ",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company or product was provided in the user information. Typically, gardening advice may come from agricultural extension services, gardening supply companies, or educational platforms.]",
+    "product_context": "[uncertain: No specific product was identified. Generally, products related to growing watermelon could include seeds, soil amendments, fertilizers, irrigation systems, or gardening tools.]",
+    "industry_context": "The home gardening industry has seen growth in recent years, especially during the COVID-19 pandemic, as more people take up gardening as a hobby. There is an increasing trend towards organic and sustainable gardening practices.",
+    "terminology_glossary": {
+      "Germination": "The process by which a seed develops into a new plant.",
+      "Loamy soil": "A type of soil that is a mix of sand, silt, and clay, known for its fertility and good drainage.",
+      "Vining plant": "A plant that grows by extending stems or runners.",
+      "Pollination": "The transfer of pollen from male to female parts of flowers, necessary for fruit production."
+    },
+    "typical_workflows": {
+      "traditional_process": "To grow watermelon in Southern California, gardeners typically: 1) Select a sunny location with well-drained, loamy soil, 2) Start seeds indoors or plant directly after the last frost, 3) Water regularly, keeping soil moist but not waterlogged, 4) Apply mulch to retain moisture and control weeds, 5) Ensure pollination by attracting bees or manually transferring pollen.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or product related to watermelon growing in Southern California]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Educate viewers on the step-by-step process of growing watermelon in Southern California.",
+    "target_audience": "Home gardeners in Southern California interested in growing watermelon, with a focus on beginners.",
+    "company_or_brand_name": "General gardening advice; no specific company.",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Visit our website for more gardening tips and resources.",
+    "video_type": "How-to Video",
+    "user_inputs": "How to grow watermelon in south california ",
+    "key_points": [
+      "Select a sunny location with well-drained, loamy soil.",
+      "Start seeds indoors or plant directly after the last frost.",
+      "Water regularly, keeping soil moist but not waterlogged.",
+      "Apply mulch to retain moisture and control weeds.",
+      "Ensure pollination by attracting bees or manually transferring pollen."
+    ],
+    "constraints": [
+      "Do not claim: specific company or product related to watermelon growing in Southern California"
+    ],
+    "problem": {
+      "content": "Growing watermelon in Southern California requires specific conditions such as sunny locations and well-drained, loamy soil.",
+      "auto_filled_from_research": true
+    },
+    "core_interaction_steps": {
+      "content": [
+        "Select a sunny location with well-drained, loamy soil.",
+        "Start seeds indoors or plant directly after the last frost.",
+        "Water regularly, keeping soil moist but not waterlogged.",
+        "Apply mulch to retain moisture and control weeds.",
+        "Ensure pollination by attracting bees or manually transferring pollen."
+      ],
+      "auto_filled_from_research": true
+    },
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "video_goal",
+      "target_audience",
+      "company_or_brand_name",
+      "cta",
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": []
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T12:35:15.587998",
+  "updated_at": "2026-01-11T12:35:26.470356"
+}

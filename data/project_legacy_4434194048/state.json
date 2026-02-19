@@ -1,0 +1,114 @@
+{
+  "project_id": "legacy_4434194048",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "how to grow strawberries",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: Specific company information not provided]",
+    "product_context": "[uncertain: Specific product information not provided]",
+    "industry_context": "Strawberry farming is a significant part of the horticultural industry, with increasing interest in organic and sustainable farming practices. Advances in agricultural technology, such as hydroponics and vertical farming, are becoming popular to maximize yield and reduce land use.",
+    "terminology_glossary": {
+      "Hydroponics": "A method of growing plants without soil, using mineral nutrient solutions in an aqueous solvent.",
+      "Vertical Farming": "The practice of growing crops in vertically stacked layers, often incorporating controlled-environment agriculture.",
+      "Organic Farming": "A method of farming that uses natural inputs and processes, avoiding synthetic chemicals and genetically modified organisms.",
+      "Mulching": "The process of covering the soil with a layer of material to retain moisture, suppress weeds, and enhance soil quality."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditionally, growing strawberries involves selecting a suitable location, preparing the soil, planting runners or seeds, managing pests and diseases, and harvesting. Optimized processes may include using hydroponics or vertical farming techniques, employing automated systems for watering and nutrient delivery, and implementing integrated pest management strategies.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: Specific company and product details related to strawberry growing not provided]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "how to grow strawberries",
+    "key_points": [
+      "Interest in organic and sustainable strawberry farming is rising.",
+      "Hydroponics and vertical farming maximize yield and reduce land use.",
+      "Adopting modern agricultural technology can enhance productivity."
+    ],
+    "constraints": [
+      "Do not claim: Specific company information not provided",
+      "Do not claim: Specific product information not provided"
+    ],
+    "problem": "Traditionally, growing strawberries involves selecting a suitable location, preparing the soil, planting runners or seeds, managing pests and diseases, and harvesting.",
+    "key_features": [
+      "Hydroponics as a method for growing without soil",
+      "Vertical farming for maximizing space",
+      "Organic farming methods avoiding synthetic chemicals"
+    ],
+    "typical_use_cases": [
+      "Using hydroponics for urban strawberry farming",
+      "Implementing vertical farming to optimize small spaces",
+      "Adopting organic farming practices for healthier strawberries"
+    ],
+    "core_interaction_steps": [],
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "The specific goal of the video is not provided. What should the viewers know or do after watching?",
+        "context": "Understanding the desired outcome will help tailor the content."
+      },
+      {
+        "field": "target_audience",
+        "note": "The target audience is not specified. Who is the intended viewer (e.g., novice gardeners, commercial farmers)?",
+        "context": "Knowing the audience will help adjust the language and content focus."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "The company or brand name is not provided. Is there a specific brand associated with this product release?",
+        "context": "Branding can influence the tone and messaging."
+      },
+      {
+        "field": "cta",
+        "note": "The call to action is missing. What action should viewers take after watching the video?",
+        "context": "A clear CTA helps guide viewer engagement."
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "Optimized process steps for modern strawberry farming techniques are not detailed. What specific actions or processes should be highlighted?",
+        "context": "Detailed steps are crucial for a product release video to demonstrate new methods or technologies."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T12:15:49.972553",
+  "updated_at": "2026-01-11T12:19:58.008314"
+}

@@ -1,0 +1,18 @@
+{
+  "id": "1771476372517",
+  "userId": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "type": 2,
+  "typeName": "How-to Video",
+  "userInput": "Use Google NotebookLM",
+  "createdAt": "2026-02-18T20:46:12.585656",
+  "lastUpdated": "2026-02-18T20:46:13.388404",
+  "storyboard": null,
+  "fetchedLinks": [
+    {
+      "url": "https://notebooklm.google/",
+      "title": "Google NotebookLM | AI Research Tool & Thinking Partner",
+      "path": "links/notebooklm.google_1771476373.386899.txt",
+      "fetchedAt": "2026-02-18T20:46:13.388395"
+    }
+  ]
+}

@@ -1,0 +1,85 @@
+{
+  "project_id": "legacy_4567053184",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to clean your fridge",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "There is no specific company mentioned for this task, as it is a general how-to video on cleaning a fridge. Typically, such content is created by home appliance manufacturers, cleaning product companies, or lifestyle brands to offer value-added content to their customers.",
+    "product_context": "The focus is on the process of cleaning a refrigerator, which involves the use of common household cleaning products. Key differentiators would include the use of natural versus chemical cleaners, effectiveness, and safety for food storage areas.",
+    "industry_context": "The home appliance maintenance market emphasizes energy efficiency and hygiene, with a growing trend towards eco-friendly and non-toxic cleaning products. Consumers are increasingly interested in sustainable practices.",
+    "terminology_glossary": {
+      "Defrost": "The process of removing ice buildup from a refrigerator or freezer.",
+      "Non-toxic cleaner": "A cleaning product that is safe for use around food and does not contain harmful chemicals.",
+      "Deodorize": "The process of removing odors from a space or object, often using baking soda or activated charcoal."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional fridge cleaning involves emptying the fridge, removing shelves and drawers, washing these components, wiping down interior surfaces, and replacing items. An optimized process may include using specific cleaners designed for refrigerators, organizing food by category upon replacement, and implementing regular maintenance schedules.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific cleaning product recommendations without a specified brand]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Educate viewers on the process of effectively cleaning their refrigerator using safe and efficient methods.",
+    "target_audience": "General audience interested in home maintenance and cleanliness.",
+    "company_or_brand_name": "General Home Maintenance",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Subscribe for more home maintenance tips.",
+    "video_type": "How-to Video",
+    "user_inputs": "How to clean your fridge",
+    "key_points": [
+      "Use non-toxic cleaners safe for food storage areas",
+      "Include deodorizing with baking soda or activated charcoal",
+      "Organize food by category when replacing items"
+    ],
+    "constraints": [
+      "Do not claim: specific cleaning product recommendations without a specified brand"
+    ],
+    "problem": "Traditional fridge cleaning can be inefficient and may involve using harmful chemical cleaners that are not safe for food storage areas.",
+    "core_interaction_steps": [
+      "Step 1: Empty the fridge and remove all food items.",
+      "Step 2: Remove shelves and drawers and wash them with a non-toxic cleaner.",
+      "Step 3: Wipe down the interior surfaces with a safe, eco-friendly cleaner.",
+      "Step 4: Deodorize the fridge using baking soda or activated charcoal.",
+      "Step 5: Organize and replace food items by category for better efficiency."
+    ],
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "video_goal",
+      "target_audience",
+      "company_or_brand_name",
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps"
+    ],
+    "unresolved_questions": []
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T15:31:39.651937",
+  "updated_at": "2026-01-11T15:31:52.019961"
+}

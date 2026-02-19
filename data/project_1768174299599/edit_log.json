@@ -1,0 +1,45 @@
+{
+  "project_id": "1768174299599",
+  "user_id": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "stages": {
+    "brief": {
+      "ai_version": "{\n  \"video_goal\": \"Educate viewers on the efficient and effective method of cleaning a refrigerator using a general-purpose cleaning solution.\",\n  \"target_audience\": \"Homeowners or renters looking for quick and effective refrigerator cleaning methods. They value non-toxic and environmentally friendly cleaning solutions.\",\n  \"company_or_brand_name\": \"General-purpose cleaning solution\",\n  \"tone_and_style\": \"professional\",\n  \"format_or_platform\": \"general\",\n  \"desired_length\": \"60\",\n  \"show_face\": \"No\",\n  \"cta\": \"Try this cleaning method today for a fresher, cleaner fridge.\",\n  \"video_type\": \"How-to Video\",\n  \"user_inputs\": \"How to clean your fridge + How-to Video\",\n  \"key_points\": [\n    \"Non-toxic ingredients ensure safety around food and family\",\n    \"Ease of use with simple spray and wipe method\",\n    \"Effectively removes odors and stains, leaving the fridge fresh\"\n  ],\n  \"constraints\": [\n    \"Do not claim: Specific company and product details\",\n    \"Do not claim: Exact product features and benefits\"\n  ],\n  \"problem\": \"Traditional refrigerator cleaning is time-consuming and involves multiple steps, including removing all items, turning off the appliance, and using detergent. This often leads to inefficient cleaning and persistent odors.\",\n  \"core_interaction_steps\": [\n    \"Step 1: Remove all items from the refrigerator.\",\n    \"Step 2: Spray the cleaning solution on all surfaces, including shelves and drawers.\",\n    \"Step 3: Wipe down the surfaces with a clean cloth to remove grime and odors.\",\n    \"Step 4: Place items back in the refrigerator.\"\n  ],\n  \"common_pitfalls\": null,\n  \"auto_filled_fields\": [\n    \"video_goal\",\n    \"target_audience\",\n    \"company_or_brand_name\",\n    \"cta\",\n    \"key_points\",\n    \"constraints\",\n    \"problem\",\n    \"core_interaction_steps\"\n  ],\n  \"unresolved_questions\": []\n}",
+      "human_version": "{\n  \"video_goal\": \"Educate viewers on the efficient and effective method of cleaning a refrigerator using a general-purpose cleaning solution.\",\n  \"target_audience\": \"Homeowners or renters looking for quick and effective refrigerator cleaning methods. They value non-toxic and environmentally friendly cleaning solutions.\",\n  \"company_or_brand_name\": \"General-purpose cleaning solution\",\n  \"tone_and_style\": \"technical\",\n  \"format_or_platform\": \"general\",\n  \"desired_length\": \"60\",\n  \"show_face\": \"No\",\n  \"cta\": \"Try this cleaning method today for a fresher, cleaner fridge.\",\n  \"video_type\": \"How-to Video\",\n  \"user_inputs\": \"How to clean your fridge + How-to Video\",\n  \"key_points\": [\n    \"Non-toxic ingredients ensure safety around food and family\",\n    \"Ease of use with simple spray and wipe method\",\n    \"Effectively removes odors and stains, leaving the fridge fresh\"\n  ],\n  \"constraints\": [\n    \"Do not claim: Specific company and product details\",\n    \"Do not claim: Exact product features and benefits\"\n  ],\n  \"problem\": \"Traditional refrigerator cleaning is time-consuming and involves multiple steps, including removing all items, turning off the appliance, and using detergent. This often leads to inefficient cleaning and persistent odors.\",\n  \"core_interaction_steps\": [\n    \"Step 1: Remove all items from the refrigerator.\",\n    \"Step 2: Spray the cleaning solution on all surfaces, including shelves and drawers.\",\n    \"Step 3: Wipe down the surfaces with a clean cloth to remove grime and odors.\",\n    \"Step 4: Place items back in the refrigerator.\"\n  ],\n  \"common_pitfalls\": null,\n  \"auto_filled_fields\": [\n    \"video_goal\",\n    \"target_audience\",\n    \"company_or_brand_name\",\n    \"cta\",\n    \"key_points\",\n    \"constraints\",\n    \"problem\",\n    \"core_interaction_steps\"\n  ],\n  \"user_override_fields\": [],\n  \"unresolved_questions\": []\n}",
+      "edited": true,
+      "edit_summary": {
+        "characters_added": 27,
+        "characters_removed": 0,
+        "was_edited": true,
+        "edit_time_seconds": null
+      },
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": "2026-01-11T16:02:51.864682",
+      "created_at": "2026-01-11T15:43:12.289902",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via brief stage"
+        }
+      ]
+    },
+    "outline": {
+      "ai_version": "[\n  {\n    \"screen_number\": 1,\n    \"purpose\": \"Hook - Highlight the problem with traditional cleaning methods\",\n    \"rough_duration\": 6,\n    \"screen_type\": \"stock video\",\n    \"voiceover_text\": \"Traditional fridge cleaning is a hassle with multiple steps and persistent odors.\",\n    \"visual_direction\": \"Footage of a person struggling with a cluttered fridge, removing items, and dealing with detergent and persistent smells.\",\n    \"notes\": \"Emphasize the inconvenience and inefficiency of traditional methods.\"\n  },\n  {\n    \"screen_number\": 2,\n    \"purpose\": \"Introduction - Present the efficient solution\",\n    \"rough_duration\": 6,\n    \"screen_type\": \"slides/text overlay\",\n    \"voiceover_text\": \"Discover an efficient and eco-friendly way to clean your fridge with our general-purpose cleaning solution.\",\n    \"visual_direction\": \"Text overlay with animated icons representing efficiency and eco-friendliness, alongside a bottle of general-purpose cleaner.\",\n    \"notes\": \"Introduce the concept without mentioning specific product details.\"\n  },\n  {\n    \"screen_number\": 3,\n    \"purpose\": \"Step 1 - Remove all items\",\n    \"rough_duration\": 7,\n    \"screen_type\": \"stock video\",\n    \"voiceover_text\": \"First, remove all items from your refrigerator to ensure a thorough clean.\",\n    \"visual_direction\": \"A person carefully taking out food items from a fridge, leaving it empty and ready for cleaning.\",\n    \"notes\": \"Show an organized removal process to highlight ease.\"\n  },\n  {\n    \"screen_number\": 4,\n    \"purpose\": \"Step 2 - Apply the cleaning solution\",\n    \"rough_duration\": 8,\n    \"screen_type\": \"screencast\",\n    \"voiceover_text\": \"Spray the non-toxic cleaning solution on all surfaces, including shelves and drawers.\",\n    \"visual_direction\": \"Close-up of spraying the solution on various fridge surfaces, focusing on its simplicity and coverage.\",\n    \"notes\": \"Demonstrate the ease and non-toxic nature of the spray method.\"\n  },\n  {\n    \"screen_number\": 5,\n    \"purpose\": \"Step 3 - Wipe surfaces clean\",\n    \"rough_duration\": 7,\n    \"screen_type\": \"stock video\",\n    \"voiceover_text\": \"Wipe down all surfaces with a clean cloth to remove grime and odors effectively.\",\n    \"visual_direction\": \"A person wiping down the fridge interior, showing the cloth picking up dirt and leaving surfaces spotless.\",\n    \"notes\": \"Emphasize the effectiveness in grime and odor removal.\"\n  },\n  {\n    \"screen_number\": 6,\n    \"purpose\": \"Step 4 - Return items to the fridge\",\n    \"rough_duration\": 6,\n    \"screen_type\": \"stock video\",\n    \"voiceover_text\": \"Finally, place your items back in a fresh and clean fridge.\",\n    \"visual_direction\": \"Organized items being returned to the fridge, with a focus on freshness and cleanliness.\",\n    \"notes\": \"Highlight the end result of a clean and organized fridge.\"\n  },\n  {\n    \"screen_number\": 7,\n    \"purpose\": \"Benefits - Highlight non-toxic and easy use\",\n    \"rough_duration\": 8,\n    \"screen_type\": \"slides/text overlay\",\n    \"voiceover_text\": \"Our solution is non-toxic, safe for food areas, and requires just a simple spray and wipe.\",\n    \"visual_direction\": \"Text overlay with checkmarks next to 'Non-toxic', 'Food-safe', and 'Easy use', with background images of fresh produce.\",\n    \"notes\": \"Reinforce key points about safety and ease of use.\"\n  },\n  {\n    \"screen_number\": 8,\n    \"purpose\": \"CTA - Encourage viewers to try the method\",\n    \"rough_duration\": 6,\n    \"screen_type\": \"CTA\",\n    \"voiceover_text\": \"Try this cleaning method today for a fresher, cleaner fridge.\",\n    \"visual_direction\": \"Call-to-action screen with bold text and a visual of a sparkling clean fridge.\",\n    \"notes\": \"Encourage immediate action with a clear and compelling CTA.\"\n  }\n]",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": null,
+      "created_at": "2026-01-11T16:03:08.422059",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via outline stage"
+        }
+      ]
+    }
+  },
+  "created_at": "2026-01-11T15:31:52.020781",
+  "last_updated": "2026-01-11T16:03:08.422106"
+}

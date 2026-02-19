@@ -1,0 +1,104 @@
+{
+  "project_id": "legacy_4567047552",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to grow watermelon in south california ",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: specific company related to watermelon growing]",
+    "product_context": "[uncertain: specific product related to watermelon growing]",
+    "industry_context": "The agricultural industry in Southern California is diverse, with a focus on high-value specialty crops. Watermelon is a popular crop due to the region's warm climate and long growing season, which are ideal for melon cultivation.",
+    "terminology_glossary": {
+      "Germination": "The process by which a seed develops into a new plant.",
+      "Mulching": "The practice of covering the soil with organic or inorganic material to retain moisture and suppress weeds.",
+      "Drip Irrigation": "A type of micro-irrigation system that conserves water by allowing water to drip slowly to the roots of plants.",
+      "Transplanting": "The process of moving a plant from one location to another, typically from a seedling tray to the field."
+    },
+    "typical_workflows": {
+      "traditional_process": "The traditional workflow for growing watermelons in Southern California includes selecting a suitable variety, preparing the soil, planting seeds or transplants, managing irrigation, fertilization, pest control, and harvesting. Optimized workflows might involve the use of automated irrigation systems and soil sensors to improve water efficiency and crop yield.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company or product related to watermelon growing in South California]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video",
+    "user_inputs": "How to grow watermelon in south california",
+    "key_points": [
+      "Warm climate and long growing season in Southern California are ideal for watermelon cultivation",
+      "Traditional methods include selecting suitable varieties, preparing soil, and managing irrigation",
+      "Optimized workflows can improve water efficiency and crop yield"
+    ],
+    "constraints": [
+      "Do not claim: specific company or product related to watermelon growing in South California"
+    ],
+    "problem": {
+      "description": "The traditional workflow for growing watermelons in Southern California includes selecting a suitable variety, preparing the soil, planting seeds or transplants, managing irrigation, fertilization, pest control, and harvesting.",
+      "auto_filled_from_research": true
+    },
+    "core_interaction_steps": [
+      "Select a suitable watermelon variety for the climate.",
+      "Prepare the soil by tilling and adding organic matter.",
+      "Plant seeds or transplants at the appropriate depth and spacing.",
+      "Set up a drip irrigation system to ensure consistent watering.",
+      "Apply mulch to retain soil moisture and suppress weeds.",
+      "Monitor plants for pests and diseases, applying treatments as necessary.",
+      "Harvest watermelons when they reach full maturity."
+    ],
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "What is the primary goal of this how-to video? (e.g., educate viewers on optimal watermelon growing methods)",
+        "context": "For a How-to Video, the goal should be clear to ensure the content is aligned with viewer expectations."
+      },
+      {
+        "field": "target_audience",
+        "note": "Who is the intended target audience for this video? (e.g., beginner gardeners, commercial farmers)",
+        "context": "Identifying the audience will help tailor the complexity and details of the video content."
+      },
+      {
+        "field": "cta",
+        "note": "What action should viewers take after watching the video? (e.g., visit a website for more information, subscribe for updates)",
+        "context": "A clear call to action will guide viewers on what to do next."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T12:35:26.472257",
+  "updated_at": "2026-01-11T12:35:38.348350"
+}

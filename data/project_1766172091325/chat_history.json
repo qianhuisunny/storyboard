@@ -1,0 +1,18 @@
+{
+  "projectId": "1766172091325",
+  "messages": [
+    {
+      "id": "initial-user",
+      "role": "user",
+      "content": "[Product Release Video] How to use Langflow to create a vector RAG chatbot (How-to article) \nSource:  https://docs.langflow.org/chat-with-rag\nApply the lessons you learnt from dissembling good video storyboards, make an engaging video storyboard for LearnFlow AI. You should include {screentype, voiceover, annotation, image, duration} in your scene-by-scene output. \nWe\u2019re launching LearnFlow AI, an AI-powered tool that helps instructional designers automatically generate storyboards and training videos from text prompts. The product\u2019s main features include instant scene generation, voiceover integration, and editable scripts. Key benefits: saves 80% of production time, maintains brand tone, and supports SCORM export.\nTarget audience: corporate learning teams, customer education professionals, and eLearning agencies.\nTone: modern, confident, and inspiring \u2014 focus on how LearnFlow AI transforms instructional design from a manual process into a creative, AI-assisted workflow.\nCall to action: \u201cStart your first storyboard for free.\u201d\n",
+      "createdAt": "2025-12-19T19:21:38.726Z"
+    },
+    {
+      "id": "initial-response",
+      "role": "assistant",
+      "content": "Cannot proceed. Insufficient information found for this lead.\n\nIt appears there was a technical issue accessing the specialized agent needed to parse and summarize your content. If you have a specific file or more details to upload, please provide them. Otherwise, let me know if you'd like to try again or need further assistance!",
+      "createdAt": "2025-12-19T19:21:38.726Z"
+    }
+  ],
+  "lastUpdated": "2025-12-19T11:21:39.735293"
+}

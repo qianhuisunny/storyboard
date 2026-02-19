@@ -1,0 +1,88 @@
+{
+  "project_id": "legacy_4567114880",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to grow watermelon in south california ",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company provided related to growing watermelon in South California]",
+    "product_context": "[uncertain: No specific product provided related to growing watermelon]",
+    "industry_context": "The agriculture industry in Southern California is diverse, with a strong emphasis on fruits and vegetables. Watermelon is a popular crop due to the region's warm climate and long growing season. Sustainable farming practices and water conservation are critical trends due to environmental concerns.",
+    "terminology_glossary": {
+      "Drip irrigation": "A method of watering plants that conserves water by delivering it directly to the plant roots.",
+      "Pollination": "The process by which pollen is transferred to the female reproductive organs of a plant, enabling fertilization to occur.",
+      "Seedless watermelon": "A type of watermelon that is typically grown from hybrid seeds and does not develop mature seeds.",
+      "Soil pH": "A measure of the acidity or alkalinity of soil, which can affect plant growth and nutrient availability."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional watermelon growing involves preparing the soil, planting seeds or seedlings, ensuring adequate water and sunlight, and managing pests. Optimized processes may include using drip irrigation systems for efficient water use, selecting disease-resistant varieties, and employing organic pest control methods.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: Specific company or product related to watermelon growing not provided]",
+      "[uncertain: Detailed market statistics specific to watermelon growing in Southern California]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video",
+    "user_inputs": "How to grow watermelon in south california ",
+    "key_points": [
+      "Utilize drip irrigation for efficient water use",
+      "Select disease-resistant watermelon varieties",
+      "Employ organic pest control methods",
+      "Leverage Southern California's long growing season and warm climate"
+    ],
+    "constraints": [
+      "Do not claim: Specific company or product related to watermelon growing",
+      "Do not claim: Detailed market statistics specific to watermelon growing in Southern California"
+    ],
+    "problem": {
+      "description": "Traditional watermelon growing involves preparing the soil, planting seeds or seedlings, ensuring adequate water and sunlight, and managing pests.",
+      "auto_filled_from_research": true
+    },
+    "core_interaction_steps": null,
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "core_interaction_steps",
+        "note": "The research does not describe specific action steps for growing watermelons. We need detailed step-by-step instructions for the how-to video.",
+        "context": "For How-to Demo videos, precise step-by-step instructions are necessary."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T15:00:03.426647",
+  "updated_at": "2026-01-11T15:00:13.317595"
+}

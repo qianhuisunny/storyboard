@@ -1,0 +1,23 @@
+{
+  "id": "1762679193541",
+  "type": 1,
+  "typeName": "Product Release Video",
+  "userInput": "We\u2019re launching LearnFlow AI, an AI-powered tool that helps instructional designers automatically generate storyboards and training videos from text prompts. The product\u2019s main features include instant scene generation, voiceover integration, and editable scripts. Key benefits: saves 80% of production time, maintains brand tone, and supports SCORM export.\nTarget audience: corporate learning teams, customer education professionals, and eLearning agencies.\nTone: modern, confident, and inspiring \u2014 focus on how LearnFlow AI transforms instructional design from a manual process into a creative, AI-assisted workflow.\nCall to action: \u201cStart your first storyboard for free.\u201d",
+  "createdAt": "2025-11-09T01:06:33.548789",
+  "storyboard": null,
+  "stories": [
+    "story_1762679263",
+    "story_1762679264",
+    "story_1762679265",
+    "story_1762679266",
+    "story_1762679267",
+    "story_1762679268",
+    "story_1762679269",
+    "story_1762679270",
+    "story_1762679271",
+    "story_1762679272",
+    "story_1762679273",
+    "story_1762679274"
+  ],
+  "lastUpdated": 1762679263.474475
+}

@@ -1,0 +1,108 @@
+{
+  "project_id": "legacy_4345107456",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to make a simple paper airplane that flies far",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: specific company context as no company is provided]",
+    "product_context": "The product is a simple paper airplane designed to fly far, likely emphasizing ease of construction and flight capability. Key differentiators may include the design's simplicity, accessibility of materials, and aerodynamic efficiency.",
+    "industry_context": "Paper airplanes are a popular educational tool for teaching principles of aerodynamics and physics. DIY crafting and educational STEM toys have seen increased interest, especially during periods of remote learning.",
+    "terminology_glossary": {
+      "Aerodynamics": "The study of the properties of moving air and how it interacts with solid objects like an airplane wing.",
+      "Lift": "The force that directly opposes the weight of an airplane and holds the airplane in the air.",
+      "Thrust": "The force that moves an airplane forward through the air.",
+      "Drag": "The resistance force caused by the motion of a body through a fluid, such as air."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditionally, making a paper airplane involves folding a sheet of paper into a specific shape. Optimized designs may include steps to improve balance and symmetry for better flight performance.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: specific company context]",
+      "[uncertain: specific product details beyond general paper airplane attributes]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "How to make a simple paper airplane that flies far",
+    "key_points": [
+      "Emphasizes ease of construction",
+      "Accessible materials",
+      "Aerodynamic efficiency for long flights"
+    ],
+    "constraints": [
+      "Do not claim: specific company context",
+      "Do not claim: specific product details beyond general paper airplane attributes"
+    ],
+    "problem": {
+      "description": "Traditionally, making a paper airplane involves folding a sheet of paper into a specific shape. Optimized designs may include steps to improve balance and symmetry for better flight performance.",
+      "source": "auto_filled_from_research"
+    },
+    "key_features": [
+      "Simple design",
+      "Ease of construction",
+      "Aerodynamic efficiency"
+    ],
+    "typical_use_cases": [],
+    "core_interaction_steps": [],
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "What specific action or understanding should the viewer have after watching the video?"
+      },
+      {
+        "field": "target_audience",
+        "note": "Who is the intended audience for this video? Are they beginners, educators, or hobbyists?"
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "What company or brand, if any, is associated with this paper airplane product?"
+      },
+      {
+        "field": "cta",
+        "note": "What is the call to action for this video?"
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "There is no specific optimized process provided. What are the exact steps to create this paper airplane?"
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:34:33.270020",
+  "updated_at": "2026-01-10T23:34:43.018338"
+}

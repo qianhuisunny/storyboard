@@ -1,0 +1,90 @@
+{
+  "project_id": "legacy_4394445056",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "How to clean your fridge + How-to Video",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "How-to Video"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company provided, assuming general context for refrigerator manufacturers or appliance brands]",
+    "product_context": "Refrigerators are household appliances used to store perishable food items at low temperatures to prolong their freshness and prevent spoilage. Modern refrigerators often feature adjustable shelves, temperature controls, and various compartments for different types of food storage.",
+    "industry_context": "The home appliance industry is seeing a trend towards energy efficiency and smart technology integration in appliances, such as refrigerators with Wi-Fi connectivity and smart sensors for optimal temperature control.",
+    "terminology_glossary": {
+      "Defrost": "The process of removing ice build-up from the freezer section of a refrigerator.",
+      "Compressor": "A part of the refrigerator that compresses refrigerant gas to help cool the appliance.",
+      "Gasket": "The rubber seal around the refrigerator door that helps keep it airtight.",
+      "Thermostat": "A device that regulates the temperature within the refrigerator."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional fridge cleaning involves: 1) Removing all items from the refrigerator, 2) Unplugging the appliance, 3) Cleaning shelves and compartments with a mild detergent, 4) Wiping down surfaces with a damp cloth, 5) Plugging the fridge back in and restocking food items. Optimized approaches might include using cleaning products specifically designed for appliance surfaces or employing time-saving tools like microfiber cloths or steam cleaners.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: Specific brand or product recommendations for cleaning]",
+      "[uncertain: Latest advancements in refrigerator cleaning technology]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "Educate viewers on the proper steps for cleaning a refrigerator to maintain hygiene and appliance efficiency.",
+    "target_audience": "Homeowners and individuals responsible for household chores, with a basic understanding of appliance use.",
+    "company_or_brand_name": "General refrigerator maintenance",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "Learn more about effective home appliance maintenance at our website.",
+    "video_type": "How-to Video",
+    "user_inputs": "How to clean your fridge + How-to Video",
+    "key_points": [
+      "Remove all items from the refrigerator before cleaning.",
+      "Unplug the appliance to ensure safety during cleaning.",
+      "Use mild detergents and damp cloths for cleaning shelves and compartments.",
+      "Check and clean the gasket to ensure the door seals properly."
+    ],
+    "constraints": [
+      "Do not claim: Specific brand or product recommendations for cleaning",
+      "Do not claim: Latest advancements in refrigerator cleaning technology"
+    ],
+    "problem": "Traditional fridge cleaning involves multiple manual steps and can be time-consuming if not done efficiently.",
+    "core_interaction_steps": [
+      "Step 1: Remove all items from the refrigerator.",
+      "Step 2: Unplug the refrigerator.",
+      "Step 3: Clean shelves and compartments with a mild detergent.",
+      "Step 4: Wipe down surfaces with a damp cloth.",
+      "Step 5: Plug the fridge back in and restock food items."
+    ],
+    "common_pitfalls": null,
+    "auto_filled_fields": [
+      "video_goal",
+      "target_audience",
+      "company_or_brand_name",
+      "key_points",
+      "constraints",
+      "problem",
+      "core_interaction_steps"
+    ],
+    "user_override_fields": [],
+    "unresolved_questions": []
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-11T15:42:53.481660",
+  "updated_at": "2026-01-11T15:43:04.102334"
+}

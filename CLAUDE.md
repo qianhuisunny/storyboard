@@ -4,12 +4,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Status
 
-**AI-Powered Storyboard Generator** - A fully functional storyboard creation platform with AI integration, chat assistance, project management, and image search capabilities.
+**Plotline** - An AI-powered storyboard creation platform with AI integration, chat assistance, project management, and image search capabilities.
 
 ## Technology Stack
 
 ### Frontend
-- **React 18** with TypeScript and Vite
+- **React 19** with TypeScript and Vite
 - **Tailwind CSS v4** with modern styling
 - **Radix UI** components for accessibility
 - **React Router** for dynamic project routing
@@ -136,10 +136,33 @@ npm install
 npm run dev
 ```
 
+## Task Tracking
+
+This project uses **Task Master** for task management (`.taskmaster/tasks/tasks.json`).
+
+### Auto-Update Rules
+- After completing any implementation task, immediately update its status using `mcp__task-master-ai__set_task_status`
+- When starting work on a task, set status to `in-progress`
+- When finished, set status to `done`
+- If blocked, set status to `blocked` and note the reason
+
+### Common Commands
+- View all tasks: `mcp__task-master-ai__get_tasks`
+- Get next task: `mcp__task-master-ai__next_task`
+- Update status: `mcp__task-master-ai__set_task_status` with id and status
+- Expand task: `mcp__task-master-ai__expand_task` to create subtasks
+
+### Workflow
+1. Before coding, check taskmaster for the next task
+2. Mark task as `in-progress` when starting
+3. After completing code, verify it works
+4. Mark task as `done` immediately
+5. Move to next task
+
 ## Development Notes
 
 ### Important Considerations
-- **Working Directory**: `/Users/huigeng/storyboard hackathon/` (contains space - use quotes)
+- **Port Configuration**: Backend runs on port 8001, but `vite.config.ts` proxies `/api` to port 8000. Either update the proxy or run backend on port 8000.
 - **Timeout Handling**: Langflow requests use 6+ minute timeouts due to processing time
 - **File Persistence**: All data automatically saved to organized folder structure
 - **Error Resilience**: Comprehensive fallbacks for API failures and missing data

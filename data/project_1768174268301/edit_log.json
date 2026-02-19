@@ -1,0 +1,24 @@
+{
+  "project_id": "1768174268301",
+  "user_id": "user_37uUhJQalmBWR8ntwLTYnJEk6Ya",
+  "stages": {
+    "brief": {
+      "ai_version": "{\n  \"video_goal\": \"Guide viewers on effectively cleaning their refrigerator using professional methods\",\n  \"target_audience\": \"Individuals looking to improve home cleaning practices\",\n  \"company_or_brand_name\": \"General Home Improvement\",\n  \"tone_and_style\": \"professional\",\n  \"format_or_platform\": \"general\",\n  \"desired_length\": \"60\",\n  \"show_face\": \"No\",\n  \"cta\": \"Try these methods to keep your fridge clean and organized\",\n  \"video_type\": \"How-to Video\",\n  \"user_inputs\": \"How to clean up your fridge\",\n  \"key_points\": [\n    \"Remove expired items to maintain hygiene\",\n    \"Clean shelves and drawers with soapy water for thorough sanitation\",\n    \"Use eco-friendly products to ensure safety and environmental care\"\n  ],\n  \"constraints\": [\n    \"Do not claim: specific company or product details\"\n  ],\n  \"problem\": \"Traditional refrigerator cleaning can be time-consuming and may not use eco-friendly methods.\",\n  \"core_interaction_steps\": [\n    \"Unplug the refrigerator for safety\",\n    \"Remove all items and separate expired goods\",\n    \"Clean shelves and drawers with a soapy water solution\",\n    \"Wipe down all surfaces with an eco-friendly cleaner\",\n    \"Reorganize items to optimize space and maintain freshness\"\n  ],\n  \"common_pitfalls\": [\n    \"Not removing expired items can lead to odors and contamination\",\n    \"Using harsh chemicals can be harmful to health and the environment\"\n  ],\n  \"auto_filled_fields\": [\n    \"target_audience\",\n    \"company_or_brand_name\",\n    \"video_goal\",\n    \"cta\",\n    \"key_points\",\n    \"constraints\",\n    \"problem\",\n    \"core_interaction_steps\",\n    \"common_pitfalls\"\n  ],\n  \"unresolved_questions\": []\n}",
+      "human_version": null,
+      "edited": false,
+      "edit_summary": null,
+      "feedback_provided": null,
+      "regeneration_count": 0,
+      "approved_at": null,
+      "created_at": "2026-01-11T15:31:29.411402",
+      "sources": [
+        {
+          "type": "ai_generated",
+          "reference": "Generated via brief stage"
+        }
+      ]
+    }
+  },
+  "created_at": "2026-01-11T15:31:18.536992",
+  "last_updated": "2026-01-11T15:31:29.411437"
+}

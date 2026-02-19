@@ -1,0 +1,116 @@
+{
+  "project_id": "legacy_4380176192",
+  "phase": "gate1",
+  "intake_form": {
+    "user_inputs": "how to grow tomatoes",
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release"
+  },
+  "context_pack": {
+    "company_context": "[uncertain: No specific company information provided. Assuming a generic context for a gardening or horticulture company.]",
+    "product_context": "Assuming the product is a gardening kit or guide that helps users grow tomatoes effectively. The product likely provides step-by-step instructions, necessary tools or seeds, and tips for optimal tomato growth.",
+    "industry_context": "The home gardening industry has seen significant growth, especially with increased interest in sustainable living and home-grown produce. Home gardening kits have become popular due to their convenience and ability to provide fresh produce.",
+    "terminology_glossary": {
+      "Heirloom Tomatoes": "Varieties of tomatoes that have been passed down through generations without genetic modification.",
+      "Indeterminate Tomatoes": "Tomato plants that continue to grow and produce fruit throughout the growing season.",
+      "Pruning": "The practice of removing unnecessary branches or stems to promote better growth and airflow.",
+      "Companion Planting": "Planting different crops in proximity for pest control, pollination, and maximizing space."
+    },
+    "typical_workflows": {
+      "traditional_process": "Traditional process of growing tomatoes involves selecting a suitable location with adequate sunlight, preparing the soil, planting seeds or seedlings, regular watering, and pest management. An optimized process with a product might include a pre-prepared kit with soil, seeds, and a guide that simplifies these steps and provides additional tips for maximizing yield.",
+      "optimized_process": ""
+    },
+    "uncertainties": [
+      "[uncertain: Specific company and product details not provided]"
+    ],
+    "key_value_propositions": {},
+    "target_decision_makers": {},
+    "technology_context": {}
+  },
+  "story_brief": {
+    "video_goal": "",
+    "target_audience": "",
+    "company_or_brand_name": "",
+    "tone_and_style": "professional",
+    "format_or_platform": "general",
+    "desired_length": "60",
+    "show_face": "No",
+    "cta": "",
+    "video_type": "Product Release",
+    "user_inputs": "how to grow tomatoes",
+    "key_points": [
+      "Step-by-step instructions for growing tomatoes",
+      "Includes necessary tools and seeds",
+      "Tips for optimal tomato growth and yield"
+    ],
+    "constraints": [
+      "Do not claim: Specific company and product details not provided"
+    ],
+    "problem": {
+      "description": "Traditional process of growing tomatoes involves selecting a suitable location with adequate sunlight, preparing the soil, planting seeds or seedlings, regular watering, and pest management.",
+      "auto_filled_from_research": true
+    },
+    "key_features": [
+      "Pre-prepared gardening kit",
+      "Includes soil, seeds, and a guide",
+      "Additional tips for maximizing yield"
+    ],
+    "typical_use_cases": [
+      "Home gardening for fresh produce",
+      "Sustainable living practices",
+      "Beginner gardeners looking for simplified guidance"
+    ],
+    "core_interaction_steps": [],
+    "auto_filled_fields": [
+      "key_points",
+      "constraints",
+      "problem",
+      "key_features",
+      "typical_use_cases"
+    ],
+    "unresolved_questions": [
+      {
+        "field": "video_goal",
+        "note": "Please provide the specific goal for this video. What should viewers know or do after watching?",
+        "context": "Needed to tailor the video's narrative and call to action."
+      },
+      {
+        "field": "target_audience",
+        "note": "Please specify the target audience for this video. Who is watching (e.g., beginner gardeners, sustainable living enthusiasts)?",
+        "context": "Important for crafting the video's messaging and tone."
+      },
+      {
+        "field": "company_or_brand_name",
+        "note": "Please specify the company or brand name associated with the product or video.",
+        "context": "Needed for branding and identification purposes."
+      },
+      {
+        "field": "cta",
+        "note": "Please provide a specific call to action for the video.",
+        "context": "Essential for guiding viewer actions after watching."
+      },
+      {
+        "field": "core_interaction_steps",
+        "note": "The research does not provide specific interaction steps for the gardening kit. What exact steps should be demonstrated in the video?",
+        "context": "Critical for showcasing the product's usage in the Product Release video."
+      }
+    ]
+  },
+  "screen_outline": null,
+  "storyboard": null,
+  "revision_history": [],
+  "revision_count_gate1": 0,
+  "revision_count_gate2": 0,
+  "max_revisions": 3,
+  "brief_locked": false,
+  "outline_locked": false,
+  "created_at": "2026-01-10T23:58:58.325355",
+  "updated_at": "2026-01-10T23:59:06.736337"
+}

@@ -8,35 +8,43 @@ from typing import List, Optional
 
 from app.utils.image_search import search_image
 
+
 class ChatMessage(BaseModel):
     role: str
     content: str
+
 
 class ChatRequest(BaseModel):
     message: str
     conversation_history: Optional[List[ChatMessage]] = []
 
+
 class ChatResponse(BaseModel):
     message: str
     success: bool
+
 
 class StoryboardChatbot:
     def __init__(self):
         self.api_key = os.getenv("LANGFLOW_API_KEY")
         if not self.api_key:
-            raise ValueError("LANGFLOW_API_KEY environment variable not found. Please set your API key in the environment variables.")
+            raise ValueError(
+                "LANGFLOW_API_KEY environment variable not found. Please set your API key in the environment variables."
+            )
 
         # Langflow configuration - make URL and flow ID configurable
         langflow_host = os.getenv("LANGFLOW_HOST", "localhost:7860")
         flow_id = os.getenv("LANGFLOW_FLOW_ID", "6bc20709-5eac-463b-b5e7-28388dd6e560")
         self.url = f"http://{langflow_host}/api/v1/run/{flow_id}"
 
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-api-key": self.api_key
-        }
+        self.headers = {"Content-Type": "application/json", "x-api-key": self.api_key}
 
-    def generate_response(self, user_message: str, conversation_history: List[ChatMessage] = None, project_id: str = None) -> str:
+    def generate_response(
+        self,
+        user_message: str,
+        conversation_history: List[ChatMessage] = None,
+        project_id: str = None,
+    ) -> str:
         """Generate AI response for storyboard editing assistance using Langflow"""
         print("!!!!!")
         # Build context from conversation history
@@ -52,12 +60,14 @@ class StoryboardChatbot:
         payload = {
             "output_type": "chat",
             "input_type": "chat",
-            "input_value": full_message
+            "input_value": full_message,
         }
 
         try:
             # Increase timeout to 6 minutes for Langflow processing
-            response = requests.post(self.url, json=payload, headers=self.headers, timeout=360)
+            response = requests.post(
+                self.url, json=payload, headers=self.headers, timeout=360
+            )
             response.raise_for_status()  # Raise exception for bad status codes
 
             # Parse Langflow response
@@ -123,7 +133,9 @@ class StoryboardChatbot:
                                 results = nested_output["results"]
                                 if isinstance(results, dict):
                                     # Try message.text structure
-                                    if "message" in results and isinstance(results["message"], dict):
+                                    if "message" in results and isinstance(
+                                        results["message"], dict
+                                    ):
                                         if "text" in results["message"]:
                                             return results["message"]["text"]
                                     # Try direct text in results
@@ -157,7 +169,11 @@ class StoryboardChatbot:
             return
 
         # Find project directory
-        project_dir = Path(__file__).parent.parent.parent.parent / "data" / f"project_{project_id}"
+        project_dir = (
+            Path(__file__).parent.parent.parent.parent
+            / "data"
+            / f"project_{project_id}"
+        )
         if not project_dir.exists():
             print(f"Project directory not found: {project_dir}")
             return
@@ -170,7 +186,9 @@ class StoryboardChatbot:
             story_id = f"{timestamp + i}"
             story_filename = f"story_{story_id}"
             story_file = project_dir / f"{story_filename}.json"
-            story_data["image_url"] = search_image(story_data.get("on_screen_visual_keywords", ""))
+            story_data["image_url"] = search_image(
+                story_data.get("on_screen_visual_keywords", "")
+            )
 
             # Save individual story file
             with open(story_file, "w") as f:

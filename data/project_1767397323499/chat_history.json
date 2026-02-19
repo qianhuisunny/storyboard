@@ -1,0 +1,18 @@
+{
+  "projectId": "1767397323499",
+  "messages": [
+    {
+      "id": "initial-user",
+      "role": "user",
+      "content": "[Product Release Video] Product Release Video:\nWe\u2019re launching LearnFlow AI, an AI-powered tool that helps instructional designers automatically generate storyboards and training videos from text prompts. The product\u2019s main features include instant scene generation, voiceover integration, and editable scripts. Key benefits: saves 80% of production time, maintains brand tone, and supports SCORM export.\nTarget audience: corporate learning teams, customer education professionals, and eLearning agencies.\nTone: modern, confident, and inspiring \u2014 focus on how LearnFlow AI transforms instructional design from a manual process into a creative, AI-assisted workflow.\nCall to action: \u201cStart your first storyboard for free.\u201d\n",
+      "createdAt": "2026-01-02T23:42:30.016Z"
+    },
+    {
+      "id": "initial-response",
+      "role": "assistant",
+      "content": "I'm having trouble connecting to the AI service right now. Please try again later. Error: 500 Server Error: Internal Server Error for url: http://localhost:7860/api/v1/run/4440b94d-d026-467b-acc9-734d01987c3c",
+      "createdAt": "2026-01-02T23:42:30.016Z"
+    }
+  ],
+  "lastUpdated": "2026-01-02T16:34:49.593941"
+}
