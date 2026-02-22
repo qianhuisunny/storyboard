@@ -11,7 +11,6 @@ interface Tab {
 const tabs: Tab[] = [
   { key: "user", label: "User" },
   { key: "input", label: "Input" },
-  { key: "processing", label: "Processing" },
   { key: "output", label: "Output" },
 ];
 

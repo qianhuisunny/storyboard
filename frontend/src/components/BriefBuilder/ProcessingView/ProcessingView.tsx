@@ -51,7 +51,7 @@ function CollapsibleSection({
   );
 }
 
-// Status badge configuration for the four states
+// Status badge configuration for the three states
 const statusConfig: Record<FieldStatus, { label: string; className: string; icon: string }> = {
   auto_filled: {
     label: "Auto-filled",
@@ -62,11 +62,6 @@ const statusConfig: Record<FieldStatus, { label: string; className: string; icon
     label: "Inferred",
     className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
     icon: "?",
-  },
-  missing: {
-    label: "Missing",
-    className: "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400",
-    icon: "!",
   },
   not_applicable: {
     label: "N/A",
@@ -173,7 +168,6 @@ export default function ProcessingView({
   const fieldsByStatus: Record<FieldStatus, string[]> = {
     auto_filled: [],
     inferred: [],
-    missing: [],
     not_applicable: [],
   };
 
@@ -211,19 +205,7 @@ export default function ProcessingView({
           })}
         </div>
 
-        {/* Section 1: Original Input */}
-        <CollapsibleSection title="Original Input" defaultOpen={true}>
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Raw user input before processing:
-            </p>
-            <pre className="p-3 bg-muted rounded-md text-sm font-mono overflow-auto whitespace-pre-wrap">
-              {brief.user_inputs || "(No user input provided)"}
-            </pre>
-          </div>
-        </CollapsibleSection>
-
-        {/* Section 2: Web Searches Performed */}
+        {/* Section 1: Web Searches Performed */}
         {searchesPerformed.length > 0 && (
           <CollapsibleSection
             title="Web Searches Performed"
@@ -269,7 +251,7 @@ export default function ProcessingView({
           </CollapsibleSection>
         )}
 
-        {/* Section 3: Context Pack Extraction */}
+        {/* Section 2: Context Pack Extraction */}
         <CollapsibleSection
           title="Context Pack Extraction"
           subtitle={`${Object.keys(contextPack).filter(k => !k.endsWith('_sources') && k !== 'searches_performed').length} fields, ${totalSources} sources`}
@@ -284,7 +266,7 @@ export default function ProcessingView({
           </div>
         </CollapsibleSection>
 
-        {/* Section 4: Auto-Filled Fields (with sources) */}
+        {/* Section 3: Auto-Filled Fields (with sources) */}
         <CollapsibleSection
           title="Auto-Filled Fields"
           subtitle={`${fieldsByStatus.auto_filled.length} fields`}
@@ -313,7 +295,7 @@ export default function ProcessingView({
           </div>
         </CollapsibleSection>
 
-        {/* Section 5: Inferred Fields (need confirmation) */}
+        {/* Section 4: Inferred Fields (need confirmation) */}
         <CollapsibleSection
           title="Inferred Fields"
           subtitle={`${fieldsByStatus.inferred.length} fields need review`}
@@ -341,35 +323,7 @@ export default function ProcessingView({
           </div>
         </CollapsibleSection>
 
-        {/* Section 6: Missing Fields (user must provide) */}
-        <CollapsibleSection
-          title="Missing Fields"
-          subtitle={`${fieldsByStatus.missing.length} fields`}
-        >
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground mb-3">
-              Fields that could not be determined from research - user input required:
-            </p>
-            {fieldsByStatus.missing.length > 0 ? (
-              <ul className="space-y-2">
-                {fieldsByStatus.missing.map((field) => (
-                  <FieldStateDisplay
-                    key={field}
-                    fieldName={field}
-                    fieldState={getFieldState(field as keyof typeof brief, brief)}
-                    value={brief[field as keyof typeof brief]}
-                  />
-                ))}
-              </ul>
-            ) : (
-              <p className="text-sm text-green-600 dark:text-green-400">
-                All required fields have values.
-              </p>
-            )}
-          </div>
-        </CollapsibleSection>
-
-        {/* Section 7: Not Applicable Fields */}
+        {/* Section 5: Not Applicable Fields */}
         {fieldsByStatus.not_applicable.length > 0 && (
           <CollapsibleSection
             title="Not Applicable Fields"

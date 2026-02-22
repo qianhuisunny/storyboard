@@ -3,8 +3,8 @@
  * Defines interfaces for StoryBrief, ContextPack, ProcessingLog, and component props.
  */
 
-// Four-state field status system
-export type FieldStatus = "auto_filled" | "inferred" | "missing" | "not_applicable";
+// Three-state field status system
+export type FieldStatus = "auto_filled" | "inferred" | "not_applicable";
 
 // Legacy status for backward compatibility (maps to new system)
 export type LegacyFieldStatus = "auto_filled" | "needs_review" | "empty";
@@ -39,8 +39,8 @@ export interface SearchPerformed {
   results_used: string[];
 }
 
-// Tab types for the four-tab system (standardized order: user, input, processing, output)
-export type TabKey = "user" | "input" | "processing" | "output";
+// Tab types for the three-tab system (Processing is always visible in right column)
+export type TabKey = "user" | "input" | "output";
 
 // Nested types
 export interface Problem {
@@ -131,7 +131,7 @@ export interface ContextPack {
   practical_applications?: string[];
   practical_applications_sources?: SourceReference[];
 
-  // How-to video fields
+  // Product demo video fields
   task_overview?: string;
   task_overview_sources?: SourceReference[];
   step_prerequisites?: string[];
@@ -287,7 +287,6 @@ export type ValidationErrors = {
 export const REQUIRED_FIELDS: (keyof StoryBrief)[] = [
   "video_goal",
   "target_audience",
-  "company_or_brand_name",
   "tone_and_style",
   "desired_length",
   "video_type",
@@ -304,17 +303,14 @@ export const TONE_OPTIONS = [
 // Video type options
 export const VIDEO_TYPE_OPTIONS = [
   { value: "Product Release", label: "Product Release" },
-  { value: "How-to Video", label: "How-to Demo" },
+  { value: "Product Demo Video", label: "Product Demo" },
   { value: "Knowledge Sharing", label: "Knowledge Share" },
 ];
 
 // Format/platform options
 export const FORMAT_OPTIONS = [
   { value: "youtube", label: "YouTube" },
-  { value: "tiktok", label: "TikTok" },
-  { value: "instagram", label: "Instagram" },
-  { value: "linkedin", label: "LinkedIn" },
-  { value: "general", label: "General" },
+  { value: "lms", label: "LMS" },
 ];
 
 /**
@@ -333,13 +329,13 @@ export function getFieldStatus(
   // Fallback to legacy arrays for backward compatibility
   const value = brief[fieldName];
 
-  // Check if value is empty
+  // Check if value is empty - return inferred (needs user input/AI generation)
   if (
     value == null ||
     value === "" ||
     (Array.isArray(value) && value.length === 0)
   ) {
-    return "missing";
+    return "inferred";
   }
 
   // Check if auto-filled
@@ -393,9 +389,9 @@ export function mapLegacyStatus(legacyStatus: LegacyFieldStatus): FieldStatus {
     case "needs_review":
       return "inferred";
     case "empty":
-      return "missing";
+      return "inferred";
     default:
-      return "missing";
+      return "inferred";
   }
 }
 
@@ -424,7 +420,7 @@ export function normalizeBrief(raw: Partial<StoryBrief>): StoryBrief {
     target_audience: raw.target_audience ?? "",
     company_or_brand_name: raw.company_or_brand_name ?? "",
     tone_and_style: raw.tone_and_style ?? "professional",
-    format_or_platform: raw.format_or_platform ?? "general",
+    format_or_platform: raw.format_or_platform ?? "youtube",
     desired_length: raw.desired_length ?? "60",
     show_face: raw.show_face ?? "No",
     cta: raw.cta ?? "",

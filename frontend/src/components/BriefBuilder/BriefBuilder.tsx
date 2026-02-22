@@ -25,72 +25,67 @@ export default function BriefBuilder({
 
   return (
     <div className="brief-builder flex flex-col h-full bg-background">
-      {/* Tab Navigation */}
-      <TabToggle activeTab={activeTab} onChange={setActiveTab} />
+      {/* Split screen container - row on desktop, column on mobile */}
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+        {/* Left column - full width on mobile, 60% on desktop */}
+        <div className="w-full md:w-[60%] flex flex-col md:border-r border-border">
+          {/* Tab Navigation */}
+          <TabToggle activeTab={activeTab} onChange={setActiveTab} />
 
-      {/* Tab Panels */}
-      <div className="brief-builder-content flex-1 overflow-auto">
-        {/* User View Panel */}
-        <div
-          id="tabpanel-user"
-          role="tabpanel"
-          aria-labelledby="tab-user"
-          hidden={activeTab !== "user"}
-          className="h-full"
-        >
-          {activeTab === "user" && (
-            <UserView
-              brief={briefData}
-              onBriefChange={onBriefUpdate}
-              stage={userStage}
-              onStageChange={setUserStage}
-              onConfirm={onConfirm}
-            />
-          )}
+          {/* Tab Panels */}
+          <div className="brief-builder-content flex-1 overflow-auto">
+            {/* User View Panel */}
+            <div
+              id="tabpanel-user"
+              role="tabpanel"
+              aria-labelledby="tab-user"
+              hidden={activeTab !== "user"}
+              className="h-full"
+            >
+              {activeTab === "user" && (
+                <UserView
+                  brief={briefData}
+                  onBriefChange={onBriefUpdate}
+                  stage={userStage}
+                  onStageChange={setUserStage}
+                  onConfirm={onConfirm}
+                />
+              )}
+            </div>
+
+            {/* Input View Panel */}
+            <div
+              id="tabpanel-input"
+              role="tabpanel"
+              aria-labelledby="tab-input"
+              hidden={activeTab !== "input"}
+              className="h-full"
+            >
+              {activeTab === "input" && (
+                <InputView brief={briefData} contextPack={contextPack} />
+              )}
+            </div>
+
+            {/* Output View Panel */}
+            <div
+              id="tabpanel-output"
+              role="tabpanel"
+              aria-labelledby="tab-output"
+              hidden={activeTab !== "output"}
+              className="h-full"
+            >
+              {activeTab === "output" && <OutputView brief={briefData} />}
+            </div>
+          </div>
         </div>
 
-        {/* Input View Panel */}
-        <div
-          id="tabpanel-input"
-          role="tabpanel"
-          aria-labelledby="tab-input"
-          hidden={activeTab !== "input"}
-          className="h-full"
-        >
-          {activeTab === "input" && (
-            <InputView
-              brief={briefData}
-              contextPack={contextPack}
-            />
-          )}
-        </div>
-
-        {/* Processing View Panel */}
-        <div
-          id="tabpanel-processing"
-          role="tabpanel"
-          aria-labelledby="tab-processing"
-          hidden={activeTab !== "processing"}
-          className="h-full"
-        >
-          {activeTab === "processing" && (
-            <ProcessingView
-              brief={briefData}
-              contextPack={contextPack}
-              processingLog={processingLog}
-            />
-          )}
-        </div>
-
-        {/* Output View Panel */}
-        <div
-          id="tabpanel-output"
-          role="tabpanel"
-          aria-labelledby="tab-output"
-          hidden={activeTab !== "output"}
-          className="h-full"
-        >
-          {activeTab === "output" && <OutputView brief={briefData} />}
+        {/* Right column - Processing (always visible, 40% width) */}
+        <div className="w-full md:w-[40%] overflow-auto border-t md:border-t-0 border-border">
+          <ProcessingView
+            brief={briefData}
+            contextPack={contextPack}
+            processingLog={processingLog}
+          />
         </div>
       </div>
     </div>
