@@ -65,19 +65,6 @@ export default function RequiredFieldsForm({
         helperText="Describe demographics, interests, and pain points of your ideal viewers"
       />
 
-      {/* Company/Brand Name */}
-      <FormField
-        label="Company or Brand Name"
-        name="company_or_brand_name"
-        value={brief.company_or_brand_name}
-        onChange={(value) => updateField("company_or_brand_name", value as string)}
-        type="text"
-        required
-        status={getFieldStatus("company_or_brand_name", brief)}
-        error={errors.company_or_brand_name}
-        placeholder="e.g., Acme Inc."
-      />
-
       {/* Video Type */}
       <FormField
         label="Video Type"

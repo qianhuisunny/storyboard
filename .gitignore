@@ -42,6 +42,11 @@ env/
 ENV/
 .venv
 .env/
+langflow_env/
+
+# Project data (local JSON storage)
+data/
+!data/example/
 
 # Environment variables
 .env

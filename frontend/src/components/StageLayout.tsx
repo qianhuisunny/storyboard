@@ -26,7 +26,6 @@ const STAGE_API_NAMES: Record<number, string> = {
 interface StageData {
   aiVersion: string | null;
   humanVersion: string | null;
-  contextPack?: Record<string, unknown>;
 }
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
@@ -75,7 +74,9 @@ export default function StageLayout() {
           });
 
           // Start generating brief only if no saved data exists
-          if (!stageData[1]?.aiVersion && !hasLoadedStages.current) {
+          // SKIP for Knowledge Share (type "3") - handled by new 3-round flow in StageContent
+          const isKnowledgeShare = storedType === "3";
+          if (!stageData[1]?.aiVersion && !hasLoadedStages.current && !isKnowledgeShare) {
             generateStage(1, storedPrompt);
           }
         } else {
@@ -90,7 +91,9 @@ export default function StageLayout() {
               });
 
               // Start generating brief only if no saved data exists
-              if (!stageData[1]?.aiVersion && !hasLoadedStages.current && data.project.userInput) {
+              // SKIP for Knowledge Share - handled by new 3-round flow in StageContent
+              const projectIsKnowledgeShare = data.project.typeName === "Knowledge Share";
+              if (!stageData[1]?.aiVersion && !hasLoadedStages.current && data.project.userInput && !projectIsKnowledgeShare) {
                 generateStage(1, data.project.userInput);
               }
             }
@@ -251,7 +254,7 @@ export default function StageLayout() {
       const videoType = sessionStorage.getItem("storyboardType") || "1";
       const videoTypeNames: Record<string, string> = {
         "1": "Product Release",
-        "2": "How-to Video",
+        "2": "Product Demo Video",
         "3": "Knowledge Sharing",
       };
 
@@ -287,7 +290,6 @@ export default function StageLayout() {
         [stageId]: {
           aiVersion: data.ai_content,
           humanVersion: null,
-          contextPack: data.context_pack || {},
         },
       }));
 
@@ -491,7 +493,6 @@ export default function StageLayout() {
             stage={currentStage}
             aiContent={currentData.aiVersion}
             humanContent={currentData.humanVersion}
-            contextPack={currentData.contextPack}
             previousStageOutput={previousStageOutput}
             isGenerating={isGenerating}
             onApprove={handleApprove}

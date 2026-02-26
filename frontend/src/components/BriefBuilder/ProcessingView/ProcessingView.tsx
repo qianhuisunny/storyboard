@@ -1,11 +1,10 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, ExternalLink, Search } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink } from "lucide-react";
 import type {
   ProcessingViewProps,
   FieldStatus,
   SourceReference,
   FieldState,
-  SearchPerformed,
 } from "../types";
 import { getFieldStatus, getFieldState } from "../types";
 
@@ -153,11 +152,10 @@ function FieldStateDisplay({
 
 /**
  * ProcessingView - Technical log view showing processing steps.
- * Displays original input, context pack extraction, field states with sources, and gaps.
+ * Displays field states with sources and gaps.
  */
 export default function ProcessingView({
   brief,
-  contextPack,
   processingLog,
 }: ProcessingViewProps) {
   // Categorize fields by status
@@ -175,15 +173,6 @@ export default function ProcessingView({
     const status = getFieldStatus(field, brief);
     fieldsByStatus[status].push(field);
   });
-
-  // Get searches performed from context pack
-  const searchesPerformed = (contextPack.searches_performed || []) as SearchPerformed[];
-
-  // Count total sources across all fields
-  const totalSources = Object.values(brief.field_states || {}).reduce(
-    (count, state) => count + (state.sources?.length || 0),
-    0
-  );
 
   return (
     <div className="processing-view h-full overflow-auto p-6 bg-muted/10">
@@ -205,68 +194,7 @@ export default function ProcessingView({
           })}
         </div>
 
-        {/* Section 1: Web Searches Performed */}
-        {searchesPerformed.length > 0 && (
-          <CollapsibleSection
-            title="Web Searches Performed"
-            subtitle={`${searchesPerformed.length} searches`}
-            defaultOpen={true}
-          >
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                Research queries executed to gather context:
-              </p>
-              <ul className="space-y-2">
-                {searchesPerformed.map((search, index) => (
-                  <li key={index} className="p-3 bg-muted/50 rounded-md text-sm border border-border/50">
-                    <div className="flex items-center gap-2">
-                      <Search className="w-4 h-4 text-blue-500" />
-                      <span className="font-medium text-foreground">"{search.query}"</span>
-                    </div>
-                    <p className="text-xs text-muted-foreground mt-1">{search.purpose}</p>
-                    {search.results_used && search.results_used.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        <p className="text-xs text-muted-foreground font-medium">Results used:</p>
-                        <ul className="space-y-1">
-                          {search.results_used.map((url, urlIndex) => (
-                            <li key={urlIndex} className="flex items-center gap-2 text-xs">
-                              <ExternalLink className="w-3 h-3 text-blue-500" />
-                              <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:underline truncate max-w-md"
-                              >
-                                {url}
-                              </a>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </CollapsibleSection>
-        )}
-
-        {/* Section 2: Context Pack Extraction */}
-        <CollapsibleSection
-          title="Context Pack Extraction"
-          subtitle={`${Object.keys(contextPack).filter(k => !k.endsWith('_sources') && k !== 'searches_performed').length} fields, ${totalSources} sources`}
-        >
-          <div className="space-y-2">
-            <p className="text-sm text-muted-foreground">
-              Data extracted from research (video type: {contextPack.video_type_context || "unknown"}):
-            </p>
-            <pre className="p-3 bg-muted rounded-md text-sm font-mono overflow-auto max-h-60">
-              {JSON.stringify(contextPack, null, 2)}
-            </pre>
-          </div>
-        </CollapsibleSection>
-
-        {/* Section 3: Auto-Filled Fields (with sources) */}
+        {/* Section 1: Auto-Filled Fields (with sources) */}
         <CollapsibleSection
           title="Auto-Filled Fields"
           subtitle={`${fieldsByStatus.auto_filled.length} fields`}

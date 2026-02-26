@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, FileText, Link, MessageSquare } from "lucide-react";
+import { ChevronDown, ChevronRight, MessageSquare } from "lucide-react";
 import type { InputViewProps } from "../types";
 
 /**
- * InputView - Displays user inputs and context pack for Stage 1 (Brief).
+ * InputView - Displays user inputs for Stage 1 (Brief).
  * Shows what the user provided as input to generate the brief.
  */
-export default function InputView({ brief, contextPack }: InputViewProps) {
+export default function InputView({ brief }: InputViewProps) {
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     userInputs: true,
   });
@@ -14,14 +14,6 @@ export default function InputView({ brief, contextPack }: InputViewProps) {
   const toggleSection = (section: string) => {
     setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
-
-  // Extract user_inputs from context pack (if available from backend)
-  const userInputs = (contextPack?.user_inputs as Record<string, unknown>) || {};
-  const parsedMaterials = (userInputs.parsed_materials as Array<{
-    type: string;
-    name: string;
-    content: string;
-  }>) || [];
 
   return (
     <div className="h-full flex flex-col bg-muted/10">
@@ -94,42 +86,8 @@ export default function InputView({ brief, contextPack }: InputViewProps) {
                   )}
                 </div>
 
-                {/* Parsed Materials (PDFs, URLs) */}
-                {parsedMaterials.length > 0 && (
-                  <div>
-                    <div className="text-xs font-medium text-muted-foreground uppercase mb-2">
-                      Uploaded Materials
-                    </div>
-                    <div className="space-y-3">
-                      {parsedMaterials.map((material, index) => (
-                        <div
-                          key={index}
-                          className="p-3 bg-muted/20 rounded-md border border-border/50"
-                        >
-                          <div className="flex items-center gap-2 mb-2">
-                            {material.type === "pdf" ? (
-                              <FileText className="w-4 h-4 text-red-500" />
-                            ) : material.type === "url" ? (
-                              <Link className="w-4 h-4 text-blue-500" />
-                            ) : (
-                              <FileText className="w-4 h-4 text-gray-500" />
-                            )}
-                            <span className="text-sm font-medium">{material.name}</span>
-                            <span className="text-xs text-muted-foreground px-2 py-0.5 bg-muted rounded">
-                              {material.type.toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="text-sm text-muted-foreground whitespace-pre-wrap max-h-40 overflow-auto">
-                            {material.content}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* No inputs message */}
-                {!brief.user_inputs && parsedMaterials.length === 0 && (
+                {!brief.user_inputs && (
                   <div className="text-sm text-muted-foreground italic">
                     No user inputs recorded.
                   </div>
@@ -139,7 +97,7 @@ export default function InputView({ brief, contextPack }: InputViewProps) {
           </div>
 
           {/* No Data State */}
-          {!brief.user_inputs && parsedMaterials.length === 0 && (
+          {!brief.user_inputs && (
             <div className="flex items-center justify-center h-40 text-muted-foreground">
               <p>No input data available.</p>
             </div>

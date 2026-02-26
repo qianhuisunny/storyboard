@@ -22,23 +22,33 @@ class StoryboardState(BaseModel):
     """Complete state for a storyboard project through the pipeline."""
     project_id: str
     phase: Literal[
-        "intake",      # Initial state, waiting for intake form
-        "research",    # Topic Researcher is running
-        "brief",       # Brief Builder is running
-        "gate1",       # Human review of Story Brief
-        "outline",     # Storyboard Director is running
-        "gate2",       # Human review of Screen Outline
-        "write",       # Storyboard Writer is running
-        "review",      # Final review (optional refinements)
-        "done"         # Complete
+        "intake",         # Initial state, waiting for intake form
+        "research",       # Topic Researcher is running
+        "brief",          # Brief Builder is running (legacy)
+        "brief_round1",   # NEW: Editing Section 1 (Core Intent)
+        "brief_round2",   # NEW: Editing Section 2 (Delivery & Format)
+        "brief_round3",   # NEW: Editing Section 3 (Content Spine)
+        "brief_review",   # NEW: Final brief review before locking
+        "gate1",          # Human review of Story Brief
+        "outline",        # Storyboard Director is running
+        "gate2",          # Human review of Screen Outline
+        "write",          # Storyboard Writer is running
+        "review",         # Final review (optional refinements)
+        "done"            # Complete
     ] = "intake"
 
     # Accumulated data through pipeline
     intake_form: Optional[dict] = None
-    context_pack: Optional[dict] = None
     story_brief: Optional[dict] = None
     screen_outline: Optional[list] = None
     storyboard: Optional[list] = None
+
+    # NEW: 3-Round Briefing Flow State
+    brief_round: int = 1  # Current round: 1, 2, 3, or 4 (review)
+    confirmed_fields: dict = Field(default_factory=dict)  # Accumulated confirmed fields from each round
+    research_task_id: Optional[str] = None  # Background research task ID
+    research_results: Optional[dict] = None  # Research results when complete
+    research_complete: bool = False  # True when research has finished
 
     # Revision tracking
     revision_history: List[RevisionRecord] = Field(default_factory=list)
@@ -60,6 +70,7 @@ class StateManager:
 
     # Valid state transitions: (current_phase, event) -> next_phase
     TRANSITIONS = {
+        # Legacy flow (kept for backward compatibility)
         ("intake", "submit"): "research",
         ("research", "context_ready"): "brief",
         ("brief", "brief_ready"): "gate1",
@@ -71,6 +82,15 @@ class StateManager:
         ("write", "storyboard_ready"): "review",
         ("review", "approve"): "done",
         ("review", "refine"): "outline",  # Optional refinement
+
+        # NEW: 3-Round Briefing Flow
+        ("intake", "submit_knowledge_share"): "brief_round1",      # Start new flow
+        ("brief_round1", "round1_confirm"): "brief_round2",        # Section 1 -> Section 2
+        ("brief_round2", "round2_confirm"): "brief_round3",        # Section 2 -> Section 3
+        ("brief_round3", "round3_confirm"): "brief_review",        # Section 3 -> Final review
+        ("brief_review", "brief_approve"): "gate1",                # Final review -> Gate 1 (locked)
+        ("brief_review", "edit_brief"): "brief_round1",            # Go back to editing
+
         # Go back transitions
         ("gate2", "go_back_gate1"): "gate1",      # From outline review -> brief review
         ("review", "go_back_gate2"): "gate2",     # From final review -> outline review
@@ -237,7 +257,6 @@ class StateManager:
             state.brief_locked = False
             state.outline_locked = False
             state.intake_form = None
-            state.context_pack = None
             state.story_brief = None
             state.screen_outline = None
             state.storyboard = None

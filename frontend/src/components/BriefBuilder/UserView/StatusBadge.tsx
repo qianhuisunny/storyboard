@@ -15,11 +15,6 @@ const statusConfig: Record<
     className: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800",
     icon: "?",
   },
-  missing: {
-    label: "Missing",
-    className: "bg-red-100 text-red-600 border-red-200 dark:bg-red-900/30 dark:text-red-400 dark:border-red-800",
-    icon: "!",
-  },
   not_applicable: {
     label: "N/A",
     className: "bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700",
@@ -48,8 +43,8 @@ interface ExtendedStatusBadgeProps extends StatusBadgeProps {
 }
 
 /**
- * StatusBadge - Visual indicator for field status (four-state system).
- * Shows Auto-filled (green), Inferred (yellow), Missing (red), or N/A (gray).
+ * StatusBadge - Visual indicator for field status (three-state system).
+ * Shows Auto-filled (green), Inferred (yellow), or N/A (gray).
  * Optionally displays confidence level.
  */
 export default function StatusBadge({

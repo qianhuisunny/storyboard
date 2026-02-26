@@ -277,11 +277,11 @@ export default function OptionalQuestionsForm({
           ordered
           status={getFieldStatus("core_interaction_steps", brief)}
           placeholder="Add a step..."
-          helperText="For how-to videos: ordered steps the viewer should follow"
+          helperText="For product demo videos: ordered steps the viewer should follow"
         />
 
-        {/* Common Pitfalls - Only for how-to videos */}
-        {brief.video_type === "How-to Video" && (
+        {/* Common Pitfalls - Only for product demo videos */}
+        {brief.video_type === "Product Demo Video" && (
           <FormField
             label="Common Pitfalls to Avoid"
             name="common_pitfalls"

@@ -1,9 +1,310 @@
 /**
  * TypeScript types for the Brief Builder component.
- * Defines interfaces for StoryBrief, ContextPack, ProcessingLog, and component props.
+ * Defines interfaces for the new 3-round briefing flow with field model.
  */
 
-// Three-state field status system
+// =============================================================================
+// NEW FIELD MODEL (3-Round Briefing Flow)
+// =============================================================================
+
+/**
+ * Field source - where the field value came from.
+ * - extracted: directly from user-provided inputs (form submission or explicit answers)
+ * - inferred: suggested by the system (AI inference)
+ * - empty: not set
+ */
+export type FieldSource = "extracted" | "inferred" | "empty";
+
+/**
+ * Field color for UI display - derived from source + confirmed state.
+ * - green: confirmed = true
+ * - blue: confirmed = false AND source = "extracted" (user provided)
+ * - yellow: confirmed = false AND source = "inferred" (AI suggested)
+ * - red: value is empty AND field is required in current round
+ */
+export type FieldColor = "green" | "blue" | "yellow" | "red";
+
+/**
+ * Single field in the new brief model.
+ */
+export interface BriefField {
+  key?: string;  // Optional - the key is already the property name in Record<string, BriefField>
+  value: string | string[] | boolean;
+  source: FieldSource;
+  confirmed: boolean;
+}
+
+/**
+ * Get the display color for a field based on its state.
+ * @param field - The field to get color for
+ * @param isRequired - Whether this field is required in the current round
+ * @returns The color to display
+ */
+export function getFieldColor(field: BriefField, isRequired: boolean = false): FieldColor {
+  // If confirmed, always green
+  if (field.confirmed) {
+    return "green";
+  }
+
+  // If empty/missing value
+  const isEmpty =
+    field.value === "" ||
+    field.value === null ||
+    field.value === undefined ||
+    (Array.isArray(field.value) && field.value.length === 0);
+
+  if (isEmpty) {
+    // Red if required, otherwise treat as empty
+    return isRequired ? "red" : "yellow";
+  }
+
+  // Based on source
+  if (field.source === "extracted") {
+    return "blue"; // User provided but not confirmed
+  }
+
+  if (field.source === "inferred") {
+    return "yellow"; // AI suggested
+  }
+
+  // Default to yellow for empty source
+  return "yellow";
+}
+
+/**
+ * Current round in the briefing flow.
+ */
+export type BriefRound = 1 | 2 | 3 | "review";
+
+/**
+ * Knowledge Share Brief - the new brief structure for Knowledge Share videos.
+ * Contains all 17 fields across 3 sections.
+ */
+export interface KnowledgeShareBrief {
+  video_type: "knowledge_share";
+  round: BriefRound;
+  fields: Record<string, BriefField>;
+}
+
+/**
+ * Required fields per round for Knowledge Share.
+ */
+export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
+  1: [
+    "video_type",
+    "primary_goal",
+    "target_audience",
+    "audience_level",
+    "platform",
+    "duration",
+    "one_big_thing",
+    "viewer_next_action",
+  ],
+  2: [
+    "on_camera_presence",
+    "broll_type",
+    "delivery_tone",
+    "freshness_expectation",
+  ],
+  3: [
+    "core_talking_points",
+    "misconceptions",
+    "practical_takeaway",
+  ],
+};
+
+/**
+ * Field labels for Knowledge Share (user-facing).
+ */
+export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
+  // Section 1: Core Intent
+  video_type: "Video type",
+  primary_goal: "What is the main goal of this video?",
+  target_audience: "Who is this video for?",
+  audience_level: "How familiar is your audience with this topic?",
+  platform: "Where will this video be published?",
+  duration: "How long should this video be?",
+  one_big_thing: "If viewers remember only one thing after watching this video, what should it be?",
+  viewer_next_action: "What is the next thing you want people to do after watching this video?",
+  // Section 2: Delivery & Format
+  on_camera_presence: "Do you want your face on screen?",
+  broll_type: "What should viewers mostly see while you explain?",
+  delivery_tone: "How should this feel to the viewer?",
+  freshness_expectation: "How time-sensitive is this video?",
+  // Section 3: Content Spine
+  must_avoid: "Anything we should absolutely avoid?",
+  source_assets: "Sources / assets provided",
+  core_talking_points: "Proposed framework/method",
+  misconceptions: "Common misconceptions to address",
+  practical_takeaway: "Practical takeaway",
+};
+
+/**
+ * Field input types for Knowledge Share.
+ */
+export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
+  video_type: "readonly",
+  primary_goal: "textarea",
+  target_audience: "text",
+  audience_level: "select",
+  platform: "select",
+  duration: "select",
+  one_big_thing: "textarea",
+  viewer_next_action: "textarea",
+  on_camera_presence: "select",
+  broll_type: "multiselect",
+  delivery_tone: "select",
+  freshness_expectation: "select",
+  must_avoid: "list",
+  source_assets: "readonly-list",
+  core_talking_points: "editable-list",
+  misconceptions: "checklist",
+  practical_takeaway: "select-editable",
+};
+
+/**
+ * Select options for Knowledge Share fields.
+ */
+export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: string }[]> = {
+  audience_level: [
+    { value: "beginner", label: "Beginner" },
+    { value: "intermediate", label: "Intermediate" },
+    { value: "advanced", label: "Advanced" },
+    { value: "mixed", label: "Mixed" },
+  ],
+  platform: [
+    { value: "youtube", label: "YouTube" },
+    { value: "internal_lms", label: "Internal LMS" },
+  ],
+  duration: [
+    { value: "60-90s", label: "60–90 seconds" },
+    { value: "2-5min", label: "2–5 minutes" },
+    { value: "5-10min", label: "5–10 minutes" },
+    { value: "10+min", label: "10+ minutes" },
+  ],
+  on_camera_presence: [
+    { value: "no", label: "No" },
+    { value: "yes_throughout", label: "Yes — throughout" },
+    { value: "yes_intro_outro", label: "Yes — intro/outro/transition" },
+  ],
+  broll_type: [
+    { value: "screen_recording", label: "Screen recording (product/demo/document)" },
+    { value: "slides", label: "Slides / key points" },
+    { value: "diagrams", label: "Diagrams / frameworks" },
+    { value: "whiteboard", label: "Whiteboard drawing" },
+    { value: "code_editor", label: "Code editor / notebook" },
+    { value: "stock_footage", label: "Stock footage" },
+    { value: "real_world", label: "Real-world footage / camera shots" },
+  ],
+  delivery_tone: [
+    { value: "clear_practical", label: "Clear & practical" },
+    { value: "analytical_informative", label: "Analytical & informative" },
+    { value: "mentor_peer", label: "Mentor & Peer" },
+    { value: "executive_briefing", label: "Executive briefing" },
+  ],
+  freshness_expectation: [
+    { value: "evergreen", label: "Evergreen (should stay useful for a long time)" },
+    { value: "current_year", label: "Current-year (should reflect this year's context)" },
+    { value: "recent", label: "Recent / fast-changing (needs the latest info)" },
+  ],
+  practical_takeaway: [
+    { value: "checklist", label: "Checklist" },
+    { value: "decision_tree", label: "Decision tree" },
+    { value: "scorecard", label: "Scorecard" },
+    { value: "3_step_action", label: "3-step action plan" },
+  ],
+};
+
+/**
+ * Create an empty BriefField.
+ */
+export function createEmptyField(key: string): BriefField {
+  return {
+    key,
+    value: "",
+    source: "empty",
+    confirmed: false,
+  };
+}
+
+/**
+ * Create initial fields for a Knowledge Share brief (Round 1).
+ */
+export function createInitialKnowledgeShareFields(): Record<string, BriefField> {
+  const fields: Record<string, BriefField> = {};
+
+  // Section 1 fields
+  const section1Fields = [
+    "video_type", "primary_goal", "target_audience", "audience_level",
+    "platform", "duration", "one_big_thing", "viewer_next_action"
+  ];
+
+  // Section 2 fields
+  const section2Fields = [
+    "on_camera_presence", "broll_type", "delivery_tone", "freshness_expectation"
+  ];
+
+  // Section 3 fields
+  const section3Fields = [
+    "must_avoid", "source_assets", "core_talking_points", "misconceptions", "practical_takeaway"
+  ];
+
+  [...section1Fields, ...section2Fields, ...section3Fields].forEach(key => {
+    fields[key] = createEmptyField(key);
+  });
+
+  // video_type is always extracted and confirmed for Knowledge Share
+  fields.video_type = {
+    key: "video_type",
+    value: "knowledge_share",
+    source: "extracted",
+    confirmed: true,
+  };
+
+  return fields;
+}
+
+/**
+ * Check if all required fields in a round are filled (non-empty).
+ */
+export function areRequiredFieldsFilled(
+  fields: Record<string, BriefField>,
+  round: 1 | 2 | 3
+): boolean {
+  const requiredKeys = KNOWLEDGE_SHARE_REQUIRED_FIELDS[round];
+  return requiredKeys.every(key => {
+    const field = fields[key];
+    if (!field) return false;
+
+    const isEmpty =
+      field.value === "" ||
+      field.value === null ||
+      field.value === undefined ||
+      (Array.isArray(field.value) && field.value.length === 0);
+
+    return !isEmpty;
+  });
+}
+
+/**
+ * Check if all required fields in a round are confirmed.
+ */
+export function areRequiredFieldsConfirmed(
+  fields: Record<string, BriefField>,
+  round: 1 | 2 | 3
+): boolean {
+  const requiredKeys = KNOWLEDGE_SHARE_REQUIRED_FIELDS[round];
+  return requiredKeys.every(key => {
+    const field = fields[key];
+    return field?.confirmed === true;
+  });
+}
+
+// =============================================================================
+// LEGACY TYPES (for backward compatibility)
+// =============================================================================
+
+// Three-state field status system (legacy)
 export type FieldStatus = "auto_filled" | "inferred" | "not_applicable";
 
 // Legacy status for backward compatibility (maps to new system)
@@ -86,84 +387,6 @@ export interface StoryBrief {
   unresolved_questions: UnresolvedQuestion[];
 }
 
-// ContextPack - research data from Topic Researcher (video-type-aware)
-export interface ContextPack {
-  [key: string]: unknown;
-
-  // Video type identifier
-  video_type_context?: "product_brand" | "knowledge_share" | "how_to";
-
-  // Product/Brand video fields
-  company_context?: string;
-  company_context_sources?: SourceReference[];
-  product_context?: string;
-  product_context_sources?: SourceReference[];
-  industry_context?: string;
-  industry_context_sources?: SourceReference[];
-  key_value_propositions?: Record<string, string> | string[];
-  key_value_propositions_sources?: SourceReference[];
-  typical_workflows?: {
-    traditional_process?: string;
-    optimized_process?: string;
-  };
-  typical_workflows_sources?: SourceReference[];
-  target_decision_makers?: Record<string, string>;
-  target_decision_makers_sources?: SourceReference[];
-
-  // Knowledge Share video fields
-  topic_expertise?: string;
-  topic_expertise_sources?: SourceReference[];
-  learning_objectives?: string[];
-  learning_objectives_sources?: SourceReference[];
-  key_concepts?: Record<string, string>;
-  key_concepts_sources?: SourceReference[];
-  knowledge_sources?: Array<{
-    type: string;
-    title: string;
-    url: string;
-    key_insight: string;
-  }>;
-  common_misconceptions?: Array<{
-    misconception: string;
-    correction: string;
-  }>;
-  common_misconceptions_sources?: SourceReference[];
-  practical_applications?: string[];
-  practical_applications_sources?: SourceReference[];
-
-  // Product demo video fields
-  task_overview?: string;
-  task_overview_sources?: SourceReference[];
-  step_prerequisites?: string[];
-  step_prerequisites_sources?: SourceReference[];
-  detailed_steps?: Array<{
-    step_number: number;
-    action: string;
-    expected_result: string;
-    tips?: string;
-  }>;
-  detailed_steps_sources?: SourceReference[];
-  common_mistakes?: Array<{
-    mistake: string;
-    consequence: string;
-    prevention: string;
-  }>;
-  common_mistakes_sources?: SourceReference[];
-  success_criteria?: string[];
-  success_criteria_sources?: SourceReference[];
-  troubleshooting?: Record<string, string>;
-  troubleshooting_sources?: SourceReference[];
-
-  // Common fields
-  terminology_glossary?: Record<string, string>;
-  uncertainties?: string[];
-  searches_performed?: SearchPerformed[];
-
-  // Legacy fields (backward compatibility)
-  topic_summary?: string;
-  source_references?: string[];
-}
-
 // ProcessingLogEntry - for Processing view
 export interface ProcessingLogEntry {
   id: string;
@@ -178,7 +401,6 @@ export interface ProcessingLogEntry {
 // Main component props
 export interface BriefBuilderProps {
   briefData: StoryBrief;
-  contextPack: ContextPack;
   processingLog: ProcessingLogEntry[];
   onBriefUpdate: (brief: StoryBrief) => void;
   onConfirm: () => void;
@@ -250,7 +472,6 @@ export interface StatusBadgeProps {
 // ProcessingView props
 export interface ProcessingViewProps {
   brief: StoryBrief;
-  contextPack: ContextPack;
   processingLog: ProcessingLogEntry[];
 }
 
@@ -262,10 +483,9 @@ export interface CollapsibleSectionProps {
   subtitle?: string;
 }
 
-// InputView props - shows user inputs and context pack for Stage 1
+// InputView props - shows user inputs for Stage 1
 export interface InputViewProps {
   brief: StoryBrief;
-  contextPack: ContextPack;
 }
 
 // OutputView props

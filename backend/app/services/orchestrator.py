@@ -99,6 +99,7 @@ class StoryboardOrchestrator:
     def _get_handler(self, phase: str, event: str):
         """Get the handler function for a phase/event combination."""
         handlers = {
+            # Legacy flow
             ("intake", "submit"): self._handle_intake_submit,
             ("gate1", "approve"): self._handle_gate1_approve,
             ("gate1", "reject"): self._handle_gate1_reject,
@@ -110,6 +111,14 @@ class StoryboardOrchestrator:
             ("review", "go_back_gate1"): self._handle_go_back_gate1,
             ("review", "go_back_gate2"): self._handle_go_back_gate2,
             ("done", "restart"): self._handle_restart,
+
+            # NEW: 3-Round Briefing Flow for Knowledge Share
+            ("intake", "submit_knowledge_share"): self._handle_submit_knowledge_share,
+            ("brief_round1", "round1_confirm"): self._handle_round1_confirm,
+            ("brief_round2", "round2_confirm"): self._handle_round2_confirm,
+            ("brief_round3", "round3_confirm"): self._handle_round3_confirm,
+            ("brief_review", "brief_approve"): self._handle_brief_approve,
+            ("brief_review", "edit_brief"): self._handle_edit_brief,
         }
         return handlers.get((phase, event))
 
@@ -131,9 +140,8 @@ class StoryboardOrchestrator:
         state = manager.transition(state, "submit")
         result["message"] = "Intake received, starting research..."
 
-        # Run Topic Researcher
-        context_pack = self.agents["researcher"].run(state)
-        state.context_pack = context_pack
+        # Run Topic Researcher (output not currently used - will be restructured)
+        self.agents["researcher"].run(state)
         state = manager.transition(state, "context_ready")
         result["message"] = "Research complete, building brief..."
 
@@ -145,7 +153,6 @@ class StoryboardOrchestrator:
 
         # Include the story brief in result for frontend display
         result["story_brief"] = story_brief
-        result["context_pack"] = context_pack
 
         return state, result
 
@@ -400,13 +407,247 @@ class StoryboardOrchestrator:
             "revision_count_gate2": state.revision_count_gate2,
             "max_revisions": state.max_revisions,
             "has_intake_form": state.intake_form is not None,
-            "has_context_pack": state.context_pack is not None,
             "has_story_brief": state.story_brief is not None,
             "has_screen_outline": state.screen_outline is not None,
             "has_storyboard": state.storyboard is not None,
             "created_at": state.created_at,
             "updated_at": state.updated_at,
+            # NEW: 3-Round Briefing Flow state
+            "brief_round": state.brief_round,
+            "confirmed_fields": state.confirmed_fields,
+            "research_complete": state.research_complete,
         }
+
+    # =========================================================================
+    # NEW: 3-Round Briefing Flow Handlers (Knowledge Share)
+    # =========================================================================
+
+    async def _handle_submit_knowledge_share(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle Knowledge Share intake submission.
+        Starts research in background and generates Round 1 fields.
+        """
+        intake_form = payload.get("intake_form")
+        if not intake_form:
+            raise ValueError("intake_form is required in payload")
+
+        # Store intake form
+        state.intake_form = intake_form
+        state.brief_round = 1
+
+        # Start Topic Researcher (background - results stored for Round 3)
+        # For now, run synchronously and store results
+        try:
+            research_results = self.agents["researcher"].run(state)
+            state.research_results = research_results
+            state.research_complete = True
+        except Exception as e:
+            # Research failed - continue without it
+            state.research_results = None
+            state.research_complete = False
+            result["research_error"] = str(e)
+
+        # Transition to brief_round1
+        state = manager.transition(state, "submit_knowledge_share")
+
+        # Generate Round 1 fields
+        round1_result = self.agents["brief_builder"].run(
+            state,
+            round=1
+        )
+
+        # Store in story_brief
+        state.story_brief = round1_result
+
+        result["message"] = "Knowledge Share brief started. Review Section 1: Core Intent."
+        result["brief_fields"] = round1_result.get("fields", {})
+        result["round"] = 1
+        result["research_status"] = "complete" if state.research_complete else "running"
+
+        return state, result
+
+    async def _handle_round1_confirm(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle Round 1 confirmation (Section 1: Core Intent).
+        Stores confirmed fields and generates Round 2 fields.
+        """
+        confirmed_fields = payload.get("confirmed_fields", {})
+
+        # Merge confirmed fields
+        state.confirmed_fields = {
+            **state.confirmed_fields,
+            **confirmed_fields
+        }
+
+        # Transition to brief_round2
+        state = manager.transition(state, "round1_confirm")
+        state.brief_round = 2
+
+        # Generate Round 2 fields
+        round2_result = self.agents["brief_builder"].run(
+            state,
+            round=2,
+            confirmed_fields=state.confirmed_fields
+        )
+
+        # Update story_brief with round 2 fields
+        if state.story_brief:
+            state.story_brief["round"] = 2
+            state.story_brief["fields"] = {
+                **state.story_brief.get("fields", {}),
+                **round2_result.get("fields", {})
+            }
+        else:
+            state.story_brief = round2_result
+
+        result["message"] = "Section 1 confirmed. Review Section 2: Delivery & Format."
+        result["brief_fields"] = round2_result.get("fields", {})
+        result["round"] = 2
+        result["research_status"] = "complete" if state.research_complete else "running"
+
+        return state, result
+
+    async def _handle_round2_confirm(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle Round 2 confirmation (Section 2: Delivery & Format).
+        Waits for research if needed, then generates Round 3 fields.
+        """
+        confirmed_fields = payload.get("confirmed_fields", {})
+
+        # Merge confirmed fields
+        state.confirmed_fields = {
+            **state.confirmed_fields,
+            **confirmed_fields
+        }
+
+        # Transition to brief_round3
+        state = manager.transition(state, "round2_confirm")
+        state.brief_round = 3
+
+        # Generate Round 3 fields (uses research results)
+        round3_result = self.agents["brief_builder"].run(
+            state,
+            round=3,
+            confirmed_fields=state.confirmed_fields
+        )
+
+        # Update story_brief with round 3 fields
+        if state.story_brief:
+            state.story_brief["round"] = 3
+            state.story_brief["fields"] = {
+                **state.story_brief.get("fields", {}),
+                **round3_result.get("fields", {})
+            }
+        else:
+            state.story_brief = round3_result
+
+        result["message"] = "Section 2 confirmed. Review Section 3: Content Spine."
+        result["brief_fields"] = round3_result.get("fields", {})
+        result["round"] = 3
+        result["research_status"] = "complete" if state.research_complete else "failed"
+
+        return state, result
+
+    async def _handle_round3_confirm(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle Round 3 confirmation (Section 3: Content Spine).
+        Shows full brief review.
+        """
+        confirmed_fields = payload.get("confirmed_fields", {})
+
+        # Merge confirmed fields
+        state.confirmed_fields = {
+            **state.confirmed_fields,
+            **confirmed_fields
+        }
+
+        # Transition to brief_review
+        state = manager.transition(state, "round3_confirm")
+        state.brief_round = 4  # Review phase
+
+        # Update story_brief with final confirmed fields
+        if state.story_brief:
+            state.story_brief["round"] = "review"
+            # Mark all fields as confirmed in story_brief
+            for key, field in state.story_brief.get("fields", {}).items():
+                if key in state.confirmed_fields:
+                    field["confirmed"] = True
+                    field["value"] = state.confirmed_fields[key].get("value", field.get("value"))
+
+        result["message"] = "Section 3 confirmed. Review complete brief before proceeding."
+        result["full_brief"] = state.story_brief
+        result["confirmed_fields"] = state.confirmed_fields
+        result["round"] = "review"
+
+        return state, result
+
+    async def _handle_brief_approve(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle final brief approval.
+        Locks the brief and proceeds to Gate 1 (which goes to Director).
+        """
+        # Lock the brief
+        state = manager.lock_brief(state)
+
+        # Transition to gate1 (Director will run on gate1 approve)
+        state = manager.transition(state, "brief_approve")
+
+        result["message"] = "Brief approved and locked. Ready for outline generation."
+        result["story_brief"] = state.story_brief
+        result["brief_locked"] = True
+
+        return state, result
+
+    async def _handle_edit_brief(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle request to edit brief from review.
+        Goes back to Round 1 for editing.
+        """
+        # Transition back to brief_round1
+        state = manager.transition(state, "edit_brief")
+        state.brief_round = 1
+
+        result["message"] = "Returned to editing mode. All sections editable."
+        result["brief_fields"] = state.story_brief.get("fields", {}) if state.story_brief else {}
+        result["round"] = 1
+
+        return state, result
 
     # =========================================================================
     # Legacy API support (for backward compatibility with existing endpoints)
@@ -456,7 +697,6 @@ class StoryboardOrchestrator:
             return {
                 "ai_content": result.get("story_brief") or "",
                 "sources": [{"type": "ai_generated", "reference": "Generated via brief stage"}],
-                "context_pack": result.get("context_pack", {}),
             }
 
         elif stage == "outline":
@@ -471,7 +711,6 @@ class StoryboardOrchestrator:
             class MockState:
                 def __init__(self, brief):
                     self.story_brief = brief
-                    self.context_pack = {}
                     self.intake_form = {"video_type": video_type}
 
             mock_state = MockState(story_brief)
@@ -486,7 +725,6 @@ class StoryboardOrchestrator:
             return {
                 "ai_content": screen_outline,
                 "sources": [{"type": "ai_generated", "reference": "Generated via outline stage"}],
-                "context_pack": {},
             }
 
         elif stage in ["panels", "draft"]:
@@ -508,7 +746,6 @@ class StoryboardOrchestrator:
                 def __init__(self, brief, outline):
                     self.story_brief = brief
                     self.screen_outline = outline
-                    self.context_pack = {}
 
             mock_state = MockState(story_brief, screen_outline)
 
@@ -518,7 +755,6 @@ class StoryboardOrchestrator:
             return {
                 "ai_content": storyboard,
                 "sources": [{"type": "ai_generated", "reference": f"Generated via {stage} stage"}],
-                "context_pack": {},
             }
 
         elif stage == "polish":
@@ -527,7 +763,6 @@ class StoryboardOrchestrator:
             return {
                 "ai_content": storyboard_json,
                 "sources": [{"type": "ai_generated", "reference": "Generated via polish stage"}],
-                "context_pack": {},
             }
 
         else:

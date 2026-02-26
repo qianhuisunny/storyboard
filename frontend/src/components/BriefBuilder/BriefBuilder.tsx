@@ -12,7 +12,6 @@ import type { BriefBuilderProps, TabKey } from "./types";
  */
 export default function BriefBuilder({
   briefData,
-  contextPack,
   processingLog,
   onBriefUpdate,
   onConfirm,
@@ -62,7 +61,7 @@ export default function BriefBuilder({
               className="h-full"
             >
               {activeTab === "input" && (
-                <InputView brief={briefData} contextPack={contextPack} />
+                <InputView brief={briefData} />
               )}
             </div>
 
@@ -83,7 +82,6 @@ export default function BriefBuilder({
         <div className="w-full md:w-[40%] overflow-auto border-t md:border-t-0 border-border">
           <ProcessingView
             brief={briefData}
-            contextPack={contextPack}
             processingLog={processingLog}
           />
         </div>

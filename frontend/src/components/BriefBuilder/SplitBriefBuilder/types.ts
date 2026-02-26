@@ -1,0 +1,224 @@
+/**
+ * TypeScript types for the Split-Screen Brief Builder component.
+ * Defines interfaces for the 4-turn chat flow and research streaming.
+ */
+
+import type { StoryBrief, SourceReference } from "../types";
+
+// Chat turn numbers (1-4)
+export type ChatTurn = 1 | 2 | 3 | 4;
+
+// Status of each turn
+export type TurnStatus =
+  | "pending"
+  | "presenting"
+  | "awaiting"
+  | "confirmed"
+  | "correcting";
+
+// Research status
+export type ResearchStatus = "idle" | "running" | "complete" | "error";
+
+// Individual turn state
+export interface TurnState {
+  status: TurnStatus;
+  corrections?: string;
+  confirmedAt?: string;
+}
+
+// Research finding from Topic Researcher
+export interface ResearchFinding {
+  category: string;
+  title: string;
+  content: string;
+  sources: SourceReference[];
+  confidence: "high" | "medium" | "low";
+}
+
+// Research findings grouped by category
+export interface ResearchFindings {
+  company?: ResearchFinding[];
+  product?: ResearchFinding[];
+  industry?: ResearchFinding[];
+  workflows?: ResearchFinding[];
+  terminology?: ResearchFinding[];
+  uncertainties?: string[];
+}
+
+// Search query event from SSE
+export interface SearchEvent {
+  id: string;
+  query: string;
+  purpose: string;
+  status: "started" | "complete" | "error";
+  timestamp: string;
+  resultsCount?: number;
+}
+
+// Gap question for Turn 3
+export interface GapQuestion {
+  id: string;
+  field: string;
+  question: string;
+  type: "text" | "textarea" | "select" | "boolean";
+  options?: string[];
+  required: boolean;
+  value?: string | boolean;
+}
+
+// Gap answers from Turn 3
+export interface GapAnswers {
+  cta?: string;
+  examples?: string[];
+  additionalNotes?: string;
+  [key: string]: string | string[] | boolean | undefined;
+}
+
+// Main chat state
+export interface BriefChatState {
+  currentTurn: ChatTurn;
+  turns: Record<ChatTurn, TurnState>;
+  researchStatus: ResearchStatus;
+  researchFindings: ResearchFindings | null;
+  searchEvents: SearchEvent[];
+  gapQuestions: GapQuestion[];
+  gapAnswers: GapAnswers;
+  finalBrief: StoryBrief | null;
+  error?: string;
+}
+
+// Initial brief data from onboarding
+export interface OnboardingData {
+  videoType: string;
+  description: string;
+  duration: number;
+  audience: string;
+  companyName?: string;
+  tone?: string;
+  showFace?: boolean;
+  platform?: string;
+  links?: string[];
+  files?: string[];
+}
+
+// SSE event types
+export type SSEEventType =
+  | "search_started"
+  | "search_complete"
+  | "search_error"
+  | "research_complete"
+  | "error"
+  | "heartbeat";
+
+// SSE message structure
+export interface SSEMessage {
+  type: SSEEventType;
+  data: unknown;
+  timestamp: string;
+}
+
+// Props for main SplitBriefBuilder component
+export interface SplitBriefBuilderProps {
+  projectId: string;
+  onboardingData: OnboardingData;
+  onComplete: (brief: StoryBrief) => void;
+  onAdvanceStage: () => void;
+}
+
+// Props for ChatPanel
+export interface ChatPanelProps {
+  state: BriefChatState;
+  onboardingData: OnboardingData;
+  onConfirm: (turn: ChatTurn) => void;
+  onCorrect: (turn: ChatTurn, corrections: string) => void;
+  onGapAnswerChange: (answers: GapAnswers) => void;
+  onSendToStoryboard: () => void;
+  onEditBrief: () => void;
+}
+
+// Props for ResearchPanel
+export interface ResearchPanelProps {
+  status: ResearchStatus;
+  findings: ResearchFindings | null;
+  searchEvents: SearchEvent[];
+  error?: string;
+}
+
+// Props for ConfirmationGate
+export interface ConfirmationGateProps {
+  turn: ChatTurn;
+  status: TurnStatus;
+  onConfirm: () => void;
+  onCorrect: (corrections: string) => void;
+  disabled?: boolean;
+}
+
+// Props for TurnContent
+export interface TurnContentProps {
+  turn: ChatTurn;
+  state: BriefChatState;
+  onboardingData: OnboardingData;
+  onGapAnswerChange?: (answers: GapAnswers) => void;
+}
+
+// Props for FinalBriefDisplay
+export interface FinalBriefDisplayProps {
+  brief: StoryBrief;
+  onSendToStoryboard: () => void;
+  onEditBrief: () => void;
+}
+
+// Props for LoadingState
+export interface LoadingStateProps {
+  searchEvents: SearchEvent[];
+}
+
+// Props for FindingsDisplay
+export interface FindingsDisplayProps {
+  findings: ResearchFindings;
+}
+
+// Props for MobileDrawer
+export interface MobileDrawerProps {
+  isOpen: boolean;
+  onToggle: () => void;
+  status: ResearchStatus;
+  findings: ResearchFindings | null;
+  searchEvents: SearchEvent[];
+  error?: string;
+}
+
+// Action types for state reducer
+export type ChatAction =
+  | { type: "SET_TURN"; turn: ChatTurn }
+  | { type: "SET_TURN_STATUS"; turn: ChatTurn; status: TurnStatus }
+  | { type: "SET_CORRECTIONS"; turn: ChatTurn; corrections: string }
+  | { type: "CONFIRM_TURN"; turn: ChatTurn }
+  | { type: "START_RESEARCH" }
+  | { type: "ADD_SEARCH_EVENT"; event: SearchEvent }
+  | { type: "UPDATE_SEARCH_EVENT"; id: string; status: "complete" | "error"; resultsCount?: number }
+  | { type: "SET_RESEARCH_COMPLETE"; findings: ResearchFindings }
+  | { type: "SET_RESEARCH_ERROR"; error: string }
+  | { type: "SET_GAP_QUESTIONS"; questions: GapQuestion[] }
+  | { type: "SET_GAP_ANSWERS"; answers: GapAnswers }
+  | { type: "SET_FINAL_BRIEF"; brief: StoryBrief }
+  | { type: "RESET_RESEARCH" };
+
+// Initial state factory
+export function createInitialChatState(): BriefChatState {
+  return {
+    currentTurn: 1,
+    turns: {
+      1: { status: "presenting" },
+      2: { status: "pending" },
+      3: { status: "pending" },
+      4: { status: "pending" },
+    },
+    researchStatus: "idle",
+    researchFindings: null,
+    searchEvents: [],
+    gapQuestions: [],
+    gapAnswers: {},
+    finalBrief: null,
+  };
+}
