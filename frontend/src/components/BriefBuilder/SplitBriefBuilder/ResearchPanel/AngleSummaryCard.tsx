@@ -40,7 +40,9 @@ export function AngleSummaryCard({ angle }: AngleSummaryCardProps) {
         </div>
         <div className="flex items-center gap-1.5">
           <Clock className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-          <span>{angle.durationMinutes} min</span>
+          <span>{angle.durationMinutes >= 60
+            ? `${Math.round(angle.durationMinutes / 60)} min`
+            : `${angle.durationMinutes}s`}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <Search className="w-3 h-3 text-muted-foreground flex-shrink-0" />

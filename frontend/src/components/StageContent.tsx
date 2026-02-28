@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { type Stage } from "./StageNavigation";
 import { Button } from "@/components/ui/button";
@@ -30,9 +30,25 @@ interface ResearchFindings {
   summary?: string;
   keyPoints?: string[];
   sources?: { url: string; title: string }[];
+  company?: string[];
+  product?: string[];
+  industry?: string[];
+  workflows?: string[];
+  terminology?: string[];
+  uncertainties?: string[];
 }
 
 type ResearchStatus = "idle" | "running" | "complete" | "error";
+
+// Two-phase research tracking
+type ResearchPhase = "none" | "round1_running" | "round1_complete" | "round3_running" | "complete";
+
+interface AngleSummary {
+  audienceLevel: string;
+  keyTakeaway: string;
+  durationMinutes: number;
+  questions: string[];
+}
 
 interface StageContentProps {
   stage: Stage;
@@ -130,11 +146,29 @@ export default function StageContent({
   // Knowledge Share 3-round flow state
   const [knowledgeShareFields, setKnowledgeShareFields] = useState<Record<string, BriefField>>({});
   const [knowledgeShareRound, setKnowledgeShareRound] = useState<BriefRound>(1);
+  const initializingRef = useRef(false); // Prevent StrictMode double-invoke race condition
   const [researchStatus, setResearchStatus] = useState<ResearchStatus>("idle");
   const [researchFindings, setResearchFindings] = useState<ResearchFindings | null>(null);
   const [researchEvents, setResearchEvents] = useState<SearchEvent[]>([]);
   const [researchError, setResearchError] = useState<string | null>(null);
   const [knowledgeShareInitialized, setKnowledgeShareInitialized] = useState(false);
+
+  // Two-phase research state for Knowledge Share
+  const [researchPhase, setResearchPhase] = useState<ResearchPhase>("none");
+  const [angle, setAngle] = useState<AngleSummary | null>(null);
+  const [round1Events, setRound1Events] = useState<SearchEvent[]>([]);
+  const [round1Findings, setRound1Findings] = useState<ResearchFindings | null>(null);
+  const [round3Events, setRound3Events] = useState<SearchEvent[]>([]);
+  const [round3Findings, setRound3Findings] = useState<ResearchFindings | null>(null);
+
+  // Log entries for processing log (must be defined before callbacks that use it)
+  const [logEntries, setLogEntries] = useState<Array<{time: string, type: 'info' | 'error' | 'success', message: string}>>([]);
+
+  const addLogEntry = useCallback((type: 'info' | 'error' | 'success', message: string) => {
+    const time = new Date().toLocaleTimeString();
+    setLogEntries(prev => [...prev, { time, type, message }]);
+    console.log(`[${type.toUpperCase()}] ${message}`);
+  }, []);
 
   // Check if this is a Knowledge Share project
   const isKnowledgeShare = useMemo(() => {
@@ -142,16 +176,89 @@ export default function StageContent({
     return onboardingData.videoType === "Knowledge Share";
   }, [onboardingData]);
 
-  // Initialize Knowledge Share flow
+  // Initialize Knowledge Share flow - check backend state first
   useEffect(() => {
+    console.log("=== KNOWLEDGE SHARE INIT CHECK ===");
+    console.log("isKnowledgeShare:", isKnowledgeShare);
+    console.log("projectId:", projectId);
+    console.log("USE_KNOWLEDGE_SHARE_FLOW:", USE_KNOWLEDGE_SHARE_FLOW);
+    console.log("stage.id:", stage.id);
+    console.log("knowledgeShareInitialized:", knowledgeShareInitialized);
+    console.log("aiContent:", aiContent ? "present" : "null");
+    console.log("onboardingData:", onboardingData);
+
     if (isKnowledgeShare && projectId && USE_KNOWLEDGE_SHARE_FLOW && stage.id === 1 && !knowledgeShareInitialized && !aiContent) {
-      // Start the Knowledge Share flow by submitting intake
       const initializeKnowledgeShare = async () => {
+        // Prevent StrictMode double-invoke race condition
+        if (initializingRef.current) {
+          console.log("=== KNOWLEDGE SHARE INIT ALREADY IN PROGRESS, SKIPPING ===");
+          return;
+        }
+        initializingRef.current = true;
+
+        console.log("=== INITIALIZING KNOWLEDGE SHARE ===");
         try {
-          setResearchStatus("running");
           setKnowledgeShareInitialized(true);
 
-          // Submit intake and get Round 1 fields
+          // Pre-populate fields from onboarding data immediately (so user sees their values right away)
+          if (onboardingData) {
+            const initialFields: Record<string, BriefField> = {
+              video_type: { value: "knowledge_share", source: "extracted", confirmed: true },
+              target_audience: {
+                value: onboardingData.audience || "",
+                source: onboardingData.audience ? "extracted" : "empty",
+                confirmed: false
+              },
+              duration: {
+                value: onboardingData.duration || "",
+                source: onboardingData.duration ? "extracted" : "empty",
+                confirmed: false
+              },
+            };
+            setKnowledgeShareFields(initialFields);
+            console.log("Pre-populated fields from onboarding:", initialFields);
+          }
+
+          // First, check backend state via pipeline-state endpoint
+          console.log("Fetching pipeline-state...");
+          const stateResponse = await fetch(`/api/project/${projectId}/pipeline-state`);
+          console.log("pipeline-state response:", stateResponse.status);
+
+          if (stateResponse.ok) {
+            const stateData = await stateResponse.json();
+            const currentPhase = stateData.state?.phase || "intake";
+
+            console.log("Knowledge Share: current phase =", currentPhase);
+            console.log("State data:", stateData);
+
+            // Map backend phase to frontend round
+            const phaseToRound: Record<string, BriefRound> = {
+              "intake": 1,
+              "brief_round1": 1,
+              "brief_round2": 2,
+              "brief_round3": 3,
+              "brief_review": "review",
+            };
+
+            const round = phaseToRound[currentPhase] || 1;
+
+            // If already past intake, load existing fields from state
+            if (currentPhase !== "intake") {
+              const fields = stateData.state?.story_brief?.fields || {};
+              setKnowledgeShareFields(fields);
+              setKnowledgeShareRound(round);
+              setResearchError(null); // Clear any previous error
+              console.log("Knowledge Share: resuming at round", round, "with fields:", Object.keys(fields));
+              return;
+            }
+          } else {
+            // If pipeline-state check failed, don't proceed with submit
+            console.error("Failed to fetch pipeline-state, cannot safely submit");
+            return;
+          }
+
+          // Only submit if we confirmed we're in intake phase
+          console.log("Submitting submit_knowledge_share event...");
           const response = await fetch(`/api/project/${projectId}/event`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -169,28 +276,28 @@ export default function StageContent({
             }),
           });
 
+          console.log("submit_knowledge_share response:", response.status);
+
           if (response.ok) {
             const data = await response.json();
             console.log("Knowledge Share Round 1 response:", data);
-            // Backend returns brief_fields, not fields
             if (data.brief_fields) {
               setKnowledgeShareFields(data.brief_fields);
               setKnowledgeShareRound(1);
-              // Also update research status based on response
-              if (data.research_status === "complete") {
-                setResearchStatus("complete");
-              }
+              console.log("Set fields:", Object.keys(data.brief_fields));
             } else if (data.error) {
+              console.error("Response error:", data.error);
               setResearchError(data.error);
             }
           } else {
             const errorData = await response.json();
             console.error("Knowledge Share init failed:", errorData);
-            setResearchError(errorData.error || "Failed to start briefing");
+            setResearchError(errorData.detail || errorData.error || "Failed to start briefing");
           }
         } catch (err) {
           console.error("Failed to initialize Knowledge Share flow:", err);
           setResearchError("Failed to start briefing flow");
+          initializingRef.current = false; // Allow retry on error
         }
       };
 
@@ -198,9 +305,139 @@ export default function StageContent({
     }
   }, [isKnowledgeShare, projectId, stage.id, knowledgeShareInitialized, aiContent, onboardingData]);
 
-  // Research stream for Knowledge Share (runs in parallel with Round 1 & 2)
+  // Start Round 3 research after Round 1 completes
+  const startRound3Research = useCallback(async () => {
+    if (!angle || !projectId) return;
+
+    addLogEntry('info', 'Starting Round 3 research...');
+    setResearchPhase("round3_running");
+
+    try {
+      const response = await fetch(`/api/project/${projectId}/research/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          video_type: onboardingData?.videoType,
+          company_name: onboardingData?.companyName,
+          description: onboardingData?.description,
+          links: onboardingData?.links,
+          round: 3,
+          angle: angle,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.findings) {
+          const findingsCount = Object.values(data.findings).flat().filter(Boolean).length;
+          addLogEntry('success', `Round 3 complete: ${findingsCount} findings`);
+          setRound3Findings(data.findings);
+          setResearchPhase("complete");
+          setResearchStatus("complete");
+          // Merge findings from both rounds
+          setResearchFindings({
+            ...round1Findings,
+            ...data.findings,
+          });
+          addLogEntry('success', 'All research complete!');
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.detail || 'Unknown error';
+        addLogEntry('error', `Round 3 failed: ${errorMsg}`);
+        setResearchError(`Failed to run Round 3 research: ${errorMsg}`);
+        setResearchPhase("complete");
+      }
+    } catch (err) {
+      console.error("Round 3 research error:", err);
+      const errorMsg = err instanceof Error ? err.message : 'Network error';
+      addLogEntry('error', `Round 3 error: ${errorMsg}`);
+      setResearchError(`Network error during Round 3 research: ${errorMsg}`);
+      setResearchPhase("complete");
+    }
+  }, [projectId, onboardingData, angle, round1Findings, addLogEntry]);
+
+  // Start two-phase research (called after Section 1 confirm)
+  const startTwoPhaseResearch = useCallback(async () => {
+    if (!projectId || !onboardingData) return;
+
+    addLogEntry('info', 'Section 1 confirmed, starting research...');
+
+    try {
+      // Step 1: Calculate angle
+      addLogEntry('info', 'Calculating angle from intake data...');
+      const angleResponse = await fetch(`/api/project/${projectId}/research/angle`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          audience: onboardingData.audience,
+          description: onboardingData.description,
+          duration: onboardingData.duration,
+        }),
+      });
+
+      let calculatedAngle: AngleSummary | null = null;
+      if (angleResponse.ok) {
+        const angleData = await angleResponse.json();
+        calculatedAngle = angleData.angle;
+        setAngle(calculatedAngle);
+        addLogEntry('success', `Angle calculated: ${calculatedAngle?.questions?.length || 0} questions generated`);
+      } else {
+        const errorData = await angleResponse.json().catch(() => ({}));
+        addLogEntry('error', `Angle calculation failed: ${errorData.detail || 'Unknown error'}`);
+      }
+
+      // Step 2: Start Round 1 research
+      addLogEntry('info', 'Starting Round 1 research...');
+      setResearchStatus("running");
+      setResearchPhase("round1_running");
+
+      const response = await fetch(`/api/project/${projectId}/research/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          video_type: onboardingData.videoType,
+          company_name: onboardingData.companyName,
+          description: onboardingData.description,
+          links: onboardingData.links,
+          round: 1,
+          angle: calculatedAngle,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.findings) {
+          const findingsCount = Object.values(data.findings).flat().filter(Boolean).length;
+          addLogEntry('success', `Round 1 complete: ${findingsCount} findings`);
+          setRound1Findings(data.findings);
+          setResearchPhase("round1_complete");
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}));
+        const errorMsg = errorData.detail || 'Unknown error';
+        addLogEntry('error', `Round 1 failed: ${errorMsg}`);
+        setResearchError(`Failed to run Round 1 research: ${errorMsg}`);
+      }
+    } catch (err) {
+      console.error("Research error:", err);
+      const errorMsg = err instanceof Error ? err.message : 'Network error';
+      addLogEntry('error', `Research error: ${errorMsg}`);
+      setResearchError(`Network error during research: ${errorMsg}`);
+    }
+  }, [projectId, onboardingData, addLogEntry]);
+
+  // Auto-start Round 3 when Round 1 completes
+  useEffect(() => {
+    if (researchPhase === "round1_complete" && round1Findings) {
+      startRound3Research();
+    }
+  }, [researchPhase, round1Findings, startRound3Research]);
+
+  // Research stream for Knowledge Share (legacy polling - kept for backwards compat)
   useEffect(() => {
     if (!isKnowledgeShare || !projectId || researchStatus !== "running") return;
+    if (researchPhase !== "none") return; // Skip legacy polling if using two-phase
 
     // Poll for research status
     const pollResearch = async () => {
@@ -230,34 +467,51 @@ export default function StageContent({
     pollResearch(); // Initial poll
 
     return () => clearInterval(interval);
-  }, [isKnowledgeShare, projectId, researchStatus]);
+  }, [isKnowledgeShare, projectId, researchStatus, researchPhase]);
 
   // Handle round confirmation for Knowledge Share
   const handleKnowledgeShareRoundConfirm = useCallback(
     async (round: number, confirmedFields: Record<string, BriefField>): Promise<Record<string, BriefField>> => {
+      console.log(`=== ROUND ${round} CONFIRM ===`);
+      console.log("Confirmed fields:", Object.keys(confirmedFields));
+
       const eventTypeMap: Record<number, string> = {
         1: "round1_confirm",
         2: "round2_confirm",
         3: "round3_confirm",
       };
 
+      const event = eventTypeMap[round];
+      console.log("Sending event:", event);
+
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          event: eventTypeMap[round],
+          event: event,
           payload: { confirmed_fields: confirmedFields },
         }),
       });
 
+      console.log("Event response status:", response.status);
+
       if (!response.ok) {
-        throw new Error(`Failed to confirm round ${round}`);
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Round confirm failed:", errorData);
+        throw new Error(errorData.detail || `Failed to confirm round ${round}`);
+      }
+
+      // Start two-phase research after Section 1 is confirmed
+      if (round === 1) {
+        console.log("Section 1 confirmed - starting two-phase research");
+        startTwoPhaseResearch();
       }
 
       const data = await response.json();
+      console.log("Round confirm response:", data);
       return data.fields || {};
     },
-    [projectId]
+    [projectId, startTwoPhaseResearch]
   );
 
   // Handle brief approval for Knowledge Share
@@ -472,68 +726,103 @@ export default function StageContent({
         <div className="hidden md:block md:w-[40%] overflow-hidden bg-muted/10">
           <div className="h-full flex flex-col">
             <div className="px-4 py-3 border-b bg-muted/30">
-              <h3 className="font-semibold text-sm">Processing Log</h3>
+              <div className="flex items-center justify-between">
+                <h3 className="font-semibold text-sm">Processing Log</h3>
+                <span className={`text-xs px-2 py-0.5 rounded-full ${
+                  researchPhase === "complete" ? "bg-green-100 text-green-700" :
+                  researchPhase === "round1_running" || researchPhase === "round3_running" ? "bg-blue-100 text-blue-700" :
+                  "bg-gray-100 text-gray-600"
+                }`}>
+                  {researchPhase === "none" ? "Waiting" :
+                   researchPhase === "round1_running" ? "Round 1..." :
+                   researchPhase === "round1_complete" ? "Starting R3" :
+                   researchPhase === "round3_running" ? "Round 3..." :
+                   "Complete"}
+                </span>
+              </div>
               <p className="text-xs text-muted-foreground">Research activity and findings</p>
             </div>
-            <div className="flex-1 overflow-auto p-4">
-              {researchStatus === "idle" && (
+            <div className="flex-1 overflow-auto p-4 space-y-4">
+              {/* Idle state - waiting for Section 1 confirm */}
+              {researchPhase === "none" && researchStatus === "idle" && (
                 <div className="text-center text-muted-foreground py-8">
-                  <p className="text-sm">Research will start when you begin the briefing flow.</p>
+                  <p className="text-sm">Research will start after confirming Section 1.</p>
                 </div>
               )}
-              {researchStatus === "running" && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin text-primary" />
-                    <span className="text-sm font-medium">Researching topic...</span>
+
+              {/* Angle display */}
+              {angle && (
+                <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
+                  <h4 className="text-sm font-medium text-blue-700 mb-2">Angle Summary</h4>
+                  <div className="text-xs space-y-1 text-blue-600">
+                    <p><span className="font-medium">Audience:</span> {angle.audienceLevel}</p>
+                    <p><span className="font-medium">Key Takeaway:</span> {angle.keyTakeaway}</p>
+                    <p><span className="font-medium">Duration:</span> {angle.durationMinutes} min</p>
+                    {angle.questions.length > 0 && (
+                      <p><span className="font-medium">Questions:</span> {angle.questions.length}</p>
+                    )}
                   </div>
-                  {researchEvents.length > 0 && (
-                    <div className="space-y-2">
-                      {researchEvents.map((event) => (
-                        <div
-                          key={event.id}
-                          className="p-3 bg-muted/50 rounded-lg border text-sm"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-medium">{event.query}</span>
-                            <span className={`text-xs px-2 py-0.5 rounded-full ${
-                              event.status === "complete"
-                                ? "bg-green-100 text-green-700"
-                                : event.status === "error"
-                                ? "bg-red-100 text-red-700"
-                                : "bg-yellow-100 text-yellow-700"
-                            }`}>
-                              {event.status}
-                            </span>
-                          </div>
-                          {event.resultsCount !== undefined && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Found {event.resultsCount} results
-                            </p>
-                          )}
-                        </div>
-                      ))}
+                </div>
+              )}
+
+              {/* Round 1 Research Section */}
+              {(researchPhase === "round1_running" || researchPhase === "round1_complete" || researchPhase === "round3_running" || researchPhase === "complete") && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {researchPhase === "round1_running" ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    ) : (
+                      <Check className="w-4 h-4 text-green-600" />
+                    )}
+                    <span className={`text-sm font-medium ${
+                      researchPhase === "round1_running" ? "text-blue-600" : "text-green-600"
+                    }`}>
+                      Round 1 Research {researchPhase !== "round1_running" && "✓"}
+                    </span>
+                  </div>
+                  {round1Findings && (
+                    <div className="pl-6 text-xs text-muted-foreground">
+                      {Object.values(round1Findings).flat().filter(Boolean).length} findings collected
                     </div>
                   )}
                 </div>
               )}
-              {researchStatus === "complete" && researchFindings && (
-                <div className="space-y-4">
+
+              {/* Round 3 Research Section */}
+              {(researchPhase === "round3_running" || researchPhase === "complete") && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    {researchPhase === "round3_running" ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    ) : (
+                      <Check className="w-4 h-4 text-green-600" />
+                    )}
+                    <span className={`text-sm font-medium ${
+                      researchPhase === "round3_running" ? "text-blue-600" : "text-green-600"
+                    }`}>
+                      Round 3 Research {researchPhase === "complete" && "✓"}
+                    </span>
+                  </div>
+                  {round3Findings && (
+                    <div className="pl-6 text-xs text-muted-foreground">
+                      {Object.values(round3Findings).flat().filter(Boolean).length} findings collected
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Combined findings when complete */}
+              {researchPhase === "complete" && researchFindings && (
+                <div className="mt-4 pt-4 border-t space-y-3">
                   <div className="flex items-center gap-2 text-green-600">
                     <Check className="w-4 h-4" />
-                    <span className="text-sm font-medium">Research complete</span>
+                    <span className="text-sm font-medium">All research complete</span>
                   </div>
-                  {researchFindings.summary && (
-                    <div className="p-3 bg-muted/50 rounded-lg border">
-                      <h4 className="text-sm font-medium mb-2">Summary</h4>
-                      <p className="text-sm text-muted-foreground">{researchFindings.summary}</p>
-                    </div>
-                  )}
                   {researchFindings.keyPoints && researchFindings.keyPoints.length > 0 && (
                     <div className="p-3 bg-muted/50 rounded-lg border">
                       <h4 className="text-sm font-medium mb-2">Key Insights</h4>
                       <ul className="space-y-1">
-                        {researchFindings.keyPoints.map((point, i) => (
+                        {researchFindings.keyPoints.slice(0, 5).map((point, i) => (
                           <li key={i} className="text-sm text-muted-foreground flex items-start gap-2">
                             <span className="text-primary">•</span>
                             {point}
@@ -542,40 +831,43 @@ export default function StageContent({
                       </ul>
                     </div>
                   )}
-                  {researchFindings.sources && researchFindings.sources.length > 0 && (
-                    <div className="p-3 bg-muted/50 rounded-lg border">
-                      <h4 className="text-sm font-medium mb-2">Sources ({researchFindings.sources.length})</h4>
-                      <ul className="space-y-1">
-                        {researchFindings.sources.slice(0, 5).map((source, i) => (
-                          <li key={i} className="text-xs">
-                            <a
-                              href={source.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline truncate block"
-                            >
-                              {source.title || source.url}
-                            </a>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
                 </div>
               )}
-              {researchStatus === "error" && (
-                <div className="text-center py-8">
-                  <p className="text-sm text-red-600">{researchError || "Research failed"}</p>
+
+              {/* Log entries */}
+              {logEntries.length > 0 && (
+                <div className="space-y-1 border-t pt-3 mt-3">
+                  <h4 className="text-xs font-medium text-muted-foreground mb-2">Activity Log</h4>
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {logEntries.map((entry, i) => (
+                      <div key={i} className={`text-xs px-2 py-1 rounded ${
+                        entry.type === 'error' ? 'bg-red-50 text-red-700' :
+                        entry.type === 'success' ? 'bg-green-50 text-green-700' :
+                        'bg-gray-50 text-gray-600'
+                      }`}>
+                        <span className="text-muted-foreground">[{entry.time}]</span> {entry.message}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Error state */}
+              {researchError && (
+                <div className="p-3 bg-red-50 rounded-lg border border-red-200">
+                  <p className="text-sm text-red-600">{researchError}</p>
                   <Button
                     variant="outline"
                     size="sm"
                     className="mt-2"
                     onClick={() => {
-                      setResearchStatus("running");
                       setResearchError(null);
+                      setResearchPhase("none");
+                      setResearchStatus("idle");
+                      setLogEntries([]);
                     }}
                   >
-                    Retry Research
+                    Reset
                   </Button>
                 </div>
               )}

@@ -24,6 +24,10 @@ app = FastAPI()
 # Initialize chatbot service
 chatbot_service = StoryboardChatbot()
 
+# In-memory cache for research status per project
+# Format: {project_id: {"status": "idle|running|complete|error", "findings": {...}, "events": [...], "error": str}}
+research_status_cache: dict = {}
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -679,6 +683,13 @@ async def process_pipeline_event(project_id: str, request: EventRequest):
     - reject: {"feedback": "Please add more detail about..."}
     - refine: {"feedback": "Can we make screen 3 shorter?"}
     """
+    import logging
+    import traceback
+    logging.basicConfig(level=logging.DEBUG)
+    logger = logging.getLogger(__name__)
+
+    logger.info(f"Processing event: project_id={project_id}, event={request.event}")
+
     try:
         result = await orchestrator.process_event(
             project_id=project_id,
@@ -687,13 +698,17 @@ async def process_pipeline_event(project_id: str, request: EventRequest):
         )
 
         if not result.get("success", True):
+            logger.error(f"Event failed: {result.get('error')}")
             raise HTTPException(status_code=400, detail=result.get("error", "Unknown error"))
 
         return result
 
     except ValueError as e:
+        logger.error(f"ValueError: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
+        logger.error(f"Exception in process_pipeline_event: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error processing event: {str(e)}")
 
 
@@ -1693,6 +1708,8 @@ class ResearchRequest(BaseModel):
     company_name: Optional[str] = None
     description: Optional[str] = None
     links: Optional[List[str]] = None
+    round: Optional[int] = None
+    angle: Optional[dict] = None
 
 
 class BriefGenerateRequest(BaseModel):
@@ -1752,6 +1769,91 @@ async def calculate_research_angle(project_id: str, request: AngleRequest):
         }
 
 
+@app.get("/api/project/{project_id}/research/status")
+async def get_research_status(project_id: str):
+    """
+    Get the current research status for a project.
+
+    Returns:
+    - status: "idle" | "running" | "complete" | "error"
+    - findings: research findings (when complete)
+    - events: list of search events (when running)
+    - error: error message (when error)
+    """
+    from app.services.state import StateManager
+
+    # First check the in-memory cache (for SSE-based research)
+    if project_id in research_status_cache:
+        return research_status_cache[project_id]
+
+    # Fall back to checking orchestrator state via StateManager
+    try:
+        manager = StateManager(project_id)
+        state = manager.load()
+
+        if state and getattr(state, 'research_complete', False):
+            # Research completed via orchestrator
+            findings = {
+                "company": [],
+                "product": [],
+                "industry": [],
+                "workflows": [],
+                "terminology": [],
+                "uncertainties": []
+            }
+
+            # Convert research results to findings format if available
+            research_results = getattr(state, 'research_results', None)
+            if research_results:
+                if research_results.get("company_context"):
+                    findings["company"].append({
+                        "category": "company",
+                        "title": "Company Overview",
+                        "content": research_results["company_context"],
+                        "sources": research_results.get("company_context_sources", []),
+                        "confidence": "high"
+                    })
+                if research_results.get("product_context"):
+                    findings["product"].append({
+                        "category": "product",
+                        "title": "Product Information",
+                        "content": research_results["product_context"],
+                        "sources": research_results.get("product_context_sources", []),
+                        "confidence": "high"
+                    })
+                if research_results.get("industry_context"):
+                    findings["industry"].append({
+                        "category": "industry",
+                        "title": "Industry Context",
+                        "content": research_results["industry_context"],
+                        "sources": research_results.get("industry_context_sources", []),
+                        "confidence": "medium"
+                    })
+
+            return {"status": "complete", "events": [], "findings": findings}
+
+        elif state and getattr(state, 'intake_form', None):
+            # Has intake but research not complete - still running
+            return {"status": "running", "events": [], "findings": None}
+
+    except Exception:
+        pass
+
+    return {"status": "idle", "events": [], "findings": None}
+
+
+@app.post("/api/project/{project_id}/research/start")
+async def start_research_status(project_id: str):
+    """Initialize research status to running."""
+    research_status_cache[project_id] = {
+        "status": "running",
+        "events": [],
+        "findings": None,
+        "error": None
+    }
+    return {"success": True}
+
+
 async def research_event_generator(project_id: str, request_data: dict):
     """
     Generator function for SSE research events.
@@ -1760,6 +1862,14 @@ async def research_event_generator(project_id: str, request_data: dict):
     If 'angle' is provided in request_data, uses angle-based questions.
     Otherwise falls back to generic company/product queries.
     """
+    # Initialize status cache
+    research_status_cache[project_id] = {
+        "status": "running",
+        "events": [],
+        "findings": None,
+        "error": None
+    }
+
     try:
         from app.services.agents.topic_researcher import TopicResearcher
 
@@ -1812,11 +1922,28 @@ async def research_event_generator(project_id: str, request_data: dict):
         search_results = []
         for i, sq in enumerate(search_queries):
             search_id = f"search_{i}"
+            event = {
+                "id": search_id,
+                "query": sq["query"],
+                "purpose": sq["purpose"],
+                "status": "started",
+                "timestamp": datetime.now().isoformat()
+            }
+
+            # Update cache with event
+            research_status_cache[project_id]["events"].append(event)
 
             # Send search started event
             yield f"data: {json.dumps({'type': 'search_started', 'id': search_id, 'query': sq['query'], 'purpose': sq['purpose'], 'timestamp': datetime.now().isoformat()})}\n\n"
 
             await asyncio.sleep(0.5)  # Small delay for UI
+
+            # Update event status in cache
+            for e in research_status_cache[project_id]["events"]:
+                if e["id"] == search_id:
+                    e["status"] = "complete"
+                    e["resultsCount"] = 3
+                    break
 
             # Simulate search completion (in real implementation, this would call web search)
             yield f"data: {json.dumps({'type': 'search_complete', 'id': search_id, 'results_count': 3, 'timestamp': datetime.now().isoformat()})}\n\n"
@@ -1869,13 +1996,24 @@ async def research_event_generator(project_id: str, request_data: dict):
                     "confidence": "medium"
                 })
 
+            # Update cache with completion
+            research_status_cache[project_id]["status"] = "complete"
+            research_status_cache[project_id]["findings"] = findings
+
             # Send completion event
             yield f"data: {json.dumps({'type': 'research_complete', 'findings': findings, 'timestamp': datetime.now().isoformat()})}\n\n"
 
         except Exception as e:
+            # Update cache with error
+            research_status_cache[project_id]["status"] = "error"
+            research_status_cache[project_id]["error"] = str(e)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e), 'timestamp': datetime.now().isoformat()})}\n\n"
 
     except Exception as e:
+        # Update cache with error
+        if project_id in research_status_cache:
+            research_status_cache[project_id]["status"] = "error"
+            research_status_cache[project_id]["error"] = str(e)
         yield f"data: {json.dumps({'type': 'error', 'message': str(e), 'timestamp': datetime.now().isoformat()})}\n\n"
 
 
@@ -1936,17 +2074,33 @@ async def run_research(project_id: str, request: ResearchRequest):
 
     Fallback for when SSE is not available.
     """
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.info(f"research/run called: round={request.round}, angle={request.angle}")
+
     try:
         from app.services.agents.topic_researcher import TopicResearcher
+        from types import SimpleNamespace
 
         researcher = TopicResearcher()
 
-        research_data = await researcher.research(
-            video_type=request.video_type,
-            company_name=request.company_name,
-            description=request.description,
-            links=request.links or [],
+        # Create a mock state object with intake_form
+        mock_state = SimpleNamespace(
+            intake_form={
+                "video_type": request.video_type,
+                "company_name": request.company_name,
+                "description": request.description,
+                "links": request.links or [],
+            }
         )
+
+        # Use run_with_angle if angle is provided, otherwise use run
+        if request.angle:
+            logger.info(f"Using run_with_angle with {len(request.angle.get('questions', []))} questions")
+            research_data = researcher.run_with_angle(mock_state, request.angle)
+        else:
+            logger.info("Using standard run method")
+            research_data = researcher.run(mock_state)
 
         # Convert to findings format
         findings = {
@@ -1991,6 +2145,9 @@ async def run_research(project_id: str, request: ResearchRequest):
         }
 
     except Exception as e:
+        import traceback
+        logger.error(f"Research error: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Error running research: {str(e)}")
 
 

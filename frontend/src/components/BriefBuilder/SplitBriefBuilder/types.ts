@@ -19,8 +19,13 @@ export type TurnStatus =
 // Research status
 export type ResearchStatus = "idle" | "running" | "complete" | "error";
 
-// Research phase (for angle-based research flow)
-export type ResearchPhase = "none" | "planned" | "running" | "complete";
+// Research phase (for two-phase research flow: Round 1 + Round 3)
+export type ResearchPhase =
+  | "none"           // Initial state
+  | "round1_running" // Round 1 research in progress
+  | "round1_complete"// Round 1 done, starting Round 3
+  | "round3_running" // Round 3 research in progress
+  | "complete";      // Both rounds done
 
 // Research angle from Round 1 confirmation
 export interface AngleSummary {
@@ -102,6 +107,11 @@ export interface BriefChatState {
   // Angle-based research
   angle: AngleSummary | null;
   researchPhase: ResearchPhase;
+  // Two-phase research tracking
+  round1Events: SearchEvent[];
+  round1Findings: ResearchFindings | null;
+  round3Events: SearchEvent[];
+  round3Findings: ResearchFindings | null;
 }
 
 // Initial brief data from onboarding
@@ -162,6 +172,11 @@ export interface ResearchPanelProps {
   // Angle-based research
   angle: AngleSummary | null;
   researchPhase: ResearchPhase;
+  // Two-phase research
+  round1Events: SearchEvent[];
+  round1Findings: ResearchFindings | null;
+  round3Events: SearchEvent[];
+  round3Findings: ResearchFindings | null;
 }
 
 // Props for ConfirmationGate
@@ -209,6 +224,11 @@ export interface MobileDrawerProps {
   // Angle-based research
   angle: AngleSummary | null;
   researchPhase: ResearchPhase;
+  // Two-phase research
+  round1Events: SearchEvent[];
+  round1Findings: ResearchFindings | null;
+  round3Events: SearchEvent[];
+  round3Findings: ResearchFindings | null;
 }
 
 // Action types for state reducer
@@ -227,7 +247,14 @@ export type ChatAction =
   | { type: "SET_FINAL_BRIEF"; brief: StoryBrief }
   | { type: "RESET_RESEARCH" }
   | { type: "SET_ANGLE"; angle: AngleSummary }
-  | { type: "SET_RESEARCH_PHASE"; phase: ResearchPhase };
+  | { type: "SET_RESEARCH_PHASE"; phase: ResearchPhase }
+  // Two-phase research actions
+  | { type: "ADD_ROUND1_EVENT"; event: SearchEvent }
+  | { type: "UPDATE_ROUND1_EVENT"; id: string; status: "complete" | "error"; resultsCount?: number }
+  | { type: "SET_ROUND1_COMPLETE"; findings: ResearchFindings }
+  | { type: "ADD_ROUND3_EVENT"; event: SearchEvent }
+  | { type: "UPDATE_ROUND3_EVENT"; id: string; status: "complete" | "error"; resultsCount?: number }
+  | { type: "SET_ROUND3_COMPLETE"; findings: ResearchFindings };
 
 // Initial state factory
 export function createInitialChatState(): BriefChatState {
@@ -248,5 +275,10 @@ export function createInitialChatState(): BriefChatState {
     // Angle-based research
     angle: null,
     researchPhase: "none",
+    // Two-phase research
+    round1Events: [],
+    round1Findings: null,
+    round3Events: [],
+    round3Findings: null,
   };
 }

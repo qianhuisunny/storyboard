@@ -441,17 +441,10 @@ class StoryboardOrchestrator:
         state.intake_form = intake_form
         state.brief_round = 1
 
-        # Start Topic Researcher (background - results stored for Round 3)
-        # For now, run synchronously and store results
-        try:
-            research_results = self.agents["researcher"].run(state)
-            state.research_results = research_results
-            state.research_complete = True
-        except Exception as e:
-            # Research failed - continue without it
-            state.research_results = None
-            state.research_complete = False
-            result["research_error"] = str(e)
+        # NOTE: Research is now triggered by frontend after Section 1 confirm (two-phase flow)
+        # We skip research here to return fields immediately
+        state.research_results = None
+        state.research_complete = False
 
         # Transition to brief_round1
         state = manager.transition(state, "submit_knowledge_share")
@@ -483,7 +476,19 @@ class StoryboardOrchestrator:
         Handle Round 1 confirmation (Section 1: Core Intent).
         Stores confirmed fields and generates Round 2 fields.
         """
+        import logging
+        logging.basicConfig(level=logging.DEBUG)
+        logger = logging.getLogger(__name__)
+
+        logger.info(f"_handle_round1_confirm called with state.phase={state.phase}")
+        logger.info(f"state.intake_form={state.intake_form}")
+        logger.info(f"state.confirmed_fields={state.confirmed_fields}")
+
         confirmed_fields = payload.get("confirmed_fields", {})
+
+        # Ensure state.confirmed_fields is a dict
+        if state.confirmed_fields is None:
+            state.confirmed_fields = {}
 
         # Merge confirmed fields
         state.confirmed_fields = {

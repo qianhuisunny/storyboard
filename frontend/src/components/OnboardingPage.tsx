@@ -290,7 +290,18 @@ const OnboardingPage: React.FC = () => {
   const isFormValid = userInput.trim() && selectedDuration && audience.trim();
 
   const handleGenerate = async () => {
-    if (!isFormValid) return;
+    console.log("=== ONBOARDING FORM SUBMISSION ===");
+    console.log("Form valid:", isFormValid);
+    console.log("User input:", userInput);
+    console.log("Selected type:", selectedType.title);
+    console.log("Duration:", selectedDuration);
+    console.log("Audience:", audience);
+    console.log("Sources:", sources.length);
+
+    if (!isFormValid) {
+      console.log("Form validation failed - not submitting");
+      return;
+    }
 
     setIsGenerating(true);
     setIsUploadingFiles(true);
@@ -298,15 +309,21 @@ const OnboardingPage: React.FC = () => {
     try {
       // Generate unique project ID
       const projectId = generateProjectId();
+      console.log("Generated project ID:", projectId);
 
       // Create project folder structure
-      await createProjectFolder(projectId, selectedType.id, userInput);
+      console.log("Creating project folder...");
+      const folderResult = await createProjectFolder(projectId, selectedType.id, userInput);
+      console.log("Project folder created:", folderResult);
 
       // Upload files and fetch links in parallel
+      console.log("Processing sources...");
       const [fileContents, linkContents] = await Promise.all([
         uploadFilesToProject(projectId),
         fetchLinkContents(projectId),
       ]);
+      console.log("File contents:", fileContents.length);
+      console.log("Link contents:", linkContents.length);
 
       // Gather text sources
       const textContents = sources
@@ -319,6 +336,7 @@ const OnboardingPage: React.FC = () => {
       setIsUploadingFiles(false);
 
       // Store project context immediately
+      console.log("Storing session data...");
       sessionStorage.setItem("projectId", projectId);
       sessionStorage.setItem("storyboardType", selectedType.id.toString());
       sessionStorage.setItem("storyboardPrompt", userInput);
@@ -327,12 +345,15 @@ const OnboardingPage: React.FC = () => {
       if (allContext) {
         sessionStorage.setItem("storyboardContext", allContext);
       }
+      console.log("Session data stored");
 
       // Navigate to storyboard layout immediately to show loading state
+      console.log("Navigating to /storyboard/" + projectId);
       navigate(`/storyboard/${projectId}`);
 
       // Start AI generation in background (don't await)
       const generateInBackground = async () => {
+        console.log("=== BACKGROUND AI GENERATION STARTING ===");
         try {
           // Format input for Langflow
           let promptWithType = `${userInput} with the category type ${selectedType.title}. Please don't use any placeholder, and search the web if you cannot find enough information. Return without confirm needed.`;
@@ -348,6 +369,7 @@ const OnboardingPage: React.FC = () => {
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 380000); // 6 minutes 20 seconds
 
+          console.log("Calling /api/chat...");
           const response = await fetch("/api/chat", {
             method: "POST",
             headers: {
@@ -362,13 +384,16 @@ const OnboardingPage: React.FC = () => {
           });
 
           clearTimeout(timeoutId);
+          console.log("/api/chat response status:", response.status);
 
           if (!response.ok) {
-            console.error("Failed to generate storyboard in background");
+            const errorText = await response.text();
+            console.error("Failed to generate storyboard:", response.status, errorText);
             return;
           }
 
           const data = await response.json();
+          console.log("/api/chat response data:", data);
 
           // Store the AI response
           sessionStorage.setItem("initialResponse", data.message);
@@ -381,6 +406,7 @@ const OnboardingPage: React.FC = () => {
       // Start background generation without blocking navigation
       generateInBackground();
     } catch (error) {
+      console.error("=== ERROR IN FORM SUBMISSION ===");
       console.error("Error creating project:", error);
       alert("Failed to create project. Please try again.");
       setIsGenerating(false);

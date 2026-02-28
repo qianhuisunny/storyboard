@@ -154,9 +154,78 @@ function chatReducer(state: BriefChatState, action: ChatAction): BriefChatState 
         ...state,
         researchPhase: action.phase,
         // Also update researchStatus for backwards compatibility
-        researchStatus: action.phase === "running" ? "running" :
+        researchStatus: action.phase === "round1_running" || action.phase === "round3_running" ? "running" :
                        action.phase === "complete" ? "complete" :
                        state.researchStatus,
+      };
+
+    // Two-phase research actions
+    case "ADD_ROUND1_EVENT":
+      return {
+        ...state,
+        round1Events: [...state.round1Events, action.event],
+        searchEvents: [...state.searchEvents, action.event], // Also add to legacy for backwards compat
+      };
+
+    case "UPDATE_ROUND1_EVENT":
+      return {
+        ...state,
+        round1Events: state.round1Events.map((event) =>
+          event.id === action.id
+            ? { ...event, status: action.status, resultsCount: action.resultsCount }
+            : event
+        ),
+        searchEvents: state.searchEvents.map((event) =>
+          event.id === action.id
+            ? { ...event, status: action.status, resultsCount: action.resultsCount }
+            : event
+        ),
+      };
+
+    case "SET_ROUND1_COMPLETE":
+      return {
+        ...state,
+        round1Findings: action.findings,
+        researchPhase: "round1_complete",
+      };
+
+    case "ADD_ROUND3_EVENT":
+      return {
+        ...state,
+        round3Events: [...state.round3Events, action.event],
+        searchEvents: [...state.searchEvents, action.event],
+      };
+
+    case "UPDATE_ROUND3_EVENT":
+      return {
+        ...state,
+        round3Events: state.round3Events.map((event) =>
+          event.id === action.id
+            ? { ...event, status: action.status, resultsCount: action.resultsCount }
+            : event
+        ),
+        searchEvents: state.searchEvents.map((event) =>
+          event.id === action.id
+            ? { ...event, status: action.status, resultsCount: action.resultsCount }
+            : event
+        ),
+      };
+
+    case "SET_ROUND3_COMPLETE":
+      return {
+        ...state,
+        round3Findings: action.findings,
+        researchPhase: "complete",
+        researchStatus: "complete",
+        // Merge findings from both rounds
+        researchFindings: {
+          company: [...(state.round1Findings?.company || []), ...(action.findings.company || [])],
+          product: [...(state.round1Findings?.product || []), ...(action.findings.product || [])],
+          industry: [...(state.round1Findings?.industry || []), ...(action.findings.industry || [])],
+          workflows: [...(state.round1Findings?.workflows || []), ...(action.findings.workflows || [])],
+          terminology: [...(state.round1Findings?.terminology || []), ...(action.findings.terminology || [])],
+          uncertainties: [...(state.round1Findings?.uncertainties || []), ...(action.findings.uncertainties || [])],
+        },
       };
 
     default:
@@ -231,6 +300,37 @@ export function useChatState() {
     dispatch({ type: "SET_RESEARCH_PHASE", phase });
   }, []);
 
+  // Two-phase research callbacks
+  const addRound1Event = useCallback((event: SearchEvent) => {
+    dispatch({ type: "ADD_ROUND1_EVENT", event });
+  }, []);
+
+  const updateRound1Event = useCallback(
+    (id: string, status: "complete" | "error", resultsCount?: number) => {
+      dispatch({ type: "UPDATE_ROUND1_EVENT", id, status, resultsCount });
+    },
+    []
+  );
+
+  const setRound1Complete = useCallback((findings: ResearchFindings) => {
+    dispatch({ type: "SET_ROUND1_COMPLETE", findings });
+  }, []);
+
+  const addRound3Event = useCallback((event: SearchEvent) => {
+    dispatch({ type: "ADD_ROUND3_EVENT", event });
+  }, []);
+
+  const updateRound3Event = useCallback(
+    (id: string, status: "complete" | "error", resultsCount?: number) => {
+      dispatch({ type: "UPDATE_ROUND3_EVENT", id, status, resultsCount });
+    },
+    []
+  );
+
+  const setRound3Complete = useCallback((findings: ResearchFindings) => {
+    dispatch({ type: "SET_ROUND3_COMPLETE", findings });
+  }, []);
+
   return {
     state,
     setTurn,
@@ -248,6 +348,13 @@ export function useChatState() {
     resetResearch,
     setAngle,
     setResearchPhase,
+    // Two-phase research
+    addRound1Event,
+    updateRound1Event,
+    setRound1Complete,
+    addRound3Event,
+    updateRound3Event,
+    setRound3Complete,
   };
 }
 

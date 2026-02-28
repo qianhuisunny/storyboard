@@ -6,7 +6,7 @@
  * Mobile: Stacked vertically with collapsible drawer
  */
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { SplitBriefBuilderProps, ChatTurn, GapAnswers } from "./types";
 import { ChatPanel } from "./ChatPanel";
 import { ResearchPanel } from "./ResearchPanel";
@@ -29,25 +29,68 @@ export function SplitBriefBuilder({
     confirmTurn,
     setCorrections,
     startResearch,
-    addSearchEvent,
-    updateSearchEvent,
-    setResearchComplete,
     setResearchError,
     setGapAnswers,
     setFinalBrief,
     resetResearch,
     setAngle,
     setResearchPhase,
+    // Two-phase research
+    addRound1Event,
+    updateRound1Event,
+    setRound1Complete,
+    setRound3Complete,
   } = useChatState();
 
-  // SSE connection for research streaming
+  // Store angle ref for Round 3 research
+  const angleRef = useRef<{ audienceLevel: string; keyTakeaway: string; durationMinutes: number; questions: string[] } | null>(null);
+
+  // Callback to start Round 3 research after Round 1 completes
+  const startRound3Research = useCallback(async () => {
+    if (!angleRef.current) return;
+
+    setResearchPhase("round3_running");
+
+    // Use polling/fetch for Round 3 (simpler than another SSE connection)
+    try {
+      const response = await fetch(`/api/project/${projectId}/research/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          video_type: onboardingData.videoType,
+          company_name: onboardingData.companyName,
+          description: onboardingData.description,
+          links: onboardingData.links,
+          round: 3,
+          angle: angleRef.current,
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.findings) {
+          setRound3Complete(data.findings);
+        }
+      } else {
+        setResearchError("Failed to run Round 3 research");
+      }
+    } catch (err) {
+      setResearchError("Network error during Round 3 research");
+    }
+  }, [projectId, onboardingData, setResearchPhase, setRound3Complete, setResearchError]);
+
+  // SSE connection for Round 1 research streaming
   const { startResearch: startSSE, stopResearch: stopSSE } = useResearchStream({
     projectId,
-    enabled: state.researchStatus === "running",
-    onSearchStarted: addSearchEvent,
-    onSearchComplete: (id, resultsCount) => updateSearchEvent(id, "complete", resultsCount),
-    onSearchError: (id) => updateSearchEvent(id, "error"),
-    onResearchComplete: setResearchComplete,
+    enabled: state.researchPhase === "round1_running",
+    onSearchStarted: addRound1Event,
+    onSearchComplete: (id, resultsCount) => updateRound1Event(id, "complete", resultsCount),
+    onSearchError: (id) => updateRound1Event(id, "error"),
+    onResearchComplete: (findings) => {
+      // Round 1 complete - save findings and immediately start Round 3
+      setRound1Complete(findings);
+      startRound3Research();
+    },
     onError: setResearchError,
   });
 
@@ -72,15 +115,16 @@ export function SplitBriefBuilder({
           if (angleResponse.ok) {
             const { angle } = await angleResponse.json();
             setAngle(angle);
+            angleRef.current = angle;
 
-            // Step 2: Immediately start research with angle-based questions
+            // Step 2: Start Round 1 research with angle-based questions
             startResearch();
-            setResearchPhase("running");
+            setResearchPhase("round1_running");
             startSSE({ angle });
 
-            // Fallback if SSE doesn't work
+            // Fallback if SSE doesn't work after 5 seconds
             setTimeout(async () => {
-              if (state.researchStatus === "running" && state.searchEvents.length === 0) {
+              if (state.researchPhase === "round1_running" && state.round1Events.length === 0) {
                 try {
                   const response = await fetch(`/api/project/${projectId}/research/run`, {
                     method: "POST",
@@ -90,14 +134,16 @@ export function SplitBriefBuilder({
                       company_name: onboardingData.companyName,
                       description: onboardingData.description,
                       links: onboardingData.links,
+                      round: 1,
+                      angle: angle,
                     }),
                   });
 
                   if (response.ok) {
                     const data = await response.json();
                     if (data.findings) {
-                      setResearchComplete(data.findings);
-                      setResearchPhase("complete");
+                      setRound1Complete(data.findings);
+                      startRound3Research();
                     }
                   } else {
                     setResearchError("Failed to run research");
@@ -110,12 +156,14 @@ export function SplitBriefBuilder({
           } else {
             // Fallback: start research without angle
             startResearch();
+            setResearchPhase("round1_running");
             startSSE();
           }
         } catch (err) {
           console.error("Error calculating angle:", err);
           // Fallback: start research without angle
           startResearch();
+          setResearchPhase("round1_running");
           startSSE();
         }
       }
@@ -131,12 +179,13 @@ export function SplitBriefBuilder({
       startSSE,
       projectId,
       onboardingData,
-      state.researchStatus,
-      state.searchEvents.length,
-      setResearchComplete,
+      state.researchPhase,
+      state.round1Events.length,
+      setRound1Complete,
       setResearchError,
       setAngle,
       setResearchPhase,
+      startRound3Research,
     ]
   );
 
@@ -272,8 +321,8 @@ export function SplitBriefBuilder({
 
   return (
     <div className="h-full flex flex-col md:flex-row">
-      {/* Chat Panel - Left side on desktop, full width on mobile */}
-      <div className="flex-1 md:w-1/2 md:border-r overflow-hidden">
+      {/* Chat Panel - Left side on desktop (60%), full width on mobile */}
+      <div className="flex-1 md:w-3/5 md:border-r overflow-hidden">
         <ChatPanel
           state={state}
           onboardingData={onboardingData}
@@ -285,8 +334,8 @@ export function SplitBriefBuilder({
         />
       </div>
 
-      {/* Research Panel - Right side on desktop, hidden on mobile */}
-      <div className="hidden md:block md:w-1/2 overflow-hidden">
+      {/* Research Panel - Right side on desktop (40%), hidden on mobile */}
+      <div className="hidden md:block md:w-2/5 overflow-hidden">
         <ResearchPanel
           status={state.researchStatus}
           findings={state.researchFindings}
@@ -294,6 +343,10 @@ export function SplitBriefBuilder({
           error={state.error}
           angle={state.angle}
           researchPhase={state.researchPhase}
+          round1Events={state.round1Events}
+          round1Findings={state.round1Findings}
+          round3Events={state.round3Events}
+          round3Findings={state.round3Findings}
         />
       </div>
 
@@ -307,6 +360,10 @@ export function SplitBriefBuilder({
         error={state.error}
         angle={state.angle}
         researchPhase={state.researchPhase}
+        round1Events={state.round1Events}
+        round1Findings={state.round1Findings}
+        round3Events={state.round3Events}
+        round3Findings={state.round3Findings}
       />
 
       {/* Bottom padding for mobile drawer toggle */}
