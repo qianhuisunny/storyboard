@@ -167,6 +167,37 @@ class StoryboardDirector(BaseAgent):
         # Fall back to legacy format
         return story_brief.get(field_name, default)
 
+    def _calculate_screen_duration(self, voiceover_text: str, screen_type: str) -> float:
+        """
+        Calculate precise duration from voiceover word count.
+
+        Formula: word_count / 2.2 + complexity_buffer
+
+        Complexity buffers:
+        - screencast: +1.0s (viewers need time to see UI)
+        - slides/text overlay: +0.8s (viewers need to read)
+        - stock video: +0.5s
+        - talking head: +0.5s
+        - CTA: +1.0s
+
+        Constraints: min 4s, max 12s
+        """
+        word_count = len(voiceover_text.split()) if voiceover_text else 0
+        base_duration = word_count / 2.2
+
+        buffers = {
+            "screencast": 1.0,
+            "slides/text overlay": 0.8,
+            "stock video": 0.5,
+            "talking head": 0.5,
+            "CTA": 1.0,
+        }
+        buffer = buffers.get(screen_type, 0.5)
+
+        duration = base_duration + buffer
+        duration = round(duration * 2) / 2  # Round to nearest 0.5s
+        return max(4.0, min(12.0, duration))
+
     def run(
         self,
         state: Any,
@@ -247,17 +278,15 @@ Follow the VOICEOVER-FIRST PLANNING PROCESS in your system prompt:
 1. Write continuous voiceover per narrative phase (not per screen)
 2. Mark visual change points where message/subject shifts
 3. Those marks become screen boundaries
-4. Calculate rough_duration per screen (word_count / 2.2)
-5. Verify total duration matches target ±10%
+4. Verify total word count matches target ±10%
 
-Return the outline as a JSON array of screen objects with:
-- screen_number
-- purpose
-- rough_duration (calculated from voiceover word count)
+Return the outline as a JSON array with EXACTLY 4 fields per screen:
+- screen_number (sequential: 1, 2, 3...)
 - screen_type (from ALLOWED SCREEN TYPES only)
-- voiceover_text (the exact words)
-- visual_direction
-- notes"""
+- voiceover_text (complete script, numbers written out for speech)
+- target_duration_sec (word_count / 2.2, will be recalculated)
+
+DO NOT include: purpose, rough_duration, visual_direction, notes"""
 
     def _build_revision_prompt(self, state: Any, revision_request: str) -> str:
         """Build prompt for outline revision."""
@@ -302,14 +331,12 @@ Ensure all changes align with the story_brief constraints and key_points."""
                 return self._normalize_screens(parsed["screen_outline"])
 
         # Fallback: return empty outline with error
+        error_voiceover = "An error occurred while generating the outline."
         return [{
             "screen_number": 1,
-            "purpose": "Error - could not parse response",
-            "rough_duration": 5,
             "screen_type": "slides/text overlay",
-            "voiceover_text": "An error occurred while generating the outline.",
-            "visual_direction": "Error message display",
-            "notes": f"Raw response: {response[:500]}",
+            "voiceover_text": error_voiceover,
+            "target_duration_sec": self._calculate_screen_duration(error_voiceover, "slides/text overlay"),
             "error": True
         }]
 
@@ -398,26 +425,26 @@ Ensure all changes align with the story_brief constraints and key_points."""
         return result
 
     def _normalize_screens(self, screens: list) -> list:
-        """Ensure all screens have required fields."""
-        required_fields = {
-            "screen_number": 1,
-            "purpose": "",
-            "rough_duration": 6,
-            "screen_type": "slides/text overlay",
-            "voiceover_text": "",
-            "visual_direction": "",
-            "notes": ""
-        }
+        """
+        Normalize screens to simplified 4-field output.
 
+        Output fields: screen_number, screen_type, voiceover_text, target_duration_sec
+        Duration is calculated precisely from voiceover word count.
+        """
         normalized = []
         for i, screen in enumerate(screens):
             if not isinstance(screen, dict):
                 continue
 
-            norm_screen = dict(required_fields)
-            norm_screen.update(screen)
-            norm_screen["screen_number"] = i + 1  # Ensure sequential numbering
+            voiceover = screen.get("voiceover_text", "")
+            screen_type = screen.get("screen_type", "slides/text overlay")
 
+            norm_screen = {
+                "screen_number": i + 1,
+                "screen_type": screen_type,
+                "voiceover_text": voiceover,
+                "target_duration_sec": self._calculate_screen_duration(voiceover, screen_type)
+            }
             normalized.append(norm_screen)
 
         return normalized
