@@ -1702,40 +1702,111 @@ class BriefGenerateRequest(BaseModel):
     corrections: Optional[dict] = None
 
 
-async def research_event_generator(project_id: str, request_data: dict):
+class AngleRequest(BaseModel):
+    """Request model for calculating research angle."""
+    audience: str
+    description: str
+    duration: int  # in minutes
+    primary_goal: Optional[str] = None
+
+
+@app.post("/api/project/{project_id}/research/angle")
+async def calculate_research_angle(project_id: str, request: AngleRequest):
     """
-    Generator function for SSE research events.
-    Yields Server-Sent Events as the Topic Researcher runs.
+    Calculate research angle from Round 1 confirmed fields.
+
+    Returns angle dict with:
+    - audienceLevel: "beginner" | "intermediate" | "advanced"
+    - keyTakeaway: extracted or provided primary goal
+    - durationTier: "short" | "medium" | "long"
+    - durationMinutes: the input duration
+    - plannedQuestions: number of questions to ask
+    - questions: list of actual research questions
     """
     try:
         from app.services.agents.topic_researcher import TopicResearcher
 
         researcher = TopicResearcher()
 
-        # Send initial event
-        yield f"data: {json.dumps({'type': 'research_started', 'timestamp': datetime.now().isoformat()})}\n\n"
+        angle = researcher.calculate_angle(
+            audience=request.audience,
+            description=request.description,
+            duration_minutes=request.duration,
+            primary_goal=request.primary_goal
+        )
 
-        # Define search queries based on video type and inputs
+        return {"angle": angle, "success": True}
+
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "angle": {
+                "audienceLevel": "intermediate",
+                "keyTakeaway": request.description[:100] if request.description else "",
+                "durationTier": "medium",
+                "durationMinutes": request.duration,
+                "plannedQuestions": 6,
+                "questions": []
+            }
+        }
+
+
+async def research_event_generator(project_id: str, request_data: dict):
+    """
+    Generator function for SSE research events.
+    Yields Server-Sent Events as the Topic Researcher runs.
+
+    If 'angle' is provided in request_data, uses angle-based questions.
+    Otherwise falls back to generic company/product queries.
+    """
+    try:
+        from app.services.agents.topic_researcher import TopicResearcher
+
+        researcher = TopicResearcher()
+
+        # Check if angle is provided (new flow)
+        angle = request_data.get("angle")
+
+        # Send initial event with angle info if available
+        initial_event = {
+            'type': 'research_started',
+            'timestamp': datetime.now().isoformat()
+        }
+        if angle:
+            initial_event['angle'] = angle
+        yield f"data: {json.dumps(initial_event)}\n\n"
+
+        # Define search queries based on angle or fallback to legacy behavior
         video_type = request_data.get("video_type", "Product Release")
         company_name = request_data.get("company_name", "")
         description = request_data.get("description", "")
 
         search_queries = []
-        if company_name:
-            search_queries.append({
-                "query": f"{company_name} company overview",
-                "purpose": "Find company background information"
-            })
-            search_queries.append({
-                "query": f"{company_name} products services",
-                "purpose": "Find product and service information"
-            })
-        if description:
-            # Extract key terms from description
-            search_queries.append({
-                "query": f"{description[:100]} industry trends",
-                "purpose": "Find industry context"
-            })
+
+        if angle and angle.get("questions"):
+            # Use angle-based questions
+            for i, question in enumerate(angle["questions"]):
+                search_queries.append({
+                    "query": question,
+                    "purpose": f"Research question {i + 1}"
+                })
+        else:
+            # Fallback to legacy queries
+            if company_name:
+                search_queries.append({
+                    "query": f"{company_name} company overview",
+                    "purpose": "Find company background information"
+                })
+                search_queries.append({
+                    "query": f"{company_name} products services",
+                    "purpose": "Find product and service information"
+                })
+            if description:
+                search_queries.append({
+                    "query": f"{description[:100]} industry trends",
+                    "purpose": "Find industry context"
+                })
 
         # Send search events
         search_results = []
@@ -1813,8 +1884,15 @@ async def stream_research(project_id: str, request: Request):
     """
     SSE endpoint for streaming research progress.
 
+    Query params:
+    - video_type: Video type (default: "Product Release")
+    - company_name: Company name
+    - description: Video description
+    - angle: JSON-encoded angle object (optional, for angle-based research)
+
     Returns Server-Sent Events with:
-    - {"type": "search_started", "query": "...", "purpose": "..."}
+    - {"type": "research_started", "angle": {...}} (if angle provided)
+    - {"type": "search_started", "id": "...", "query": "...", "purpose": "..."}
     - {"type": "search_complete", "id": "...", "results_count": N}
     - {"type": "research_complete", "findings": {...}}
     - {"type": "error", "message": "..."}
@@ -1823,11 +1901,21 @@ async def stream_research(project_id: str, request: Request):
     video_type = request.query_params.get("video_type", "Product Release")
     company_name = request.query_params.get("company_name", "")
     description = request.query_params.get("description", "")
+    angle_json = request.query_params.get("angle", "")
+
+    # Parse angle if provided
+    angle = None
+    if angle_json:
+        try:
+            angle = json.loads(angle_json)
+        except json.JSONDecodeError:
+            pass
 
     request_data = {
         "video_type": video_type,
         "company_name": company_name,
         "description": description,
+        "angle": angle,
     }
 
     return StreamingResponse(

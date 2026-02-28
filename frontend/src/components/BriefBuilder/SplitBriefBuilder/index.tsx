@@ -36,6 +36,8 @@ export function SplitBriefBuilder({
     setGapAnswers,
     setFinalBrief,
     resetResearch,
+    setAngle,
+    setResearchPhase,
   } = useChatState();
 
   // SSE connection for research streaming
@@ -55,39 +57,67 @@ export function SplitBriefBuilder({
       confirmTurn(turn);
 
       if (turn === 1) {
-        // Start research after confirming turn 1
-        startResearch();
-        startSSE();
+        // Step 1: Calculate angle from Round 1 confirmed fields
+        try {
+          const angleResponse = await fetch(`/api/project/${projectId}/research/angle`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              audience: onboardingData.audience,
+              description: onboardingData.description,
+              duration: onboardingData.duration,
+            }),
+          });
 
-        // If SSE doesn't work, fall back to direct API call
-        setTimeout(async () => {
-          if (state.researchStatus === "running" && state.searchEvents.length === 0) {
-            // No SSE events received, try direct API call
-            try {
-              const response = await fetch(`/api/project/${projectId}/research/run`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  video_type: onboardingData.videoType,
-                  company_name: onboardingData.companyName,
-                  description: onboardingData.description,
-                  links: onboardingData.links,
-                }),
-              });
+          if (angleResponse.ok) {
+            const { angle } = await angleResponse.json();
+            setAngle(angle);
 
-              if (response.ok) {
-                const data = await response.json();
-                if (data.findings) {
-                  setResearchComplete(data.findings);
+            // Step 2: Immediately start research with angle-based questions
+            startResearch();
+            setResearchPhase("running");
+            startSSE({ angle });
+
+            // Fallback if SSE doesn't work
+            setTimeout(async () => {
+              if (state.researchStatus === "running" && state.searchEvents.length === 0) {
+                try {
+                  const response = await fetch(`/api/project/${projectId}/research/run`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      video_type: onboardingData.videoType,
+                      company_name: onboardingData.companyName,
+                      description: onboardingData.description,
+                      links: onboardingData.links,
+                    }),
+                  });
+
+                  if (response.ok) {
+                    const data = await response.json();
+                    if (data.findings) {
+                      setResearchComplete(data.findings);
+                      setResearchPhase("complete");
+                    }
+                  } else {
+                    setResearchError("Failed to run research");
+                  }
+                } catch (err) {
+                  setResearchError("Network error during research");
                 }
-              } else {
-                setResearchError("Failed to run research");
               }
-            } catch (err) {
-              setResearchError("Network error during research");
-            }
+            }, 5000);
+          } else {
+            // Fallback: start research without angle
+            startResearch();
+            startSSE();
           }
-        }, 3000);
+        } catch (err) {
+          console.error("Error calculating angle:", err);
+          // Fallback: start research without angle
+          startResearch();
+          startSSE();
+        }
       }
 
       if (turn === 3) {
@@ -105,6 +135,8 @@ export function SplitBriefBuilder({
       state.searchEvents.length,
       setResearchComplete,
       setResearchError,
+      setAngle,
+      setResearchPhase,
     ]
   );
 
@@ -260,6 +292,8 @@ export function SplitBriefBuilder({
           findings={state.researchFindings}
           searchEvents={state.searchEvents}
           error={state.error}
+          angle={state.angle}
+          researchPhase={state.researchPhase}
         />
       </div>
 
@@ -271,6 +305,8 @@ export function SplitBriefBuilder({
         findings={state.researchFindings}
         searchEvents={state.searchEvents}
         error={state.error}
+        angle={state.angle}
+        researchPhase={state.researchPhase}
       />
 
       {/* Bottom padding for mobile drawer toggle */}

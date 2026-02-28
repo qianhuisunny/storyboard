@@ -12,6 +12,8 @@ import type {
   GapQuestion,
   ResearchFindings,
   SearchEvent,
+  AngleSummary,
+  ResearchPhase,
 } from "../types";
 import { createInitialChatState } from "../types";
 import type { StoryBrief } from "../../types";
@@ -138,6 +140,23 @@ function chatReducer(state: BriefChatState, action: ChatAction): BriefChatState 
         researchFindings: null,
         searchEvents: [],
         error: undefined,
+        researchPhase: "none",
+      };
+
+    case "SET_ANGLE":
+      return {
+        ...state,
+        angle: action.angle,
+      };
+
+    case "SET_RESEARCH_PHASE":
+      return {
+        ...state,
+        researchPhase: action.phase,
+        // Also update researchStatus for backwards compatibility
+        researchStatus: action.phase === "running" ? "running" :
+                       action.phase === "complete" ? "complete" :
+                       state.researchStatus,
       };
 
     default:
@@ -204,6 +223,14 @@ export function useChatState() {
     dispatch({ type: "RESET_RESEARCH" });
   }, []);
 
+  const setAngle = useCallback((angle: AngleSummary) => {
+    dispatch({ type: "SET_ANGLE", angle });
+  }, []);
+
+  const setResearchPhase = useCallback((phase: ResearchPhase) => {
+    dispatch({ type: "SET_RESEARCH_PHASE", phase });
+  }, []);
+
   return {
     state,
     setTurn,
@@ -219,6 +246,8 @@ export function useChatState() {
     setGapAnswers,
     setFinalBrief,
     resetResearch,
+    setAngle,
+    setResearchPhase,
   };
 }
 

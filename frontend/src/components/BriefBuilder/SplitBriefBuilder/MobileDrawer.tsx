@@ -15,6 +15,8 @@ export function MobileDrawer({
   findings,
   searchEvents,
   error,
+  angle,
+  researchPhase,
 }: MobileDrawerProps) {
   const getStatusIcon = () => {
     switch (status) {
@@ -82,6 +84,8 @@ export function MobileDrawer({
             findings={findings}
             searchEvents={searchEvents}
             error={error}
+            angle={angle}
+            researchPhase={researchPhase}
           />
         </div>
       </div>

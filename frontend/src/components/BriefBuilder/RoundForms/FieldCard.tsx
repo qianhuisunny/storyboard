@@ -16,26 +16,27 @@ interface FieldCardProps {
   disabled?: boolean;
 }
 
+// Subtle design: neutral cards, only badges have color
 const COLOR_CLASSES: Record<FieldColor, { badge: string; border: string; bg: string }> = {
   green: {
     badge: "bg-green-500 text-white",
-    border: "border-green-200",
-    bg: "bg-green-50",
+    border: "border-border",
+    bg: "bg-background",
   },
   blue: {
     badge: "bg-blue-500 text-white",
-    border: "border-blue-200",
-    bg: "bg-blue-50",
+    border: "border-border",
+    bg: "bg-background",
   },
   yellow: {
-    badge: "bg-yellow-500 text-white",
-    border: "border-yellow-200",
-    bg: "bg-yellow-50",
+    badge: "bg-amber-500 text-white",
+    border: "border-border",
+    bg: "bg-background",
   },
   red: {
     badge: "bg-red-500 text-white",
-    border: "border-red-200",
-    bg: "bg-red-50",
+    border: "border-border",
+    bg: "bg-background",
   },
 };
 
@@ -317,7 +318,7 @@ export default function FieldCard({
         {!field.confirmed && !disabled && fieldType !== "readonly" && fieldType !== "readonly-list" && (
           <button
             onClick={onConfirm}
-            className="px-3 py-1 text-xs font-medium text-white bg-green-500 rounded hover:bg-green-600 transition-colors"
+            className="px-3 py-1 text-xs font-medium text-primary border border-primary rounded hover:bg-primary hover:text-primary-foreground transition-colors"
           >
             Confirm
           </button>

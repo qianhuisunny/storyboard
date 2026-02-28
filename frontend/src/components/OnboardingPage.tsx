@@ -69,6 +69,9 @@ const storyboardTypes: StoryboardType[] = [
   },
 ];
 
+// Only show Knowledge Sharing tab (hide others at UI level)
+const visibleTypes = storyboardTypes.filter(type => type.id === 3);
+
 type InputMode = "upload" | "link" | "text";
 
 type DurationOption = "60s" | "90s" | "2mins" | "5mins+";
@@ -84,7 +87,7 @@ const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUser();
   const [selectedType, setSelectedType] = useState<StoryboardType>(
-    storyboardTypes[0]
+    visibleTypes[0]
   );
   const [userInput, setUserInput] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<DurationOption | null>(null);
@@ -421,7 +424,7 @@ const OnboardingPage: React.FC = () => {
           className="grid grid-cols-1 md:grid-cols-3 max-w-6xl mx-auto mb-12"
           style={{ gap: "32px" }}
         >
-          {storyboardTypes.map((type) => (
+          {visibleTypes.map((type) => (
             <Card
               key={type.id}
               className={cn(

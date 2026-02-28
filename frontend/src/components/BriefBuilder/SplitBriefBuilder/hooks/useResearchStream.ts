@@ -1,9 +1,11 @@
 /**
  * useResearchStream hook - SSE connection for research streaming
+ *
+ * Now supports angle-based research by passing angle in the URL
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
-import type { SearchEvent, ResearchFindings, SSEEventType } from "../types";
+import type { SearchEvent, ResearchFindings, SSEEventType, AngleSummary } from "../types";
 
 interface UseResearchStreamOptions {
   projectId: string;
@@ -15,9 +17,13 @@ interface UseResearchStreamOptions {
   onError: (error: string) => void;
 }
 
+interface StartResearchOptions {
+  angle?: AngleSummary;
+}
+
 interface UseResearchStreamReturn {
   isConnected: boolean;
-  startResearch: () => void;
+  startResearch: (options?: StartResearchOptions) => void;
   stopResearch: () => void;
 }
 
@@ -47,12 +53,22 @@ export function useResearchStream({
     setIsConnected(false);
   }, []);
 
-  const connect = useCallback(() => {
+  // Store angle ref for reconnection
+  const angleRef = useRef<AngleSummary | undefined>(undefined);
+
+  const connect = useCallback((angle?: AngleSummary) => {
     if (!enabled || !projectId) return;
 
     cleanup();
 
-    const url = `/api/project/${projectId}/research/stream`;
+    // Build URL with optional angle parameter
+    let url = `/api/project/${projectId}/research/stream`;
+    const angleToUse = angle || angleRef.current;
+    if (angleToUse) {
+      const angleJson = encodeURIComponent(JSON.stringify(angleToUse));
+      url += `?angle=${angleJson}`;
+    }
+
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
 
@@ -111,12 +127,12 @@ export function useResearchStream({
       console.error("SSE error:", err);
       setIsConnected(false);
 
-      // Attempt reconnection
+      // Attempt reconnection with stored angle
       if (reconnectAttempts.current < maxReconnectAttempts) {
         reconnectAttempts.current += 1;
         const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 10000);
         reconnectTimeoutRef.current = setTimeout(() => {
-          connect();
+          connect(angleRef.current);
         }, delay);
       } else {
         onError("Connection lost. Please try again.");
@@ -134,9 +150,13 @@ export function useResearchStream({
     onError,
   ]);
 
-  const startResearch = useCallback(() => {
+  const startResearch = useCallback((options?: StartResearchOptions) => {
     reconnectAttempts.current = 0;
-    connect();
+    // Store angle for potential reconnection
+    if (options?.angle) {
+      angleRef.current = options.angle;
+    }
+    connect(options?.angle);
   }, [connect]);
 
   const stopResearch = useCallback(() => {

@@ -19,6 +19,20 @@ export type TurnStatus =
 // Research status
 export type ResearchStatus = "idle" | "running" | "complete" | "error";
 
+// Research phase (for angle-based research flow)
+export type ResearchPhase = "none" | "planned" | "running" | "complete";
+
+// Research angle from Round 1 confirmation
+export interface AngleSummary {
+  audienceLevel: "beginner" | "intermediate" | "advanced";
+  keyTakeaway: string;
+  durationTier: "short" | "medium" | "long";
+  durationMinutes: number;
+  plannedQuestions: number;
+  questions: string[];
+  topic?: string;
+}
+
 // Individual turn state
 export interface TurnState {
   status: TurnStatus;
@@ -85,6 +99,9 @@ export interface BriefChatState {
   gapAnswers: GapAnswers;
   finalBrief: StoryBrief | null;
   error?: string;
+  // Angle-based research
+  angle: AngleSummary | null;
+  researchPhase: ResearchPhase;
 }
 
 // Initial brief data from onboarding
@@ -142,6 +159,9 @@ export interface ResearchPanelProps {
   findings: ResearchFindings | null;
   searchEvents: SearchEvent[];
   error?: string;
+  // Angle-based research
+  angle: AngleSummary | null;
+  researchPhase: ResearchPhase;
 }
 
 // Props for ConfirmationGate
@@ -186,6 +206,9 @@ export interface MobileDrawerProps {
   findings: ResearchFindings | null;
   searchEvents: SearchEvent[];
   error?: string;
+  // Angle-based research
+  angle: AngleSummary | null;
+  researchPhase: ResearchPhase;
 }
 
 // Action types for state reducer
@@ -202,7 +225,9 @@ export type ChatAction =
   | { type: "SET_GAP_QUESTIONS"; questions: GapQuestion[] }
   | { type: "SET_GAP_ANSWERS"; answers: GapAnswers }
   | { type: "SET_FINAL_BRIEF"; brief: StoryBrief }
-  | { type: "RESET_RESEARCH" };
+  | { type: "RESET_RESEARCH" }
+  | { type: "SET_ANGLE"; angle: AngleSummary }
+  | { type: "SET_RESEARCH_PHASE"; phase: ResearchPhase };
 
 // Initial state factory
 export function createInitialChatState(): BriefChatState {
@@ -220,5 +245,8 @@ export function createInitialChatState(): BriefChatState {
     gapQuestions: [],
     gapAnswers: {},
     finalBrief: null,
+    // Angle-based research
+    angle: null,
+    researchPhase: "none",
   };
 }

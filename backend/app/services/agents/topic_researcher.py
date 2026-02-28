@@ -1,13 +1,50 @@
 """
 Topic Researcher Agent - Gathers context about company/product/industry.
 Returns research data with verified information for other agents.
+
+Now supports angle-based research with duration scaling.
 """
 
 import json
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any, Optional, List
 
 from .base import BaseAgent
+
+
+# Question templates organized by audience level
+QUESTION_TEMPLATES = {
+    "beginner": [
+        "What are the main {topic} options or paths available?",
+        "What is the realistic distribution or frequency of different {topic} outcomes?",
+        "What is one clear recent example ({year}) for each {topic} option?",
+        "What are the most common misconceptions about {topic}?",
+        "What should a beginner do first when approaching {topic}?",
+    ],
+    "intermediate": [
+        "What decision framework should someone use for {topic}?",
+        "What metrics or signals indicate the right choice for {topic}?",
+        "What are the most common mistakes to avoid with {topic}?",
+        "What should you do 6-12 months before {key_action}?",
+        "What do experts and insiders say about {topic} in {year}?",
+        "What recent examples ({year}) illustrate different approaches to {topic}?",
+        "What preparation steps are most often overlooked for {topic}?",
+    ],
+    "advanced": [
+        "What changed about {topic} in {year} compared to previous years?",
+        "What are the second-order effects of {topic} that most people miss?",
+        "What do the actual deal terms and mechanics look like for {topic}?",
+        "What data or statistics support or contradict common advice about {topic}?",
+        "What regulatory or market forces are shifting around {topic}?",
+        "What do contrarian experts argue about {topic}?",
+        "What are detailed case studies ({year}) with disclosed specifics about {topic}?",
+        "What insider knowledge separates experts from amateurs on {topic}?",
+        "What are the edge cases and exceptions to common {topic} advice?",
+        "What emerging trends will reshape {topic} in the next 1-2 years?",
+        "How do different stakeholders view {topic} differently?",
+        "What are the most valuable but least discussed aspects of {topic}?",
+    ],
+}
 
 
 class TopicResearcher(BaseAgent):
@@ -294,3 +331,307 @@ Provide a concise summary (under 500 words) that captures the essential informat
             # If LLM call fails, truncate with note
             truncated = " ".join(content.split()[:max_words])
             return f"[Truncated from {word_count} words]\n\n{truncated}..."
+
+    # =========================================================================
+    # Angle-Based Research Methods
+    # =========================================================================
+
+    def calculate_angle(
+        self,
+        audience: str,
+        description: str,
+        duration_minutes: int,
+        primary_goal: Optional[str] = None
+    ) -> dict:
+        """
+        Calculate research angle from Round 1 confirmed fields.
+
+        Args:
+            audience: Target audience description
+            description: Video description/topic
+            duration_minutes: Video duration in minutes
+            primary_goal: Optional key takeaway (extracted from description if not provided)
+
+        Returns:
+            Angle dict with audienceLevel, keyTakeaway, durationTier, questions
+        """
+        # Infer audience level
+        audience_level = self._infer_audience_level(audience, description)
+
+        # Extract key takeaway if not provided
+        key_takeaway = primary_goal or self._extract_key_takeaway(description)
+
+        # Determine duration tier and question count
+        duration_tier, question_count = self._get_duration_config(duration_minutes)
+
+        # Extract topic from description (simplified version)
+        topic = self._extract_topic(description)
+
+        # Select research questions based on angle
+        questions = self.select_research_questions(
+            audience_level=audience_level,
+            key_takeaway=key_takeaway,
+            topic=topic,
+            count=question_count
+        )
+
+        return {
+            "audienceLevel": audience_level,
+            "keyTakeaway": key_takeaway,
+            "durationTier": duration_tier,
+            "durationMinutes": duration_minutes,
+            "plannedQuestions": question_count,
+            "questions": questions,
+            "topic": topic,
+        }
+
+    def _infer_audience_level(self, audience: str, description: str) -> str:
+        """
+        Infer audience expertise level from audience description and video description.
+
+        Returns: "beginner", "intermediate", or "advanced"
+        """
+        text = f"{audience} {description}".lower()
+
+        # Advanced indicators
+        advanced_keywords = [
+            "expert", "advanced", "professional", "executive", "c-suite",
+            "technical deep", "in-depth", "comprehensive", "detailed mechanics",
+            "industry veteran", "experienced", "sophisticated", "nuanced"
+        ]
+        if any(kw in text for kw in advanced_keywords):
+            return "advanced"
+
+        # Beginner indicators
+        beginner_keywords = [
+            "beginner", "introduction", "basics", "getting started", "101",
+            "first-time", "new to", "unfamiliar", "no experience", "novice",
+            "just starting", "fundamentals", "overview", "primer"
+        ]
+        if any(kw in text for kw in beginner_keywords):
+            return "beginner"
+
+        # Default to intermediate
+        return "intermediate"
+
+    def _extract_key_takeaway(self, description: str) -> str:
+        """
+        Extract the primary takeaway/focus from the video description.
+        Uses simple heuristics; could be enhanced with LLM if needed.
+        """
+        # Look for explicit goal phrases
+        goal_phrases = ["how to", "learn about", "understand", "discover", "master"]
+        desc_lower = description.lower()
+
+        for phrase in goal_phrases:
+            if phrase in desc_lower:
+                # Extract from the phrase onwards (include the phrase for context)
+                idx = desc_lower.index(phrase)
+                remainder = description[idx:].strip()
+                # Take first sentence or clause
+                for end in [".", ",", ";", "!", "?"]:
+                    if end in remainder:
+                        return remainder[:remainder.index(end)].strip()
+                return remainder[:100].strip() if len(remainder) > 100 else remainder
+
+        # Fall back to first sentence or first 100 chars
+        if "." in description:
+            return description[:description.index(".")].strip()
+        return description[:100].strip() if len(description) > 100 else description
+
+    def _extract_topic(self, description: str) -> str:
+        """
+        Extract the main topic from the description.
+        Simple extraction; could be enhanced with NLP.
+        """
+        # Remove common filler words and get the core topic
+        stop_phrases = [
+            "i want to", "we want to", "create a video about",
+            "make a video on", "video about", "video on",
+            "help me with", "explain", "discuss"
+        ]
+
+        topic = description.lower()
+        for phrase in stop_phrases:
+            topic = topic.replace(phrase, "")
+
+        # Clean up and capitalize
+        topic = topic.strip().strip(".,!?")
+
+        # If too short or too long, use original
+        if len(topic) < 5:
+            topic = description[:50]
+        elif len(topic) > 80:
+            # Try to find a natural break
+            if "," in topic[:80]:
+                topic = topic[:topic.index(",")]
+            else:
+                topic = topic[:80]
+
+        return topic.strip()
+
+    def _get_duration_config(self, duration_minutes: int) -> tuple:
+        """
+        Get duration tier and question count based on video length.
+
+        Returns: (duration_tier, question_count)
+        """
+        if duration_minutes <= 5:
+            return ("short", 4)
+        elif duration_minutes <= 15:
+            return ("medium", 7)
+        else:
+            # Scale up for longer videos, max 12
+            count = min(12, 4 + duration_minutes // 3)
+            return ("long", count)
+
+    def select_research_questions(
+        self,
+        audience_level: str,
+        key_takeaway: str,
+        topic: str,
+        count: int,
+        year: str = "2026"
+    ) -> List[str]:
+        """
+        Select and format research questions based on angle.
+
+        Args:
+            audience_level: "beginner", "intermediate", or "advanced"
+            key_takeaway: The primary focus/action of the video
+            topic: The main topic being discussed
+            count: Number of questions to generate
+            year: Current year for time-sensitive questions
+
+        Returns:
+            List of formatted research questions
+        """
+        templates = QUESTION_TEMPLATES.get(audience_level, QUESTION_TEMPLATES["intermediate"])
+
+        questions = []
+        for i, template in enumerate(templates):
+            if i >= count:
+                break
+
+            # Format the template with actual values
+            question = template.format(
+                topic=topic,
+                key_action=key_takeaway,
+                year=year
+            )
+            questions.append(question)
+
+        return questions
+
+    def run_with_angle(self, state: Any, angle: dict, **kwargs) -> dict:
+        """
+        Run research using angle-based questions instead of generic research.
+
+        Args:
+            state: StoryboardState with intake_form
+            angle: Angle dict from calculate_angle()
+
+        Returns:
+            research_data dict with findings organized by question
+        """
+        if not state.intake_form:
+            raise ValueError("TopicResearcher requires intake_form in state")
+
+        questions = angle.get("questions", [])
+        if not questions:
+            # Fall back to regular research
+            return self.run(state, **kwargs)
+
+        # Process user inputs
+        project_id = getattr(state, 'project_id', None)
+        user_inputs = self._process_user_inputs(state.intake_form, project_id)
+
+        # Build research prompt with specific questions
+        user_prompt = self._build_angle_research_prompt(
+            intake_form=state.intake_form,
+            questions=questions,
+            angle=angle
+        )
+
+        # Call LLM
+        response = self.call_llm(user_prompt, max_tokens=4000)
+
+        # Parse response
+        research_data = self._parse_angle_research(response, questions)
+        research_data["user_inputs"] = user_inputs
+        research_data["angle"] = angle
+
+        return research_data
+
+    def _build_angle_research_prompt(
+        self,
+        intake_form: dict,
+        questions: List[str],
+        angle: dict
+    ) -> str:
+        """Build research prompt with specific questions based on angle."""
+        company = intake_form.get("company_or_brand_name", "")
+        topic = angle.get("topic", intake_form.get("video_goal", ""))
+        audience_level = angle.get("audienceLevel", "intermediate")
+
+        questions_text = "\n".join(f"{i+1}. {q}" for i, q in enumerate(questions))
+
+        return f"""Research the following topic for a video storyboard:
+
+TOPIC: {topic}
+COMPANY/PRODUCT: {company}
+AUDIENCE LEVEL: {audience_level}
+
+Please research and answer these specific questions:
+
+{questions_text}
+
+For each question:
+1. Provide a clear, factual answer
+2. Include specific examples, data, or statistics where available
+3. Note any uncertainties with [uncertain: ...]
+4. Cite sources where possible
+
+Return your research as a JSON object with this structure:
+{{
+    "answers": [
+        {{
+            "question": "the question",
+            "answer": "your research findings",
+            "examples": ["relevant examples"],
+            "sources": ["source references"],
+            "confidence": "high/medium/low"
+        }}
+    ],
+    "key_insights": ["main takeaways"],
+    "uncertainties": ["things you couldn't verify"]
+}}"""
+
+    def _parse_angle_research(self, response: str, questions: List[str]) -> dict:
+        """Parse angle-based research response."""
+        parsed = self._extract_json(response)
+
+        if parsed and isinstance(parsed, dict):
+            return {
+                "answers": parsed.get("answers", []),
+                "key_insights": parsed.get("key_insights", []),
+                "uncertainties": parsed.get("uncertainties", []),
+                "raw_response": response if not parsed.get("answers") else None
+            }
+
+        # Fallback: create basic structure from response text
+        return {
+            "answers": [
+                {
+                    "question": q,
+                    "answer": "",
+                    "examples": [],
+                    "sources": [],
+                    "confidence": "low"
+                }
+                for q in questions
+            ],
+            "key_insights": [],
+            "uncertainties": ["Could not parse structured response"],
+            "raw_response": response
+        }
