@@ -16,7 +16,7 @@ class Type1VideoRequirements(BaseModel):
     core_interaction_steps: str = Field(..., description="Core interaction steps")
 
 class Type2VideoRequirements(BaseModel):
-    """Requirements specific to How-to Demo videos (Type 2)"""
+    """Requirements specific to Product Demo videos (Type 2)"""
     core_interaction_steps: str = Field(..., description="Core interaction steps")
     where_people_make_mistakes: Optional[str] = Field(None, description="Where people make mistakes (optional)")
 
@@ -31,14 +31,14 @@ class ProjectRequirements(BaseModel):
     audience: str = Field(..., description="Target audience for the video")
     cta: Optional[str] = Field(None, description="Call to action (optional)")
     duration: int = Field(..., gt=0, description="Video duration in seconds")
-    type: VideoType = Field(..., description="Video type: 1=Product Release, 2=How-to Demo, 3=Knowledge Sharing")
+    type: VideoType = Field(..., description="Video type: 1=Product Release, 2=Product Demo, 3=Knowledge Sharing")
     cta: Optional[str] = Field(None, description="Call to action (optional)")
     has_face: bool = Field(..., description="Whether to show narrator face")
     main_problem: str = Field(..., description="Main problem your user wanted to solve")
  
     # Type-specific requirements (only one should be populated based on type)
     type1_requirements: Optional[Type1VideoRequirements] = Field(None, description="Type 1 (Product Release) specific requirements")
-    type2_requirements: Optional[Type2VideoRequirements] = Field(None, description="Type 2 (How-to Demo) specific requirements")
+    type2_requirements: Optional[Type2VideoRequirements] = Field(None, description="Type 2 (Product Demo) specific requirements")
     type3_requirements: Optional[Type3VideoRequirements] = Field(None, description="Type 3 (Knowledge Sharing) specific requirements")
 
     def model_post_init(self, __context=None) -> None:
@@ -46,7 +46,7 @@ class ProjectRequirements(BaseModel):
         if self.type == VideoType.PRODUCT_RELEASE and self.type1_requirements is None:
             raise ValueError("Type 1 requirements must be provided for Product Release videos")
         elif self.type == VideoType.HOW_TO_DEMO and self.type2_requirements is None:
-            raise ValueError("Type 2 requirements must be provided for How-to Demo videos")
+            raise ValueError("Type 2 requirements must be provided for Product Demo videos")
         elif self.type == VideoType.KNOWLEDGE_SHARING and self.type3_requirements is None:
             raise ValueError("Type 3 requirements must be provided for Knowledge Sharing videos")
 

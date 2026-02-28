@@ -13,7 +13,6 @@ import type { OutlineBuilderProps, TabKey } from "./types";
 export default function OutlineBuilder({
   screens,
   stage1Output,
-  contextPack,
   processingLog,
   onScreensUpdate,
   onConfirm,
@@ -74,7 +73,6 @@ export default function OutlineBuilder({
           {activeTab === "input" && (
             <InputView
               stage1Output={stage1Output}
-              contextPack={contextPack}
             />
           )}
         </div>

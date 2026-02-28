@@ -36,7 +36,7 @@ You receive from the Storyboard Director:
       "screen_type": "stock video",
       "voiceover_text": "U.S. hospitals waste an average of five hundred thousand dollars annually on inefficient linen management.",
       "visual_direction": "Busy hospital corridor with overwhelmed nursing staff managing overflowing linen carts in a chaotic healthcare environment",
-      "notes": "Use specific $500K figure from context_pack. Establish pain immediately with emotional visual showing real-world chaos."
+      "notes": "Use specific $500K figure from research_data. Establish pain immediately with emotional visual showing real-world chaos."
     },
     ...
   ],

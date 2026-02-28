@@ -21,7 +21,7 @@ load_dotenv()
 
 app = FastAPI()
 
-# Initialize chatbot service (legacy)
+# Initialize chatbot service
 chatbot_service = StoryboardChatbot()
 
 app.add_middleware(
@@ -491,7 +491,6 @@ async def run_stage(project_id: str, stage: str, request: RunStageRequest):
             "stage": stage,
             "ai_content": ai_content,  # Use the stringified version
             "sources": result.get("sources", []),
-            "context_pack": result.get("context_pack", {}),
         }
 
     except Exception as e:
@@ -887,14 +886,12 @@ async def get_pipeline_state(project_id: str):
                 "revision_count_gate2": state.revision_count_gate2,
                 "max_revisions": state.max_revisions,
                 "has_intake_form": state.intake_form is not None,
-                "has_context_pack": state.context_pack is not None,
                 "has_story_brief": state.story_brief is not None,
                 "has_screen_outline": state.screen_outline is not None,
                 "has_storyboard": state.storyboard is not None,
             },
             "data": {
                 "intake_form": state.intake_form,
-                "context_pack": state.context_pack,
                 "story_brief": state.story_brief,
                 "screen_outline": state.screen_outline,
                 "storyboard": state.storyboard,
@@ -919,7 +916,6 @@ class StageStatus(BaseModel):
 class StageData(BaseModel):
     aiVersion: Optional[str] = None
     humanVersion: Optional[str] = None
-    contextPack: Optional[dict] = None
 
 
 class SaveStagesRequest(BaseModel):
@@ -1682,3 +1678,276 @@ async def get_admin_field_edits(
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting field edits: {str(e)}")
+
+
+# ============================================================
+# SPLIT BRIEF BUILDER ENDPOINTS (SSE Research Streaming)
+# ============================================================
+
+from fastapi.responses import StreamingResponse
+import asyncio
+
+
+class ResearchRequest(BaseModel):
+    video_type: str
+    company_name: Optional[str] = None
+    description: Optional[str] = None
+    links: Optional[List[str]] = None
+
+
+class BriefGenerateRequest(BaseModel):
+    onboarding_data: dict
+    research_findings: Optional[dict] = None
+    gap_answers: Optional[dict] = None
+    corrections: Optional[dict] = None
+
+
+async def research_event_generator(project_id: str, request_data: dict):
+    """
+    Generator function for SSE research events.
+    Yields Server-Sent Events as the Topic Researcher runs.
+    """
+    try:
+        from app.services.agents.topic_researcher import TopicResearcher
+
+        researcher = TopicResearcher()
+
+        # Send initial event
+        yield f"data: {json.dumps({'type': 'research_started', 'timestamp': datetime.now().isoformat()})}\n\n"
+
+        # Define search queries based on video type and inputs
+        video_type = request_data.get("video_type", "Product Release")
+        company_name = request_data.get("company_name", "")
+        description = request_data.get("description", "")
+
+        search_queries = []
+        if company_name:
+            search_queries.append({
+                "query": f"{company_name} company overview",
+                "purpose": "Find company background information"
+            })
+            search_queries.append({
+                "query": f"{company_name} products services",
+                "purpose": "Find product and service information"
+            })
+        if description:
+            # Extract key terms from description
+            search_queries.append({
+                "query": f"{description[:100]} industry trends",
+                "purpose": "Find industry context"
+            })
+
+        # Send search events
+        search_results = []
+        for i, sq in enumerate(search_queries):
+            search_id = f"search_{i}"
+
+            # Send search started event
+            yield f"data: {json.dumps({'type': 'search_started', 'id': search_id, 'query': sq['query'], 'purpose': sq['purpose'], 'timestamp': datetime.now().isoformat()})}\n\n"
+
+            await asyncio.sleep(0.5)  # Small delay for UI
+
+            # Simulate search completion (in real implementation, this would call web search)
+            yield f"data: {json.dumps({'type': 'search_complete', 'id': search_id, 'results_count': 3, 'timestamp': datetime.now().isoformat()})}\n\n"
+
+            await asyncio.sleep(0.3)
+
+        # Run the actual research
+        try:
+            research_data = await researcher.research(
+                video_type=video_type,
+                company_name=company_name,
+                description=description,
+                links=request_data.get("links", []),
+            )
+
+            # Convert research data to findings format
+            findings = {
+                "company": [],
+                "product": [],
+                "industry": [],
+                "workflows": [],
+                "terminology": [],
+                "uncertainties": research_data.get("uncertainties", [])
+            }
+
+            if research_data.get("company_context"):
+                findings["company"].append({
+                    "category": "company",
+                    "title": "Company Overview",
+                    "content": research_data["company_context"],
+                    "sources": research_data.get("company_context_sources", []),
+                    "confidence": "high"
+                })
+
+            if research_data.get("product_context"):
+                findings["product"].append({
+                    "category": "product",
+                    "title": "Product Information",
+                    "content": research_data["product_context"],
+                    "sources": research_data.get("product_context_sources", []),
+                    "confidence": "high"
+                })
+
+            if research_data.get("industry_context"):
+                findings["industry"].append({
+                    "category": "industry",
+                    "title": "Industry Context",
+                    "content": research_data["industry_context"],
+                    "sources": research_data.get("industry_context_sources", []),
+                    "confidence": "medium"
+                })
+
+            # Send completion event
+            yield f"data: {json.dumps({'type': 'research_complete', 'findings': findings, 'timestamp': datetime.now().isoformat()})}\n\n"
+
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e), 'timestamp': datetime.now().isoformat()})}\n\n"
+
+    except Exception as e:
+        yield f"data: {json.dumps({'type': 'error', 'message': str(e), 'timestamp': datetime.now().isoformat()})}\n\n"
+
+
+@app.get("/api/project/{project_id}/research/stream")
+async def stream_research(project_id: str, request: Request):
+    """
+    SSE endpoint for streaming research progress.
+
+    Returns Server-Sent Events with:
+    - {"type": "search_started", "query": "...", "purpose": "..."}
+    - {"type": "search_complete", "id": "...", "results_count": N}
+    - {"type": "research_complete", "findings": {...}}
+    - {"type": "error", "message": "..."}
+    """
+    # Get query parameters for research
+    video_type = request.query_params.get("video_type", "Product Release")
+    company_name = request.query_params.get("company_name", "")
+    description = request.query_params.get("description", "")
+
+    request_data = {
+        "video_type": video_type,
+        "company_name": company_name,
+        "description": description,
+    }
+
+    return StreamingResponse(
+        research_event_generator(project_id, request_data),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        }
+    )
+
+
+@app.post("/api/project/{project_id}/research/run")
+async def run_research(project_id: str, request: ResearchRequest):
+    """
+    Non-streaming endpoint to run research and return results.
+
+    Fallback for when SSE is not available.
+    """
+    try:
+        from app.services.agents.topic_researcher import TopicResearcher
+
+        researcher = TopicResearcher()
+
+        research_data = await researcher.research(
+            video_type=request.video_type,
+            company_name=request.company_name,
+            description=request.description,
+            links=request.links or [],
+        )
+
+        # Convert to findings format
+        findings = {
+            "company": [],
+            "product": [],
+            "industry": [],
+            "workflows": [],
+            "terminology": [],
+            "uncertainties": research_data.get("uncertainties", [])
+        }
+
+        if research_data.get("company_context"):
+            findings["company"].append({
+                "category": "company",
+                "title": "Company Overview",
+                "content": research_data["company_context"],
+                "sources": research_data.get("company_context_sources", []),
+                "confidence": "high"
+            })
+
+        if research_data.get("product_context"):
+            findings["product"].append({
+                "category": "product",
+                "title": "Product Information",
+                "content": research_data["product_context"],
+                "sources": research_data.get("product_context_sources", []),
+                "confidence": "high"
+            })
+
+        if research_data.get("industry_context"):
+            findings["industry"].append({
+                "category": "industry",
+                "title": "Industry Context",
+                "content": research_data["industry_context"],
+                "sources": research_data.get("industry_context_sources", []),
+                "confidence": "medium"
+            })
+
+        return {
+            "success": True,
+            "findings": findings,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error running research: {str(e)}")
+
+
+@app.post("/api/project/{project_id}/brief/generate")
+async def generate_brief(project_id: str, request: BriefGenerateRequest):
+    """
+    Generate a Story Brief from onboarding data, research findings, and gap answers.
+    """
+    try:
+        from app.services.agents.brief_builder import BriefBuilder
+
+        builder = BriefBuilder()
+
+        # Prepare inputs for brief builder
+        onboarding = request.onboarding_data
+        findings = request.research_findings or {}
+        gap_answers = request.gap_answers or {}
+        corrections = request.corrections or {}
+
+        # Build the brief
+        brief = await builder.build_brief(
+            video_type=onboarding.get("videoType", "Product Release"),
+            video_goal=onboarding.get("description", ""),
+            target_audience=onboarding.get("audience", ""),
+            company_name=onboarding.get("companyName", ""),
+            tone=onboarding.get("tone", "professional"),
+            duration=onboarding.get("duration", 60),
+            show_face=onboarding.get("showFace", False),
+            platform=onboarding.get("platform", "general"),
+            research_findings=findings,
+            gap_answers=gap_answers,
+            corrections=corrections,
+        )
+
+        # Save brief to project
+        project_dir = Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
+        if project_dir.exists():
+            brief_file = project_dir / "story_brief.json"
+            with open(brief_file, "w") as f:
+                json.dump(brief, f, indent=2)
+
+        return {
+            "success": True,
+            "brief": brief,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error generating brief: {str(e)}")

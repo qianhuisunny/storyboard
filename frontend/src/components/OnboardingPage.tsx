@@ -51,12 +51,12 @@ const storyboardTypes: StoryboardType[] = [
   },
   {
     id: 2,
-    title: "How-to Video",
+    title: "Product Demo Video",
     description:
-      "Build step-by-step tutorials and instructional content to guide users through processes",
+      "Showcase your product in action with walkthroughs and feature demonstrations",
     icon: <BookOpen className="w-8 h-8" />,
     placeholder:
-      "Describe the process you want to teach - steps, audience skill level, key points...",
+      "Describe the product demo - key features to highlight, use cases, target viewers...",
   },
   {
     id: 3,
@@ -71,6 +71,15 @@ const storyboardTypes: StoryboardType[] = [
 
 type InputMode = "upload" | "link" | "text";
 
+type DurationOption = "60s" | "90s" | "2mins" | "5mins+";
+
+const DURATION_OPTIONS: { value: DurationOption; label: string }[] = [
+  { value: "60s", label: "60s" },
+  { value: "90s", label: "90s" },
+  { value: "2mins", label: "2 mins" },
+  { value: "5mins+", label: "5 mins+" },
+];
+
 const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useUser();
@@ -78,6 +87,8 @@ const OnboardingPage: React.FC = () => {
     storyboardTypes[0]
   );
   const [userInput, setUserInput] = useState("");
+  const [selectedDuration, setSelectedDuration] = useState<DurationOption | null>(null);
+  const [audience, setAudience] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [sources, setSources] = useState<Source[]>([]);
   const [inputMode, setInputMode] = useState<InputMode | null>(null);
@@ -273,8 +284,10 @@ const OnboardingPage: React.FC = () => {
     return linkContents;
   };
 
+  const isFormValid = userInput.trim() && selectedDuration && audience.trim();
+
   const handleGenerate = async () => {
-    if (!userInput.trim()) return;
+    if (!isFormValid) return;
 
     setIsGenerating(true);
     setIsUploadingFiles(true);
@@ -306,6 +319,8 @@ const OnboardingPage: React.FC = () => {
       sessionStorage.setItem("projectId", projectId);
       sessionStorage.setItem("storyboardType", selectedType.id.toString());
       sessionStorage.setItem("storyboardPrompt", userInput);
+      sessionStorage.setItem("storyboardDuration", selectedDuration || "");
+      sessionStorage.setItem("storyboardAudience", audience);
       if (allContext) {
         sessionStorage.setItem("storyboardContext", allContext);
       }
@@ -371,7 +386,7 @@ const OnboardingPage: React.FC = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey && inputMode === null) {
+    if (e.key === "Enter" && !e.shiftKey && inputMode === null && isFormValid) {
       e.preventDefault();
       handleGenerate();
     }
@@ -459,6 +474,50 @@ const OnboardingPage: React.FC = () => {
                   placeholder={selectedType.placeholder}
                   className="min-h-[150px] resize-none text-base"
                   disabled={isGenerating}
+                />
+              </div>
+
+              {/* Duration Selector */}
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Video Duration <span className="text-red-500">*</span>
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Select your target video length
+                </p>
+                <div className="flex flex-wrap gap-3">
+                  {DURATION_OPTIONS.map((option) => (
+                    <Button
+                      key={option.value}
+                      type="button"
+                      variant={selectedDuration === option.value ? "default" : "outline"}
+                      onClick={() => setSelectedDuration(option.value)}
+                      disabled={isGenerating}
+                      className={cn(
+                        "min-w-[80px]",
+                        selectedDuration === option.value && "ring-2 ring-primary/20"
+                      )}
+                    >
+                      {option.label}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Target Audience */}
+              <div>
+                <h3 className="text-lg font-semibold text-foreground mb-2">
+                  Target Audience <span className="text-red-500">*</span>
+                </h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Who is this video for?
+                </p>
+                <Input
+                  value={audience}
+                  onChange={(e) => setAudience(e.target.value)}
+                  placeholder="e.g., Tech-savvy millennials, Small business owners, Enterprise decision-makers..."
+                  disabled={isGenerating}
+                  className="text-base"
                 />
               </div>
 
@@ -618,7 +677,7 @@ const OnboardingPage: React.FC = () => {
                 </p>
                 <Button
                   onClick={handleGenerate}
-                  disabled={!userInput.trim() || isGenerating}
+                  disabled={!isFormValid || isGenerating}
                   size="lg"
                 >
                   {isGenerating ? (

@@ -67,7 +67,6 @@ export interface OutlineProcessingEntry {
 export interface OutlineBuilderProps {
   screens: Screen[];
   stage1Output?: Record<string, unknown> | null; // Full Brief output from Stage 1
-  contextPack?: Record<string, unknown>; // Context Pack with user_inputs and research
   processingLog: OutlineProcessingEntry[];
   onScreensUpdate: (screens: Screen[]) => void;
   onConfirm: () => void;
@@ -112,10 +111,9 @@ export interface OutputViewProps {
   screens: Screen[];
 }
 
-// InputView props - shows Stage 1 Output and Context Pack
+// InputView props - shows Stage 1 Output
 export interface InputViewProps {
   stage1Output?: Record<string, unknown> | null; // Full Brief from Stage 1
-  contextPack?: Record<string, unknown>; // Context Pack with user_inputs
 }
 
 /**

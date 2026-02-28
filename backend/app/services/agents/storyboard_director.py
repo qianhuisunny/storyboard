@@ -32,7 +32,7 @@ class StoryboardDirector(BaseAgent):
         Create or revise a screen outline.
 
         Args:
-            state: StoryboardState with story_brief, context_pack, intake_form
+            state: StoryboardState with story_brief and intake_form
             mode: "initial" for new outline, "revision" for updates
             revision_request: Feedback text (required for revision mode)
 
@@ -67,7 +67,6 @@ class StoryboardDirector(BaseAgent):
 INPUT:
 {{
   "story_brief": {json.dumps(state.story_brief, indent=2)},
-  "context_pack": {json.dumps(state.context_pack, indent=2)},
   "mode": "initial"
 }}
 
@@ -85,7 +84,7 @@ Return the outline as a JSON array of screen objects."""
 
     def _build_revision_prompt(self, state: Any, revision_request: str) -> str:
         """Build prompt for outline revision."""
-        # Include intake_form for full context (fixing the identified gap)
+        # Include intake_form for full context
         return f"""Revise the screen outline based on user feedback:
 
 INPUT:
@@ -93,7 +92,6 @@ INPUT:
   "user_revision_request": {json.dumps(revision_request)},
   "current_outline": {json.dumps(state.screen_outline, indent=2)},
   "story_brief": {json.dumps(state.story_brief, indent=2)},
-  "context_pack": {json.dumps(state.context_pack, indent=2)},
   "intake_form": {json.dumps(state.intake_form, indent=2)},
   "mode": "revision"
 }}

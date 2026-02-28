@@ -26,13 +26,13 @@ interface Project {
 
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   "Product Release": <Film className="w-5 h-5" />,
-  "How-to Video": <BookOpen className="w-5 h-5" />,
+  "Product Demo Video": <BookOpen className="w-5 h-5" />,
   "Knowledge Sharing": <Lightbulb className="w-5 h-5" />,
 };
 
 const TYPE_COLORS: Record<string, string> = {
   "Product Release": "bg-blue-100 text-blue-700",
-  "How-to Video": "bg-green-100 text-green-700",
+  "Product Demo Video": "bg-green-100 text-green-700",
   "Knowledge Sharing": "bg-purple-100 text-purple-700",
 };
 

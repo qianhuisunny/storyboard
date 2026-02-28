@@ -63,7 +63,7 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
       const initialResponse = sessionStorage.getItem("initialResponse");
 
       if (storyboardPrompt && storyboardType) {
-        const storyboardTypeNames = ["", "Product Release Video", "How-to Video", "Knowledge Sharing"];
+        const storyboardTypeNames = ["", "Product Release Video", "Product Demo Video", "Knowledge Sharing"];
         const typeName = storyboardTypeNames[parseInt(storyboardType)] || "Storyboard";
 
         const initialMessages: Message[] = [

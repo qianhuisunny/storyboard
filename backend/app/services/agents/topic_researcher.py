@@ -1,6 +1,6 @@
 """
 Topic Researcher Agent - Gathers context about company/product/industry.
-Returns a Context Pack with verified information for other agents.
+Returns research data with verified information for other agents.
 """
 
 import json
@@ -15,27 +15,27 @@ class TopicResearcher(BaseAgent):
     Research agent that gathers context about the video subject.
 
     Input: intake_form with company/product information
-    Output: context_pack dict with structured research findings
+    Output: research_data dict with structured research findings
     """
 
     prompt_file = "TOPIC_RESEARCHER_SYSTEM_PROMPT.md"
 
     def run(self, state: Any, **kwargs) -> dict:
         """
-        Research the topic and return a Context Pack.
+        Research the topic and return research data.
 
         Args:
             state: StoryboardState with intake_form
 
         Returns:
-            context_pack dict with:
+            research_data dict with:
             - company_context
             - product_context
             - industry_context
             - terminology_glossary
             - typical_workflows
             - uncertainties
-            - user_inputs (NEW: processed user inputs with parsed materials)
+            - user_inputs (processed user inputs with parsed materials)
         """
         if not state.intake_form:
             raise ValueError("TopicResearcher requires intake_form in state")
@@ -51,12 +51,12 @@ class TopicResearcher(BaseAgent):
         response = self.call_llm(user_prompt)
 
         # Parse the response
-        context_pack = self._parse_context_pack(response)
+        research_data = self._parse_research_data(response)
 
-        # Add processed user inputs to context pack
-        context_pack["user_inputs"] = user_inputs
+        # Add processed user inputs to research data
+        research_data["user_inputs"] = user_inputs
 
-        return context_pack
+        return research_data
 
     def _build_research_prompt(self, intake_form: dict) -> str:
         """Build the research request prompt from intake form."""
@@ -89,13 +89,13 @@ Please research and return a Context Pack with:
 
 Return the Context Pack as a valid JSON object."""
 
-    def _parse_context_pack(self, response: str) -> dict:
-        """Parse the LLM response into a Context Pack."""
+    def _parse_research_data(self, response: str) -> dict:
+        """Parse the LLM response into research data."""
         # Try to extract JSON
         parsed = self._extract_json(response)
 
         if parsed and isinstance(parsed, dict):
-            return self._normalize_context_pack(parsed)
+            return self._normalize_research_data(parsed)
 
         # If JSON extraction failed, create a basic pack from the response
         return {
@@ -112,9 +112,9 @@ Return the Context Pack as a valid JSON object."""
             "raw_research": response
         }
 
-    def _normalize_context_pack(self, pack: dict) -> dict:
-        """Ensure context pack has all required fields."""
-        default_pack = {
+    def _normalize_research_data(self, data: dict) -> dict:
+        """Ensure research data has all required fields."""
+        default_data = {
             "company_context": "",
             "product_context": "",
             "industry_context": "",
@@ -129,19 +129,19 @@ Return the Context Pack as a valid JSON object."""
             "uncertainties": []
         }
 
-        # Merge provided pack with defaults
-        for key, default_value in default_pack.items():
-            if key not in pack:
-                pack[key] = default_value
+        # Merge provided data with defaults
+        for key, default_value in default_data.items():
+            if key not in data:
+                data[key] = default_value
 
         # Ensure typical_workflows has required structure
-        if isinstance(pack.get("typical_workflows"), str):
-            pack["typical_workflows"] = {
-                "traditional_process": pack["typical_workflows"],
+        if isinstance(data.get("typical_workflows"), str):
+            data["typical_workflows"] = {
+                "traditional_process": data["typical_workflows"],
                 "optimized_process": ""
             }
 
-        return pack
+        return data
 
     def _process_user_inputs(self, intake_form: dict, project_id: Optional[str]) -> dict:
         """
