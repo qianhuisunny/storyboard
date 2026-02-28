@@ -5,7 +5,7 @@
 | Component | Status | Branch |
 |-----------|--------|--------|
 | Director | ✅ Done | `new-director` |
-| Writer | 🔲 Planned | - |
+| Writer | ✅ Done | `new-director` |
 
 ---
 
@@ -103,8 +103,8 @@ def _generate_html_visual(self, voiceover: str, screen_type: str) -> str:
 
 ## Next Steps
 
-1. [ ] Update `storyboard_writer.py` - remove DurationCalculator, simplify processing
-2. [ ] Add `_get_visual_asset()` method with strategy by screen_type
-3. [ ] Add `_generate_html_visual()` for slides/whiteboard
-4. [ ] Update `storyboard_writer_prompt_2.md`
+1. [x] Update `storyboard_writer.py` - remove DurationCalculator, simplify processing
+2. [x] Add `_get_visual_asset()` method with strategy by screen_type
+3. [x] Add `_generate_html_visual()` for slides/whiteboard
+4. [x] Update `storyboard_writer_prompt_2.md`
 5. [ ] Test end-to-end pipeline
