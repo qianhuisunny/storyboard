@@ -1994,6 +1994,235 @@ async def run_research(project_id: str, request: ResearchRequest):
         raise HTTPException(status_code=500, detail=f"Error running research: {str(e)}")
 
 
+# ============================================================
+# OBSERVABILITY ENDPOINTS (Harness Engineering Inspired)
+# ============================================================
+
+from app.services.observability import get_observability_service
+
+
+class EditEventRequest(BaseModel):
+    """Request body for logging an edit event."""
+    stage: str  # brief, outline, draft
+    edit_type: str  # field_edit, screen_add, screen_delete, regenerate, approve
+    field_name: str
+    screen_number: Optional[int] = None
+    before_value: Optional[str] = None
+    after_value: Optional[str] = None
+    stage_round: int = 1
+    time_since_generation_sec: Optional[float] = None
+
+
+class SnapshotRequest(BaseModel):
+    """Request body for creating a snapshot."""
+    stage: str
+    trigger: str  # ai_generation, human_save, stage_approval
+    content: dict
+
+
+@app.post("/api/project/{project_id}/edit-event")
+async def log_edit_event(project_id: str, request: EditEventRequest):
+    """
+    Log a granular edit event for observability.
+
+    Used by frontend to track every field-level change.
+    """
+    try:
+        obs_service = get_observability_service()
+
+        if request.edit_type == "field_edit":
+            event = obs_service.log_field_edit(
+                project_id=project_id,
+                stage=request.stage,
+                field_name=request.field_name,
+                before_value=request.before_value,
+                after_value=request.after_value,
+                screen_number=request.screen_number,
+                stage_round=request.stage_round,
+                time_since_generation_sec=request.time_since_generation_sec,
+            )
+        elif request.edit_type == "screen_delete":
+            event = obs_service.log_screen_delete(
+                project_id=project_id,
+                stage=request.stage,
+                screen_number=request.screen_number or 0,
+                screen_content={"deleted": True},
+            )
+        elif request.edit_type == "screen_add":
+            event = obs_service.log_screen_add(
+                project_id=project_id,
+                stage=request.stage,
+                screen_number=request.screen_number or 0,
+                screen_content={"added": True},
+            )
+        elif request.edit_type == "regenerate":
+            event = obs_service.log_regenerate(
+                project_id=project_id,
+                stage=request.stage,
+                feedback=request.after_value,
+            )
+        elif request.edit_type == "approve":
+            event = obs_service.log_approval(
+                project_id=project_id,
+                stage=request.stage,
+            )
+        else:
+            raise HTTPException(status_code=400, detail=f"Unknown edit_type: {request.edit_type}")
+
+        return {
+            "success": True,
+            "event_id": event.event_id,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error logging edit event: {str(e)}")
+
+
+@app.post("/api/project/{project_id}/snapshot")
+async def create_snapshot(project_id: str, request: SnapshotRequest):
+    """
+    Create a snapshot of stage content.
+
+    Called on AI generation and stage approval to enable diffing.
+    """
+    try:
+        obs_service = get_observability_service()
+
+        snapshot = obs_service.create_snapshot(
+            project_id=project_id,
+            stage=request.stage,
+            trigger=request.trigger,
+            content=request.content,
+        )
+
+        return {
+            "success": True,
+            "snapshot_id": snapshot.snapshot_id,
+            "version": snapshot.version,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error creating snapshot: {str(e)}")
+
+
+@app.get("/api/project/{project_id}/edit-history")
+async def get_edit_history(project_id: str, stage: Optional[str] = None):
+    """
+    Get all edit events for a project.
+
+    Query params:
+    - stage: Filter by stage (brief, outline, draft)
+    """
+    try:
+        obs_service = get_observability_service()
+        events = obs_service.get_edit_events(project_id, stage=stage)
+
+        return {
+            "success": True,
+            "events": events,
+            "count": len(events),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting edit history: {str(e)}")
+
+
+@app.get("/api/project/{project_id}/diff/{stage}")
+async def get_stage_diff(project_id: str, stage: str):
+    """
+    Get diff between AI-generated and human-edited version.
+
+    Returns first (AI) snapshot, last (human) snapshot, and all edit events.
+    """
+    try:
+        obs_service = get_observability_service()
+        diff = obs_service.get_stage_diff(project_id, stage)
+
+        if not diff:
+            return {
+                "success": True,
+                "diff": None,
+                "message": "Not enough snapshots for diff (need at least 2)",
+            }
+
+        return {
+            "success": True,
+            "diff": diff,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting diff: {str(e)}")
+
+
+@app.get("/api/project/{project_id}/snapshots")
+async def get_snapshots(project_id: str, stage: Optional[str] = None):
+    """Get all snapshots for a project."""
+    try:
+        obs_service = get_observability_service()
+        snapshots = obs_service.get_snapshots(project_id, stage=stage)
+
+        return {
+            "success": True,
+            "snapshots": snapshots,
+            "count": len(snapshots),
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting snapshots: {str(e)}")
+
+
+@app.get("/api/analytics/field-patterns")
+async def get_field_patterns(
+    range: str = "7d",
+    user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    """
+    Get aggregated field edit patterns across all projects.
+
+    For populating the "Field Edit Patterns" dashboard card.
+    """
+    try:
+        obs_service = get_observability_service()
+        analytics = obs_service.compute_cross_project_analytics(time_range=range)
+
+        return {
+            "success": True,
+            "time_range": range,
+            "total_projects": analytics.total_projects,
+            "stage_edit_rates": analytics.stage_edit_rates,
+            "field_edit_frequency": analytics.field_edit_frequency,
+            "semantic_patterns": analytics.semantic_patterns,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting field patterns: {str(e)}")
+
+
+@app.get("/api/analytics/prompt-signals")
+async def get_prompt_signals(
+    range: str = "7d",
+    user_id: Optional[str] = Header(None, alias="X-User-Id"),
+):
+    """
+    Get prompt improvement recommendations based on edit patterns.
+
+    Returns actionable signals for improving agent prompts.
+    """
+    try:
+        obs_service = get_observability_service()
+        analytics = obs_service.compute_cross_project_analytics(time_range=range)
+
+        return {
+            "success": True,
+            "time_range": range,
+            "signals": [s.to_dict() for s in analytics.prompt_improvement_signals],
+            "revision_metrics": analytics.revision_metrics,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error getting prompt signals: {str(e)}")
+
+
 @app.post("/api/project/{project_id}/brief/generate")
 async def generate_brief(project_id: str, request: BriefGenerateRequest):
     """
