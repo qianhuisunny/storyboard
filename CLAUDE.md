@@ -10,6 +10,9 @@
 **Plotline** — AI-powered storyboard creation platform.
 Users upload briefs/docs → multi-agent pipeline generates structured storyboards → users refine via chat.
 
+## Pre-load
+Please check progress.md for progress before start new session
+Please always load lessons.md for previous errors
 ---
 
 ## Architecture at a Glance
@@ -24,7 +27,6 @@ User → Frontend (React/Vite :3000)
          ├── BriefBuilder  
          ├── StoryboardDirector
          ├── StoryboardWriter
-         ├── DurationCalculator
          └── ImageResearcher
          ↓
        data/project_{id}/  (persisted JSON → migrating to Postgres)
@@ -49,7 +51,6 @@ User → Frontend (React/Vite :3000)
 
 ### ⛔ Never Do
 - **Never commit `.env` files** — they contain API keys (OpenAI, Gemini, Google CSE)
-- **Never modify `prompts/` without explicit approval** — these are carefully tuned; changes cascade through the entire pipeline
 - **Never delete `data/example/`** — it's the reference fixture for testing
 - **Never change the port proxy without updating both sides** — frontend proxies `/api` → backend; mismatches break everything
 - **Never install packages globally** — use `venv/` for Python, `npm` for frontend
@@ -59,6 +60,7 @@ User → Frontend (React/Vite :3000)
 - **State machine transitions** — `state.py` controls flow. Changing states requires updating both backend transitions AND frontend `StageNavigation.tsx`
 - **Timeout handling** — AI generation can take 2+ minutes. Don't reduce timeouts without testing
 - **Data schema changes** — any change to project/story JSON schema must be backwards-compatible with existing projects in `data/`
+- **Prompt changes** — any change to any files under `/prompts` directory should be using a different versioning, for example, `storyboard_direcotr_prompt_V0303` indicating today's date.
 
 ### ✅ Always Do
 - **Run the backend with venv activated**: `cd backend && source venv/bin/activate`

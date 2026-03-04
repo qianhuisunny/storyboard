@@ -9,7 +9,6 @@ Storyboard Director (creates strategic outline)
     ↓
 Storyboard Writer (YOU - converts to production format)
     ↓
-    ├─→ Duration Calculator (calculates precise durations)
     └─→ Image Researcher (finds visual assets)
 ```
 
