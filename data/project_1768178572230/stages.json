@@ -42,7 +42,7 @@
       "contextPack": {}
     }
   },
-  "currentStageId": 1,
+  "currentStageId": 3,
   "stageStatuses": [
     {
       "id": 1,
@@ -61,5 +61,5 @@
       "status": "approved"
     }
   ],
-  "lastSaved": "2026-02-15T10:46:23.994544"
+  "lastSaved": "2026-03-01T18:39:21.638627"
 }

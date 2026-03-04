@@ -10,6 +10,9 @@
 **Plotline** — AI-powered storyboard creation platform.
 Users upload briefs/docs → multi-agent pipeline generates structured storyboards → users refine via chat.
 
+## Pre-load
+Please check PROGRESS.md for progress before starting a new session.
+
 ---
 
 ## Architecture at a Glance
@@ -24,7 +27,6 @@ User → Frontend (React/Vite :3000)
          ├── BriefBuilder  
          ├── StoryboardDirector
          ├── StoryboardWriter
-         ├── DurationCalculator
          └── ImageResearcher
          ↓
        data/project_{id}/  (persisted JSON → migrating to Postgres)
@@ -49,7 +51,6 @@ User → Frontend (React/Vite :3000)
 
 ### ⛔ Never Do
 - **Never commit `.env` files** — they contain API keys (OpenAI, Gemini, Google CSE)
-- **Never modify `prompts/` without explicit approval** — these are carefully tuned; changes cascade through the entire pipeline
 - **Never delete `data/example/`** — it's the reference fixture for testing
 - **Never change the port proxy without updating both sides** — frontend proxies `/api` → backend; mismatches break everything
 - **Never install packages globally** — use `venv/` for Python, `npm` for frontend
@@ -59,12 +60,17 @@ User → Frontend (React/Vite :3000)
 - **State machine transitions** — `state.py` controls flow. Changing states requires updating both backend transitions AND frontend `StageNavigation.tsx`
 - **Timeout handling** — AI generation can take 2+ minutes. Don't reduce timeouts without testing
 - **Data schema changes** — any change to project/story JSON schema must be backwards-compatible with existing projects in `data/`
+- **Prompt changes** — any change to any files under `/prompts` directory should be using a different versioning, for example, `storyboard_direcotr_prompt_V0303` indicating today's date.
 
 ### ✅ Always Do
 - **Run the backend with venv activated**: `cd backend && source venv/bin/activate`
 - **Check `llm_config.json`** before changing model behavior — configuration lives there, not in code
 - **Match prompt files to agent files** — every `backend/app/services/agents/*.py` has a corresponding `prompts/*.md`
 - **Test with `data/example/`** before testing with live generation
+
+### 📝 When Rewriting Code or Prompts
+- **Delete old before adding new** — When rewriting a file, first identify and remove ALL outdated content. Don't add new content on top of old content. Read the full file, identify what's obsolete, delete it, then write the new version.
+- **Trace the data flow first** — Before writing, map out: What does this component receive? → What does it produce? → Who consumes it? → What do they do with it?
 
 ---
 
@@ -247,22 +253,13 @@ fly deploy --config fly.frontend.toml
 
 ---
 
-## Lessons Management
+## Lessons Learned
 
-The `lessons.markdown` file captures learnings from our collaboration. Follow these rules:
+### 2026-03-03: Clean up dead code immediately
 
-### 1. Update on Request
-When the user asks to update `lessons.markdown`, do so immediately.
+**Context:** When modifying `brief_builder.py` to make Rounds 1-2 return fields without LLM calls, I left `_call_llm_for_round1` and `_call_llm_for_round2` methods in the file even though they were no longer used.
 
-### 2. Summarize Before Commits
-Before each commit or at the end of a working session, summarize the current conversation into `lessons.markdown`:
-- What approaches/solutions were presented
-- What the user corrected or redirected
-- Key decisions made and their rationale
-- Patterns to follow or avoid in the future
-
-### 3. Reference in Planning & Execution
-When planning or executing tasks:
-- Read `lessons.markdown` first to understand past learnings
-- Apply relevant lessons to avoid repeating mistakes
-- Check if similar issues have been solved before
+**Lesson:**
+- When removing a code path, immediately identify and remove all code that was only serving that path
+- Don't leave orphaned methods/functions - they create confusion about what's actually used
+- Proactively identify and flag dead/legacy code when reading a file, don't wait for the user to notice

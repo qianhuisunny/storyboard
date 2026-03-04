@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plotline Observability Architecture</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      padding: 40px;
+      color: #e0e0e0;
+    }
+
+    h1 {
+      text-align: center;
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 40px;
+      color: #fff;
+    }
+
+    h1 span {
+      color: #a78bfa;
+    }
+
+    .architecture {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* Section styling */
+    .section {
+      margin-bottom: 60px;
+    }
+
+    .section-title {
+      font-size: 14px;
+      color: #9ca3af;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    /* Flow container */
+    .flow-container {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      overflow-x: auto;
+      padding-bottom: 20px;
+    }
+
+    /* Phase cards */
+    .phase-card {
+      background: #2d2d3a;
+      border-radius: 12px;
+      padding: 20px;
+      min-width: 320px;
+      flex-shrink: 0;
+    }
+
+    .phase-badge {
+      display: inline-block;
+      background: #7c3aed;
+      color: white;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 4px;
+      margin-right: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .phase-path {
+      display: inline;
+      font-size: 12px;
+      color: #6b7280;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .phase-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 12px 0 6px 0;
+      color: #fff;
+    }
+
+    .phase-handler {
+      font-size: 12px;
+      color: #9ca3af;
+      font-family: 'SF Mono', Monaco, monospace;
+      margin-bottom: 16px;
+    }
+
+    /* Component boxes */
+    .component {
+      background: #1f1f2a;
+      border-radius: 8px;
+      padding: 14px;
+      margin-bottom: 10px;
+      border: 1px solid #3d3d4a;
+    }
+
+    .component:last-child {
+      margin-bottom: 0;
+    }
+
+    .component-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .component-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .component-line {
+      font-size: 11px;
+      color: #6b7280;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    .component-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 6px;
+      font-size: 12px;
+    }
+
+    .component-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .component-label {
+      color: #9ca3af;
+      width: 50px;
+      flex-shrink: 0;
+    }
+
+    .component-value {
+      background: #7c3aed;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: 'SF Mono', Monaco, monospace;
+      font-size: 11px;
+    }
+
+    .component-value.gray {
+      background: #4b5563;
+    }
+
+    .component-value.amber {
+      background: #d97706;
+    }
+
+    /* Gate styling */
+    .gate {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      padding: 0 10px;
+    }
+
+    .gate-icon {
+      width: 56px;
+      height: 56px;
+      border: 2px dashed #d97706;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(217, 119, 6, 0.1);
+    }
+
+    .gate-icon svg {
+      width: 24px;
+      height: 24px;
+      color: #d97706;
+    }
+
+    .gate-label {
+      margin-top: 8px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #d97706;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .gate-sublabel {
+      font-size: 10px;
+      color: #9ca3af;
+    }
+
+    /* Arrow */
+    .arrow {
+      color: #6b7280;
+      font-size: 20px;
+      flex-shrink: 0;
+      padding: 0 5px;
+    }
+
+    /* Storage section */
+    .storage-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+
+    .storage-card {
+      background: #2d2d3a;
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .storage-icon {
+      width: 40px;
+      height: 40px;
+      background: #7c3aed;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+
+    .storage-icon svg {
+      width: 20px;
+      height: 20px;
+      color: white;
+    }
+
+    .storage-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .storage-path {
+      font-size: 11px;
+      color: #9ca3af;
+      font-family: 'SF Mono', Monaco, monospace;
+      margin-bottom: 12px;
+    }
+
+    .storage-desc {
+      font-size: 12px;
+      color: #9ca3af;
+      line-height: 1.5;
+    }
+
+    /* Analytics section */
+    .analytics-flow {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .analytics-box {
+      background: #2d2d3a;
+      border-radius: 12px;
+      padding: 20px;
+      flex: 1;
+    }
+
+    .analytics-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 12px;
+    }
+
+    .metric-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .metric-label {
+      font-size: 12px;
+      color: #9ca3af;
+      flex: 1;
+    }
+
+    .metric-bar {
+      width: 120px;
+      height: 8px;
+      background: #1f1f2a;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-right: 10px;
+    }
+
+    .metric-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #7c3aed, #a78bfa);
+      border-radius: 4px;
+    }
+
+    .metric-value {
+      font-size: 12px;
+      color: #a78bfa;
+      font-weight: 600;
+      width: 40px;
+      text-align: right;
+    }
+
+    /* Signal card */
+    .signal-card {
+      background: #1f1f2a;
+      border-radius: 8px;
+      padding: 14px;
+      border-left: 3px solid #d97706;
+    }
+
+    .signal-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .signal-icon {
+      color: #d97706;
+    }
+
+    .signal-agent {
+      font-size: 12px;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    .signal-issue {
+      font-size: 12px;
+      color: #f59e0b;
+      margin-bottom: 6px;
+    }
+
+    .signal-evidence {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-bottom: 6px;
+    }
+
+    .signal-rec {
+      font-size: 11px;
+      color: #a78bfa;
+      font-style: italic;
+    }
+
+    /* Data flow section */
+    .data-flow {
+      display: flex;
+      align-items: stretch;
+      gap: 20px;
+    }
+
+    .flow-stage {
+      flex: 1;
+      background: #2d2d3a;
+      border-radius: 12px;
+      padding: 20px;
+      position: relative;
+    }
+
+    .flow-stage::after {
+      content: '→';
+      position: absolute;
+      right: -18px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6b7280;
+      font-size: 20px;
+    }
+
+    .flow-stage:last-child::after {
+      display: none;
+    }
+
+    .stage-number {
+      width: 28px;
+      height: 28px;
+      background: #7c3aed;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 600;
+      color: white;
+      margin-bottom: 10px;
+    }
+
+    .stage-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .stage-desc {
+      font-size: 12px;
+      color: #9ca3af;
+    }
+
+    .event-list {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid #3d3d4a;
+    }
+
+    .event-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      font-size: 11px;
+    }
+
+    .event-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #a78bfa;
+    }
+
+    .event-dot.amber {
+      background: #d97706;
+    }
+
+    .event-text {
+      color: #9ca3af;
+      font-family: 'SF Mono', Monaco, monospace;
+    }
+
+    /* Feedback loop */
+    .feedback-loop {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      background: #2d2d3a;
+      border-radius: 12px;
+      padding: 30px;
+    }
+
+    .loop-step {
+      flex: 1;
+      text-align: center;
+    }
+
+    .loop-icon {
+      width: 60px;
+      height: 60px;
+      background: #1f1f2a;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 12px;
+      border: 2px solid #3d3d4a;
+    }
+
+    .loop-icon svg {
+      width: 28px;
+      height: 28px;
+      color: #a78bfa;
+    }
+
+    .loop-icon.amber svg {
+      color: #d97706;
+    }
+
+    .loop-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 4px;
+    }
+
+    .loop-desc {
+      font-size: 11px;
+      color: #9ca3af;
+    }
+
+    .loop-arrow {
+      color: #6b7280;
+      font-size: 24px;
+    }
+
+    /* Responsive */
+    @media (max-width: 1024px) {
+      .storage-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .analytics-flow {
+        flex-direction: column;
+      }
+
+      .data-flow {
+        flex-direction: column;
+      }
+
+      .flow-stage::after {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1>Plotline <span>Observability</span> Architecture</h1>
+
+  <div class="architecture">
+
+    <!-- Section 1: Edit Capture Flow -->
+    <div class="section">
+      <div class="section-title">1. Edit Capture Flow</div>
+      <div class="flow-container">
+
+        <!-- Stage 1: User Edit -->
+        <div class="phase-card">
+          <span class="phase-badge">Capture</span>
+          <span class="phase-path">Frontend</span>
+          <div class="phase-title">User Edits Content</div>
+          <div class="phase-handler">useEditTracking(projectId, stage)</div>
+
+          <div class="component">
+            <div class="component-header">
+              <span class="component-name">trackFieldEdit()</span>
+              <span class="component-line">debounce 500ms</span>
+            </div>
+            <div class="component-row">
+              <span class="component-label">Field</span>
+              <span class="component-value">voiceover_text</span>
+            </div>
+            <div class="component-row">
+              <span class="component-label">Before</span>
+              <span class="component-value gray">AI generated...</span>
+            </div>
+            <div class="component-row">
+              <span class="component-label">After</span>
+              <span class="component-value amber">Human edited...</span>
+            </div>
+          </div>
+        </div>
+
+        <span class="arrow">→</span>
+
+        <!-- Gate: API -->
+        <div class="gate">
+          <div class="gate-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div class="gate-label">API</div>
+          <div class="gate-sublabel">POST /edit-event</div>
+        </div>
+
+        <span class="arrow">→</span>
+
+        <!-- Stage 2: Process -->
+        <div class="phase-card">
+          <span class="phase-badge">Process</span>
+          <span class="phase-path">Backend</span>
+          <div class="phase-title">Compute Diff Metrics</div>
+          <div class="phase-handler">ObservabilityService.log_field_edit()</div>
+
+          <div class="component">
+            <div class="component-header">
+              <span class="component-name">DiffMetrics.compute()</span>
+              <span class="component-line">auto</span>
+            </div>
+            <div class="component-row">
+              <span class="component-label">Ratio</span>
+              <span class="component-value">word_diff: 0.85</span>
+            </div>
+            <div class="component-row">
+              <span class="component-label">Category</span>
+              <span class="component-value amber">tone_change</span>
+            </div>
+          </div>
+        </div>
+
+        <span class="arrow">→</span>
+
+        <!-- Gate: Store -->
+        <div class="gate">
+          <div class="gate-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/>
+            </svg>
+          </div>
+          <div class="gate-label">Store</div>
+          <div class="gate-sublabel">Append JSONL</div>
+        </div>
+
+        <span class="arrow">→</span>
+
+        <!-- Stage 3: Storage -->
+        <div class="phase-card">
+          <span class="phase-badge">Persist</span>
+          <span class="phase-path">File System</span>
+          <div class="phase-title">Observability Data</div>
+          <div class="phase-handler">data/project_{id}/observability/</div>
+
+          <div class="component">
+            <div class="component-header">
+              <span class="component-name">edits.jsonl</span>
+              <span class="component-line">append-only</span>
+            </div>
+            <div class="component-row">
+              <span class="component-label">Events</span>
+              <span class="component-value gray">35 recorded</span>
+            </div>
+          </div>
+
+          <div class="component">
+            <div class="component-header">
+              <span class="component-name">snapshots/</span>
+              <span class="component-line">versioned</span>
+            </div>
+            <div class="component-row">
+              <span class="component-label">v1</span>
+              <span class="component-value">ai_generation</span>
+            </div>
+            <div class="component-row">
+              <span class="component-label">v2</span>
+              <span class="component-value amber">stage_approval</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 2: Storage Structure -->
+    <div class="section">
+      <div class="section-title">2. Storage Structure</div>
+      <div class="storage-grid">
+
+        <div class="storage-card">
+          <div class="storage-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+          </div>
+          <div class="storage-title">Edit Events</div>
+          <div class="storage-path">events/edits.jsonl</div>
+          <div class="storage-desc">
+            Append-only log of every user edit. One JSON object per line. Includes field name, before/after values, diff metrics, and semantic category.
+          </div>
+        </div>
+
+        <div class="storage-card">
+          <div class="storage-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/>
+            </svg>
+          </div>
+          <div class="storage-title">Snapshots</div>
+          <div class="storage-path">snapshots/{stage}_v{n}.json</div>
+          <div class="storage-desc">
+            Full stage content at key moments: AI generation and human approval. Enables side-by-side diff visualization.
+          </div>
+        </div>
+
+        <div class="storage-card">
+          <div class="storage-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </div>
+          <div class="storage-title">Summary</div>
+          <div class="storage-path">summary.json</div>
+          <div class="storage-desc">
+            Computed edit patterns per project: fields edited, edit rates, semantic patterns detected. Updated on demand.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 3: Analytics Pipeline -->
+    <div class="section">
+      <div class="section-title">3. Analytics Aggregation</div>
+      <div class="analytics-flow">
+
+        <div class="analytics-box">
+          <div class="analytics-title">Cross-Project Scan</div>
+          <div class="event-list" style="border: none; padding: 0; margin: 0;">
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">project_1709312400/observability/</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">project_1709312401/observability/</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">project_1709312402/observability/</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot" style="background: #6b7280;"></span>
+              <span class="event-text" style="color: #6b7280;">... 47 more projects</span>
+            </div>
+          </div>
+        </div>
+
+        <span class="arrow">→</span>
+
+        <div class="analytics-box">
+          <div class="analytics-title">Field Edit Frequency</div>
+          <div class="metric-row">
+            <span class="metric-label">outline: voiceover_text</span>
+            <div class="metric-bar"><div class="metric-fill" style="width: 68%;"></div></div>
+            <span class="metric-value">68%</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">outline: visual_direction</span>
+            <div class="metric-bar"><div class="metric-fill" style="width: 52%;"></div></div>
+            <span class="metric-value">52%</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">brief: tone_and_style</span>
+            <div class="metric-bar"><div class="metric-fill" style="width: 41%;"></div></div>
+            <span class="metric-value">41%</span>
+          </div>
+          <div class="metric-row">
+            <span class="metric-label">draft: text_overlay</span>
+            <div class="metric-bar"><div class="metric-fill" style="width: 38%;"></div></div>
+            <span class="metric-value">38%</span>
+          </div>
+        </div>
+
+        <span class="arrow">→</span>
+
+        <div class="analytics-box">
+          <div class="analytics-title">Prompt Improvement Signals</div>
+          <div class="signal-card">
+            <div class="signal-header">
+              <span class="signal-icon">⚠</span>
+              <span class="signal-agent">StoryboardWriter</span>
+            </div>
+            <div class="signal-issue">Voiceover tone mismatch</div>
+            <div class="signal-evidence">Evidence: 68% of edits are tone changes</div>
+            <div class="signal-rec">"Pass tone_and_style from brief to writer prompt"</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 4: Data Flow by Stage -->
+    <div class="section">
+      <div class="section-title">4. Edit Events by Stage</div>
+      <div class="data-flow">
+
+        <div class="flow-stage">
+          <div class="stage-number">1</div>
+          <div class="stage-name">Brief Stage</div>
+          <div class="stage-desc">Story brief fields</div>
+          <div class="event-list">
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">field_edit: tone_and_style</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">field_edit: target_audience</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot amber"></span>
+              <span class="event-text">approve: full_stage</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-stage">
+          <div class="stage-number">2</div>
+          <div class="stage-name">Outline Stage</div>
+          <div class="stage-desc">Screen structure & flow</div>
+          <div class="event-list">
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">field_edit: voiceover_text [3]</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">field_edit: visual_direction [1]</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot" style="background: #ef4444;"></span>
+              <span class="event-text">screen_delete: [5]</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot amber"></span>
+              <span class="event-text">approve: full_stage</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="flow-stage">
+          <div class="stage-number">3</div>
+          <div class="stage-name">Draft Stage</div>
+          <div class="stage-desc">Final production content</div>
+          <div class="event-list">
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">field_edit: text_overlay [2]</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot"></span>
+              <span class="event-text">field_edit: action_notes [4]</span>
+            </div>
+            <div class="event-item">
+              <span class="event-dot amber"></span>
+              <span class="event-text">approve: full_stage</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 5: Feedback Loop -->
+    <div class="section">
+      <div class="section-title">5. Feedback Loop to Prompts</div>
+      <div class="feedback-loop">
+
+        <div class="loop-step">
+          <div class="loop-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/>
+            </svg>
+          </div>
+          <div class="loop-title">User Edits</div>
+          <div class="loop-desc">"formal → casual"</div>
+        </div>
+
+        <span class="loop-arrow">→</span>
+
+        <div class="loop-step">
+          <div class="loop-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+            </svg>
+          </div>
+          <div class="loop-title">Pattern Detection</div>
+          <div class="loop-desc">68% tone_change</div>
+        </div>
+
+        <span class="loop-arrow">→</span>
+
+        <div class="loop-step">
+          <div class="loop-icon amber">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+          </div>
+          <div class="loop-title">Signal Generated</div>
+          <div class="loop-desc">Writer needs tone guidance</div>
+        </div>
+
+        <span class="loop-arrow">→</span>
+
+        <div class="loop-step">
+          <div class="loop-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"/>
+            </svg>
+          </div>
+          <div class="loop-title">Prompt Update</div>
+          <div class="loop-desc">Add tone_style to prompt</div>
+        </div>
+
+        <span class="loop-arrow">→</span>
+
+        <div class="loop-step">
+          <div class="loop-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+            </svg>
+          </div>
+          <div class="loop-title">Better AI Output</div>
+          <div class="loop-desc">Fewer user edits needed</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+</body>
+</html>

@@ -286,6 +286,39 @@ export default function FieldCard({
       );
     }
 
+    // Number input
+    if (fieldType === "number") {
+      return (
+        <div className="flex items-center gap-2">
+          <input
+            type="number"
+            min="1"
+            step="1"
+            value={String(field.value) || ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              if (val === "") {
+                handleValueChange("");
+              } else {
+                const parsed = parseInt(val, 10);
+                if (!isNaN(parsed) && parsed > 0) {
+                  handleValueChange(String(parsed));
+                }
+              }
+            }}
+            disabled={disabled || field.confirmed}
+            className={cn(
+              "w-32 px-3 py-2 text-sm border rounded-md",
+              "focus:outline-none focus:ring-2 focus:ring-primary/20",
+              disabled || field.confirmed ? "bg-muted cursor-not-allowed" : "bg-background"
+            )}
+            placeholder="e.g., 60"
+          />
+          <span className="text-sm text-muted-foreground">seconds</span>
+        </div>
+      );
+    }
+
     // Default: text input
     return (
       <input
