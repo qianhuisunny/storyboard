@@ -14,6 +14,9 @@ import { AngleSummaryCard } from "./AngleSummaryCard";
 import { AlertCircle, CheckCircle2, Search, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+// Export ResearchChat for use in StageContent
+export { ResearchChat } from "./ResearchChat";
+
 export function ResearchPanel({
   status,
   findings,

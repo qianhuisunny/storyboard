@@ -11,8 +11,8 @@
 Users upload briefs/docs → multi-agent pipeline generates structured storyboards → users refine via chat.
 
 ## Pre-load
-Please check progress.md for progress before start new session
-Please always load lessons.md for previous errors
+Please check PROGRESS.md for progress before starting a new session.
+
 ---
 
 ## Architecture at a Glance
@@ -67,6 +67,10 @@ User → Frontend (React/Vite :3000)
 - **Check `llm_config.json`** before changing model behavior — configuration lives there, not in code
 - **Match prompt files to agent files** — every `backend/app/services/agents/*.py` has a corresponding `prompts/*.md`
 - **Test with `data/example/`** before testing with live generation
+
+### 📝 When Rewriting Code or Prompts
+- **Delete old before adding new** — When rewriting a file, first identify and remove ALL outdated content. Don't add new content on top of old content. Read the full file, identify what's obsolete, delete it, then write the new version.
+- **Trace the data flow first** — Before writing, map out: What does this component receive? → What does it produce? → Who consumes it? → What do they do with it?
 
 ---
 
@@ -249,22 +253,13 @@ fly deploy --config fly.frontend.toml
 
 ---
 
-## Lessons Management
+## Lessons Learned
 
-The `lessons.markdown` file captures learnings from our collaboration. Follow these rules:
+### 2026-03-03: Clean up dead code immediately
 
-### 1. Update on Request
-When the user asks to update `lessons.markdown`, do so immediately.
+**Context:** When modifying `brief_builder.py` to make Rounds 1-2 return fields without LLM calls, I left `_call_llm_for_round1` and `_call_llm_for_round2` methods in the file even though they were no longer used.
 
-### 2. Summarize Before Commits
-Before each commit or at the end of a working session, summarize the current conversation into `lessons.markdown`:
-- What approaches/solutions were presented
-- What the user corrected or redirected
-- Key decisions made and their rationale
-- Patterns to follow or avoid in the future
-
-### 3. Reference in Planning & Execution
-When planning or executing tasks:
-- Read `lessons.markdown` first to understand past learnings
-- Apply relevant lessons to avoid repeating mistakes
-- Check if similar issues have been solved before
+**Lesson:**
+- When removing a code path, immediately identify and remove all code that was only serving that path
+- Don't leave orphaned methods/functions - they create confusion about what's actually used
+- Proactively identify and flag dead/legacy code when reading a file, don't wait for the user to notice

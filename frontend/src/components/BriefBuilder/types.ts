@@ -123,7 +123,7 @@ export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   target_audience: "Who is this video for?",
   audience_level: "How familiar is your audience with this topic?",
   platform: "Where will this video be published?",
-  duration: "How long should this video be?",
+  duration: "How long should this video be? (seconds)",
   one_big_thing: "If viewers remember only one thing after watching this video, what should it be?",
   viewer_next_action: "What is the next thing you want people to do after watching this video?",
   // Section 2: Delivery & Format
@@ -133,10 +133,10 @@ export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   freshness_expectation: "How time-sensitive is this video?",
   // Section 3: Content Spine
   must_avoid: "Anything we should absolutely avoid?",
-  source_assets: "Sources / assets provided",
   core_talking_points: "Proposed framework/method",
   misconceptions: "Common misconceptions to address",
   practical_takeaway: "Practical takeaway",
+  additional_notes: "Anything to highlight that's not included in this form?",
 };
 
 /**
@@ -148,7 +148,7 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   target_audience: "text",
   audience_level: "select",
   platform: "select",
-  duration: "select",
+  duration: "number",
   one_big_thing: "textarea",
   viewer_next_action: "textarea",
   on_camera_presence: "select",
@@ -156,10 +156,10 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   delivery_tone: "select",
   freshness_expectation: "select",
   must_avoid: "list",
-  source_assets: "readonly-list",
   core_talking_points: "editable-list",
   misconceptions: "checklist",
-  practical_takeaway: "select-editable",
+  practical_takeaway: "textarea",
+  additional_notes: "textarea",
 };
 
 /**
@@ -175,12 +175,6 @@ export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: str
   platform: [
     { value: "youtube", label: "YouTube" },
     { value: "internal_lms", label: "Internal LMS" },
-  ],
-  duration: [
-    { value: "60-90s", label: "60–90 seconds" },
-    { value: "2-5min", label: "2–5 minutes" },
-    { value: "5-10min", label: "5–10 minutes" },
-    { value: "10+min", label: "10+ minutes" },
   ],
   on_camera_presence: [
     { value: "no", label: "No" },
@@ -206,12 +200,6 @@ export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: str
     { value: "evergreen", label: "Evergreen (should stay useful for a long time)" },
     { value: "current_year", label: "Current-year (should reflect this year's context)" },
     { value: "recent", label: "Recent / fast-changing (needs the latest info)" },
-  ],
-  practical_takeaway: [
-    { value: "checklist", label: "Checklist" },
-    { value: "decision_tree", label: "Decision tree" },
-    { value: "scorecard", label: "Scorecard" },
-    { value: "3_step_action", label: "3-step action plan" },
   ],
 };
 
@@ -246,7 +234,7 @@ export function createInitialKnowledgeShareFields(): Record<string, BriefField> 
 
   // Section 3 fields
   const section3Fields = [
-    "must_avoid", "source_assets", "core_talking_points", "misconceptions", "practical_takeaway"
+    "must_avoid", "core_talking_points", "misconceptions", "practical_takeaway", "additional_notes"
   ];
 
   [...section1Fields, ...section2Fields, ...section3Fields].forEach(key => {

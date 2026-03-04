@@ -50,6 +50,12 @@ class StoryboardState(BaseModel):
     research_results: Optional[dict] = None  # Research results when complete
     research_complete: bool = False  # True when research has finished
 
+    # NEW: Perspective-first research flow state
+    pending_perspectives: Optional[list] = None  # Generated perspective options
+    selected_perspective: Optional[str] = None  # User's selected perspective
+    pending_talking_points: Optional[list] = None  # Generated talking points awaiting confirmation
+    research_details: Optional[dict] = None  # Detailed research for StoryboardWriter
+
     # Revision tracking
     revision_history: List[RevisionRecord] = Field(default_factory=list)
     revision_count_gate1: int = 0

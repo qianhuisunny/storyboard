@@ -74,14 +74,6 @@ const visibleTypes = storyboardTypes.filter(type => type.id === 3);
 
 type InputMode = "upload" | "link" | "text";
 
-type DurationOption = "60s" | "90s" | "2mins" | "5mins+";
-
-const DURATION_OPTIONS: { value: DurationOption; label: string }[] = [
-  { value: "60s", label: "60s" },
-  { value: "90s", label: "90s" },
-  { value: "2mins", label: "2 mins" },
-  { value: "5mins+", label: "5 mins+" },
-];
 
 const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -90,7 +82,7 @@ const OnboardingPage: React.FC = () => {
     visibleTypes[0]
   );
   const [userInput, setUserInput] = useState("");
-  const [selectedDuration, setSelectedDuration] = useState<DurationOption | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [audience, setAudience] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [sources, setSources] = useState<Source[]>([]);
@@ -292,21 +284,29 @@ const OnboardingPage: React.FC = () => {
   const handleGenerate = async () => {
     if (!isFormValid) return;
 
+    const startTime = performance.now();
+    console.log("[Onboarding] handleGenerate started");
+
     setIsGenerating(true);
     setIsUploadingFiles(true);
 
     try {
       // Generate unique project ID
       const projectId = generateProjectId();
+      console.log(`[Onboarding] projectId: ${projectId}`);
 
       // Create project folder structure
+      const t1 = performance.now();
       await createProjectFolder(projectId, selectedType.id, userInput);
+      console.log(`[Onboarding] createProjectFolder done in ${(performance.now() - t1).toFixed(0)}ms`);
 
       // Upload files and fetch links in parallel
+      const t2 = performance.now();
       const [fileContents, linkContents] = await Promise.all([
         uploadFilesToProject(projectId),
         fetchLinkContents(projectId),
       ]);
+      console.log(`[Onboarding] upload/fetch done in ${(performance.now() - t2).toFixed(0)}ms`);
 
       // Gather text sources
       const textContents = sources
@@ -322,16 +322,24 @@ const OnboardingPage: React.FC = () => {
       sessionStorage.setItem("projectId", projectId);
       sessionStorage.setItem("storyboardType", selectedType.id.toString());
       sessionStorage.setItem("storyboardPrompt", userInput);
-      sessionStorage.setItem("storyboardDuration", selectedDuration || "");
+      sessionStorage.setItem("storyboardDuration", selectedDuration ? String(selectedDuration) : "");
       sessionStorage.setItem("storyboardAudience", audience);
       if (allContext) {
         sessionStorage.setItem("storyboardContext", allContext);
       }
 
+      console.log(`[Onboarding] Navigating in ${(performance.now() - startTime).toFixed(0)}ms`);
       // Navigate to storyboard layout immediately to show loading state
       navigate(`/storyboard/${projectId}`);
 
-      // Start AI generation in background (don't await)
+      // Knowledge Share uses the 3-round briefing flow, not the legacy chat API
+      // Skip background AI generation for Knowledge Share (id: 3)
+      if (selectedType.id === 3) {
+        console.log("[Onboarding] Knowledge Share - skipping legacy chat API");
+        return;
+      }
+
+      // Start AI generation in background (don't await) - for legacy flow only
       const generateInBackground = async () => {
         try {
           // Format input for Langflow
@@ -410,11 +418,11 @@ const OnboardingPage: React.FC = () => {
     <div className="min-h-full bg-background">
       <div className="container mx-auto px-4 py-8 pb-16">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-left mb-12">
           <h1 className="text-4xl font-semibold text-foreground mb-4">
             Create Your Storyboard
           </h1>
-          <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+          <p className="text-lg text-muted-foreground max-w-2xl">
             Choose the type of video you want to create and describe your vision
           </p>
         </div>
@@ -483,27 +491,33 @@ const OnboardingPage: React.FC = () => {
               {/* Duration Selector */}
               <div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Video Duration <span className="text-red-500">*</span>
+                  Video Duration (seconds) <span className="text-red-500">*</span>
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
-                  Select your target video length
+                  Enter your target video length in seconds
                 </p>
-                <div className="flex flex-wrap gap-3">
-                  {DURATION_OPTIONS.map((option) => (
-                    <Button
-                      key={option.value}
-                      type="button"
-                      variant={selectedDuration === option.value ? "default" : "outline"}
-                      onClick={() => setSelectedDuration(option.value)}
-                      disabled={isGenerating}
-                      className={cn(
-                        "min-w-[80px]",
-                        selectedDuration === option.value && "ring-2 ring-primary/20"
-                      )}
-                    >
-                      {option.label}
-                    </Button>
-                  ))}
+                <div className="flex items-center gap-2">
+                  <Input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={selectedDuration ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === "") {
+                        setSelectedDuration(null);
+                      } else {
+                        const parsed = parseInt(val, 10);
+                        if (!isNaN(parsed) && parsed > 0) {
+                          setSelectedDuration(parsed);
+                        }
+                      }
+                    }}
+                    placeholder="e.g., 60, 90, 120..."
+                    disabled={isGenerating}
+                    className="w-40 text-base"
+                  />
+                  <span className="text-sm text-muted-foreground">seconds</span>
                 </div>
               </div>
 

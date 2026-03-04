@@ -35,117 +35,86 @@ The frontend will display colors based on these sources:
 
 ### Round 1: Section 1 — Core Intent (8 fields)
 
-Generate suggestions for these fields from the intake form:
+Return extracted fields immediately. All other fields are empty for user input.
 
 | Field | Source Rule | Description |
 |-------|-------------|-------------|
 | `video_type` | extracted, confirmed=true | Always "knowledge_share" |
-| `primary_goal` | inferred | AI prefill from user description |
-| `target_audience` | extracted | From initial form |
-| `audience_level` | inferred | AI guess based on topic complexity |
-| `platform` | inferred | AI guess from context |
-| `duration` | extracted | From initial form |
-| `one_big_thing` | inferred or empty | One key takeaway (optional to suggest) |
-| `viewer_next_action` | inferred | What viewers should do after watching |
+| `target_audience` | extracted | From initial form (blue) |
+| `duration` | extracted | From initial form (blue) |
+| `primary_goal` | empty | User fills in (red - needs input) |
+| `audience_level` | empty | User selects (red - needs input) |
+| `platform` | empty | User selects (red - needs input) |
+| `one_big_thing` | empty | User fills in (red - needs input) |
+| `viewer_next_action` | empty | User fills in (red - needs input) |
 
-**Generation Guidelines:**
+**No LLM call in Round 1** - fields are returned immediately to ensure fast response.
 
-1. **primary_goal**: Extract the main learning objective from user description. Be specific and actionable.
-   - Good: "Help viewers understand the three main exit options for startups in 2026"
-   - Bad: "Teach about startups"
+**Field Descriptions:**
 
-2. **audience_level**: Infer from topic complexity and user description:
-   - `beginner`: No prior knowledge assumed
-   - `intermediate`: Basic understanding expected
-   - `advanced`: Deep expertise assumed
-   - `mixed`: Multiple skill levels
-
-3. **platform**: Default to `youtube` unless context suggests internal training (`internal_lms`)
-
-4. **one_big_thing**: The single most important takeaway. Should be memorable and specific.
-   - Good: "Exit strategy is about optionality, not prediction"
-   - Bad: "Exits are important"
-
-5. **viewer_next_action**: Specific, concrete action the viewer can take.
-   - Good: "Use a simple checklist to assess your startup's exit readiness"
-   - Bad: "Think about exits"
+1. **primary_goal**: The main learning objective of this video.
+2. **audience_level**: How familiar is the audience? (beginner/intermediate/advanced/mixed)
+3. **platform**: Where will this be published? (youtube/internal_lms)
+4. **one_big_thing**: The single most important takeaway.
+5. **viewer_next_action**: What viewers should do after watching.
 
 ---
 
 ### Round 2: Section 2 — Delivery & Format (4 fields)
 
-Generate suggestions based on video type defaults and confirmed Round 1 fields:
+All Round 2 fields are empty for user input. No AI suggestions.
 
 | Field | Source Rule | Description |
 |-------|-------------|-------------|
-| `on_camera_presence` | inferred | AI default for Knowledge Share |
-| `broll_type` | inferred | AI default for topic type |
-| `delivery_tone` | inferred | AI suggestion based on audience |
-| `freshness_expectation` | inferred | Based on topic timeliness |
+| `on_camera_presence` | empty | User selects (red - needs input) |
+| `broll_type` | empty | User selects (red - needs input) |
+| `delivery_tone` | empty | User selects (red - needs input) |
+| `freshness_expectation` | empty | User selects (red - needs input) |
 
-**Generation Guidelines:**
+**No LLM call in Round 2** - fields are returned immediately to ensure fast response.
 
-1. **on_camera_presence**: For Knowledge Share, suggest based on topic:
-   - `yes_intro_outro`: Good for building trust (default for most topics)
-   - `yes_throughout`: For personal stories or opinion pieces
-   - `no`: For technical/data-heavy content
+**Field Options:**
 
-2. **broll_type**: Array of visual elements. For Knowledge Share, consider:
-   - `slides`: For framework/concept explanations
-   - `diagrams`: For process flows or relationships
-   - `screen_recording`: For software demos
-   - `whiteboard`: For dynamic explanations
-   - Default: `["slides", "diagrams"]`
-
-3. **delivery_tone**: Match to audience level and topic:
-   - `clear_practical`: For actionable how-to content
-   - `analytical_informative`: For data-driven topics
-   - `mentor_peer`: For professional development
-   - `executive_briefing`: For leadership audiences
-
-4. **freshness_expectation**: Check if topic mentions current year or time-sensitive elements:
-   - `current_year`: Topic mentions "2024", "2025", "this year", recent trends
-   - `evergreen`: Timeless principles
-   - `recent`: Fast-changing topics like tech news
+1. **on_camera_presence**: (no / yes_throughout / yes_intro_outro)
+2. **broll_type**: Array of (screen_recording / slides / diagrams / whiteboard / code_editor / stock_footage / real_world)
+3. **delivery_tone**: (clear_practical / analytical_informative / mentor_peer / executive_briefing)
+4. **freshness_expectation**: (evergreen / current_year / recent)
 
 ---
 
 ### Round 3: Section 3 — Content Spine (5 fields, after research)
 
-Generate suggestions using research results + all confirmed fields:
+4 fields are AI-suggested (inferred) based on research results. 1 field is optional user input.
 
 | Field | Source Rule | Description |
 |-------|-------------|-------------|
-| `source_assets` | extracted, confirmed=true | From user uploads |
-| `must_avoid` | inferred or empty | Optional things to avoid |
-| `core_talking_points` | inferred | Framework/outline from research |
-| `misconceptions` | inferred | Common mistakes to address |
-| `practical_takeaway` | inferred | Actionable output format |
+| `must_avoid` | inferred | AI suggests things to avoid (yellow) |
+| `core_talking_points` | inferred | Framework/outline from research (yellow) |
+| `misconceptions` | inferred | Common mistakes to address (yellow) |
+| `practical_takeaway` | inferred | Actionable output (open text, yellow) |
+| `additional_notes` | empty | Optional user input (red if empty, but not required) |
+
+**LLM generates 4 fields** using research results + confirmed fields from Rounds 1-2.
 
 **Generation Guidelines:**
 
-1. **core_talking_points**: Generate 3-5 main points that form the video structure.
+1. **must_avoid**: Suggest things to avoid (can be empty if none):
+   - Competitor mentions, legally sensitive claims, outdated info
+
+2. **core_talking_points**: Generate 3-5 main points that form the video structure.
    - Each point should be a complete thought
    - Points should build on each other logically
-   - Consider the audience level when setting complexity
-   - Example: ["Understanding exit types (IPO, M&A, secondary)", "Timing considerations and market windows", "Financial realities of startup exits"]
+   - Example: ["Understanding exit types (IPO, M&A, secondary)", "Timing considerations", "Financial realities"]
 
-2. **misconceptions**: Identify 2-3 common misconceptions about the topic.
+3. **misconceptions**: Identify 2-3 common misconceptions about the topic.
    - Focus on beliefs that could hurt the viewer
-   - Frame as what people wrongly believe
-   - Example: ["IPO is the only 'real' exit", "Higher valuation always means more founder payout"]
+   - Example: ["IPO is the only 'real' exit", "Higher valuation = more founder payout"]
 
-3. **practical_takeaway**: Suggest a format for the actionable takeaway:
-   - `Checklist: [specific action]`
-   - `Decision tree: [specific choice]`
-   - `Scorecard: [what to evaluate]`
-   - `3 steps to [specific outcome]`
+4. **practical_takeaway**: Generate a specific, actionable takeaway for viewers.
+   - Should be a concrete action or deliverable viewers can use
+   - Example: "Create a one-page exit readiness scorecard for your startup"
 
-4. **must_avoid**: Only suggest if there are genuine pitfalls:
-   - Competitor mentions
-   - Legally sensitive claims
-   - Outdated information
-   - Can be empty array if nothing specific to avoid
+5. **additional_notes**: Leave empty - this is for optional user input only.
 
 ---
 
@@ -177,39 +146,39 @@ For each round, return a JSON object with this structure:
       "source": "extracted",
       "confirmed": true
     },
-    "primary_goal": {
-      "value": "Help startup founders understand their exit options and make better planning decisions for 2026",
-      "source": "inferred",
-      "confirmed": false
-    },
     "target_audience": {
       "value": "Startup founders and entrepreneurs",
       "source": "extracted",
       "confirmed": false
     },
-    "audience_level": {
-      "value": "beginner",
-      "source": "inferred",
-      "confirmed": false
-    },
-    "platform": {
-      "value": "youtube",
-      "source": "inferred",
-      "confirmed": false
-    },
     "duration": {
-      "value": "5-10min",
+      "value": "300",
       "source": "extracted",
       "confirmed": false
     },
+    "primary_goal": {
+      "value": "",
+      "source": "empty",
+      "confirmed": false
+    },
+    "audience_level": {
+      "value": "",
+      "source": "empty",
+      "confirmed": false
+    },
+    "platform": {
+      "value": "",
+      "source": "empty",
+      "confirmed": false
+    },
     "one_big_thing": {
-      "value": "Exit strategy is about building optionality, not predicting the future",
-      "source": "inferred",
+      "value": "",
+      "source": "empty",
       "confirmed": false
     },
     "viewer_next_action": {
-      "value": "Use a simple checklist to assess your startup's exit readiness this quarter",
-      "source": "inferred",
+      "value": "",
+      "source": "empty",
       "confirmed": false
     }
   }
@@ -223,23 +192,23 @@ For each round, return a JSON object with this structure:
   "round": 2,
   "fields": {
     "on_camera_presence": {
-      "value": "yes_intro_outro",
-      "source": "inferred",
+      "value": "",
+      "source": "empty",
       "confirmed": false
     },
     "broll_type": {
-      "value": ["slides", "diagrams"],
-      "source": "inferred",
+      "value": [],
+      "source": "empty",
       "confirmed": false
     },
     "delivery_tone": {
-      "value": "analytical_informative",
-      "source": "inferred",
+      "value": "",
+      "source": "empty",
       "confirmed": false
     },
     "freshness_expectation": {
-      "value": "current_year",
-      "source": "inferred",
+      "value": "",
+      "source": "empty",
       "confirmed": false
     }
   }
@@ -252,14 +221,9 @@ For each round, return a JSON object with this structure:
 {
   "round": 3,
   "fields": {
-    "source_assets": {
-      "value": ["notes.pdf", "research-doc.docx"],
-      "source": "extracted",
-      "confirmed": true
-    },
     "must_avoid": {
-      "value": [],
-      "source": "empty",
+      "value": ["Specific company valuations", "Legal advice on deal terms"],
+      "source": "inferred",
       "confirmed": false
     },
     "core_talking_points": {
@@ -280,8 +244,13 @@ For each round, return a JSON object with this structure:
       "confirmed": false
     },
     "practical_takeaway": {
-      "value": "Checklist: evaluate your startup's exit readiness this quarter",
+      "value": "Create a one-page exit readiness scorecard for your startup this quarter",
       "source": "inferred",
+      "confirmed": false
+    },
+    "additional_notes": {
+      "value": "",
+      "source": "empty",
       "confirmed": false
     }
   }

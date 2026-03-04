@@ -252,3 +252,39 @@ Explored the codebase and found:
 - Identified that current "research" is LLM-implicit, not live web search
 - Need to decide: implement real web search, or redesign research to be per-turn dynamic
 - Ready to test the new layout in the app
+
+---
+
+## Session: 2026-03-03 — Gate1 Approval Fix for New Brief Schema
+
+### Problem
+"Failed to approve brief" error when trying to progress from Brief Builder to Outline stage.
+
+### Root Cause
+The `_handle_gate1_approve` function in `orchestrator.py` had validation that checked for **old flat brief schema**:
+```python
+required_fields = ["video_goal", "target_audience", "key_points"]
+```
+
+But the new Knowledge Share flow creates a **nested field schema**:
+```python
+story_brief.fields.primary_goal.value  # not video_goal
+story_brief.fields.target_audience.value  # nested, not flat
+story_brief.fields.core_talking_points.value  # not key_points
+```
+
+### Fix
+Updated `_handle_gate1_approve` to detect which schema is being used and validate accordingly:
+- **New schema**: Check `fields.primary_goal`, `fields.target_audience`, `fields.core_talking_points`
+- **Old schema**: Check `video_goal`, `target_audience`, `key_points`
+
+### Code Changes
+- `backend/app/services/orchestrator.py:161-189` - Updated validation logic to handle both schemas
+
+### Result
+- Gate1 approval now works with both old and new brief schemas
+- Director runs successfully and generates screen outline
+- Project transitions to gate2 phase
+
+### Lesson
+When introducing new data schemas (like the nested `{value, source, confirmed}` field structure), ensure all downstream validation and processing code handles both old and new formats for backward compatibility.

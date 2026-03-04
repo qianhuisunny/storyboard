@@ -22,6 +22,39 @@ export type ResearchStatus = "idle" | "running" | "complete" | "error";
 // Research phase (for angle-based research flow)
 export type ResearchPhase = "none" | "planned" | "running" | "complete";
 
+// NEW: Interactive research chat types
+export type ResearchChatStatus =
+  | "idle"
+  | "awaiting_perspective"
+  | "awaiting_talking_points_confirm"
+  | "researching"
+  | "complete";
+
+export interface PerspectiveOption {
+  id: number;
+  statement: string;
+  hook: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  type: "system" | "options" | "user" | "status" | "talking_points";
+  content: string;
+  perspectives?: PerspectiveOption[];
+  talkingPoints?: string[];
+  timestamp: Date;
+}
+
+export interface ResearchChatState {
+  status: ResearchChatStatus;
+  messages: ChatMessage[];
+  perspectives: PerspectiveOption[];
+  selectedPerspective: string | null;
+  talkingPoints: string[];
+  isLoading: boolean;
+  error?: string;
+}
+
 // Research angle from Round 1 confirmation
 export interface AngleSummary {
   audienceLevel: "beginner" | "intermediate" | "advanced";
@@ -209,6 +242,14 @@ export interface MobileDrawerProps {
   // Angle-based research
   angle: AngleSummary | null;
   researchPhase: ResearchPhase;
+}
+
+// Props for ResearchChat
+export interface ResearchChatProps {
+  state: ResearchChatState;
+  onSelectPerspective: (perspective: PerspectiveOption | string) => void;
+  onConfirmTalkingPoints: (feedback?: string) => void;
+  isLoading: boolean;
 }
 
 // Action types for state reducer
