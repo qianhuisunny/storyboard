@@ -56,7 +56,7 @@ User → Frontend (React/Vite :3000)
 - **Never install packages globally** — use `venv/` for Python, `npm` for frontend
 
 ### ⚠️ Be Careful
-- **Agent changes are coupled** — modifying one agent's output schema likely breaks the next agent's input expectations. Trace the full pipeline: TopicResearcher → BriefBuilder → Director → Writer → DurationCalc → ImageResearcher
+- **Agent changes are coupled** — modifying one agent's output schema likely breaks the next agent's input expectations. Trace the full pipeline: TopicResearcher → BriefBuilder → Director → Writer → ImageResearcher
 - **State machine transitions** — `state.py` controls flow. Changing states requires updating both backend transitions AND frontend `StageNavigation.tsx`
 - **Timeout handling** — AI generation can take 2+ minutes. Don't reduce timeouts without testing
 - **Data schema changes** — any change to project/story JSON schema must be backwards-compatible with existing projects in `data/`
@@ -186,17 +186,17 @@ The storyboard generation pipeline runs sequentially. Each agent consumes the pr
 ```
 TopicResearcher    → researches the topic from user input
       ↓ research_context
-BriefBuilder       → structures a creative brief  
+BriefBuilder       → structures a creative brief
       ↓ brief
 StoryboardDirector → determines scene structure and flow
       ↓ outline
-StoryboardWriter   → writes detailed screen-by-screen content
+StoryboardWriter   → writes detailed screen-by-screen content (includes duration calculation)
       ↓ draft_screens
-DurationCalculator → calculates timing (word_count / 130 * 60s)
-      ↓ timed_screens  
 ImageResearcher    → finds/suggests images for each screen
       ↓ final_storyboard
 ```
+
+Note: Duration calculation (word_count / 130 * 60s) is now a utility function, not a separate agent.
 
 **Prompt ↔ Agent mapping:**
 
@@ -206,8 +206,38 @@ ImageResearcher    → finds/suggests images for each screen
 | `agents/brief_builder.py` | `prompts/BRIEF_BUILDER_SYSTEM_PROMPT.md` |
 | `agents/storyboard_director.py` | `prompts/storyboard_director_prompt.md` |
 | `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_2.md` |
-| `agents/duration_calculator.py` | `prompts/duration_calculator_prompt.md` |
 | `agents/image_researcher.py` | `prompts/image_researcher_prompt_1.md` |
+
+### Agent Structure Pattern
+
+To add or modify an agent, you need to touch these 4 files:
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| **Agent file** | `backend/app/services/agents/xx_agent.py` | Inherits from `BaseAgent`, sets `prompt_file`, implements `run()` |
+| **Prompt file** | `prompts/XX_PROMPT.md` | System prompt loaded automatically via `prompt_file` attribute |
+| **Export** | `backend/app/services/agents/__init__.py` | Add to imports and `__all__` list |
+| **Registration** | `backend/app/services/orchestrator.py` | Add to `self.agents` dict + create handler |
+
+**Minimal agent template:**
+```python
+# backend/app/services/agents/my_agent.py
+from .base import BaseAgent
+
+class MyAgent(BaseAgent):
+    prompt_file = "MY_AGENT_PROMPT.md"  # auto-loads from /prompts/
+
+    def run(self, state, **kwargs):
+        response = self.call_llm(user_prompt)
+        return self._extract_json(response)
+```
+
+**BaseAgent provides:**
+- `self.call_llm(user_prompt, model, temperature, max_tokens)` — makes OpenAI API call with system prompt
+- `self._extract_json(response)` — parses JSON from LLM response (handles markdown blocks)
+- `self._validate_required_fields(data, required_fields)` — validates dict fields
+
+**Note:** `DurationCalculator` and `ImageResearcher` are utility functions (no LLM calls), not agents — they don't inherit from `BaseAgent`.
 
 ---
 
