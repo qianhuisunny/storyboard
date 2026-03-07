@@ -438,7 +438,7 @@ const OnboardingPage: React.FC = () => {
     <div className="min-h-full bg-background">
       <div className="container mx-auto px-4 py-8 pb-16">
         {/* Header */}
-        <div className="text-left mb-12">
+        <div className="max-w-6xl mx-auto text-left mb-12">
           <h1 className="text-4xl font-semibold text-foreground mb-4">
             Create Your Storyboard
           </h1>

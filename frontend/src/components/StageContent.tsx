@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { type Stage } from "./StageNavigation";
 import { Button } from "@/components/ui/button";
@@ -154,7 +154,10 @@ export default function StageContent({
   // Processing logs state for the Processing tab
   const [processingLogs, setProcessingLogs] = useState<ProcessingLogEntry[]>([]);
   const [isPollingLogs, setIsPollingLogs] = useState(false);
-  const [lastLogId, setLastLogId] = useState<string | null>(null);
+  // Use ref for lastLogId to avoid triggering re-renders/re-polls
+  const lastLogIdRef = useRef<string | null>(null);
+  // Track if we've cleared logs for this session
+  const hasInitializedLogs = useRef(false);
 
   // Check if this is a Knowledge Share project
   const isKnowledgeShare = useMemo(() => {
@@ -269,24 +272,38 @@ export default function StageContent({
     return () => clearInterval(interval);
   }, [isKnowledgeShare, projectId, researchStatus]);
 
+  // Clear processing logs on mount (fresh session)
+  useEffect(() => {
+    if (!isKnowledgeShare || !projectId || hasInitializedLogs.current) return;
+    hasInitializedLogs.current = true;
+
+    // Clear logs on backend for fresh session
+    fetch(`/api/project/${projectId}/processing-logs`, { method: "DELETE" }).catch(() => {
+      // Silently fail - non-critical
+    });
+    // Reset frontend state
+    setProcessingLogs([]);
+    lastLogIdRef.current = null;
+  }, [isKnowledgeShare, projectId]);
+
   // Poll for processing logs (for the Processing tab)
   useEffect(() => {
     if (!isKnowledgeShare || !projectId) return;
 
     const pollLogs = async () => {
       try {
-        const url = lastLogId
-          ? `/api/project/${projectId}/processing-logs?since_id=${lastLogId}`
+        const url = lastLogIdRef.current
+          ? `/api/project/${projectId}/processing-logs?since_id=${lastLogIdRef.current}`
           : `/api/project/${projectId}/processing-logs`;
         const response = await fetch(url);
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data && data.data.length > 0) {
             setProcessingLogs((prev) => [...prev, ...data.data]);
-            // Track the last log ID for incremental polling
+            // Track the last log ID for incremental polling (using ref to avoid re-renders)
             const lastEntry = data.data[data.data.length - 1];
             if (lastEntry) {
-              setLastLogId(lastEntry.id);
+              lastLogIdRef.current = lastEntry.id;
             }
           }
         }
@@ -307,7 +324,7 @@ export default function StageContent({
       // Final poll when done
       pollLogs();
     }
-  }, [isKnowledgeShare, projectId, isResearchChatLoading, researchStatus, lastLogId]);
+  }, [isKnowledgeShare, projectId, isResearchChatLoading, researchStatus]);
 
   // Helper to add chat message
   const addChatMessage = useCallback((type: ChatMessage["type"], content: string, extra?: Partial<ChatMessage>) => {
@@ -478,7 +495,7 @@ export default function StageContent({
 
   // Handle talking points confirmation
   const handleConfirmTalkingPoints = useCallback(
-    async (feedback?: string) => {
+    async (feedback?: string, editedPoints?: string[]) => {
       setIsResearchChatLoading(true);
       setResearchChatState((prev) => ({
         ...prev,
@@ -486,12 +503,11 @@ export default function StageContent({
         isLoading: true,
       }));
 
-      // Add confirmation message
-      if (feedback) {
-        addChatMessage("user", `Feedback: ${feedback}`);
-      } else {
-        addChatMessage("user", "Confirmed!");
-      }
+      // Build confirmation message showing the final talking points
+      const finalPoints = editedPoints || researchChatState.talkingPoints;
+      const pointsList = finalPoints.map((p, i) => `${i + 1}. ${p}`).join("\n");
+      const confirmationMsg = `Confirmed talking points:\n${pointsList}${feedback ? `\n\nAdditional notes: ${feedback}` : ""}`;
+      addChatMessage("user", confirmationMsg);
       addChatMessage("system", "Now researching evidence for each point...");
 
       try {
@@ -500,7 +516,7 @@ export default function StageContent({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             event: "confirm_talking_points",
-            payload: { feedback },
+            payload: { feedback, editedPoints },
           }),
         });
 

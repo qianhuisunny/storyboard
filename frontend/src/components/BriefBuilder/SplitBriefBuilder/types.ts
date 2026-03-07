@@ -268,7 +268,7 @@ export interface MobileDrawerProps {
 export interface ResearchChatProps {
   state: ResearchChatState;
   onSelectPerspective: (perspective: PerspectiveOption | string) => void;
-  onConfirmTalkingPoints: (feedback?: string) => void;
+  onConfirmTalkingPoints: (feedback?: string, editedPoints?: string[]) => void;
   isLoading: boolean;
 }
 
@@ -314,7 +314,7 @@ export interface TabbedResearchPanelProps {
   // ResearchChat props
   researchChatState: ResearchChatState;
   onSelectPerspective: (perspective: PerspectiveOption | string) => void;
-  onConfirmTalkingPoints: (feedback?: string) => void;
+  onConfirmTalkingPoints: (feedback?: string, editedPoints?: string[]) => void;
   isResearchChatLoading: boolean;
   // ProcessingLog props
   projectId: string;

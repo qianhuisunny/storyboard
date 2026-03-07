@@ -683,6 +683,22 @@ async def get_processing_logs(project_id: str, since_id: Optional[str] = None):
         )
 
 
+@app.delete("/api/project/{project_id}/processing-logs")
+async def clear_processing_logs(project_id: str):
+    """
+    Clear all processing logs for a project.
+    Called when starting a fresh session to avoid accumulation from old attempts.
+    """
+    try:
+        store = get_processing_log_store()
+        store.clear(project_id)
+        return {"success": True, "message": "Processing logs cleared"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, detail=f"Error clearing processing logs: {str(e)}"
+        )
+
+
 # ============================================================
 # NEW EVENT-BASED ENDPOINTS (State Machine Pipeline)
 # ============================================================

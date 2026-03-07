@@ -20,6 +20,8 @@ import {
   Edit3,
   Loader2,
   Send,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import type {
   ResearchChatProps,
@@ -173,21 +175,49 @@ function PerspectiveSelector({
   );
 }
 
-// Talking points display with confirm/feedback
+// Talking points display with inline editing
 function TalkingPointsDisplay({
   talkingPoints,
   onConfirm,
   disabled,
 }: {
   talkingPoints: string[];
-  onConfirm: (feedback?: string) => void;
+  onConfirm: (feedback?: string, editedPoints?: string[]) => void;
   disabled?: boolean;
 }) {
+  const [editedPoints, setEditedPoints] = useState<string[]>(talkingPoints);
   const [feedback, setFeedback] = useState("");
   const [showFeedback, setShowFeedback] = useState(false);
 
+  // Update local state when talkingPoints prop changes
+  useState(() => {
+    setEditedPoints(talkingPoints);
+  });
+
+  const handlePointChange = (index: number, value: string) => {
+    const updated = [...editedPoints];
+    updated[index] = value;
+    setEditedPoints(updated);
+  };
+
+  const handleAddPoint = () => {
+    setEditedPoints([...editedPoints, ""]);
+  };
+
+  const handleRemovePoint = (index: number) => {
+    if (editedPoints.length > 1) {
+      const updated = editedPoints.filter((_, i) => i !== index);
+      setEditedPoints(updated);
+    }
+  };
+
   const handleConfirm = () => {
-    onConfirm(showFeedback ? feedback : undefined);
+    // Filter out empty points and always send the edited points
+    const finalPoints = editedPoints.filter((p) => p.trim() !== "");
+    onConfirm(
+      showFeedback && feedback.trim() ? feedback : undefined,
+      finalPoints
+    );
   };
 
   return (
@@ -197,24 +227,50 @@ function TalkingPointsDisplay({
       </p>
 
       <div className="space-y-2">
-        {talkingPoints.map((point, index) => (
+        {editedPoints.map((point, index) => (
           <div
             key={index}
-            className="flex items-start gap-3 p-3 rounded-lg bg-muted/30 border border-border"
+            className="flex items-start gap-2 p-3 rounded-lg bg-muted/30 border border-border group"
           >
-            <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-xs font-medium text-primary">
+            <span className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 text-xs font-medium text-primary mt-1">
               {index + 1}
             </span>
-            <p className="text-sm text-foreground">{point}</p>
+            <Textarea
+              value={point}
+              onChange={(e) => handlePointChange(index, e.target.value)}
+              disabled={disabled}
+              className="flex-1 min-h-[60px] text-sm bg-background border-0 focus-visible:ring-1 resize-none"
+              placeholder={`Talking point ${index + 1}...`}
+            />
+            {editedPoints.length > 1 && (
+              <button
+                onClick={() => handleRemovePoint(index)}
+                disabled={disabled}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 text-muted-foreground hover:text-destructive"
+                title="Remove point"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
           </div>
         ))}
       </div>
 
-      {/* Feedback input */}
+      {/* Add point button */}
+      <button
+        onClick={handleAddPoint}
+        disabled={disabled}
+        className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Plus className="w-4 h-4" />
+        Add talking point
+      </button>
+
+      {/* Additional feedback input */}
       {showFeedback && (
         <div className="space-y-2">
           <Textarea
-            placeholder="Suggest changes or adjustments to these talking points..."
+            placeholder="Any additional suggestions or context..."
             value={feedback}
             onChange={(e) => setFeedback(e.target.value)}
             disabled={disabled}
@@ -231,9 +287,7 @@ function TalkingPointsDisplay({
           className="flex-1"
         >
           <Check className="w-4 h-4 mr-2" />
-          {showFeedback && feedback.trim()
-            ? "Submit Feedback"
-            : "Confirm & Continue"}
+          Confirm & Continue
         </Button>
         <Button
           variant="outline"
@@ -241,7 +295,7 @@ function TalkingPointsDisplay({
           disabled={disabled}
         >
           <Edit3 className="w-4 h-4 mr-1" />
-          {showFeedback ? "Cancel" : "Suggest Changes"}
+          {showFeedback ? "Hide" : "Add Note"}
         </Button>
       </div>
     </div>

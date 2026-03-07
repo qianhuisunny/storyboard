@@ -646,10 +646,15 @@ class StoryboardOrchestrator:
         Research results stored for Round 3 field population.
         """
         feedback = payload.get("feedback")
+        edited_points = payload.get("editedPoints")
         talking_points = state.pending_talking_points or []
 
-        # If feedback provided, regenerate talking points with feedback
-        if feedback:
+        # If user edited the points directly, use those
+        if edited_points and isinstance(edited_points, list):
+            talking_points = edited_points
+            state.pending_talking_points = talking_points
+        # If feedback provided (but no edits), regenerate talking points with feedback
+        elif feedback:
             try:
                 talking_points = self.agents["researcher"].generate_talking_points(
                     state.selected_perspective,
