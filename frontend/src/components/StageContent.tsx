@@ -4,10 +4,10 @@ import { type Stage } from "./StageNavigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, RefreshCw, Loader2 } from "lucide-react";
-import { BriefBuilder, normalizeBrief, type StoryBrief, type ProcessingLogEntry, type BriefField, type BriefRound, KnowledgeShareBriefBuilder } from "./BriefBuilder";
+import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type BriefRound, KnowledgeShareBriefBuilder, type ProcessingLogEntry as LegacyProcessingLogEntry } from "./BriefBuilder";
 import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
-import { type OnboardingData, type ResearchChatState, type PerspectiveOption, type ChatMessage } from "./BriefBuilder/SplitBriefBuilder/types";
-import { ResearchChat } from "./BriefBuilder/SplitBriefBuilder/ResearchPanel/ResearchChat";
+import { type OnboardingData, type ResearchChatState, type PerspectiveOption, type ChatMessage, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
+import { TabbedResearchPanel } from "./BriefBuilder/SplitBriefBuilder/ResearchPanel/TabbedResearchPanel";
 import { OutlineBuilder, parseScreens, type Screen, type OutlineProcessingEntry } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
@@ -151,6 +151,11 @@ export default function StageContent({
   });
   const [isResearchChatLoading, setIsResearchChatLoading] = useState(false);
 
+  // Processing logs state for the Processing tab
+  const [processingLogs, setProcessingLogs] = useState<ProcessingLogEntry[]>([]);
+  const [isPollingLogs, setIsPollingLogs] = useState(false);
+  const [lastLogId, setLastLogId] = useState<string | null>(null);
+
   // Check if this is a Knowledge Share project
   const isKnowledgeShare = useMemo(() => {
     if (!onboardingData) return false;
@@ -264,6 +269,46 @@ export default function StageContent({
     return () => clearInterval(interval);
   }, [isKnowledgeShare, projectId, researchStatus]);
 
+  // Poll for processing logs (for the Processing tab)
+  useEffect(() => {
+    if (!isKnowledgeShare || !projectId) return;
+
+    const pollLogs = async () => {
+      try {
+        const url = lastLogId
+          ? `/api/project/${projectId}/processing-logs?since_id=${lastLogId}`
+          : `/api/project/${projectId}/processing-logs`;
+        const response = await fetch(url);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data && data.data.length > 0) {
+            setProcessingLogs((prev) => [...prev, ...data.data]);
+            // Track the last log ID for incremental polling
+            const lastEntry = data.data[data.data.length - 1];
+            if (lastEntry) {
+              setLastLogId(lastEntry.id);
+            }
+          }
+        }
+      } catch {
+        // Silently fail polling
+      }
+    };
+
+    // Poll while any research/generation is happening
+    const isActive = isResearchChatLoading || researchStatus === "running";
+    setIsPollingLogs(isActive);
+
+    if (isActive) {
+      const interval = setInterval(pollLogs, 1000);
+      pollLogs(); // Initial poll
+      return () => clearInterval(interval);
+    } else {
+      // Final poll when done
+      pollLogs();
+    }
+  }, [isKnowledgeShare, projectId, isResearchChatLoading, researchStatus, lastLogId]);
+
   // Helper to add chat message
   const addChatMessage = useCallback((type: ChatMessage["type"], content: string, extra?: Partial<ChatMessage>) => {
     const message: ChatMessage = {
@@ -321,7 +366,7 @@ export default function StageContent({
               perspectives: data.perspectives,
               isLoading: false,
             }));
-            addChatMessage("system", "Here are some angles we could take for this video:");
+            addChatMessage("system", "A great knowledge-sharing video isn't just about assembling facts — it's about sharing your perspective. Here are some angles for your consideration:");
           } else {
             // Fallback to old flow if no perspectives
             setResearchStatus("running");
@@ -519,9 +564,17 @@ export default function StageContent({
 
       // Trigger stage advance
       const data = await response.json();
-      if (data.brief) {
-        onContentChange(JSON.stringify(data.brief, null, 2));
-        onApprove(JSON.stringify(data.brief, null, 2));
+      console.log("[KS] Brief approve response:", data);
+
+      // Backend returns screen_outline after running Director
+      if (data.screen_outline) {
+        // Pass outline to next stage
+        onContentChange(JSON.stringify(data.screen_outline, null, 2));
+        onApprove(JSON.stringify(data.screen_outline, null, 2));
+      } else if (data.story_brief) {
+        // Fallback if only brief returned
+        onContentChange(JSON.stringify(data.story_brief, null, 2));
+        onApprove(JSON.stringify(data.story_brief, null, 2));
       }
     },
     [projectId, onContentChange, onApprove]
@@ -601,8 +654,8 @@ export default function StageContent({
   // Use local review if edited, otherwise use parsed AI review
   const currentReview = localReview ?? reviewData;
 
-  // Processing log for child components
-  const processingLog: ProcessingLogEntry[] = [];
+  // Processing log for child components (legacy BriefBuilder)
+  const processingLog: LegacyProcessingLogEntry[] = [];
   const outlineProcessingLog: OutlineProcessingEntry[] = [];
   const draftProcessingLog: DraftProcessingEntry[] = [];
 
@@ -703,19 +756,23 @@ export default function StageContent({
             initialFields={knowledgeShareFields}
             initialRound={knowledgeShareRound}
             researchComplete={researchStatus === "complete"}
+            isResearchRunning={isResearchChatLoading || researchStatus === "running"}
             onRoundConfirm={handleKnowledgeShareRoundConfirm}
             onBriefApprove={handleKnowledgeShareBriefApprove}
             onEditBrief={handleKnowledgeShareEditBrief}
           />
         </div>
 
-        {/* Right Panel - Research Chat (40%) */}
+        {/* Right Panel - Tabbed Research Panel (40%) */}
         <div className="hidden md:block md:w-[40%] overflow-hidden bg-muted/10">
-          <ResearchChat
-            state={researchChatState}
+          <TabbedResearchPanel
+            researchChatState={researchChatState}
             onSelectPerspective={handleSelectPerspective}
             onConfirmTalkingPoints={handleConfirmTalkingPoints}
-            isLoading={isResearchChatLoading}
+            isResearchChatLoading={isResearchChatLoading}
+            projectId={projectId}
+            processingLogs={processingLogs}
+            isPollingLogs={isPollingLogs}
           />
         </div>
       </div>

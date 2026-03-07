@@ -21,19 +21,23 @@ class StoryboardOrchestrator:
 
     Pipeline:
     1. intake -> research (TopicResearcher)
-    2. research -> brief (BriefBuilder)
-    3. brief -> gate1 (Human Review)
-    4. gate1 -> outline (StoryboardDirector)
-    5. outline -> gate2 (Human Review)
-    6. gate2 -> write (StoryboardWriter)
-    7. write -> review (Optional refinements)
-    8. review -> done
+    2. research -> brief (BriefBuilder) -> brief confirmation is gate1
+    3. gate1 -> outline (StoryboardDirector)
+    4. outline -> gate2 (Human Review)
+    5. gate2 -> write (StoryboardWriter)
+    6. write -> review (Optional refinements)
+    7. review -> done
 
     Events:
-    - submit: Start the pipeline with intake form
+    - submit: Start the pipeline with the intake form
     - approve: Approve at a gating point
-    - reject: Request revision at a gating point
-    - refine: Request optional refinement after storyboard generation
+    - edit: Edit at a gating point
+        - If within same step: keep all info, allow edits
+        - If going to previous step: delete all info in next steps (cascading)
+
+    Edit payload:
+    - target: "current" (edit in place) or step name to go back to ("gate1", "gate2")
+    - feedback: optional revision feedback
     """
 
     def __init__(self):
@@ -56,8 +60,8 @@ class StoryboardOrchestrator:
 
         Args:
             project_id: The project ID
-            event: Event type (submit, approve, reject, refine)
-            payload: Event payload (intake_form for submit, feedback for reject)
+            event: Event type (submit, approve, edit)
+            payload: Event payload (intake_form for submit, target/feedback for edit)
 
         Returns:
             dict with phase, state data, and any generated content
@@ -99,20 +103,17 @@ class StoryboardOrchestrator:
     def _get_handler(self, phase: str, event: str):
         """Get the handler function for a phase/event combination."""
         handlers = {
-            # Legacy flow
+            # Core flow: submit, approve, edit
             ("intake", "submit"): self._handle_intake_submit,
             ("gate1", "approve"): self._handle_gate1_approve,
-            ("gate1", "reject"): self._handle_gate1_reject,
+            ("gate1", "edit"): self._handle_gate1_edit,
             ("gate2", "approve"): self._handle_gate2_approve,
-            ("gate2", "reject"): self._handle_gate2_reject,
-            ("gate2", "go_back_gate1"): self._handle_go_back_gate1,
+            ("gate2", "edit"): self._handle_gate2_edit,
             ("review", "approve"): self._handle_review_approve,
-            ("review", "refine"): self._handle_review_refine,
-            ("review", "go_back_gate1"): self._handle_go_back_gate1,
-            ("review", "go_back_gate2"): self._handle_go_back_gate2,
+            ("review", "edit"): self._handle_review_edit,
             ("done", "restart"): self._handle_restart,
 
-            # NEW: 3-Round Briefing Flow for Knowledge Share
+            # Knowledge Share 3-Round Briefing Flow
             ("intake", "submit_knowledge_share"): self._handle_submit_knowledge_share,
             ("brief_round1", "round1_confirm"): self._handle_round1_confirm,
             ("brief_round1", "select_perspective"): self._handle_select_perspective,
@@ -120,7 +121,7 @@ class StoryboardOrchestrator:
             ("brief_round2", "round2_confirm"): self._handle_round2_confirm,
             ("brief_round3", "round3_confirm"): self._handle_round3_confirm,
             ("brief_review", "brief_approve"): self._handle_brief_approve,
-            ("brief_review", "edit_brief"): self._handle_edit_brief,
+            ("brief_review", "edit"): self._handle_edit_brief,
         }
         return handlers.get((phase, event))
 
@@ -207,31 +208,23 @@ class StoryboardOrchestrator:
 
         return state, result
 
-    async def _handle_gate1_reject(
+    async def _handle_gate1_edit(
         self,
         state: StoryboardState,
         manager: StateManager,
         payload: dict,
         result: dict
     ) -> tuple:
-        """Handle Gate 1 rejection - revise the brief."""
-        feedback = payload.get("feedback")
-        if not feedback:
-            raise ValueError("feedback is required for rejection")
+        """
+        Handle edit at Gate 1.
+        Unlocks brief for editing. No cascading delete needed (gate1 is first gate).
+        """
+        # Unlock brief for editing
+        state.brief_locked = False
 
-        # Add revision record
-        state = manager.add_revision(state, gate=1, feedback=feedback)
-
-        # Re-run Brief Builder with feedback
-        story_brief = self.agents["brief_builder"].run(
-            state,
-            revision_feedback=feedback
-        )
-        state.story_brief = story_brief
-        state.phase = "gate1"  # Stay at gate1 for re-review
-
-        result["message"] = f"Brief revised (revision {state.revision_count_gate1}/{state.max_revisions})"
-        result["story_brief"] = story_brief
+        # Stay at gate1 phase for editing
+        result["message"] = "Story Brief unlocked for editing."
+        result["story_brief"] = state.story_brief
 
         return state, result
 
@@ -275,32 +268,51 @@ class StoryboardOrchestrator:
 
         return state, result
 
-    async def _handle_gate2_reject(
+    async def _handle_gate2_edit(
         self,
         state: StoryboardState,
         manager: StateManager,
         payload: dict,
         result: dict
     ) -> tuple:
-        """Handle Gate 2 rejection - revise the outline."""
+        """
+        Handle edit at Gate 2.
+
+        Payload:
+        - target: "current" (edit outline) or "gate1" (go back to brief)
+        - feedback: optional revision feedback
+        """
+        target = payload.get("target", "current")
         feedback = payload.get("feedback")
-        if not feedback:
-            raise ValueError("feedback is required for rejection")
 
-        # Add revision record
-        state = manager.add_revision(state, gate=2, feedback=feedback)
+        if target == "gate1":
+            # Cascade delete: remove outline, go back to gate1
+            state.screen_outline = None
+            state.outline_locked = False
+            state.brief_locked = False
+            state = manager.go_back(state, target_gate=1)
 
-        # Re-run Director in revision mode
-        screen_outline = self.agents["director"].run(
-            state,
-            mode="revision",
-            revision_request=feedback
-        )
-        state.screen_outline = screen_outline
-        state.phase = "gate2"  # Stay at gate2 for re-review
+            result["message"] = "Returned to Gate 1. Outline deleted, Brief unlocked for editing."
+            result["story_brief"] = state.story_brief
+            result["cascade_deleted"] = ["screen_outline"]
+        else:
+            # Edit outline in place
+            state.outline_locked = False
 
-        result["message"] = f"Outline revised (revision {state.revision_count_gate2}/{state.max_revisions})"
-        result["screen_outline"] = screen_outline
+            # If feedback provided, re-run Director with revision
+            if feedback:
+                state = manager.add_revision(state, gate=2, feedback=feedback)
+                screen_outline = self.agents["director"].run(
+                    state,
+                    mode="revision",
+                    revision_request=feedback
+                )
+                state.screen_outline = screen_outline
+                result["message"] = f"Outline revised (revision {state.revision_count_gate2}/{state.max_revisions})"
+                result["screen_outline"] = screen_outline
+            else:
+                result["message"] = "Screen Outline unlocked for editing."
+                result["screen_outline"] = state.screen_outline
 
         return state, result
 
@@ -332,72 +344,76 @@ class StoryboardOrchestrator:
 
         return state, result
 
-    async def _handle_review_refine(
+    async def _handle_review_edit(
         self,
         state: StoryboardState,
         manager: StateManager,
         payload: dict,
         result: dict
     ) -> tuple:
-        """Handle optional refinement request."""
+        """
+        Handle edit at Review phase.
+
+        Payload:
+        - target: "current" (refine storyboard), "gate2" (go back to outline), or "gate1" (go back to brief)
+        - feedback: optional revision feedback for refinement
+        """
+        target = payload.get("target", "current")
         feedback = payload.get("feedback")
-        if not feedback:
-            raise ValueError("feedback is required for refinement")
 
-        # Add revision record with "optional" gate
-        state.revision_history.append(RevisionRecord(
-            gate="optional",
-            feedback=feedback,
-            timestamp=datetime.now().isoformat(),
-            resolved=False
-        ))
+        if target == "gate1":
+            # Cascade delete: remove storyboard AND outline, go back to gate1
+            state.storyboard = None
+            state.screen_outline = None
+            state.outline_locked = False
+            state.brief_locked = False
+            state = manager.go_back(state, target_gate=1)
 
-        # Re-run Director in revision mode
-        screen_outline = self.agents["director"].run(
-            state,
-            mode="revision",
-            revision_request=feedback
-        )
-        state.screen_outline = screen_outline
+            result["message"] = "Returned to Gate 1. Storyboard and Outline deleted, Brief unlocked for editing."
+            result["story_brief"] = state.story_brief
+            result["cascade_deleted"] = ["storyboard", "screen_outline"]
 
-        # Re-run Writer with updated outline
-        storyboard = self.agents["writer"].run(state)
-        state.storyboard = storyboard
+        elif target == "gate2":
+            # Cascade delete: remove storyboard, go back to gate2
+            state.storyboard = None
+            state.outline_locked = False
+            state = manager.go_back(state, target_gate=2)
 
-        # Mark revision as resolved
-        state.revision_history[-1].resolved = True
+            result["message"] = "Returned to Gate 2. Storyboard deleted, Outline unlocked for editing."
+            result["screen_outline"] = state.screen_outline
+            result["cascade_deleted"] = ["storyboard"]
 
-        result["message"] = "Storyboard refined!"
-        result["screen_outline"] = screen_outline
-        result["storyboard"] = storyboard
+        else:
+            # Refine storyboard in place
+            if not feedback:
+                raise ValueError("feedback is required for refinement")
 
-        return state, result
+            # Add revision record
+            state.revision_history.append(RevisionRecord(
+                gate="optional",
+                feedback=feedback,
+                timestamp=datetime.now().isoformat(),
+                resolved=False
+            ))
 
-    async def _handle_go_back_gate1(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """Go back to Gate 1 to re-edit the Story Brief."""
-        state = manager.go_back(state, target_gate=1)
-        result["message"] = "Returned to Gate 1. Story Brief unlocked for editing."
-        result["story_brief"] = state.story_brief
+            # Re-run Director in revision mode
+            screen_outline = self.agents["director"].run(
+                state,
+                mode="revision",
+                revision_request=feedback
+            )
+            state.screen_outline = screen_outline
 
-        return state, result
+            # Re-run Writer with updated outline
+            storyboard = self.agents["writer"].run(state)
+            state.storyboard = storyboard
 
-    async def _handle_go_back_gate2(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """Go back to Gate 2 to re-edit the Screen Outline."""
-        state = manager.go_back(state, target_gate=2)
-        result["message"] = "Returned to Gate 2. Screen Outline unlocked for editing."
-        result["screen_outline"] = state.screen_outline
+            # Mark revision as resolved
+            state.revision_history[-1].resolved = True
+
+            result["message"] = "Storyboard refined!"
+            result["screen_outline"] = screen_outline
+            result["storyboard"] = storyboard
 
         return state, result
 
@@ -534,7 +550,7 @@ class StoryboardOrchestrator:
         # Generate perspectives based on confirmed Round 1 fields
         try:
             perspectives_result = self.agents["researcher"].generate_perspectives(
-                state.confirmed_fields
+                state.confirmed_fields, project_id=state.project_id
             )
             state.pending_perspectives = perspectives_result.get("perspectives", [])
         except Exception as e:
@@ -595,7 +611,8 @@ class StoryboardOrchestrator:
         try:
             talking_points = self.agents["researcher"].generate_talking_points(
                 state.selected_perspective,
-                state.confirmed_fields
+                state.confirmed_fields,
+                project_id=state.project_id,
             )
             state.pending_talking_points = talking_points
         except Exception as e:
@@ -637,7 +654,8 @@ class StoryboardOrchestrator:
                 talking_points = self.agents["researcher"].generate_talking_points(
                     state.selected_perspective,
                     state.confirmed_fields,
-                    feedback=feedback
+                    feedback=feedback,
+                    project_id=state.project_id,
                 )
                 state.pending_talking_points = talking_points
             except Exception as e:
@@ -647,21 +665,22 @@ class StoryboardOrchestrator:
         try:
             questions = self.agents["researcher"].generate_research_questions(
                 talking_points,
-                state.confirmed_fields
+                state.confirmed_fields,
+                project_id=state.project_id,
             )
 
             # Run research for all questions
-            project_id = getattr(state, 'project_id', None)
             user_materials = None
-            if project_id and state.intake_form:
+            if state.project_id and state.intake_form:
                 user_materials = self.agents["researcher"]._process_user_inputs(
-                    state.intake_form, project_id
+                    state.intake_form, state.project_id
                 )
 
             research_output = self.agents["researcher"].research_questions(
                 questions,
                 state.confirmed_fields,
-                user_materials
+                user_materials,
+                project_id=state.project_id,
             )
 
             # Store both outputs
@@ -839,17 +858,23 @@ class StoryboardOrchestrator:
     ) -> tuple:
         """
         Handle final brief approval.
-        Locks the brief and proceeds to Gate 1 (which goes to Director).
+        Locks the brief and runs the Director to generate outline.
         """
         # Lock the brief
         state = manager.lock_brief(state)
 
-        # Transition to gate1 (Director will run on gate1 approve)
+        # Transition to gate1
         state = manager.transition(state, "brief_approve")
 
-        result["message"] = "Brief approved and locked. Ready for outline generation."
+        # Immediately run Director (combining brief_approve + gate1_approve)
+        screen_outline = self.agents["director"].run(state, mode="initial")
+        state.screen_outline = screen_outline
+        state = manager.transition(state, "approve")  # gate1 → gate2
+
+        result["message"] = "Screen Outline ready for review"
         result["story_brief"] = state.story_brief
         result["brief_locked"] = True
+        result["screen_outline"] = screen_outline
 
         return state, result
 

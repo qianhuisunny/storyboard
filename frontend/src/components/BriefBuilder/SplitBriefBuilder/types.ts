@@ -272,6 +272,56 @@ export interface ResearchChatProps {
   isLoading: boolean;
 }
 
+// Processing log entry for LLM calls
+export interface ProcessingLogEntry {
+  id: string;
+  timestamp: string;
+  phase: string;  // e.g., "generate_perspectives", "generate_talking_points"
+  type: "request" | "response";
+  data: {
+    // For requests
+    inputFields?: Record<string, string>;
+    systemPromptLength?: number;
+    systemPromptPreview?: string;
+    userPrompt?: string;
+    llmParams?: {
+      model: string;
+      maxTokens: number;
+      temperature: number;
+    };
+    // For responses
+    rawResponse?: string;
+    responseLength?: number;
+    parsedResult?: unknown;
+  };
+}
+
+// Processing log state
+export interface ProcessingLogState {
+  entries: ProcessingLogEntry[];
+  isPolling: boolean;
+}
+
+// Props for ProcessingLog component
+export interface ProcessingLogProps {
+  projectId: string;
+  entries: ProcessingLogEntry[];
+  isPolling: boolean;
+}
+
+// Props for TabbedResearchPanel
+export interface TabbedResearchPanelProps {
+  // ResearchChat props
+  researchChatState: ResearchChatState;
+  onSelectPerspective: (perspective: PerspectiveOption | string) => void;
+  onConfirmTalkingPoints: (feedback?: string) => void;
+  isResearchChatLoading: boolean;
+  // ProcessingLog props
+  projectId: string;
+  processingLogs: ProcessingLogEntry[];
+  isPollingLogs: boolean;
+}
+
 // Action types for state reducer
 export type ChatAction =
   | { type: "SET_TURN"; turn: ChatTurn }

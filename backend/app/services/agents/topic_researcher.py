@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Optional, List
 
 from .base import BaseAgent
+from ..processing_log import log_llm_request, log_llm_response
 
 
 class TopicResearcher(BaseAgent):
@@ -32,7 +33,9 @@ class TopicResearcher(BaseAgent):
     # Step 1: Generate Perspectives
     # =========================================================================
 
-    def generate_perspectives(self, confirmed_fields: dict) -> dict:
+    def generate_perspectives(
+        self, confirmed_fields: dict, project_id: Optional[str] = None
+    ) -> dict:
         """
         Phase 1: Generate 3 contrarian POV options based on Round 1 fields.
         See system prompt "Phase 1: Perspective Principles" for guidelines.
@@ -59,43 +62,36 @@ Generate 3 perspectives following the Phase 1 principles in your system prompt.
 
 Each perspective should be distinct and offer a different angle on the topic."""
 
-        # Console log everything sent to LLM
-        print("\n" + "="*80)
-        print("🔵 generate_perspectives() - LLM API CALL")
-        print("="*80)
-        print(f"\n📥 INPUT FIELDS (confirmed_fields):")
-        print(f"   - target_audience: {target_audience}")
-        print(f"   - primary_goal: {primary_goal}")
-        print(f"   - one_big_thing: {one_big_thing}")
-        print(f"   - audience_level: {audience_level}")
-        print(f"   - duration: {duration}")
-        print(f"\n🔧 SYSTEM PROMPT ({len(self.system_prompt)} chars):")
-        print("-"*80)
-        print(self.system_prompt[:2000] + "..." if len(self.system_prompt) > 2000 else self.system_prompt)
-        print("-"*80)
-        print(f"\n📝 USER PROMPT ({len(prompt)} chars):")
-        print("-"*80)
-        print(prompt)
-        print("-"*80)
-        print(f"\n⚙️  LLM PARAMS:")
-        print(f"   - model: gpt-4o (default)")
-        print(f"   - max_tokens: 1500")
-        print(f"   - temperature: 0.8")
-        print("="*80 + "\n")
+        # Log request to processing log (for frontend display)
+        if project_id:
+            log_llm_request(
+                project_id=project_id,
+                phase="generate_perspectives",
+                input_fields={
+                    "target_audience": target_audience,
+                    "primary_goal": primary_goal,
+                    "one_big_thing": one_big_thing,
+                    "audience_level": audience_level,
+                    "duration": duration,
+                },
+                system_prompt=self.system_prompt,
+                user_prompt=prompt,
+                model="gpt-4o",
+                max_tokens=1500,
+                temperature=0.8,
+            )
 
         response = self.call_llm(prompt, max_tokens=1500, temperature=0.8)
-
-        # Log the response
-        print("\n" + "="*80)
-        print("🟢 generate_perspectives() - LLM RESPONSE")
-        print("="*80)
-        print(f"\n📤 RAW RESPONSE ({len(response)} chars):")
-        print("-"*80)
-        print(response)
-        print("-"*80)
-        print("="*80 + "\n")
-
         parsed = self._extract_json(response)
+
+        # Log response to processing log
+        if project_id:
+            log_llm_response(
+                project_id=project_id,
+                phase="generate_perspectives",
+                raw_response=response,
+                parsed_result=parsed,
+            )
 
         if parsed and isinstance(parsed, dict) and "perspectives" in parsed:
             return parsed
@@ -126,7 +122,11 @@ Each perspective should be distinct and offer a different angle on the topic."""
     # =========================================================================
 
     def generate_talking_points(
-        self, perspective: str, confirmed_fields: dict, feedback: Optional[str] = None
+        self,
+        perspective: str,
+        confirmed_fields: dict,
+        feedback: Optional[str] = None,
+        project_id: Optional[str] = None,
     ) -> list:
         """
         Phase 2: Generate talking points based on the selected perspective.
@@ -161,8 +161,36 @@ Generate {num_points} talking points following the Phase 2 principles in your sy
 - Duration: {duration} seconds
 {feedback_section}"""
 
+        # Log request
+        if project_id:
+            log_llm_request(
+                project_id=project_id,
+                phase="generate_talking_points",
+                input_fields={
+                    "perspective": perspective,
+                    "target_audience": target_audience,
+                    "audience_level": audience_level,
+                    "duration": str(duration),
+                    "feedback": feedback or "",
+                },
+                system_prompt=self.system_prompt,
+                user_prompt=prompt,
+                model="gpt-4o",
+                max_tokens=1000,
+                temperature=0.7,
+            )
+
         response = self.call_llm(prompt, max_tokens=1000, temperature=0.7)
         parsed = self._extract_json(response)
+
+        # Log response
+        if project_id:
+            log_llm_response(
+                project_id=project_id,
+                phase="generate_talking_points",
+                raw_response=response,
+                parsed_result=parsed,
+            )
 
         if parsed and isinstance(parsed, list):
             return parsed[:num_points]
@@ -190,7 +218,10 @@ Generate {num_points} talking points following the Phase 2 principles in your sy
     # =========================================================================
 
     def generate_research_questions(
-        self, talking_points: list, confirmed_fields: dict
+        self,
+        talking_points: list,
+        confirmed_fields: dict,
+        project_id: Optional[str] = None,
     ) -> dict:
         """
         Phase 3: Generate research questions for all Round 3 fields.
@@ -220,8 +251,34 @@ Generate {questions_per_point} questions per talking point.
 - Audience Level: {audience_level}
 - Primary Goal: {primary_goal}"""
 
+        # Log request
+        if project_id:
+            log_llm_request(
+                project_id=project_id,
+                phase="generate_research_questions",
+                input_fields={
+                    "talking_points": ", ".join(talking_points[:3]),
+                    "target_audience": target_audience,
+                    "audience_level": audience_level,
+                },
+                system_prompt=self.system_prompt,
+                user_prompt=prompt,
+                model="gpt-4o",
+                max_tokens=2000,
+                temperature=0.6,
+            )
+
         response = self.call_llm(prompt, max_tokens=2000, temperature=0.6)
         parsed = self._extract_json(response)
+
+        # Log response
+        if project_id:
+            log_llm_response(
+                project_id=project_id,
+                phase="generate_research_questions",
+                raw_response=response,
+                parsed_result=parsed,
+            )
 
         if parsed and isinstance(parsed, dict):
             return parsed
@@ -255,6 +312,7 @@ Generate {questions_per_point} questions per talking point.
         questions: dict,
         confirmed_fields: dict,
         user_materials: Optional[dict] = None,
+        project_id: Optional[str] = None,
     ) -> dict:
         """
         Phase 4: Execute research on talking points and generate Round 3 field values.
@@ -299,8 +357,34 @@ Research the questions and generate output following the Phase 4 format in your 
 
 NOTE: For talking_point_answers, do deep research with real sources. For misconceptions/practical_takeaway/must_avoid, generate initial values (these will be researched after user confirmation)."""
 
+        # Log request
+        if project_id:
+            log_llm_request(
+                project_id=project_id,
+                phase="research_questions",
+                input_fields={
+                    "target_audience": target_audience,
+                    "primary_goal": primary_goal,
+                    "num_talking_points": str(len(questions.get("talking_point_questions", []))),
+                },
+                system_prompt=self.system_prompt,
+                user_prompt=prompt[:2000] + "..." if len(prompt) > 2000 else prompt,
+                model="gpt-4o",
+                max_tokens=4000,
+                temperature=0.4,
+            )
+
         response = self.call_llm(prompt, max_tokens=4000, temperature=0.4)
         parsed = self._extract_json(response)
+
+        # Log response
+        if project_id:
+            log_llm_response(
+                project_id=project_id,
+                phase="research_questions",
+                raw_response=response[:2000] + "..." if len(response) > 2000 else response,
+                parsed_result={"keys": list(parsed.keys()) if parsed else None},
+            )
 
         if parsed and isinstance(parsed, dict):
             return self._format_research_output(parsed, questions)
