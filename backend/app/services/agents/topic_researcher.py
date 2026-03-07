@@ -34,20 +34,8 @@ class TopicResearcher(BaseAgent):
 
     def generate_perspectives(self, confirmed_fields: dict) -> dict:
         """
-        Generate 3 contrarian POV options based on Round 1 fields.
-
-        Args:
-            confirmed_fields: Confirmed fields from Round 1
-                - target_audience, duration, primary_goal, audience_level, etc.
-
-        Returns:
-            {
-                "perspectives": [
-                    {"id": 1, "statement": "...", "hook": "Why this matters"},
-                    {"id": 2, "statement": "...", "hook": "..."},
-                    {"id": 3, "statement": "...", "hook": "..."}
-                ]
-            }
+        Phase 1: Generate 3 contrarian POV options based on Round 1 fields.
+        See system prompt "Phase 1: Perspective Principles" for guidelines.
         """
         # Extract field values
         target_audience = self._get_field_value(confirmed_fields, "target_audience", "")
@@ -58,59 +46,16 @@ class TopicResearcher(BaseAgent):
         )
         duration = self._get_field_value(confirmed_fields, "duration", "300")
 
-        prompt = f"""Generate 3 potential perspectives for a Knowledge Share video.
+        prompt = f"""## TASK: Phase 1 - Generate Perspectives
+
+Generate 3 perspectives following the Phase 1 principles in your system prompt.
 
 ## ROUND 1 CONTEXT
-Target Audience: {target_audience}
-Primary Goal: {primary_goal}
-One Big Thing: {one_big_thing}
-Audience Level: {audience_level}
-Duration: {duration} seconds
-
-## PERSPECTIVE PRINCIPLES
-
-A compelling perspective:
-1. **Contrarian**: Challenges what audience currently believes
-2. **Specific**: Names the cohort and context (not "marketers" but "B2B SaaS marketers in 2026")
-3. **Actionable**: Sets up what the video will teach
-4. **Fresh**: Not obvious advice everyone already knows
-
-## PERSPECTIVE FORMULA
-
-"For [specific cohort], [topic] in [year/context] is not about [old framing]; it's about [new reality/constraint]."
-
-## EXAMPLES
-
-Good perspectives:
-- "For first-time founders, startup exits in 2026 aren't about finding a buyer; they're about surviving the 18-month dead zone between Series A and profitability."
-- "B2B marketers don't need more content; they need fewer, better pieces their SDRs actually use in outreach."
-
-Bad perspectives (too generic):
-- "Marketing is changing"
-- "Founders should plan ahead"
-
-## OUTPUT FORMAT
-
-Return a JSON object with exactly 3 perspectives:
-{{
-    "perspectives": [
-        {{
-            "id": 1,
-            "statement": "For [audience], [topic] in 2026 isn't about [old]; it's about [new]",
-            "hook": "Why this matters for {target_audience}"
-        }},
-        {{
-            "id": 2,
-            "statement": "...",
-            "hook": "..."
-        }},
-        {{
-            "id": 3,
-            "statement": "...",
-            "hook": "..."
-        }}
-    ]
-}}
+- Target Audience: {target_audience}
+- Primary Goal: {primary_goal}
+- One Big Thing: {one_big_thing}
+- Audience Level: {audience_level}
+- Duration: {duration} seconds
 
 Each perspective should be distinct and offer a different angle on the topic."""
 
@@ -184,15 +129,8 @@ Each perspective should be distinct and offer a different angle on the topic."""
         self, perspective: str, confirmed_fields: dict, feedback: Optional[str] = None
     ) -> list:
         """
-        Generate core talking points based on the selected perspective.
-
-        Args:
-            perspective: The selected perspective statement
-            confirmed_fields: Confirmed fields from Round 1
-            feedback: Optional user feedback to incorporate
-
-        Returns:
-            List of talking point strings
+        Phase 2: Generate talking points based on the selected perspective.
+        See system prompt "Phase 2: Talking Points Principles" for guidelines.
         """
         target_audience = self._get_field_value(confirmed_fields, "target_audience", "")
         audience_level = self._get_field_value(
@@ -207,41 +145,21 @@ Each perspective should be distinct and offer a different angle on the topic."""
         if feedback:
             feedback_section = f"""
 ## USER FEEDBACK
-The user provided this feedback on a previous version:
-{feedback}
-
-Please incorporate this feedback into the talking points.
+Incorporate this feedback: {feedback}
 """
 
-        prompt = f"""Generate {num_points} core talking points that support this perspective.
+        prompt = f"""## TASK: Phase 2 - Generate Talking Points
 
-## PERSPECTIVE
+Generate {num_points} talking points following the Phase 2 principles in your system prompt.
+
+## SELECTED PERSPECTIVE
 {perspective}
 
 ## CONTEXT
-Target Audience: {target_audience}
-Audience Level: {audience_level}
-Duration: {duration} seconds
-{feedback_section}
-## TALKING POINTS PRINCIPLES
-
-1. **Support the thesis**: Each point should reinforce the perspective
-2. **Build progressively**: Start with foundation, build to insight
-3. **Match audience level**: {audience_level} = {"foundational concepts, clear explanations" if audience_level == "beginner" else "application-focused, some nuance" if audience_level == "intermediate" else "edge cases, contrarian data, deep analysis"}
-
-## OUTPUT FORMAT
-
-Return a JSON array of exactly {num_points} talking points:
-[
-    "First talking point - clear and specific",
-    "Second talking point - builds on the first",
-    "Third talking point - adds depth or nuance"
-]
-
-Each talking point should be:
-- A complete thought (not just a topic)
-- Specific and actionable
-- 10-20 words"""
+- Target Audience: {target_audience}
+- Audience Level: {audience_level}
+- Duration: {duration} seconds
+{feedback_section}"""
 
         response = self.call_llm(prompt, max_tokens=1000, temperature=0.7)
         parsed = self._extract_json(response)
@@ -275,21 +193,8 @@ Each talking point should be:
         self, talking_points: list, confirmed_fields: dict
     ) -> dict:
         """
-        Craft research questions for ALL Round 3 fields.
-
-        Args:
-            talking_points: Confirmed talking points
-            confirmed_fields: Confirmed fields from Round 1
-
-        Returns:
-            {
-                "talking_point_questions": [
-                    {"talking_point": "...", "questions": ["Q1", "Q2"]}
-                ],
-                "misconception_questions": ["Q1", "Q2"],
-                "takeaway_questions": ["Q1", "Q2"],
-                "avoid_questions": ["Q1"]
-            }
+        Phase 3: Generate research questions for all Round 3 fields.
+        See system prompt "Phase 3: Research Question Principles" for guidelines.
         """
         target_audience = self._get_field_value(confirmed_fields, "target_audience", "")
         audience_level = self._get_field_value(
@@ -302,50 +207,18 @@ Each talking point should be:
 
         talking_points_text = "\n".join(f"- {tp}" for tp in talking_points)
 
-        prompt = f"""Generate research questions for a Knowledge Share video.
+        prompt = f"""## TASK: Phase 3 - Generate Research Questions
 
-## TALKING POINTS
+Generate research questions following the Phase 3 principles in your system prompt.
+Generate {questions_per_point} questions per talking point.
+
+## CONFIRMED TALKING POINTS
 {talking_points_text}
 
 ## CONTEXT
-Target Audience: {target_audience}
-Audience Level: {audience_level}
-Primary Goal: {primary_goal}
-
-## RESEARCH QUESTION PRINCIPLES
-
-Questions should:
-1. **Seek evidence**: Look for statistics, data, or studies
-2. **Find examples**: Look for case studies or real-world instances
-3. **Match audience depth**:
-   - Beginner: "What is X?" "How does X work?"
-   - Intermediate: "What factors affect X?" "What are the tradeoffs?"
-   - Advanced: "What are the edge cases?" "What's the contrarian view?"
-
-## OUTPUT FORMAT
-
-Return a JSON object:
-{{
-    "talking_point_questions": [
-        {{
-            "talking_point": "the talking point",
-            "questions": ["Research question 1", "Research question 2"]
-        }}
-    ],
-    "misconception_questions": [
-        "What do most people get wrong about [topic]?",
-        "What's the biggest myth about [topic]?"
-    ],
-    "takeaway_questions": [
-        "What's the most actionable first step for {target_audience}?",
-        "What deliverable or framework would help them apply this?"
-    ],
-    "avoid_questions": [
-        "What topics or claims should be avoided in this video?"
-    ]
-}}
-
-Generate {questions_per_point} questions per talking point."""
+- Target Audience: {target_audience}
+- Audience Level: {audience_level}
+- Primary Goal: {primary_goal}"""
 
         response = self.call_llm(prompt, max_tokens=2000, temperature=0.6)
         parsed = self._extract_json(response)
@@ -384,30 +257,8 @@ Generate {questions_per_point} questions per talking point."""
         user_materials: Optional[dict] = None,
     ) -> dict:
         """
-        Research talking points extensively, generate simple values for other Round 3 fields.
-
-        - Talking points: Deep research with question→answer→sources
-        - Misconceptions/takeaway/avoid: LLM-generated values (no deep research yet)
-
-        After user confirms Round 3, call misc_research() for deep research on those fields.
-
-        Args:
-            questions: Output from generate_research_questions()
-            confirmed_fields: Confirmed fields from Round 1
-            user_materials: Optional user-provided materials for RAG
-
-        Returns:
-            {
-                "round3_fields": {
-                    "core_talking_points": {...},
-                    "misconceptions": {...},
-                    "practical_takeaway": {...},
-                    "must_avoid": {...}
-                },
-                "research_details": {
-                    "talking_point_answers": [...]
-                }
-            }
+        Phase 4: Execute research on talking points and generate Round 3 field values.
+        See system prompt "Phase 4: Execute Research" for output format.
         """
         target_audience = self._get_field_value(confirmed_fields, "target_audience", "")
         primary_goal = self._get_field_value(confirmed_fields, "primary_goal", "")
@@ -428,61 +279,25 @@ Generate {questions_per_point} questions per talking point."""
                 materials_text += f"\n### {material.get('name', 'Source')}\n"
                 materials_text += material.get("content", "")[:2000] + "\n"
 
-        # Extract talking points for context
-        talking_points = [
-            tp_q.get("talking_point", "")
-            for tp_q in questions.get("talking_point_questions", [])
-        ]
-        talking_points_list = "\n".join(f"- {tp}" for tp in talking_points)
+        prompt = f"""## TASK: Phase 4 - Execute Research
 
-        prompt = f"""Research and generate content for a Knowledge Share video.
+Research the questions and generate output following the Phase 4 format in your system prompt.
 
 ## CONTEXT
-Target Audience: {target_audience}
-Primary Goal: {primary_goal}
-One Big Thing: {one_big_thing}
+- Target Audience: {target_audience}
+- Primary Goal: {primary_goal}
+- One Big Thing: {one_big_thing}
 {materials_text}
 
-## PART 1: RESEARCH TALKING POINTS (Deep Research Required)
-
-For each talking point below, research and provide detailed answers with sources.
+## RESEARCH QUESTIONS BY TALKING POINT
 {talking_points_section}
 
-## PART 2: GENERATE ROUND 3 FIELD VALUES (No Deep Research - Just Generate)
+## ADDITIONAL QUESTIONS FROM PHASE 3
+- Misconception questions: {questions.get("misconception_questions", [])}
+- Takeaway questions: {questions.get("takeaway_questions", [])}
+- Avoid questions: {questions.get("avoid_questions", [])}
 
-Based on the topic and talking points, generate simple values for these fields:
-
-Talking Points:
-{talking_points_list}
-
-## OUTPUT FORMAT
-
-{{
-    "talking_point_answers": [
-        {{
-            "talking_point": "the talking point text",
-            "questions_and_answers": [
-                {{
-                    "question": "the research question",
-                    "answer": "Detailed answer with paragraphs, bullet points, statistics...",
-                    "sources": ["https://real-url.com/source1"]
-                }}
-            ]
-        }}
-    ],
-    "misconceptions": [
-        "Common misconception 1 that {target_audience} have about this topic",
-        "Common misconception 2"
-    ],
-    "practical_takeaway": "One specific, actionable thing the viewer should do after watching",
-    "must_avoid": [
-        "Topic or claim to avoid (e.g., legal advice, specific predictions)"
-    ]
-}}
-
-IMPORTANT:
-- talking_point_answers: Do deep research, include real URLs
-- misconceptions/practical_takeaway/must_avoid: Just generate sensible values based on the topic (these will be researched later after user confirmation)"""
+NOTE: For talking_point_answers, do deep research with real sources. For misconceptions/practical_takeaway/must_avoid, generate initial values (these will be researched after user confirmation)."""
 
         response = self.call_llm(prompt, max_tokens=4000, temperature=0.4)
         parsed = self._extract_json(response)
@@ -559,20 +374,9 @@ IMPORTANT:
         user_materials: Optional[dict] = None,
     ) -> dict:
         """
-        Deep research on misconceptions, takeaway, and avoid after user confirms Round 3.
-
-        Args:
-            confirmed_round3: Confirmed Round 3 fields from user
-                - misconceptions, practical_takeaway, must_avoid
-            confirmed_fields: Confirmed fields from Round 1
-            user_materials: Optional user-provided materials
-
-        Returns:
-            {
-                "misconception_answers": [{question, answer, sources}],
-                "takeaway_answers": [{question, answer, sources}],
-                "avoid_answers": [{question, answer, sources}]
-            }
+        Phase 4 follow-up: Deep research on misconceptions, takeaway, and avoid
+        after user confirms Round 3 fields.
+        See system prompt "Phase 4: Execute Research" for output format.
         """
         target_audience = self._get_field_value(confirmed_fields, "target_audience", "")
         primary_goal = self._get_field_value(confirmed_fields, "primary_goal", "")
@@ -588,7 +392,7 @@ IMPORTANT:
         if isinstance(must_avoid, str):
             must_avoid = [must_avoid]
 
-        # Build research questions from confirmed values
+        # Build research items from confirmed values
         misconceptions_text = "\n".join(f"- {m}" for m in misconceptions) if misconceptions else "- None specified"
         must_avoid_text = "\n".join(f"- {a}" for a in must_avoid) if must_avoid else "- None specified"
 
@@ -600,62 +404,25 @@ IMPORTANT:
                 materials_text += f"\n### {material.get('name', 'Source')}\n"
                 materials_text += material.get("content", "")[:2000] + "\n"
 
-        prompt = f"""Research the following confirmed content for a Knowledge Share video.
+        prompt = f"""## TASK: Phase 4 Follow-up - Deep Research on Confirmed Fields
+
+Research the user-confirmed misconceptions, takeaway, and avoid topics following the Phase 4 output format in your system prompt.
 
 ## CONTEXT
-Target Audience: {target_audience}
-Primary Goal: {primary_goal}
+- Target Audience: {target_audience}
+- Primary Goal: {primary_goal}
 {materials_text}
 
-## MISCONCEPTIONS TO RESEARCH
+## CONFIRMED MISCONCEPTIONS TO RESEARCH
 {misconceptions_text}
 
-For each misconception, research:
-- Why do people believe this?
-- What's the reality?
-- What data/evidence contradicts this misconception?
-
-## PRACTICAL TAKEAWAY TO RESEARCH
+## CONFIRMED PRACTICAL TAKEAWAY TO RESEARCH
 {practical_takeaway}
 
-Research:
-- How can the viewer implement this?
-- What are the specific steps?
-- Any tools, frameworks, or resources that help?
-
-## TOPICS TO AVOID - RESEARCH WHY
+## CONFIRMED TOPICS TO AVOID - RESEARCH WHY
 {must_avoid_text}
 
-Research:
-- Why should this be avoided in the video?
-- What expertise is required for this topic?
-- What are the risks of including it?
-
-## OUTPUT FORMAT
-
-{{
-    "misconception_answers": [
-        {{
-            "misconception": "the misconception text",
-            "answer": "Detailed research on why people believe this and what the reality is...",
-            "sources": ["https://real-url.com/source"]
-        }}
-    ],
-    "takeaway_answers": [
-        {{
-            "takeaway": "{practical_takeaway}",
-            "answer": "Detailed implementation guidance, steps, resources...",
-            "sources": ["https://real-url.com/source"]
-        }}
-    ],
-    "avoid_answers": [
-        {{
-            "topic": "the topic to avoid",
-            "answer": "Why this should be avoided, what expertise is needed...",
-            "sources": ["https://real-url.com/source"]
-        }}
-    ]
-}}"""
+Return only the misconception_answers, takeaway_answers, and avoid_answers sections of the Phase 4 output format."""
 
         response = self.call_llm(prompt, max_tokens=3000, temperature=0.4)
         parsed = self._extract_json(response)

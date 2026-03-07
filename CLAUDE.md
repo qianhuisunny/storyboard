@@ -304,6 +304,18 @@ fly deploy --config fly.frontend.toml
 
 ---
 
+### 2026-03-06: Don't duplicate system prompt content in function prompts
+
+**Problem:** Agent functions included inline prompts with principles, formulas, examples, and output formats already defined in the system prompt file. LLM received the same instructions twice.
+
+**Lesson:**
+- System prompt = HOW (principles, formats, examples)
+- Function prompt = WHAT (contextual data only)
+- Reference the system prompt phase: `"Follow Phase 1 principles in your system prompt"`
+- Never repeat system prompt content in function prompts
+
+---
+
 ### 2026-03-03: Clean up dead code immediately
 
 **Context:** When modifying `brief_builder.py` to make Rounds 1-2 return fields without LLM calls, I left `_call_llm_for_round1` and `_call_llm_for_round2` methods in the file even though they were no longer used.
