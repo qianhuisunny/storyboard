@@ -3,7 +3,7 @@
  * Manages round state and routes to the appropriate form.
  */
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { RoundOneForm, RoundTwoForm, RoundThreeForm, BriefReview, CollapsibleSection } from "./RoundForms";
 import type { BriefField, BriefRound } from "./types";
 import { createInitialKnowledgeShareFields } from "./types";
@@ -40,6 +40,8 @@ export default function KnowledgeShareBriefBuilder({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Guard against double-submission (ref doesn't wait for re-render)
+  const isSubmittingRef = useRef(false);
 
   // Update fields when initialFields changes (e.g., from API response)
   useEffect(() => {
@@ -92,9 +94,26 @@ export default function KnowledgeShareBriefBuilder({
     }));
   }, []);
 
+  // Handle field unconfirmation (revert to editable)
+  const handleFieldUnconfirm = useCallback((key: string) => {
+    setFields((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        confirmed: false,
+      },
+    }));
+  }, []);
+
   // Handle section confirmation
   const handleSectionConfirm = useCallback(
     async (round: 1 | 2 | 3) => {
+      // Guard against double-click
+      if (isSubmittingRef.current) {
+        console.log("[KS] Ignoring duplicate submit for round", round);
+        return;
+      }
+      isSubmittingRef.current = true;
       setIsLoading(true);
       setError(null);
 
@@ -130,6 +149,7 @@ export default function KnowledgeShareBriefBuilder({
         setError(err instanceof Error ? err.message : "Failed to confirm section");
       } finally {
         setIsLoading(false);
+        isSubmittingRef.current = false;
       }
     },
     [fields, onRoundConfirm]
@@ -167,8 +187,9 @@ export default function KnowledgeShareBriefBuilder({
             fields={fields}
             onFieldChange={handleFieldChange}
             onFieldConfirm={handleFieldConfirm}
+            onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => {}}
-            disabled={true}
+            disabled={false}
           />
         </CollapsibleSection>
       );
@@ -181,8 +202,9 @@ export default function KnowledgeShareBriefBuilder({
             fields={fields}
             onFieldChange={handleFieldChange}
             onFieldConfirm={handleFieldConfirm}
+            onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => {}}
-            disabled={true}
+            disabled={false}
           />
         </CollapsibleSection>
       );
@@ -195,8 +217,9 @@ export default function KnowledgeShareBriefBuilder({
             fields={fields}
             onFieldChange={handleFieldChange}
             onFieldConfirm={handleFieldConfirm}
+            onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => {}}
-            disabled={true}
+            disabled={false}
             researchComplete={researchComplete}
           />
         </CollapsibleSection>
@@ -226,6 +249,7 @@ export default function KnowledgeShareBriefBuilder({
             fields={fields}
             onFieldChange={handleFieldChange}
             onFieldConfirm={handleFieldConfirm}
+            onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => handleSectionConfirm(1)}
             disabled={isLoading}
           />
@@ -236,6 +260,7 @@ export default function KnowledgeShareBriefBuilder({
             fields={fields}
             onFieldChange={handleFieldChange}
             onFieldConfirm={handleFieldConfirm}
+            onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => handleSectionConfirm(2)}
             disabled={isLoading}
           />
@@ -246,6 +271,7 @@ export default function KnowledgeShareBriefBuilder({
             fields={fields}
             onFieldChange={handleFieldChange}
             onFieldConfirm={handleFieldConfirm}
+            onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => handleSectionConfirm(3)}
             disabled={isLoading}
             researchComplete={researchComplete}

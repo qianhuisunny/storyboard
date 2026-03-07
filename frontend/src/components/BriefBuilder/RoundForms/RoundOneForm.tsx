@@ -11,6 +11,7 @@ interface RoundOneFormProps {
   fields: Record<string, BriefField>;
   onFieldChange: (key: string, value: string | string[] | boolean) => void;
   onFieldConfirm: (key: string) => void;
+  onFieldUnconfirm?: (key: string) => void;
   onSectionConfirm: () => void;
   disabled?: boolean;
 }
@@ -30,6 +31,7 @@ export default function RoundOneForm({
   fields,
   onFieldChange,
   onFieldConfirm,
+  onFieldUnconfirm,
   onSectionConfirm,
   disabled = false,
 }: RoundOneFormProps) {
@@ -60,6 +62,7 @@ export default function RoundOneForm({
               isRequired={requiredFields.includes(key)}
               onChange={(value) => onFieldChange(key, value)}
               onConfirm={() => onFieldConfirm(key)}
+              onUnconfirm={onFieldUnconfirm ? () => onFieldUnconfirm(key) : undefined}
               disabled={disabled}
             />
           );

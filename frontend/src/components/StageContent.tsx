@@ -171,20 +171,55 @@ export default function StageContent({
       // Start the Knowledge Share flow by submitting intake
       const initializeKnowledgeShare = async () => {
         const startTime = performance.now();
-        console.log("[KS] Starting submit_knowledge_share...", {
-          videoType: onboardingData?.videoType,
-          duration: onboardingData?.duration,
-          audience: onboardingData?.audience,
-        });
+        console.log("[KS] Initializing...");
 
         try {
-          // Research runs after Round 1 confirmation, not now
-          setResearchStatus("idle");
           setKnowledgeShareInitialized(true);
 
-          // Submit intake and get Round 1 fields
-          console.log("[KS] Sending POST to /api/project/" + projectId + "/event");
-          const fetchStart = performance.now();
+          // First, check if project already has state (e.g., page refresh)
+          const stateResponse = await fetch(`/api/project/${projectId}/pipeline-state`);
+          if (stateResponse.ok) {
+            const stateData = await stateResponse.json();
+            console.log("[KS] Current pipeline state:", stateData);
+
+            // Extract brief_fields from story_brief in pipeline state
+            const briefFields = stateData.data?.story_brief?.fields || {};
+
+            // If already in round 2 or later, restore that state
+            if (stateData.phase === "brief_round2") {
+              console.log("[KS] Restoring round 2 state, fields:", Object.keys(briefFields));
+              setKnowledgeShareFields(briefFields);
+              setKnowledgeShareRound(2);
+              setResearchStatus("complete");
+              return;
+            } else if (stateData.phase === "brief_round3") {
+              console.log("[KS] Restoring round 3 state, fields:", Object.keys(briefFields));
+              setKnowledgeShareFields(briefFields);
+              setKnowledgeShareRound(3);
+              setResearchStatus("complete");
+              return;
+            } else if (stateData.phase === "brief_round1") {
+              console.log("[KS] Restoring round 1 state, fields:", Object.keys(briefFields));
+              setKnowledgeShareFields(briefFields);
+              setKnowledgeShareRound(1);
+              setResearchStatus("idle");
+              return;
+            }
+            // If phase is set but not brief_round*, project may have progressed past brief stage
+            if (stateData.phase && !stateData.phase.startsWith("brief_") && stateData.phase !== "intake") {
+              console.log("[KS] Project already past brief stage, phase:", stateData.phase);
+              return;
+            }
+          }
+
+          // Project is new or in intake phase - start fresh
+          console.log("[KS] Starting fresh with submit_knowledge_share...", {
+            videoType: onboardingData?.videoType,
+            duration: onboardingData?.duration,
+            audience: onboardingData?.audience,
+          });
+
+          setResearchStatus("idle");
 
           const response = await fetch(`/api/project/${projectId}/event`, {
             method: "POST",
@@ -203,23 +238,19 @@ export default function StageContent({
             }),
           });
 
-          const fetchEnd = performance.now();
-          console.log(`[KS] Response received in ${(fetchEnd - fetchStart).toFixed(0)}ms, status: ${response.status}`);
+          console.log(`[KS] Response status: ${response.status}`);
 
           if (response.ok) {
             const data = await response.json();
             console.log("[KS] Round 1 response data:", data);
             console.log(`[KS] Total time: ${(performance.now() - startTime).toFixed(0)}ms`);
 
-            // Backend returns brief_fields, not fields
             if (data.brief_fields) {
               setKnowledgeShareFields(data.brief_fields);
               setKnowledgeShareRound(1);
-              // Research status from backend (pending/running/complete)
               if (data.research_status === "complete") {
                 setResearchStatus("complete");
               }
-              // Don't set to "running" - research hasn't started yet
             } else if (data.error) {
               setResearchError(data.error);
             }
@@ -299,7 +330,12 @@ export default function StageContent({
         if (response.ok) {
           const data = await response.json();
           if (data.success && data.data && data.data.length > 0) {
-            setProcessingLogs((prev) => [...prev, ...data.data]);
+            // Deduplicate by ID when adding new logs
+            setProcessingLogs((prev) => {
+              const existingIds = new Set(prev.map((log) => log.id));
+              const newLogs = data.data.filter((log: ProcessingLogEntry) => !existingIds.has(log.id));
+              return [...prev, ...newLogs];
+            });
             // Track the last log ID for incremental polling (using ref to avoid re-renders)
             const lastEntry = data.data[data.data.length - 1];
             if (lastEntry) {

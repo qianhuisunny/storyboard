@@ -13,6 +13,7 @@ interface FieldCardProps {
   isRequired: boolean;
   onChange: (value: string | string[] | boolean) => void;
   onConfirm: () => void;
+  onUnconfirm?: () => void;
   disabled?: boolean;
 }
 
@@ -53,6 +54,7 @@ export default function FieldCard({
   isRequired,
   onChange,
   onConfirm,
+  onUnconfirm,
   disabled = false,
 }: FieldCardProps) {
   const color = getFieldColor(field, isRequired);
@@ -64,6 +66,17 @@ export default function FieldCard({
   const handleValueChange = (newValue: string | string[] | boolean) => {
     onChange(newValue);
   };
+
+  // Check if field has content (for enabling/disabling confirm button)
+  const hasContent = (() => {
+    if (Array.isArray(field.value)) {
+      return field.value.length > 0 && field.value.some(v => v.trim() !== "");
+    }
+    if (typeof field.value === "boolean") {
+      return true;
+    }
+    return String(field.value || "").trim() !== "";
+  })();
 
   const renderInput = () => {
     // Read-only fields
@@ -344,18 +357,30 @@ export default function FieldCard({
           <span className={cn("px-2 py-0.5 text-xs font-medium rounded", colorClasses.badge)}>
             {COLOR_LABELS[color]}
           </span>
-          {isRequired && !field.confirmed && (
+          {isRequired && !field.confirmed && !hasContent && (
             <span className="text-xs text-red-500">*Required</span>
           )}
         </div>
-        {!field.confirmed && !disabled && fieldType !== "readonly" && fieldType !== "readonly-list" && (
-          <button
-            onClick={onConfirm}
-            className="px-3 py-1 text-xs font-medium text-primary border border-primary rounded hover:bg-primary hover:text-primary-foreground transition-colors"
-          >
-            Confirm
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Edit button for confirmed fields */}
+          {field.confirmed && !disabled && onUnconfirm && fieldType !== "readonly" && fieldType !== "readonly-list" && (
+            <button
+              onClick={onUnconfirm}
+              className="px-3 py-1 text-xs font-medium text-muted-foreground border border-border rounded hover:bg-muted transition-colors"
+            >
+              Edit
+            </button>
+          )}
+          {/* Confirm button - only show if field has content */}
+          {!field.confirmed && !disabled && fieldType !== "readonly" && fieldType !== "readonly-list" && hasContent && (
+            <button
+              onClick={onConfirm}
+              className="px-3 py-1 text-xs font-medium text-primary border border-primary rounded hover:bg-primary hover:text-primary-foreground transition-colors"
+            >
+              Confirm
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Label */}
