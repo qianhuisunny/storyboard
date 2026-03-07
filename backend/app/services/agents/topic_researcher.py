@@ -114,7 +114,42 @@ Return a JSON object with exactly 3 perspectives:
 
 Each perspective should be distinct and offer a different angle on the topic."""
 
+        # Console log everything sent to LLM
+        print("\n" + "="*80)
+        print("🔵 generate_perspectives() - LLM API CALL")
+        print("="*80)
+        print(f"\n📥 INPUT FIELDS (confirmed_fields):")
+        print(f"   - target_audience: {target_audience}")
+        print(f"   - primary_goal: {primary_goal}")
+        print(f"   - one_big_thing: {one_big_thing}")
+        print(f"   - audience_level: {audience_level}")
+        print(f"   - duration: {duration}")
+        print(f"\n🔧 SYSTEM PROMPT ({len(self.system_prompt)} chars):")
+        print("-"*80)
+        print(self.system_prompt[:2000] + "..." if len(self.system_prompt) > 2000 else self.system_prompt)
+        print("-"*80)
+        print(f"\n📝 USER PROMPT ({len(prompt)} chars):")
+        print("-"*80)
+        print(prompt)
+        print("-"*80)
+        print(f"\n⚙️  LLM PARAMS:")
+        print(f"   - model: gpt-4o (default)")
+        print(f"   - max_tokens: 1500")
+        print(f"   - temperature: 0.8")
+        print("="*80 + "\n")
+
         response = self.call_llm(prompt, max_tokens=1500, temperature=0.8)
+
+        # Log the response
+        print("\n" + "="*80)
+        print("🟢 generate_perspectives() - LLM RESPONSE")
+        print("="*80)
+        print(f"\n📤 RAW RESPONSE ({len(response)} chars):")
+        print("-"*80)
+        print(response)
+        print("-"*80)
+        print("="*80 + "\n")
+
         parsed = self._extract_json(response)
 
         if parsed and isinstance(parsed, dict) and "perspectives" in parsed:
@@ -806,6 +841,257 @@ Provide a concise summary (under 500 words) that captures the essential informat
         except Exception:
             truncated = " ".join(content.split()[:max_words])
             return f"[Truncated from {word_count} words]\n\n{truncated}..."
+
+    # =========================================================================
+    # API Methods - Called by main.py endpoints
+    # =========================================================================
+
+    def calculate_angle(
+        self,
+        audience: str,
+        description: str,
+        duration_minutes: int,
+        primary_goal: Optional[str] = None,
+    ) -> dict:
+        """
+        Calculate research angle from Round 1 confirmed fields.
+        Called by /api/project/{id}/research/angle endpoint.
+
+        Args:
+            audience: Target audience description
+            description: Video/topic description
+            duration_minutes: Video duration in minutes
+            primary_goal: Optional primary goal
+
+        Returns:
+            {
+                "audienceLevel": "beginner" | "intermediate" | "advanced",
+                "keyTakeaway": primary goal or extracted from description,
+                "durationTier": "short" | "medium" | "long",
+                "durationMinutes": the input duration,
+                "plannedQuestions": number of questions to generate,
+                "questions": list of research questions
+            }
+        """
+        # Determine audience level from description
+        audience_lower = audience.lower()
+        if any(word in audience_lower for word in ["beginner", "new", "starting", "intro", "basic"]):
+            audience_level = "beginner"
+        elif any(word in audience_lower for word in ["expert", "advanced", "senior", "experienced"]):
+            audience_level = "advanced"
+        else:
+            audience_level = "intermediate"
+
+        # Determine duration tier
+        if duration_minutes <= 2:
+            duration_tier = "short"
+            num_questions = 3
+        elif duration_minutes <= 5:
+            duration_tier = "medium"
+            num_questions = 5
+        else:
+            duration_tier = "long"
+            num_questions = 7
+
+        # Extract key takeaway
+        key_takeaway = primary_goal if primary_goal else description[:150]
+
+        # Generate research questions using LLM
+        questions = self._generate_angle_questions(
+            audience=audience,
+            description=description,
+            audience_level=audience_level,
+            num_questions=num_questions,
+        )
+
+        return {
+            "audienceLevel": audience_level,
+            "keyTakeaway": key_takeaway,
+            "durationTier": duration_tier,
+            "durationMinutes": duration_minutes,
+            "plannedQuestions": num_questions,
+            "questions": questions,
+        }
+
+    def _generate_angle_questions(
+        self,
+        audience: str,
+        description: str,
+        audience_level: str,
+        num_questions: int,
+    ) -> List[str]:
+        """Generate research questions based on the angle."""
+        prompt = f"""Generate {num_questions} research questions for a Knowledge Share video.
+
+## TOPIC
+{description}
+
+## TARGET AUDIENCE
+{audience} (Level: {audience_level})
+
+## QUESTION GUIDELINES
+- Questions should help gather evidence, statistics, and examples
+- Match the audience level:
+  - Beginner: "What is X?", "How does X work?", "Why is X important?"
+  - Intermediate: "What factors affect X?", "What are best practices for X?"
+  - Advanced: "What are the edge cases?", "What's the contrarian view on X?"
+
+## OUTPUT FORMAT
+Return a JSON array of exactly {num_questions} questions:
+["Question 1?", "Question 2?", "Question 3?"]
+
+Each question should be specific and searchable."""
+
+        response = self.call_llm(prompt, max_tokens=800, temperature=0.6)
+        parsed = self._extract_json(response)
+
+        if parsed and isinstance(parsed, list):
+            return parsed[:num_questions]
+
+        # Fallback questions
+        return [
+            f"What are the key concepts of {description[:50]}?",
+            f"What are common mistakes when learning {description[:50]}?",
+            f"What are best practices for {description[:50]}?",
+        ][:num_questions]
+
+    def run_with_angle(self, state: Any, angle: dict) -> dict:
+        """
+        Run research using angle-based questions.
+        Called by /api/project/{id}/research/run endpoint.
+
+        Args:
+            state: Object with intake_form containing video_type, description, etc.
+            angle: Angle dict with questions list
+
+        Returns:
+            {
+                "company_context": str,
+                "company_context_sources": list,
+                "product_context": str,
+                "product_context_sources": list,
+                "industry_context": str,
+                "industry_context_sources": list,
+                "uncertainties": list
+            }
+        """
+        intake_form = getattr(state, "intake_form", {}) if hasattr(state, "intake_form") else state
+        description = intake_form.get("description", "")
+        video_type = intake_form.get("video_type", "")
+        company_name = intake_form.get("company_name", "")
+
+        questions = angle.get("questions", [])
+        audience_level = angle.get("audienceLevel", "intermediate")
+
+        # If no questions provided, generate some
+        if not questions:
+            questions = self._generate_angle_questions(
+                audience=audience_level,
+                description=description,
+                audience_level=audience_level,
+                num_questions=5,
+            )
+
+        # Research each question
+        research_results = []
+        for question in questions[:7]:  # Limit to 7 questions
+            result = self._research_single_question(question, description)
+            research_results.append(result)
+
+        # Synthesize results into context categories
+        return self._synthesize_research(
+            research_results=research_results,
+            description=description,
+            company_name=company_name,
+            video_type=video_type,
+        )
+
+    def _research_single_question(self, question: str, context: str) -> dict:
+        """Research a single question using LLM."""
+        prompt = f"""Research this question and provide a detailed answer.
+
+## QUESTION
+{question}
+
+## CONTEXT
+{context}
+
+## OUTPUT FORMAT
+Provide a comprehensive answer with:
+1. Direct answer to the question
+2. Supporting evidence or examples
+3. Any relevant statistics or data points
+
+Keep the answer focused and factual."""
+
+        response = self.call_llm(prompt, max_tokens=1000, temperature=0.4)
+
+        return {
+            "question": question,
+            "answer": response,
+            "sources": [],  # LLM doesn't provide real sources
+        }
+
+    def _synthesize_research(
+        self,
+        research_results: list,
+        description: str,
+        company_name: str,
+        video_type: str,
+    ) -> dict:
+        """Synthesize research results into structured context."""
+        # Combine all answers
+        all_answers = "\n\n".join(
+            f"Q: {r['question']}\nA: {r['answer']}" for r in research_results
+        )
+
+        prompt = f"""Synthesize the following research into structured categories.
+
+## VIDEO CONTEXT
+Type: {video_type}
+Topic: {description}
+Company: {company_name or "N/A"}
+
+## RESEARCH FINDINGS
+{all_answers[:6000]}
+
+## OUTPUT FORMAT
+Return a JSON object with these categories:
+{{
+    "company_context": "Summary of company/brand information (or empty if not applicable)",
+    "product_context": "Summary of product/service information relevant to the topic",
+    "industry_context": "Summary of industry trends, market context, and background",
+    "key_insights": ["Insight 1", "Insight 2", "Insight 3"],
+    "uncertainties": ["Things that need verification or are unclear"]
+}}
+
+Focus on extracting actionable insights for creating the video."""
+
+        response = self.call_llm(prompt, max_tokens=2000, temperature=0.3)
+        parsed = self._extract_json(response)
+
+        if parsed and isinstance(parsed, dict):
+            return {
+                "company_context": parsed.get("company_context", ""),
+                "company_context_sources": [],
+                "product_context": parsed.get("product_context", ""),
+                "product_context_sources": [],
+                "industry_context": parsed.get("industry_context", ""),
+                "industry_context_sources": [],
+                "key_insights": parsed.get("key_insights", []),
+                "uncertainties": parsed.get("uncertainties", []),
+            }
+
+        # Fallback
+        return {
+            "company_context": "",
+            "company_context_sources": [],
+            "product_context": description,
+            "product_context_sources": [],
+            "industry_context": "",
+            "industry_context_sources": [],
+            "uncertainties": ["Could not synthesize research results"],
+        }
 
     # =========================================================================
     # Legacy run() - stub for backward compatibility

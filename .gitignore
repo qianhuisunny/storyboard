@@ -64,6 +64,12 @@ backend/.env
 htmlcov/
 .nyc_output
 
+# Playwright
+frontend/.auth/
+frontend/test-results/
+frontend/playwright-report/
+frontend/blob-report/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

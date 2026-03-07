@@ -61,12 +61,14 @@ User → Frontend (React/Vite :3000)
 - **Timeout handling** — AI generation can take 2+ minutes. Don't reduce timeouts without testing
 - **Data schema changes** — any change to project/story JSON schema must be backwards-compatible with existing projects in `data/`
 - **Prompt changes** — any change to any files under `/prompts` directory should be using a different versioning, for example, `storyboard_direcotr_prompt_V0303` indicating today's date.
+- **API-Agent method coupling** — when writing endpoints in `main.py` that call agent methods, VERIFY the method exists in the agent class first. Don't assume methods exist. Read the agent file and check available methods before calling them.
 
 ### ✅ Always Do
 - **Run the backend with venv activated**: `cd backend && source venv/bin/activate`
 - **Check `llm_config.json`** before changing model behavior — configuration lives there, not in code
 - **Match prompt files to agent files** — every `backend/app/services/agents/*.py` has a corresponding `prompts/*.md`
 - **Test with `data/example/`** before testing with live generation
+- **Verify API-to-Agent wiring** — after adding/modifying endpoints in `main.py` that call agent methods, test them with curl or Playwright to confirm the methods exist and work
 
 ### 📝 When Rewriting Code or Prompts
 - **Delete old before adding new** — When rewriting a file, first identify and remove ALL outdated content. Don't add new content on top of old content. Read the full file, identify what's obsolete, delete it, then write the new version.
@@ -284,6 +286,23 @@ fly deploy --config fly.frontend.toml
 ---
 
 ## Lessons Learned
+
+### 2026-03-06: Verify API endpoints call methods that exist
+
+**Context:** `main.py` had endpoints (`/research/angle`, `/research/run`) calling `TopicResearcher.calculate_angle()` and `TopicResearcher.run_with_angle()` — but these methods didn't exist. The agent had completely different methods (`generate_perspectives()`, `generate_talking_points()`, etc.). This was never caught because the endpoints weren't tested after being written.
+
+**Root Cause:**
+- API layer (main.py) and service layer (topic_researcher.py) were developed separately
+- Method names in main.py were aspirational (what *should* exist) vs actual implementation
+- No integration test or manual verification after writing the endpoints
+
+**Lesson:**
+- Before calling `agent.method()` in main.py, READ the agent file and verify the method exists
+- After adding any endpoint that calls agent methods, TEST IT immediately (curl, Playwright, or Python script)
+- When an agent's API changes, grep for all callers in main.py and update them
+- Don't write endpoints assuming methods will be added later — implement the agent method first
+
+---
 
 ### 2026-03-03: Clean up dead code immediately
 
