@@ -316,6 +316,27 @@ fly deploy --config fly.frontend.toml
 
 ---
 
+### 2026-03-06: React useEffect polling — don't put tracking state in dependencies
+
+**Problem:** Processing log polling showed duplicate entries (e.g., `generate_perspectives` appeared 7 times). The `lastLogId` state was in the useEffect dependency array, causing a cascade: poll → update lastLogId → trigger useEffect → poll again.
+
+**Lesson:**
+- For values only used *inside* the effect (not for deciding *whether* to run), use `useRef` instead of `useState`
+- Only include dependencies that should restart/stop the effect (e.g., `isActive`, `projectId`)
+- Polling pattern: `useRef` for cursor/offset tracking, `useState` only for data to display
+
+```tsx
+// ❌ BAD: lastLogId in deps causes infinite re-triggers
+const [lastLogId, setLastLogId] = useState(null);
+useEffect(() => { ... }, [lastLogId]);
+
+// ✅ GOOD: ref doesn't trigger re-renders
+const lastLogIdRef = useRef(null);
+useEffect(() => { ... }, [projectId, isActive]);
+```
+
+---
+
 ### 2026-03-03: Clean up dead code immediately
 
 **Context:** When modifying `brief_builder.py` to make Rounds 1-2 return fields without LLM calls, I left `_call_llm_for_round1` and `_call_llm_for_round2` methods in the file even though they were no longer used.
