@@ -14,17 +14,25 @@ import re
 from typing import Any, Optional, Literal
 
 from .base import BaseAgent
+from .duration_calculator import DurationCalculator
+from ..processing_log import log_llm_request, log_llm_response
 
 
-# Mapping from user's broll_type preferences to screen_type values
+# broll_type values that map directly to screen_type (1:1)
+# Only exception: "diagrams" merges into "slides"
 BROLL_TO_SCREEN_TYPE = {
-    "screen_recording": "screencast",
-    "slides": "slides/text overlay",
-    "diagrams": "slides/text overlay",
-    "whiteboard": "slides/text overlay",
-    "code_editor": "screencast",
-    "stock_footage": "stock video",
-    "real_world": "stock video",
+    "diagrams": "slides",
+}
+
+# Normalize legacy screen_type values to new vocabulary
+LEGACY_SCREEN_TYPE_MAP = {
+    "screencast": "screen_recording",
+    "stock video": "stock_footage",
+    "slides/text overlay": "slides",
+    "text overlay": "slides",
+    "talking head": "talking_head",
+    "CTA": "slides",
+    "cta": "slides",
 }
 
 
@@ -38,7 +46,9 @@ class StoryboardDirector(BaseAgent):
     Output: screen_outline list with complete screen specifications
     """
 
-    prompt_file = "storyboard_director_prompt.md"
+    prompt_file = "storyboard_director_prompt_v0309.md"
+
+    _duration_calculator = DurationCalculator()
 
     def _parse_duration_to_seconds(self, duration_str: str) -> int:
         """
@@ -121,6 +131,9 @@ class StoryboardDirector(BaseAgent):
         """
         Map user's broll_type preferences to allowed screen_types.
 
+        broll_type values pass through directly as screen_types (1:1),
+        except "diagrams" which merges into "slides".
+
         Args:
             broll_types: List of user-selected broll types
             on_camera: "no", "yes_throughout", or "yes_intro_outro"
@@ -131,19 +144,16 @@ class StoryboardDirector(BaseAgent):
         allowed_types = set()
 
         for broll in (broll_types or []):
-            if broll in BROLL_TO_SCREEN_TYPE:
-                allowed_types.add(BROLL_TO_SCREEN_TYPE[broll])
+            # Map through BROLL_TO_SCREEN_TYPE if there's an override, otherwise use as-is
+            allowed_types.add(BROLL_TO_SCREEN_TYPE.get(broll, broll))
 
-        # CTA is always allowed
-        allowed_types.add("CTA")
-
-        # talking head allowed if on_camera is not "no"
+        # talking_head allowed if on_camera is not "no"
         if on_camera and on_camera.lower() != "no":
-            allowed_types.add("talking head")
+            allowed_types.add("talking_head")
 
         # If no broll types selected, provide defaults
-        if len(allowed_types) <= 1:  # Only CTA
-            allowed_types.update(["slides/text overlay", "stock video"])
+        if len(allowed_types) == 0:
+            allowed_types.update(["slides", "stock_footage"])
 
         return {
             "allowed_screen_types": sorted(list(allowed_types)),
@@ -166,37 +176,6 @@ class StoryboardDirector(BaseAgent):
 
         # Fall back to legacy format
         return story_brief.get(field_name, default)
-
-    def _calculate_screen_duration(self, voiceover_text: str, screen_type: str) -> float:
-        """
-        Calculate precise duration from voiceover word count.
-
-        Formula: word_count / 2.2 + complexity_buffer
-
-        Complexity buffers:
-        - screencast: +1.0s (viewers need time to see UI)
-        - slides/text overlay: +0.8s (viewers need to read)
-        - stock video: +0.5s
-        - talking head: +0.5s
-        - CTA: +1.0s
-
-        Constraints: min 4s, max 12s
-        """
-        word_count = len(voiceover_text.split()) if voiceover_text else 0
-        base_duration = word_count / 2.2
-
-        buffers = {
-            "screencast": 1.0,
-            "slides/text overlay": 0.8,
-            "stock video": 0.5,
-            "talking head": 0.5,
-            "CTA": 1.0,
-        }
-        buffer = buffers.get(screen_type, 0.5)
-
-        duration = base_duration + buffer
-        duration = round(duration * 2) / 2  # Round to nearest 0.5s
-        return max(4.0, min(12.0, duration))
 
     def run(
         self,
@@ -222,20 +201,55 @@ class StoryboardDirector(BaseAgent):
         if not state.story_brief:
             raise ValueError("StoryboardDirector requires story_brief in state")
 
+        project_id = getattr(state, "project_id", None)
+        phase = f"storyboard_director_{mode}"
+
         # Build the user prompt based on mode
         if mode == "initial":
             user_prompt = self._build_initial_prompt(state)
         else:
             user_prompt = self._build_revision_prompt(state, revision_request)
 
+        # Log request
+        if project_id:
+            story_brief = state.story_brief
+            input_fields = {
+                "mode": mode,
+                "video_type": str(self._extract_brief_field(story_brief, "video_type") or ""),
+                "primary_goal": str(self._extract_brief_field(story_brief, "primary_goal") or ""),
+                "duration": str(self._extract_brief_field(story_brief, "duration") or self._extract_brief_field(story_brief, "desired_length") or ""),
+                "target_audience": str(self._extract_brief_field(story_brief, "target_audience") or ""),
+            }
+            if revision_request:
+                input_fields["revision_request"] = revision_request[:200]
+            log_llm_request(
+                project_id=project_id,
+                phase=phase,
+                input_fields=input_fields,
+                system_prompt=self.system_prompt,
+                user_prompt=user_prompt,
+                max_tokens=8000,
+            )
+
         # Call LLM
         response = self.call_llm(user_prompt, max_tokens=8000)
 
         # Parse the response
         if mode == "initial":
-            return self._parse_screen_outline(response)
+            result = self._parse_screen_outline(response)
         else:
-            return self._parse_revision_response(response, state.screen_outline)
+            result = self._parse_revision_response(response, state.screen_outline)
+
+        # Log response
+        if project_id:
+            log_llm_response(
+                project_id=project_id,
+                phase=phase,
+                raw_response=response,
+                parsed_result=result,
+            )
+
+        return result
 
     def _build_initial_prompt(self, state: Any) -> str:
         """Build prompt for initial outline creation with voiceover-first approach."""
@@ -257,6 +271,12 @@ class StoryboardDirector(BaseAgent):
         # Map to allowed screen types
         screen_type_info = self._map_broll_to_screen_types(broll_types, on_camera)
 
+        # Extract core_talking_points for narrative structure
+        talking_points = self._extract_brief_field(story_brief, "core_talking_points") or []
+        if isinstance(talking_points, str):
+            talking_points = [talking_points]
+        primary_goal = self._extract_brief_field(story_brief, "primary_goal") or ""
+
         return f"""Create a voiceover-first screen outline for this video.
 
 WORD BUDGET:
@@ -269,24 +289,30 @@ USER'S PREFERRED VISUAL TYPES: {json.dumps(screen_type_info['user_preferences'])
 ALLOWED SCREEN TYPES: {json.dumps(screen_type_info['allowed_screen_types'])}
 ON-CAMERA ALLOWED: {screen_type_info['on_camera_allowed']}
 
+NARRATIVE STRUCTURE:
+- Primary goal: {primary_goal}
+- Core talking points: {json.dumps(talking_points)}
+
 STORY BRIEF:
 {json.dumps(story_brief, indent=2)}
 
 MODE: initial
 
 Follow the VOICEOVER-FIRST PLANNING PROCESS in your system prompt:
-1. Write continuous voiceover per narrative phase (not per screen)
-2. Mark visual change points where message/subject shifts
-3. Those marks become screen boundaries
-4. Verify total word count matches target ±10%
+1. Identify narrative structure from primary_goal and core_talking_points
+2. Write continuous voiceover per narrative phase (not per screen)
+3. Mark visual change points where message/subject shifts
+4. Those marks become screen boundaries
+5. Verify total word count matches target ±10%
 
 Return the outline as a JSON array with EXACTLY 4 fields per screen:
 - screen_number (sequential: 1, 2, 3...)
+- narrative_role (see Narrative Roles in system prompt: "hook", "Talking Point N: text", "takeaway", "cta")
 - screen_type (from ALLOWED SCREEN TYPES only)
 - voiceover_text (complete script, numbers written out for speech)
-- target_duration_sec (word_count / 2.2, will be recalculated)
 
-DO NOT include: purpose, rough_duration, visual_direction, notes"""
+DO NOT include: duration, purpose, rough_duration, visual_direction, notes.
+Duration is calculated automatically — do not output it."""
 
     def _build_revision_prompt(self, state: Any, revision_request: str) -> str:
         """Build prompt for outline revision."""
@@ -332,11 +358,13 @@ Ensure all changes align with the story_brief constraints and key_points."""
 
         # Fallback: return empty outline with error
         error_voiceover = "An error occurred while generating the outline."
+        duration_result = self._duration_calculator.calculate(error_voiceover, "slides")
         return [{
             "screen_number": 1,
-            "screen_type": "slides/text overlay",
+            "narrative_role": "",
+            "screen_type": "slides",
             "voiceover_text": error_voiceover,
-            "target_duration_sec": self._calculate_screen_duration(error_voiceover, "slides/text overlay"),
+            "duration": duration_result["duration"],
             "error": True
         }]
 
@@ -426,10 +454,11 @@ Ensure all changes align with the story_brief constraints and key_points."""
 
     def _normalize_screens(self, screens: list) -> list:
         """
-        Normalize screens to simplified 4-field output.
+        Normalize screens to 5-field output.
 
-        Output fields: screen_number, screen_type, voiceover_text, target_duration_sec
-        Duration is calculated precisely from voiceover word count.
+        Output fields: screen_number, narrative_role, screen_type, voiceover_text, duration
+        Duration is calculated by DurationCalculator from voiceover word count.
+        Legacy screen_type values are mapped to the new vocabulary.
         """
         normalized = []
         for i, screen in enumerate(screens):
@@ -437,13 +466,25 @@ Ensure all changes align with the story_brief constraints and key_points."""
                 continue
 
             voiceover = screen.get("voiceover_text", "")
-            screen_type = screen.get("screen_type", "slides/text overlay")
+            screen_type = screen.get("screen_type", "slides")
+            narrative_role = screen.get("narrative_role", "")
+
+            # Normalize legacy screen_type values
+            screen_type = LEGACY_SCREEN_TYPE_MAP.get(screen_type, screen_type)
+
+            # If legacy "cta" screen_type was mapped to "slides", set narrative_role
+            if screen.get("screen_type") in ("cta", "CTA") and not narrative_role:
+                narrative_role = "cta"
+
+            # Calculate duration using DurationCalculator
+            duration_result = self._duration_calculator.calculate(voiceover, screen_type)
 
             norm_screen = {
                 "screen_number": i + 1,
+                "narrative_role": narrative_role,
                 "screen_type": screen_type,
                 "voiceover_text": voiceover,
-                "target_duration_sec": self._calculate_screen_duration(voiceover, screen_type)
+                "duration": duration_result["duration"]
             }
             normalized.append(norm_screen)
 

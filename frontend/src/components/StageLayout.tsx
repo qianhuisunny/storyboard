@@ -47,6 +47,7 @@ export default function StageLayout() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isLoadingStages, setIsLoadingStages] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [researchDetails, setResearchDetails] = useState<Record<string, unknown> | null>(null);
   const hasLoadedStages = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousStageIdRef = useRef<number | null>(null);
@@ -130,7 +131,9 @@ export default function StageLayout() {
             }
 
             // Restore stage statuses
+            let restoredStatuses: { id: number; status: StageStatus }[] = [];
             if (data.stageStatuses && Array.isArray(data.stageStatuses)) {
+              restoredStatuses = data.stageStatuses;
               setStages((prev) =>
                 prev.map((s) => {
                   const savedStatus = data.stageStatuses.find(
@@ -139,6 +142,22 @@ export default function StageLayout() {
                   return savedStatus ? { ...s, status: savedStatus.status } : s;
                 })
               );
+            }
+
+            // Navigate to first incomplete stage instead of staying on approved stage
+            // Find the first stage that isn't "approved"
+            const currentStatus = restoredStatuses.find(
+              (ss) => ss.id === data.currentStageId
+            );
+            if (currentStatus?.status === "approved") {
+              // Find first non-approved stage
+              const firstIncomplete = restoredStatuses.find(
+                (ss) => ss.status !== "approved"
+              );
+              if (firstIncomplete) {
+                console.log("Navigating to first incomplete stage:", firstIncomplete.id);
+                setCurrentStageId(firstIncomplete.id);
+              }
             }
 
             hasLoadedStages.current = true;
@@ -154,6 +173,27 @@ export default function StageLayout() {
 
     loadSavedStages();
   }, [projectId]);
+
+  // Fetch research details from pipeline-state when on stage 2+
+  useEffect(() => {
+    const fetchResearchDetails = async () => {
+      if (!projectId || currentStageId < 2) return;
+
+      try {
+        const response = await fetch(`/api/project/${projectId}/pipeline-state`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.data?.research_details) {
+            setResearchDetails(data.data.research_details);
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch research details:", error);
+      }
+    };
+
+    fetchResearchDetails();
+  }, [projectId, currentStageId]);
 
   // Save stages function
   const saveStages = useCallback(async () => {
@@ -313,12 +353,21 @@ export default function StageLayout() {
     setIsMobileMenuOpen(false);
   };
 
-  const handleApprove = async (content: string) => {
+  const handleApprove = async (
+    content: string,
+    options?: { skipNextGeneration?: boolean; nextStageContent?: string }
+  ) => {
+    console.log("[StageLayout] handleApprove called");
+    console.log("[StageLayout] currentStageId:", currentStageId);
+    console.log("[StageLayout] options:", options);
+    console.log("[StageLayout] content length:", content?.length);
+
     const currentStage = stages.find((s) => s.id === currentStageId);
     if (!currentStage) return;
 
     // Use API-compatible stage name
     const stageName = STAGE_API_NAMES[currentStageId] || "unknown";
+    console.log("[StageLayout] stageName:", stageName);
 
     // Save the approved content
     setStageData((prev) => ({
@@ -329,32 +378,34 @@ export default function StageLayout() {
       },
     }));
 
-    // Track the edit via API
-    try {
-      const aiVersion = stageData[currentStageId]?.aiVersion || "";
-      if (content !== aiVersion) {
-        await fetch(`/api/project/${projectId}/stage/${stageName}/edit`, {
+    // Track the edit via API (skip for Knowledge Share which uses event-based flow)
+    if (!options?.skipNextGeneration) {
+      try {
+        const aiVersion = stageData[currentStageId]?.aiVersion || "";
+        if (content !== aiVersion) {
+          await fetch(`/api/project/${projectId}/stage/${stageName}/edit`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              stage: stageName,
+              content: content,
+            }),
+          });
+        }
+
+        // Approve the stage
+        await fetch(`/api/project/${projectId}/stage/${stageName}/approve`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             stage: stageName,
             content: content,
+            user_id: user?.id,
           }),
         });
+      } catch (error) {
+        console.error("Failed to save approval:", error);
       }
-
-      // Approve the stage
-      await fetch(`/api/project/${projectId}/stage/${stageName}/approve`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          stage: stageName,
-          content: content,
-          user_id: user?.id,
-        }),
-      });
-    } catch (error) {
-      console.error("Failed to save approval:", error);
     }
 
     // Mark as approved
@@ -364,7 +415,22 @@ export default function StageLayout() {
     const nextStageId = currentStageId + 1;
     if (nextStageId <= 4) {
       setCurrentStageId(nextStageId);
-      generateStage(nextStageId);
+
+      // If we have pre-generated content for the next stage (e.g., Knowledge Share),
+      // use it instead of generating
+      if (options?.nextStageContent) {
+        const nextContent = options.nextStageContent;
+        setStageData((prev) => ({
+          ...prev,
+          [nextStageId]: {
+            aiVersion: nextContent,
+            humanVersion: null,
+          },
+        }));
+        updateStageStatus(nextStageId, "needs_review");
+      } else if (!options?.skipNextGeneration) {
+        generateStage(nextStageId);
+      }
     } else {
       // All stages complete - show rating modal before navigating
       setShowRatingModal(true);
@@ -401,17 +467,17 @@ export default function StageLayout() {
   const currentData = stageData[currentStageId] || { aiVersion: null, humanVersion: null };
 
   // For stages > 1, get the previous stage's output to pass as context
+  // Use humanVersion as fallback for Knowledge Share flow which writes to humanVersion
   const previousStageData = currentStageId > 1 ? stageData[currentStageId - 1] : null;
   const previousStageOutput = useMemo(() => {
-    if (!previousStageData?.aiVersion) return null;
+    const content = previousStageData?.aiVersion || previousStageData?.humanVersion;
+    if (!content) return null;
     try {
-      return typeof previousStageData.aiVersion === "string"
-        ? JSON.parse(previousStageData.aiVersion)
-        : previousStageData.aiVersion;
+      return typeof content === "string" ? JSON.parse(content) : content;
     } catch {
       return null;
     }
-  }, [previousStageData?.aiVersion]);
+  }, [previousStageData?.aiVersion, previousStageData?.humanVersion]);
 
   // Save status indicator component
   const SaveStatusIndicator = () => {
@@ -494,6 +560,7 @@ export default function StageLayout() {
             aiContent={currentData.aiVersion}
             humanContent={currentData.humanVersion}
             previousStageOutput={previousStageOutput}
+            researchDetails={researchDetails}
             isGenerating={isGenerating}
             onApprove={handleApprove}
             onRegenerate={handleRegenerate}

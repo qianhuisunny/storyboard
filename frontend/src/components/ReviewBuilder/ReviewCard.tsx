@@ -199,7 +199,7 @@ export default function ReviewCard({
         {/* Duration */}
         <div className="ml-auto flex items-center gap-1.5 text-sm text-muted-foreground">
           <Clock className="w-4 h-4" />
-          <span className="font-medium">{screen.target_duration_sec}s</span>
+          <span className="font-medium">{screen.duration}s</span>
         </div>
       </div>
 
@@ -296,7 +296,7 @@ export default function ReviewCard({
               <span className="font-medium uppercase tracking-wide">Visual Asset</span>
             </div>
             <div className="bg-muted/20 rounded-lg p-3 min-h-[60px]">
-              {screen.on_screen_visual?.startsWith("http") ? (
+              {(screen.on_screen_visual?.startsWith("http") || screen.on_screen_visual?.startsWith("/placeholders/")) ? (
                 <div className="flex items-center gap-3">
                   <img
                     src={screen.on_screen_visual}

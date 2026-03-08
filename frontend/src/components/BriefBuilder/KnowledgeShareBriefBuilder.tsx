@@ -14,6 +14,7 @@ interface KnowledgeShareBriefBuilderProps {
   initialRound?: BriefRound;
   researchComplete?: boolean;
   isResearchRunning?: boolean;
+  isAlreadyApproved?: boolean; // Brief was already approved on backend
   onRoundConfirm: (round: number, confirmedFields: Record<string, BriefField>) => Promise<Record<string, BriefField>>;
   onBriefApprove: (allFields: Record<string, BriefField>) => Promise<void>;
   onEditBrief: () => void;
@@ -25,6 +26,7 @@ export default function KnowledgeShareBriefBuilder({
   initialRound = 1,
   researchComplete = false,
   isResearchRunning = false,
+  isAlreadyApproved = false,
   onRoundConfirm,
   onBriefApprove,
   onEditBrief,
@@ -53,6 +55,14 @@ export default function KnowledgeShareBriefBuilder({
     }
   }, [initialFields]);
 
+  // Sync currentRound with initialRound when it changes (e.g., after state restoration)
+  useEffect(() => {
+    if (initialRound !== currentRound) {
+      console.log("[KS Builder] Syncing round:", initialRound);
+      setCurrentRound(initialRound);
+    }
+  }, [initialRound]);
+
   // Track which rounds are completed
   const [completedRounds, setCompletedRounds] = useState<Set<number>>(() => {
     const completed = new Set<number>();
@@ -68,6 +78,24 @@ export default function KnowledgeShareBriefBuilder({
     }
     return completed;
   });
+
+  // Sync completedRounds when initialRound changes
+  useEffect(() => {
+    const completed = new Set<number>();
+    if (initialRound === 2) completed.add(1);
+    if (initialRound === 3) {
+      completed.add(1);
+      completed.add(2);
+    }
+    if (initialRound === "review") {
+      completed.add(1);
+      completed.add(2);
+      completed.add(3);
+    }
+    if (completed.size > 0) {
+      setCompletedRounds(completed);
+    }
+  }, [initialRound]);
 
   // Handle field value change
   const handleFieldChange = useCallback((key: string, value: string | string[] | boolean) => {
@@ -157,12 +185,16 @@ export default function KnowledgeShareBriefBuilder({
 
   // Handle brief approval
   const handleBriefApprove = useCallback(async () => {
+    console.log("[KS Builder] handleBriefApprove called, fields:", Object.keys(fields));
     setIsLoading(true);
     setError(null);
 
     try {
+      console.log("[KS Builder] Calling onBriefApprove...");
       await onBriefApprove(fields);
+      console.log("[KS Builder] onBriefApprove completed successfully");
     } catch (err) {
+      console.error("[KS Builder] onBriefApprove failed:", err);
       setError(err instanceof Error ? err.message : "Failed to approve brief");
     } finally {
       setIsLoading(false);
@@ -238,6 +270,7 @@ export default function KnowledgeShareBriefBuilder({
           onEditBrief={handleEditBrief}
           onApproveBrief={handleBriefApprove}
           disabled={isLoading}
+          isAlreadyApproved={isAlreadyApproved}
         />
       );
     }

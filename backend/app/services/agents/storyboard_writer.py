@@ -6,25 +6,32 @@ Simplified pipeline: Director handles voiceover and duration, Writer adds visual
 from typing import Any
 
 from .base import BaseAgent
-from .image_researcher import ImageResearcher
+
+
+# Placeholder images per screen type, served from frontend/public/placeholders/
+PLACEHOLDER_IMAGES = {
+    "screen_recording": "/placeholders/screen_recording.png",
+    "slides": "/placeholders/slides_and_diagrams.png",
+    "whiteboard": "/placeholders/whiteboard.png",
+    "code_editor": "/placeholders/code_editor.png",
+    "stock_footage": "/placeholders/stock_footage.png",
+    "real_world": "/placeholders/real_world.png",
+    "talking_head": "/placeholders/talking_head.png",
+}
 
 
 class StoryboardWriter(BaseAgent):
     """
     Adds visual assets to Director's screen outline.
 
-    Input from Director (4 fields):
-    - screen_number, screen_type, voiceover_text, target_duration_sec
+    Input from Director (5 fields):
+    - screen_number, narrative_role, screen_type, voiceover_text, duration
 
-    Output (5 fields):
-    - screen_number, screen_type, target_duration_sec, voiceover_text, on_screen_visual
+    Output (6 fields):
+    - screen_number, narrative_role, screen_type, duration, voiceover_text, on_screen_visual
     """
 
     prompt_file = "storyboard_writer_prompt_2.md"
-
-    def __init__(self):
-        super().__init__()
-        self.image_researcher = ImageResearcher()
 
     def run(self, state: Any, **kwargs) -> list:
         """
@@ -47,67 +54,20 @@ class StoryboardWriter(BaseAgent):
         return storyboard
 
     def _process_screen(self, screen: dict, story_brief: dict) -> dict:
-        """Process screen - only add visual asset."""
-        screen_type = screen.get("screen_type", "slides/text overlay")
+        """Process screen - pass through fields and add visual asset."""
+        screen_type = screen.get("screen_type", "slides")
         voiceover = screen.get("voiceover_text", "")
-        duration = screen.get("target_duration_sec", 6.0)
+        duration = screen.get("duration", 6.0)
+        narrative_role = screen.get("narrative_role", "")
 
-        # Get visual asset based on screen type
-        visual = self._get_visual_asset(screen_type, voiceover)
+        # Get placeholder image based on screen type
+        visual = PLACEHOLDER_IMAGES.get(screen_type, "/placeholders/slides_and_diagrams.png")
 
         return {
             "screen_number": screen.get("screen_number", 1),
+            "narrative_role": narrative_role,
             "screen_type": screen_type,
-            "target_duration_sec": duration,
+            "duration": duration,
             "voiceover_text": voiceover,
             "on_screen_visual": visual
         }
-
-    def _get_visual_asset(self, screen_type: str, voiceover: str) -> str:
-        """Get visual asset based on screen type."""
-        screen_type_lower = screen_type.lower()
-
-        # Placeholders - no API needed
-        if screen_type_lower == "talking head":
-            return "PLACEHOLDER: talking-head-presenter"
-        if screen_type_lower == "screencast":
-            return "PLACEHOLDER: product-demo-screen"
-        if screen_type_lower == "cta":
-            return "PLACEHOLDER: cta-template"
-
-        # HTML generation for slides/whiteboard
-        if screen_type_lower in ["slides/text overlay", "whiteboard"]:
-            return self._generate_html_visual(voiceover, screen_type)
-
-        # Stock video - use image researcher
-        if screen_type_lower == "stock video":
-            result = self.image_researcher.search(voiceover)
-            return result.get("url", "PLACEHOLDER: stock-footage")
-
-        return "PLACEHOLDER: generic"
-
-    def _generate_html_visual(self, voiceover: str, screen_type: str) -> str:
-        """Generate HTML visual from voiceover using Claude."""
-        style = "whiteboard sketch" if screen_type.lower() == "whiteboard" else "clean slide"
-
-        prompt = f"""Create a simple HTML visual (400x300px) for this content:
-"{voiceover}"
-
-Style: {style}
-- Use inline CSS only
-- Simple, clean design
-- Max 3-4 key points or elements
-- Return ONLY the HTML, no explanation
-
-<html>"""
-
-        # Call LLM (uses BaseAgent's call_llm)
-        response = self.call_llm(prompt, max_tokens=1000)
-
-        # Extract HTML
-        if "</html>" in response:
-            html = "<html>" + response.split("</html>")[0] + "</html>"
-        else:
-            html = "<html>" + response + "</html>"
-
-        return f"HTML:{html}"

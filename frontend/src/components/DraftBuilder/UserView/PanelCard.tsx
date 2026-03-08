@@ -126,7 +126,7 @@ export default function PanelCard({
         {/* Duration */}
         <div className="flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="w-3.5 h-3.5" />
-          <span>{screen.target_duration_sec || 0}s</span>
+          <span>{screen.duration || 0}s</span>
         </div>
 
         {/* Expand/Collapse */}
@@ -201,7 +201,7 @@ export default function PanelCard({
                 />
               ) : (
                 <div className="flex items-center gap-3">
-                  {screen.on_screen_visual?.startsWith("http") ? (
+                  {(screen.on_screen_visual?.startsWith("http") || screen.on_screen_visual?.startsWith("/placeholders/")) ? (
                     <img
                       src={screen.on_screen_visual}
                       alt="Visual reference"
@@ -294,9 +294,9 @@ export default function PanelCard({
                       type="number"
                       min={1}
                       max={120}
-                      value={screen.target_duration_sec || 5}
+                      value={screen.duration || 5}
                       onChange={(e) =>
-                        handleFieldChange("target_duration_sec", parseInt(e.target.value) || 5)
+                        handleFieldChange("duration", parseInt(e.target.value) || 5)
                       }
                       className="w-20 p-2 text-sm border border-border rounded bg-background"
                     />
@@ -304,7 +304,7 @@ export default function PanelCard({
                   </div>
                 ) : (
                   <p className="text-sm text-foreground">
-                    {screen.target_duration_sec || 5} seconds
+                    {screen.duration || 5} seconds
                   </p>
                 )}
               </div>

@@ -139,9 +139,9 @@ export default function InputView({ previousStageOutput, outlineSummary }: Input
                           </span>
                         )}
                       </div>
-                      {screen.target_duration_sec && (
+                      {screen.duration && (
                         <span className="text-xs text-muted-foreground">
-                          {String(screen.target_duration_sec)}s
+                          {String(screen.duration)}s
                         </span>
                       )}
                     </div>

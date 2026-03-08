@@ -11,7 +11,7 @@ interface Story {
   Type?: string;
   voiceover_text?: string;
   screen_type?: string;
-  target_duration_sec?: number;
+  duration?: number;
   action_notes?: string;
   screen_number?: number;
   on_screen_visual_keywords?: string;

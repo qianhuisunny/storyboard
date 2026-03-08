@@ -34,7 +34,7 @@ export default function InputView({ previousStageOutput }: InputViewProps) {
   // Calculate stats
   const totalDuration = screens.reduce(
     (sum: number, s: Record<string, unknown>) =>
-      sum + (Number(s.target_duration_sec) || 0),
+      sum + (Number(s.duration) || 0),
     0
   );
 
@@ -111,9 +111,9 @@ export default function InputView({ previousStageOutput }: InputViewProps) {
                           </span>
                         )}
                       </div>
-                      {screen.target_duration_sec && (
+                      {screen.duration && (
                         <span className="text-xs text-muted-foreground">
-                          {String(screen.target_duration_sec)}s
+                          {String(screen.duration)}s
                         </span>
                       )}
                     </div>

@@ -210,7 +210,7 @@ export default function UserView({
                 <View style={styles.cardHeader}>
                   <Text style={styles.screenNumber}>{screen.screen_number}</Text>
                   <Text style={styles.screenType}>{screen.screen_type.replace(/_/g, " ")}</Text>
-                  <Text style={styles.duration}>{screen.target_duration_sec}s</Text>
+                  <Text style={styles.duration}>{screen.duration}s</Text>
                 </View>
                 <View style={styles.cardBody}>
                   {/* Voiceover */}

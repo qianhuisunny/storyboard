@@ -157,7 +157,7 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   freshness_expectation: "select",
   must_avoid: "list",
   core_talking_points: "editable-list",
-  misconceptions: "checklist",
+  misconceptions: "editable-list",
   practical_takeaway: "textarea",
   additional_notes: "textarea",
 };

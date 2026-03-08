@@ -162,7 +162,7 @@ export default function ProcessingView({
             <div className="space-y-2">
               {screens.map((screen, index) => {
                 const percentage = totalDuration > 0
-                  ? Math.round((screen.target_duration_sec / totalDuration) * 100)
+                  ? Math.round((screen.duration / totalDuration) * 100)
                   : 0;
                 return (
                   <div key={index} className="flex items-center gap-3">
@@ -176,7 +176,7 @@ export default function ProcessingView({
                       />
                     </div>
                     <span className="text-xs text-muted-foreground w-16 text-right">
-                      {screen.target_duration_sec}s ({percentage}%)
+                      {screen.duration}s ({percentage}%)
                     </span>
                   </div>
                 );

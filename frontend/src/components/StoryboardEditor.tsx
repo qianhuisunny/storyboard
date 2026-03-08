@@ -13,7 +13,7 @@ interface Story {
   Type?: string;
   voiceover_text?: string;
   screen_type?: string;
-  target_duration_sec?: number;
+  duration?: number;
   action_notes?: string;
   screen_number?: number;
   on_screen_visual_keywords?: string;
@@ -77,7 +77,7 @@ const StoryboardEditor: React.FC<StoryboardEditorProps> = ({
         "No description available",
       type: mapType(story.screen_type || story.Type),
       duration:
-        Number(story.target_duration_sec || story.Duration || story.duration) ||
+        Number(story.duration || story.Duration) ||
         10,
       imageUrl:
         story.image_url ||

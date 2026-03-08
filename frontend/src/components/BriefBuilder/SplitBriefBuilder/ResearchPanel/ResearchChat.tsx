@@ -29,9 +29,25 @@ import type {
   PerspectiveOption,
 } from "../types";
 
-// Chat bubble component
+// Lightweight inline status line (no bubble, no label, no timestamp)
+function StatusLine({ message }: { message: ChatMessage }) {
+  return (
+    <div className="flex items-center gap-2 py-1.5 px-1">
+      <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin flex-shrink-0" />
+      <span className="text-xs text-muted-foreground">{message.content}</span>
+    </div>
+  );
+}
+
+// Chat bubble component — full bubble for user + result messages, inline for status
 function ChatBubble({ message }: { message: ChatMessage }) {
   const isUser = message.type === "user";
+  const isStatus = message.type === "system";
+
+  // System messages render as lightweight inline status lines
+  if (isStatus) {
+    return <StatusLine message={message} />;
+  }
 
   return (
     <div
@@ -48,27 +64,21 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             : "bg-muted/50 border border-border"
         )}
       >
-        {!isUser && (
-          <div className="flex items-center gap-2 mb-1">
-            <MessageCircle className="w-4 h-4 text-muted-foreground" />
-            <span className="text-xs text-muted-foreground font-medium">
-              Research Assistant
-            </span>
-          </div>
-        )}
         <p className="text-sm">{message.content}</p>
-        <span className="text-[10px] text-muted-foreground mt-1 block">
-          {message.timestamp.toLocaleTimeString([], {
-            hour: "2-digit",
-            minute: "2-digit",
-          })}
-        </span>
+        {isUser && (
+          <span className="text-[10px] text-muted-foreground/70 mt-1 block">
+            {message.timestamp.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-// Perspective selector component
+// Perspective selector component — each option is editable before selecting
 function PerspectiveSelector({
   perspectives,
   onSelect,
@@ -78,8 +88,27 @@ function PerspectiveSelector({
   onSelect: (perspective: PerspectiveOption | string) => void;
   disabled?: boolean;
 }) {
+  // Editable copies of each perspective's statement
+  const [editedStatements, setEditedStatements] = useState<Record<number, string>>({});
   const [customText, setCustomText] = useState("");
   const [showCustom, setShowCustom] = useState(false);
+
+  const getStatement = (p: PerspectiveOption) =>
+    editedStatements[p.id] !== undefined ? editedStatements[p.id] : p.statement;
+
+  const handleStatementChange = (id: number, value: string) => {
+    setEditedStatements((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleSelect = (perspective: PerspectiveOption) => {
+    const edited = getStatement(perspective);
+    if (edited !== perspective.statement) {
+      // Send edited text as custom string
+      onSelect(edited);
+    } else {
+      onSelect(perspective);
+    }
+  };
 
   const handleCustomSubmit = () => {
     if (customText.trim()) {
@@ -96,13 +125,11 @@ function PerspectiveSelector({
       </p>
 
       {perspectives.map((perspective) => (
-        <button
+        <div
           key={perspective.id}
-          onClick={() => onSelect(perspective)}
-          disabled={disabled}
           className={cn(
             "w-full text-left p-4 rounded-lg border-2 transition-all",
-            "hover:border-primary hover:bg-primary/5",
+            "hover:border-primary/50",
             "disabled:opacity-50 disabled:cursor-not-allowed",
             "border-border bg-background"
           )}
@@ -111,16 +138,30 @@ function PerspectiveSelector({
             <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
               <Lightbulb className="w-3.5 h-3.5 text-primary" />
             </div>
-            <div>
-              <p className="text-sm font-medium text-foreground">
-                {perspective.statement}
-              </p>
+            <div className="flex-1 min-w-0">
+              <Textarea
+                value={getStatement(perspective)}
+                onChange={(e) => handleStatementChange(perspective.id, e.target.value)}
+                disabled={disabled}
+                className="text-sm font-medium text-foreground bg-transparent border-0 p-0 focus-visible:ring-0 resize-none min-h-0"
+                rows={2}
+              />
               <p className="text-xs text-muted-foreground mt-1">
                 {perspective.hook}
               </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleSelect(perspective)}
+                disabled={disabled}
+                className="mt-2 h-7 text-xs text-primary hover:text-primary hover:bg-primary/10"
+              >
+                <Check className="w-3 h-3 mr-1" />
+                Use this angle
+              </Button>
             </div>
           </div>
-        </button>
+        </div>
       ))}
 
       {/* Custom perspective option */}
@@ -302,12 +343,12 @@ function TalkingPointsDisplay({
   );
 }
 
-// Loading indicator
+// Loading indicator — lightweight inline style matching status lines
 function LoadingIndicator({ message }: { message?: string }) {
   return (
-    <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/30 border border-border my-4">
-      <Loader2 className="w-5 h-5 text-primary animate-spin" />
-      <span className="text-sm text-muted-foreground">
+    <div className="flex items-center gap-2 py-1.5 px-1">
+      <Loader2 className="w-3.5 h-3.5 text-primary animate-spin flex-shrink-0" />
+      <span className="text-xs text-muted-foreground">
         {message || "Processing..."}
       </span>
     </div>

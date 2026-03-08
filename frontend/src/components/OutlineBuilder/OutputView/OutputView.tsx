@@ -73,7 +73,7 @@ export default function OutputView({ screens }: OutputViewProps) {
 
       {/* JSON Content */}
       <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-none">
           <pre className="p-4 bg-muted/50 rounded-lg border border-border overflow-auto text-sm font-mono leading-relaxed">
             <code>
               <JsonHighlight data={screens} />

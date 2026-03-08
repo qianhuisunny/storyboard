@@ -11,7 +11,7 @@ from dataclasses import dataclass
 @dataclass
 class DurationResult:
     """Result of duration calculation."""
-    target_duration_sec: float
+    duration: float
     word_count: int
     base_duration: float
     complexity_buffer: float
@@ -35,11 +35,13 @@ class DurationCalculator:
 
     # Complexity buffers by screen type
     COMPLEXITY_BUFFERS = {
-        "stock video": 0.5,
-        "screencast": 1.0,       # Viewers need time to see UI
-        "talking head": 0.5,
-        "slides/text overlay": 0.8,  # Viewers need time to read
-        "CTA": 1.0,              # Pause for action
+        "screen_recording": 1.0,  # Viewers need time to see UI
+        "code_editor": 1.0,       # Viewers need time to read code
+        "slides": 0.8,            # Viewers need time to read
+        "whiteboard": 0.8,        # Viewers need time to follow drawing
+        "stock_footage": 0.5,
+        "real_world": 0.5,
+        "talking_head": 0.5,
     }
 
     # Duration constraints
@@ -61,7 +63,7 @@ class DurationCalculator:
             max_duration: Optional override for max duration
 
         Returns:
-            dict with target_duration_sec and calculation details
+            dict with duration and calculation details
         """
         max_dur = max_duration or self.MAX_DURATION
 
@@ -98,7 +100,7 @@ class DurationCalculator:
             note = f"{word_count} words ÷ {self.WORDS_PER_SECOND} wps = {base_duration:.2f}s + {complexity_buffer}s buffer = {total:.2f}s, rounded to {rounded}s"
 
         return {
-            "target_duration_sec": final_duration,
+            "duration": final_duration,
             "word_count": word_count,
             "base_duration": round(base_duration, 2),
             "complexity_buffer": complexity_buffer,
@@ -117,14 +119,14 @@ class DurationCalculator:
         Validate that total screen duration matches target.
 
         Args:
-            screens: List of screens with target_duration_sec
+            screens: List of screens with duration
             target_duration: Desired total duration in seconds
             tolerance: Acceptable deviation (0.1 = 10%)
 
         Returns:
             dict with validation result and suggestions
         """
-        total = sum(s.get("target_duration_sec", 0) for s in screens)
+        total = sum(s.get("duration", 0) for s in screens)
         deviation = abs(total - target_duration) / target_duration
 
         is_valid = deviation <= tolerance

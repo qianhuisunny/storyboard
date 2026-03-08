@@ -35,13 +35,19 @@ interface ResearchFindings {
 
 type ResearchStatus = "idle" | "running" | "complete" | "error";
 
+interface ApproveOptions {
+  skipNextGeneration?: boolean;
+  nextStageContent?: string;
+}
+
 interface StageContentProps {
   stage: Stage;
   aiContent: string | null;
   humanContent: string | null;
   previousStageOutput?: Record<string, unknown> | null;
+  researchDetails?: Record<string, unknown> | null;
   isGenerating: boolean;
-  onApprove: (content: string) => void;
+  onApprove: (content: string, options?: ApproveOptions) => void;
   onRegenerate: (feedback: string) => void;
   onContentChange: (content: string) => void;
 }
@@ -109,6 +115,7 @@ export default function StageContent({
   aiContent,
   humanContent,
   previousStageOutput,
+  researchDetails,
   isGenerating,
   onApprove,
   onRegenerate,
@@ -133,6 +140,8 @@ export default function StageContent({
   const [_researchEvents, setResearchEvents] = useState<SearchEvent[]>([]);
   const [_researchError, setResearchError] = useState<string | null>(null);
   const [knowledgeShareInitialized, setKnowledgeShareInitialized] = useState(false);
+  // Track if brief is already approved on backend (past brief stage)
+  const [isBriefAlreadyApproved, setIsBriefAlreadyApproved] = useState(false);
 
   // Note: _researchFindings, _researchEvents, _researchError are kept for legacy flow
   // but primarily used via researchChatState for the new interactive flow
@@ -171,10 +180,13 @@ export default function StageContent({
       // Start the Knowledge Share flow by submitting intake
       const initializeKnowledgeShare = async () => {
         const startTime = performance.now();
-        console.log("[KS] Initializing...");
+        console.log("[KS] Initializing... stage.status:", stage.status);
 
         try {
           setKnowledgeShareInitialized(true);
+
+          // If stage is already approved, we just need to load the saved data for display
+          const isAlreadyApproved = stage.status === "approved";
 
           // First, check if project already has state (e.g., page refresh)
           const stateResponse = await fetch(`/api/project/${projectId}/pipeline-state`);
@@ -184,6 +196,16 @@ export default function StageContent({
 
             // Extract brief_fields from story_brief in pipeline state
             const briefFields = stateData.data?.story_brief?.fields || {};
+
+            // If frontend stage is already approved, show review mode with saved data
+            if (isAlreadyApproved && Object.keys(briefFields).length > 0) {
+              console.log("[KS] Stage already approved, restoring fields:", Object.keys(briefFields));
+              setKnowledgeShareFields(briefFields);
+              setKnowledgeShareRound("review");
+              setResearchStatus("complete");
+              setIsBriefAlreadyApproved(true); // Mark as already approved on backend
+              return;
+            }
 
             // If already in round 2 or later, restore that state
             if (stateData.phase === "brief_round2") {
@@ -206,8 +228,15 @@ export default function StageContent({
               return;
             }
             // If phase is set but not brief_round*, project may have progressed past brief stage
+            // Still populate fields so they can be shown in read-only view
             if (stateData.phase && !stateData.phase.startsWith("brief_") && stateData.phase !== "intake") {
-              console.log("[KS] Project already past brief stage, phase:", stateData.phase);
+              console.log("[KS] Project already past brief stage, phase:", stateData.phase, "fields:", Object.keys(briefFields));
+              if (Object.keys(briefFields).length > 0) {
+                setKnowledgeShareFields(briefFields);
+                setKnowledgeShareRound("review"); // Show as completed/locked
+                setResearchStatus("complete");
+                setIsBriefAlreadyApproved(true); // Mark as already approved on backend
+              }
               return;
             }
           }
@@ -267,7 +296,7 @@ export default function StageContent({
 
       initializeKnowledgeShare();
     }
-  }, [isKnowledgeShare, projectId, stage.id, knowledgeShareInitialized, aiContent, onboardingData]);
+  }, [isKnowledgeShare, projectId, stage.id, stage.status, knowledgeShareInitialized, aiContent, onboardingData]);
 
   // Research stream for Knowledge Share (runs in parallel with Round 1 & 2)
   useEffect(() => {
@@ -319,7 +348,7 @@ export default function StageContent({
 
   // Poll for processing logs (for the Processing tab)
   useEffect(() => {
-    if (!isKnowledgeShare || !projectId) return;
+    if (!projectId) return;
 
     const pollLogs = async () => {
       try {
@@ -348,8 +377,8 @@ export default function StageContent({
       }
     };
 
-    // Poll while any research/generation is happening
-    const isActive = isResearchChatLoading || researchStatus === "running";
+    // Poll while any research/generation is happening (Stage 1 research OR Stage 2/3 generation)
+    const isActive = isResearchChatLoading || researchStatus === "running" || isGenerating;
     setIsPollingLogs(isActive);
 
     if (isActive) {
@@ -360,7 +389,7 @@ export default function StageContent({
       // Final poll when done
       pollLogs();
     }
-  }, [isKnowledgeShare, projectId, isResearchChatLoading, researchStatus]);
+  }, [projectId, isResearchChatLoading, researchStatus, isGenerating]);
 
   // Helper to add chat message
   const addChatMessage = useCallback((type: ChatMessage["type"], content: string, extra?: Partial<ChatMessage>) => {
@@ -481,6 +510,9 @@ export default function StageContent({
       // Add user message
       addChatMessage("user", perspectiveText);
 
+      // Add progress message
+      addChatMessage("system", "Developing key talking points based on your chosen angle...");
+
       setResearchChatState((prev) => ({
         ...prev,
         selectedPerspective: perspectiveText,
@@ -544,7 +576,30 @@ export default function StageContent({
       const pointsList = finalPoints.map((p, i) => `${i + 1}. ${p}`).join("\n");
       const confirmationMsg = `Confirmed talking points:\n${pointsList}${feedback ? `\n\nAdditional notes: ${feedback}` : ""}`;
       addChatMessage("user", confirmationMsg);
-      addChatMessage("system", "Now researching evidence for each point...");
+
+      // Progress messages to show while researching (simulated streaming)
+      const progressMessages = [
+        { delay: 0, message: "Starting research process..." },
+        { delay: 2000, message: `Generating research questions for "${finalPoints[0]?.substring(0, 40)}..."` },
+        { delay: 5000, message: "Searching for statistics and real-world examples..." },
+        { delay: 9000, message: "Analyzing common misconceptions to address..." },
+        { delay: 14000, message: "Compiling evidence and structuring findings..." },
+        { delay: 20000, message: "Almost done - finalizing research summary..." },
+      ];
+
+      // Track timeouts so we can clear them when response arrives
+      const timeoutIds: NodeJS.Timeout[] = [];
+      let researchComplete = false;
+
+      // Schedule progress messages
+      progressMessages.forEach(({ delay, message }) => {
+        const timeoutId = setTimeout(() => {
+          if (!researchComplete) {
+            addChatMessage("system", message);
+          }
+        }, delay);
+        timeoutIds.push(timeoutId);
+      });
 
       try {
         const response = await fetch(`/api/project/${projectId}/event`, {
@@ -560,6 +615,10 @@ export default function StageContent({
           throw new Error("Failed to confirm talking points");
         }
 
+        // Clear progress message timeouts
+        researchComplete = true;
+        timeoutIds.forEach(clearTimeout);
+
         const data = await response.json();
 
         if (data.status === "round2_ready") {
@@ -571,7 +630,7 @@ export default function StageContent({
           setResearchStatus("complete");
           addChatMessage(
             "system",
-            "Research complete! I found statistics, examples, and identified common misconceptions. Your Round 3 fields have been populated."
+            "✓ Research complete! I found statistics, examples, and identified common misconceptions. Your Section 3 fields have been populated with evidence."
           );
 
           // Update knowledge share fields with round 2 fields
@@ -585,6 +644,10 @@ export default function StageContent({
 
         setIsResearchChatLoading(false);
       } catch (err) {
+        // Clear progress message timeouts on error
+        researchComplete = true;
+        timeoutIds.forEach(clearTimeout);
+
         setIsResearchChatLoading(false);
         setResearchChatState((prev) => ({
           ...prev,
@@ -601,32 +664,56 @@ export default function StageContent({
   // Handle brief approval for Knowledge Share
   const handleKnowledgeShareBriefApprove = useCallback(
     async (allFields: Record<string, BriefField>): Promise<void> => {
-      const response = await fetch(`/api/project/${projectId}/event`, {
+      console.log("[KS StageContent] handleKnowledgeShareBriefApprove called");
+      console.log("[KS StageContent] projectId:", projectId);
+      console.log("[KS StageContent] allFields keys:", Object.keys(allFields));
+
+      const url = `/api/project/${projectId}/event`;
+      const body = {
+        event: "brief_approve",
+        payload: { all_fields: allFields },
+      };
+      console.log("[KS StageContent] Fetching URL:", url);
+      console.log("[KS StageContent] Request body:", JSON.stringify(body, null, 2));
+
+      const response = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "brief_approve",
-          payload: { all_fields: allFields },
-        }),
+        body: JSON.stringify(body),
       });
 
+      console.log("[KS StageContent] Response status:", response.status);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[KS StageContent] Error response:", errorText);
         throw new Error("Failed to approve brief");
       }
 
       // Trigger stage advance
       const data = await response.json();
-      console.log("[KS] Brief approve response:", data);
+      console.log("[KS StageContent] Brief approve response:", data);
 
       // Backend returns screen_outline after running Director
+      // For Knowledge Share, we skip the legacy endpoints and pass
+      // the pre-generated outline directly to the next stage
+      const briefContent = data.story_brief
+        ? JSON.stringify(data.story_brief, null, 2)
+        : JSON.stringify(allFields, null, 2);
+
       if (data.screen_outline) {
-        // Pass outline to next stage
-        onContentChange(JSON.stringify(data.screen_outline, null, 2));
-        onApprove(JSON.stringify(data.screen_outline, null, 2));
-      } else if (data.story_brief) {
-        // Fallback if only brief returned
-        onContentChange(JSON.stringify(data.story_brief, null, 2));
-        onApprove(JSON.stringify(data.story_brief, null, 2));
+        console.log("[KS StageContent] Got screen_outline, calling onApprove with nextStageContent");
+        // Pass brief as current stage content, outline as next stage content
+        onContentChange(briefContent);
+        onApprove(briefContent, {
+          skipNextGeneration: true,
+          nextStageContent: JSON.stringify(data.screen_outline, null, 2),
+        });
+      } else {
+        console.log("[KS StageContent] No screen_outline, calling onApprove without nextStageContent");
+        // Fallback if only brief returned - this shouldn't happen normally
+        onContentChange(briefContent);
+        onApprove(briefContent, { skipNextGeneration: true });
       }
     },
     [projectId, onContentChange, onApprove]
@@ -708,8 +795,18 @@ export default function StageContent({
 
   // Processing log for child components (legacy BriefBuilder)
   const processingLog: LegacyProcessingLogEntry[] = [];
-  const outlineProcessingLog: OutlineProcessingEntry[] = [];
   const draftProcessingLog: DraftProcessingEntry[] = [];
+
+  // Filter processing logs for outline stage (storyboard_director_* phases)
+  const outlineProcessingLog: OutlineProcessingEntry[] = processingLogs
+    .filter((log) => log.phase?.startsWith("storyboard_director"))
+    .map((log) => ({
+      id: log.id,
+      timestamp: log.timestamp,
+      phase: log.phase,
+      type: log.type as "request" | "response",
+      data: log.data,
+    }));
 
   // Outline summary for draft stage
   const outlineSummary = useMemo(() => {
@@ -809,6 +906,7 @@ export default function StageContent({
             initialRound={knowledgeShareRound}
             researchComplete={researchStatus === "complete"}
             isResearchRunning={isResearchChatLoading || researchStatus === "running"}
+            isAlreadyApproved={isBriefAlreadyApproved}
             onRoundConfirm={handleKnowledgeShareRoundConfirm}
             onBriefApprove={handleKnowledgeShareBriefApprove}
             onEditBrief={handleKnowledgeShareEditBrief}
@@ -899,6 +997,7 @@ export default function StageContent({
         <OutlineBuilder
           screens={currentScreens}
           stage1Output={stage1Output}
+          researchDetails={researchDetails}
           processingLog={outlineProcessingLog}
           onScreensUpdate={handleScreensUpdate}
           onConfirm={handleOutlineConfirm}

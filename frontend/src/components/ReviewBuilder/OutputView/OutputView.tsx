@@ -105,7 +105,7 @@ export default function OutputView({ screens }: OutputViewProps) {
                 <span className="text-muted-foreground ml-2">string</span>
               </div>
               <div className="p-2 bg-background rounded">
-                <span className="font-mono text-blue-600">target_duration_sec</span>
+                <span className="font-mono text-blue-600">duration</span>
                 <span className="text-muted-foreground ml-2">number</span>
               </div>
               <div className="p-2 bg-background rounded">

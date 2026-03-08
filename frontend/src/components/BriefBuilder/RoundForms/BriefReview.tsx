@@ -11,6 +11,7 @@ interface BriefReviewProps {
   onEditBrief: () => void;
   onApproveBrief: () => void;
   disabled?: boolean;
+  isAlreadyApproved?: boolean; // Brief was already approved, hide approve button
 }
 
 const SECTION_1_FIELDS = [
@@ -113,6 +114,7 @@ export default function BriefReview({
   onEditBrief,
   onApproveBrief,
   disabled = false,
+  isAlreadyApproved = false,
 }: BriefReviewProps) {
   return (
     <div className="space-y-6">
@@ -120,10 +122,12 @@ export default function BriefReview({
       <div className="border-b pb-4">
         <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
           <span className="text-2xl">📋</span>
-          Your Video Brief — Final Review
+          {isAlreadyApproved ? "Your Video Brief — Approved" : "Your Video Brief — Final Review"}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
-          Review your complete brief before proceeding to outline generation.
+          {isAlreadyApproved
+            ? "This brief has been approved. View the outline stage for next steps."
+            : "Review your complete brief before proceeding to outline generation."}
         </p>
       </div>
 
@@ -136,28 +140,40 @@ export default function BriefReview({
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
-        <button
-          onClick={onEditBrief}
-          disabled={disabled}
-          className={`flex-1 py-3 px-4 rounded-lg font-medium border transition-colors ${
-            disabled
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-background text-foreground border-border hover:bg-muted"
-          }`}
-        >
-          ← Edit Brief
-        </button>
-        <button
-          onClick={onApproveBrief}
-          disabled={disabled}
-          className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
-            disabled
-              ? "bg-muted text-muted-foreground cursor-not-allowed"
-              : "bg-primary text-primary-foreground hover:bg-primary/90"
-          }`}
-        >
-          Approve & Continue to Outline
-        </button>
+        {!isAlreadyApproved && (
+          <button
+            onClick={onEditBrief}
+            disabled={disabled}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium border transition-colors ${
+              disabled
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-background text-foreground border-border hover:bg-muted"
+            }`}
+          >
+            ← Edit Brief
+          </button>
+        )}
+        {!isAlreadyApproved && (
+          <button
+            onClick={() => {
+              console.log("[BriefReview] Approve button clicked");
+              onApproveBrief();
+            }}
+            disabled={disabled}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              disabled
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+            }`}
+          >
+            Approve & Continue to Outline
+          </button>
+        )}
+        {isAlreadyApproved && (
+          <div className="flex-1 py-3 px-4 rounded-lg font-medium bg-green-100 text-green-800 text-center border border-green-200">
+            ✓ Brief Approved — Click "Video Outline" in the sidebar to continue
+          </div>
+        )}
       </div>
     </div>
   );
