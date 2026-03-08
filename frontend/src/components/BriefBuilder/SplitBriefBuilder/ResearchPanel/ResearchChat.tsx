@@ -33,7 +33,7 @@ import type {
 function StatusLine({ message }: { message: ChatMessage }) {
   return (
     <div className="flex items-center gap-2 py-1.5 px-1">
-      <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin flex-shrink-0" />
+      <Check className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
       <span className="text-xs text-muted-foreground">{message.content}</span>
     </div>
   );
