@@ -11,7 +11,7 @@ class StoryboardScreen(BaseModel):
     """Pydantic model for validating storyboard screen data"""
     screen_number: int
     voiceover_text: str
-    target_duration_sec: Union[int, float]
+    duration: Union[int, float]
     screen_type: str
     on_screen_visual_keywords: Optional[str] = None
     action_notes: Optional[str] = None
@@ -207,13 +207,13 @@ def convert_to_story_format(validated_data: List[StoryboardScreen]) -> List[Dict
             "Screen_title": screen.voiceover_text[:50] + "..." if len(screen.voiceover_text) > 50 else screen.voiceover_text,
             "Type": screen.screen_type,
             "Description": screen.voiceover_text,
-            "Duration": screen.target_duration_sec,
+            "Duration": screen.duration,
             "Notes": screen.action_notes or "",
             "ImageUrl": None,  # Will be populated by frontend or other service
             # Keep original fields as well
             "screen_number": screen.screen_number,
             "voiceover_text": screen.voiceover_text,
-            "target_duration_sec": screen.target_duration_sec,
+            "duration": screen.duration,
             "on_screen_visual_keywords": screen.on_screen_visual_keywords,
             "action_notes": screen.action_notes
         }
@@ -232,7 +232,7 @@ if __name__ == "__main__":
       {
         "screen_number": 1,
         "voiceover_text": "The messaging industry is buzzing—brands just got a powerful new tool to boost engagement and expand brand equity.",
-        "target_duration_sec": 8,
+        "duration": 8,
         "screen_type": "slides/text overlay",
         "on_screen_visual_keywords": "animated buzzwords, brand logos, dynamic background",
         "action_notes": "Fast-paced intro animation, bold text overlays"
@@ -240,7 +240,7 @@ if __name__ == "__main__":
       {
         "screen_number": 2,
         "voiceover_text": "In a world where every business is fighting for attention, traditional SMS just isn't enough to build trust.",
-        "target_duration_sec": 8,
+        "duration": 8,
         "screen_type": "stock video",
         "on_screen_visual_keywords": "busy city, people on phones, generic SMS notifications",
         "action_notes": "Quick cuts, muted color palette"

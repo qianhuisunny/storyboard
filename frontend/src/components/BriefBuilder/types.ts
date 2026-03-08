@@ -74,7 +74,7 @@ export function getFieldColor(field: BriefField, isRequired: boolean = false): F
 /**
  * Current round in the briefing flow.
  */
-export type BriefRound = 1 | 2 | 3 | "review";
+export type BriefRound = 1 | 2 | 3 | "angle_selection" | "review";
 
 /**
  * Knowledge Share Brief - the new brief structure for Knowledge Share videos.
@@ -92,12 +92,11 @@ export interface KnowledgeShareBrief {
 export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
   1: [
     "video_type",
-    "primary_goal",
+    "viewer_outcome",
     "target_audience",
     "audience_level",
     "platform",
     "duration",
-    "one_big_thing",
     "viewer_next_action",
   ],
   2: [
@@ -109,7 +108,6 @@ export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
   3: [
     "core_talking_points",
     "misconceptions",
-    "practical_takeaway",
   ],
 };
 
@@ -119,12 +117,11 @@ export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
 export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   // Section 1: Core Intent
   video_type: "Video type",
-  primary_goal: "What is the main goal of this video?",
+  viewer_outcome: "Viewer outcome: know, do, believe",
   target_audience: "Who is this video for?",
   audience_level: "How familiar is your audience with this topic?",
   platform: "Where will this video be published?",
   duration: "How long should this video be? (seconds)",
-  one_big_thing: "If viewers remember only one thing after watching this video, what should it be?",
   viewer_next_action: "What is the next thing you want people to do after watching this video?",
   // Section 2: Delivery & Format
   on_camera_presence: "Do you want your face on screen?",
@@ -133,9 +130,8 @@ export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   freshness_expectation: "How time-sensitive is this video?",
   // Section 3: Content Spine
   must_avoid: "Anything we should absolutely avoid?",
-  core_talking_points: "Proposed framework/method",
+  core_talking_points: "Proposed framework/method/key talking points",
   misconceptions: "Common misconceptions to address",
-  practical_takeaway: "Practical takeaway",
   additional_notes: "Anything to highlight that's not included in this form?",
 };
 
@@ -144,12 +140,11 @@ export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
  */
 export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   video_type: "readonly",
-  primary_goal: "textarea",
+  viewer_outcome: "textarea",
   target_audience: "text",
   audience_level: "select",
   platform: "select",
   duration: "number",
-  one_big_thing: "textarea",
   viewer_next_action: "textarea",
   on_camera_presence: "select",
   broll_type: "multiselect",
@@ -158,7 +153,6 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   must_avoid: "list",
   core_talking_points: "editable-list",
   misconceptions: "editable-list",
-  practical_takeaway: "textarea",
   additional_notes: "textarea",
 };
 
@@ -223,8 +217,8 @@ export function createInitialKnowledgeShareFields(): Record<string, BriefField> 
 
   // Section 1 fields
   const section1Fields = [
-    "video_type", "primary_goal", "target_audience", "audience_level",
-    "platform", "duration", "one_big_thing", "viewer_next_action"
+    "video_type", "viewer_outcome", "target_audience", "audience_level",
+    "platform", "duration", "viewer_next_action"
   ];
 
   // Section 2 fields
@@ -234,7 +228,7 @@ export function createInitialKnowledgeShareFields(): Record<string, BriefField> 
 
   // Section 3 fields
   const section3Fields = [
-    "must_avoid", "core_talking_points", "misconceptions", "practical_takeaway", "additional_notes"
+    "must_avoid", "core_talking_points", "misconceptions", "additional_notes"
   ];
 
   [...section1Fields, ...section2Fields, ...section3Fields].forEach(key => {

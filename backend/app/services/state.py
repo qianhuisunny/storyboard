@@ -28,6 +28,7 @@ class StoryboardState(BaseModel):
         "brief_round1",   # NEW: Editing Section 1 (Core Intent)
         "brief_round2",   # NEW: Editing Section 2 (Delivery & Format)
         "brief_round3",   # NEW: Editing Section 3 (Content Spine)
+        "angle_selection", # NEW: Perspective/angle selection after Section 3
         "brief_review",   # NEW: Final brief review before locking
         "gate1",          # Human review of Story Brief
         "outline",        # Storyboard Director is running
@@ -93,7 +94,8 @@ class StateManager:
         ("intake", "submit_knowledge_share"): "brief_round1",      # Start new flow
         ("brief_round1", "round1_confirm"): "brief_round2",        # Section 1 -> Section 2
         ("brief_round2", "round2_confirm"): "brief_round3",        # Section 2 -> Section 3
-        ("brief_round3", "round3_confirm"): "brief_review",        # Section 3 -> Final review
+        ("brief_round3", "round3_confirm"): "angle_selection",       # Section 3 -> Angle selection
+        ("angle_selection", "approve_angle"): "brief_review",         # Angle approved -> Final review
         ("brief_review", "brief_approve"): "gate1",                # Final review -> Gate 1 (locked)
         ("brief_review", "edit_brief"): "brief_round1",            # Go back to editing
 

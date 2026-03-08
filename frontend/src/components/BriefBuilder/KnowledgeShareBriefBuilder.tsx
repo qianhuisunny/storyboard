@@ -4,18 +4,26 @@
  */
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { RoundOneForm, RoundTwoForm, RoundThreeForm, BriefReview, CollapsibleSection } from "./RoundForms";
+import { RoundOneForm, RoundTwoForm, RoundThreeForm, BriefReview, AngleSelectionForm, CollapsibleSection } from "./RoundForms";
 import type { BriefField, BriefRound } from "./types";
 import { createInitialKnowledgeShareFields } from "./types";
+
+interface Perspective {
+  id: number;
+  statement: string;
+  hook: string;
+}
 
 interface KnowledgeShareBriefBuilderProps {
   projectId: string;
   initialFields?: Record<string, BriefField>;
   initialRound?: BriefRound;
+  perspectives?: Perspective[];
   researchComplete?: boolean;
   isResearchRunning?: boolean;
   isAlreadyApproved?: boolean; // Brief was already approved on backend
   onRoundConfirm: (round: number, confirmedFields: Record<string, BriefField>) => Promise<Record<string, BriefField>>;
+  onAngleApprove: (selectedAngle: string) => Promise<void>;
   onBriefApprove: (allFields: Record<string, BriefField>) => Promise<void>;
   onEditBrief: () => void;
 }
@@ -24,10 +32,12 @@ export default function KnowledgeShareBriefBuilder({
   projectId: _projectId,
   initialFields,
   initialRound = 1,
+  perspectives: initialPerspectives = [],
   researchComplete = false,
   isResearchRunning = false,
   isAlreadyApproved = false,
   onRoundConfirm,
+  onAngleApprove,
   onBriefApprove,
   onEditBrief,
 }: KnowledgeShareBriefBuilderProps) {
@@ -42,6 +52,8 @@ export default function KnowledgeShareBriefBuilder({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Perspectives for angle selection
+  const [perspectives, setPerspectives] = useState<Perspective[]>(initialPerspectives);
   // Guard against double-submission (ref doesn't wait for re-render)
   const isSubmittingRef = useRef(false);
 
@@ -63,6 +75,13 @@ export default function KnowledgeShareBriefBuilder({
     }
   }, [initialRound]);
 
+  // Sync perspectives when initialPerspectives changes
+  useEffect(() => {
+    if (initialPerspectives && initialPerspectives.length > 0) {
+      setPerspectives(initialPerspectives);
+    }
+  }, [initialPerspectives]);
+
   // Track which rounds are completed
   const [completedRounds, setCompletedRounds] = useState<Set<number>>(() => {
     const completed = new Set<number>();
@@ -70,6 +89,11 @@ export default function KnowledgeShareBriefBuilder({
     if (initialRound === 3) {
       completed.add(1);
       completed.add(2);
+    }
+    if (initialRound === "angle_selection") {
+      completed.add(1);
+      completed.add(2);
+      completed.add(3);
     }
     if (initialRound === "review") {
       completed.add(1);
@@ -86,6 +110,11 @@ export default function KnowledgeShareBriefBuilder({
     if (initialRound === 3) {
       completed.add(1);
       completed.add(2);
+    }
+    if (initialRound === "angle_selection") {
+      completed.add(1);
+      completed.add(2);
+      completed.add(3);
     }
     if (initialRound === "review") {
       completed.add(1);
@@ -171,7 +200,8 @@ export default function KnowledgeShareBriefBuilder({
         } else if (round === 2) {
           setCurrentRound(3);
         } else if (round === 3) {
-          setCurrentRound("review");
+          // Round 3 returns perspectives; move to angle selection
+          setCurrentRound("angle_selection");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to confirm section");
@@ -181,6 +211,24 @@ export default function KnowledgeShareBriefBuilder({
       }
     },
     [fields, onRoundConfirm]
+  );
+
+  // Handle angle approval
+  const handleAngleApprove = useCallback(
+    async (selectedAngle: string) => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        await onAngleApprove(selectedAngle);
+        setCurrentRound("review");
+        setCompletedRounds((prev) => new Set([...prev, 3]));
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Failed to approve angle");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [onAngleApprove]
   );
 
   // Handle brief approval
@@ -275,6 +323,16 @@ export default function KnowledgeShareBriefBuilder({
       );
     }
 
+    if (currentRound === "angle_selection") {
+      return (
+        <AngleSelectionForm
+          perspectives={perspectives}
+          onApproveAngle={handleAngleApprove}
+          disabled={isLoading}
+        />
+      );
+    }
+
     switch (currentRound) {
       case 1:
         return (
@@ -320,19 +378,17 @@ export default function KnowledgeShareBriefBuilder({
       {/* Progress Indicator */}
       <div className="flex-shrink-0 px-4 py-3 bg-muted/30 border-b">
         <div className="flex items-center gap-2">
-          {[1, 2, 3, "review"].map((round, index) => {
+          {([1, 2, 3, "angle_selection", "review"] as const).map((round, index) => {
             const isActive = currentRound === round;
+            const stepOrder = [1, 2, 3, "angle_selection", "review"];
+            const currentIndex = stepOrder.indexOf(currentRound);
+            const roundIndex = stepOrder.indexOf(round);
+            const isPast = currentIndex > roundIndex;
             const isCompleted =
-              round !== "review" && completedRounds.has(round as number);
-            const isPast =
-              round === "review"
-                ? false
-                : typeof currentRound === "number"
-                ? (round as number) < currentRound
-                : true;
+              typeof round === "number" && completedRounds.has(round);
 
             return (
-              <React.Fragment key={round}>
+              <React.Fragment key={String(round)}>
                 <div
                   className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
                     isActive
@@ -352,12 +408,14 @@ export default function KnowledgeShareBriefBuilder({
                       />
                     </svg>
                   ) : round === "review" ? (
-                    "✓"
+                    "R"
+                  ) : round === "angle_selection" ? (
+                    "A"
                   ) : (
                     round
                   )}
                 </div>
-                {index < 3 && (
+                {index < 4 && (
                   <div
                     className={`flex-1 h-1 rounded ${
                       isPast || isCompleted ? "bg-green-500" : "bg-muted"
@@ -372,6 +430,7 @@ export default function KnowledgeShareBriefBuilder({
           <span>Core Intent</span>
           <span>Delivery</span>
           <span>Content</span>
+          <span>Angle</span>
           <span>Review</span>
         </div>
       </div>
@@ -391,34 +450,7 @@ export default function KnowledgeShareBriefBuilder({
         {/* Current Form */}
         {renderCurrentForm()}
 
-        {/* Research Running Overlay - locks the form while AI is researching */}
-        {isResearchRunning && (
-          <div className="absolute inset-0 bg-background/60 backdrop-blur-[1px] flex items-center justify-center z-10 cursor-not-allowed">
-            <div className="flex flex-col items-center gap-3 px-6 py-4 bg-background/90 border rounded-xl shadow-lg">
-              <div className="flex items-center gap-2">
-                <svg className="w-5 h-5 animate-spin text-primary" viewBox="0 0 24 24" fill="none">
-                  <circle
-                    className="opacity-25"
-                    cx="12"
-                    cy="12"
-                    r="10"
-                    stroke="currentColor"
-                    strokeWidth="4"
-                  />
-                  <path
-                    className="opacity-75"
-                    fill="currentColor"
-                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                  />
-                </svg>
-                <span className="text-sm font-medium">Researching...</span>
-              </div>
-              <p className="text-xs text-muted-foreground text-center max-w-[200px]">
-                Please wait while the AI analyzes your input
-              </p>
-            </div>
-          </div>
-        )}
+        {/* RESEARCH DISABLED: Research Running Overlay removed */}
       </div>
 
       {/* Loading Overlay (for section confirm) */}

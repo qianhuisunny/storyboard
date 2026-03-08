@@ -6,8 +6,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Check, RefreshCw, Loader2 } from "lucide-react";
 import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type BriefRound, KnowledgeShareBriefBuilder, type ProcessingLogEntry as LegacyProcessingLogEntry } from "./BriefBuilder";
 import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
-import { type OnboardingData, type ResearchChatState, type PerspectiveOption, type ChatMessage, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
-import { TabbedResearchPanel } from "./BriefBuilder/SplitBriefBuilder/ResearchPanel/TabbedResearchPanel";
+import { type OnboardingData, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
+// RESEARCH DISABLED: import { type ResearchChatState, type PerspectiveOption, type ChatMessage } from "./BriefBuilder/SplitBriefBuilder/types";
+// RESEARCH DISABLED: import { TabbedResearchPanel } from "./BriefBuilder/SplitBriefBuilder/ResearchPanel/TabbedResearchPanel";
 import { OutlineBuilder, parseScreens, type Screen, type OutlineProcessingEntry } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
@@ -135,29 +136,23 @@ export default function StageContent({
   // Knowledge Share 3-round flow state
   const [knowledgeShareFields, setKnowledgeShareFields] = useState<Record<string, BriefField>>({});
   const [knowledgeShareRound, setKnowledgeShareRound] = useState<BriefRound>(1);
-  const [researchStatus, setResearchStatus] = useState<ResearchStatus>("idle");
-  const [_researchFindings, setResearchFindings] = useState<ResearchFindings | null>(null);
-  const [_researchEvents, setResearchEvents] = useState<SearchEvent[]>([]);
-  const [_researchError, setResearchError] = useState<string | null>(null);
   const [knowledgeShareInitialized, setKnowledgeShareInitialized] = useState(false);
   // Track if brief is already approved on backend (past brief stage)
   const [isBriefAlreadyApproved, setIsBriefAlreadyApproved] = useState(false);
+  // Perspectives for angle selection (generated after Section 3)
+  const [knowledgeSharePerspectives, setKnowledgeSharePerspectives] = useState<Array<{ id: number; statement: string; hook: string }>>([]);
 
-  // Note: _researchFindings, _researchEvents, _researchError are kept for legacy flow
-  // but primarily used via researchChatState for the new interactive flow
+  // RESEARCH DISABLED: research state variables
+  const [researchStatus, setResearchStatus] = useState<ResearchStatus>("complete");
+  const [_researchFindings, setResearchFindings] = useState<ResearchFindings | null>(null);
+  const [_researchEvents, setResearchEvents] = useState<SearchEvent[]>([]);
+  const [_researchError, setResearchError] = useState<string | null>(null);
   void _researchFindings;
   void _researchEvents;
   void _researchError;
 
-  // NEW: Research chat state for perspective-first flow
-  const [researchChatState, setResearchChatState] = useState<ResearchChatState>({
-    status: "idle",
-    messages: [],
-    perspectives: [],
-    selectedPerspective: null,
-    talkingPoints: [],
-    isLoading: false,
-  });
+  // RESEARCH DISABLED: Research chat state commented out
+  // const [researchChatState, setResearchChatState] = useState<ResearchChatState>({...});
   const [isResearchChatLoading, setIsResearchChatLoading] = useState(false);
 
   // Processing logs state for the Processing tab
@@ -218,6 +213,16 @@ export default function StageContent({
               console.log("[KS] Restoring round 3 state, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
               setKnowledgeShareRound(3);
+              setResearchStatus("complete");
+              return;
+            } else if (stateData.phase === "angle_selection") {
+              console.log("[KS] Restoring angle_selection state, fields:", Object.keys(briefFields));
+              setKnowledgeShareFields(briefFields);
+              setKnowledgeShareRound("angle_selection");
+              // Restore pending perspectives from state
+              if (stateData.pending_perspectives) {
+                setKnowledgeSharePerspectives(stateData.pending_perspectives);
+              }
               setResearchStatus("complete");
               return;
             } else if (stateData.phase === "brief_round1") {
@@ -298,39 +303,13 @@ export default function StageContent({
     }
   }, [isKnowledgeShare, projectId, stage.id, stage.status, knowledgeShareInitialized, aiContent, onboardingData]);
 
-  // Research stream for Knowledge Share (runs in parallel with Round 1 & 2)
-  useEffect(() => {
-    if (!isKnowledgeShare || !projectId || researchStatus !== "running") return;
-
-    // Poll for research status
-    const pollResearch = async () => {
-      try {
-        const response = await fetch(`/api/project/${projectId}/research/status`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.status === "complete") {
-            setResearchStatus("complete");
-            setResearchFindings(data.findings);
-          } else if (data.status === "running") {
-            // Update events
-            if (data.events) {
-              setResearchEvents(data.events);
-            }
-          } else if (data.status === "error") {
-            setResearchStatus("error");
-            setResearchError(data.error || "Research failed");
-          }
-        }
-      } catch {
-        // Silently fail polling
-      }
-    };
-
-    const interval = setInterval(pollResearch, 2000);
-    pollResearch(); // Initial poll
-
-    return () => clearInterval(interval);
-  }, [isKnowledgeShare, projectId, researchStatus]);
+  // RESEARCH DISABLED: Research polling removed
+  // useEffect(() => {
+  //   if (!isKnowledgeShare || !projectId || researchStatus !== "running") return;
+  //   const pollResearch = async () => { ... };
+  //   const interval = setInterval(pollResearch, 2000);
+  //   return () => clearInterval(interval);
+  // }, [isKnowledgeShare, projectId, researchStatus]);
 
   // Clear processing logs on mount (fresh session)
   useEffect(() => {
@@ -391,85 +370,17 @@ export default function StageContent({
     }
   }, [projectId, isResearchChatLoading, researchStatus, isGenerating]);
 
-  // Helper to add chat message
-  const addChatMessage = useCallback((type: ChatMessage["type"], content: string, extra?: Partial<ChatMessage>) => {
-    const message: ChatMessage = {
-      id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-      type,
-      content,
-      timestamp: new Date(),
-      ...extra,
-    };
-    setResearchChatState((prev) => ({
-      ...prev,
-      messages: [...prev.messages, message],
-    }));
-  }, []);
+  // RESEARCH DISABLED: addChatMessage helper removed
+  // const addChatMessage = useCallback((...) => { ... }, []);
 
   // Handle round confirmation for Knowledge Share
+  // RESEARCH DISABLED: Round 1 no longer triggers perspective generation.
+  // It sends round1_confirm which now directly transitions to Round 2 on the backend.
   const handleKnowledgeShareRoundConfirm = useCallback(
     async (round: number, confirmedFields: Record<string, BriefField>): Promise<Record<string, BriefField>> => {
-      // Round 1 confirm now triggers perspective generation (new flow)
-      if (round === 1) {
-        setIsResearchChatLoading(true);
-        setResearchChatState((prev) => ({
-          ...prev,
-          status: "awaiting_perspective",
-          isLoading: true,
-        }));
-
-        // Add initial chat message
-        addChatMessage(
-          "system",
-          `I received your request for "${confirmedFields.primary_goal?.value || confirmedFields.one_big_thing?.value || "your video"}". Hold on while I analyze some angles...`
-        );
-
-        try {
-          const response = await fetch(`/api/project/${projectId}/event`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              event: "round1_confirm",
-              payload: { confirmed_fields: confirmedFields },
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error("Failed to confirm round 1");
-          }
-
-          const data = await response.json();
-
-          // Check if we got perspectives back
-          if (data.status === "awaiting_perspective" && data.perspectives) {
-            setResearchChatState((prev) => ({
-              ...prev,
-              status: "awaiting_perspective",
-              perspectives: data.perspectives,
-              isLoading: false,
-            }));
-            addChatMessage("system", "A great knowledge-sharing video isn't just about assembling facts — it's about sharing your perspective. Here are some angles for your consideration:");
-          } else {
-            // Fallback to old flow if no perspectives
-            setResearchStatus("running");
-          }
-
-          setIsResearchChatLoading(false);
-          return {};  // Don't advance round yet - wait for perspective selection
-        } catch (err) {
-          setIsResearchChatLoading(false);
-          setResearchChatState((prev) => ({
-            ...prev,
-            status: "idle",
-            isLoading: false,
-            error: err instanceof Error ? err.message : "Failed to generate perspectives",
-          }));
-          throw err;
-        }
-      }
-
-      // Rounds 2 and 3 use standard flow
+      // Map round numbers to event names
       const eventTypeMap: Record<number, string> = {
+        1: "round1_confirm",
         2: "round2_confirm",
         3: "round3_confirm",
       };
@@ -496,169 +407,48 @@ export default function StageContent({
         setResearchStatus("error");
       }
 
+      // If round 3 returned perspectives, store them for angle selection
+      if (data.perspectives && Array.isArray(data.perspectives)) {
+        setKnowledgeSharePerspectives(data.perspectives);
+        setKnowledgeShareRound("angle_selection");
+      }
+
       return data.brief_fields || data.fields || {};
     },
-    [projectId, addChatMessage]
+    [projectId]
   );
 
-  // Handle perspective selection
-  const handleSelectPerspective = useCallback(
-    async (perspective: PerspectiveOption | string) => {
-      setIsResearchChatLoading(true);
-      const perspectiveText = typeof perspective === "string" ? perspective : perspective.statement;
+  // RESEARCH DISABLED: handleSelectPerspective and handleConfirmTalkingPoints removed
+  // These handlers managed the perspective → talking points → research flow
+  // which is now skipped. Round 1 confirm goes directly to Round 2.
 
-      // Add user message
-      addChatMessage("user", perspectiveText);
-
-      // Add progress message
-      addChatMessage("system", "Developing key talking points based on your chosen angle...");
-
-      setResearchChatState((prev) => ({
-        ...prev,
-        selectedPerspective: perspectiveText,
-        status: "awaiting_talking_points_confirm",
-        isLoading: true,
-      }));
-
-      try {
-        const response = await fetch(`/api/project/${projectId}/event`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "select_perspective",
-            payload: {
-              perspective: typeof perspective === "string" ? perspective : perspective,
-            },
-          }),
-        });
-
-        if (!response.ok) {
-          throw new Error("Failed to select perspective");
-        }
-
-        const data = await response.json();
-
-        if (data.status === "awaiting_talking_points_confirm" && data.talking_points) {
-          setResearchChatState((prev) => ({
-            ...prev,
-            talkingPoints: data.talking_points,
-            status: "awaiting_talking_points_confirm",
-            isLoading: false,
-          }));
-          addChatMessage("system", "Great choice! Based on this angle, here are the key talking points:");
-        }
-
-        setIsResearchChatLoading(false);
-      } catch (err) {
-        setIsResearchChatLoading(false);
-        setResearchChatState((prev) => ({
-          ...prev,
-          isLoading: false,
-          error: err instanceof Error ? err.message : "Failed to generate talking points",
-        }));
-      }
-    },
-    [projectId, addChatMessage]
-  );
-
-  // Handle talking points confirmation
-  const handleConfirmTalkingPoints = useCallback(
-    async (feedback?: string, editedPoints?: string[]) => {
-      setIsResearchChatLoading(true);
-      setResearchChatState((prev) => ({
-        ...prev,
-        status: "researching",
-        isLoading: true,
-      }));
-
-      // Build confirmation message showing the final talking points
-      const finalPoints = editedPoints || researchChatState.talkingPoints;
-      const pointsList = finalPoints.map((p, i) => `${i + 1}. ${p}`).join("\n");
-      const confirmationMsg = `Confirmed talking points:\n${pointsList}${feedback ? `\n\nAdditional notes: ${feedback}` : ""}`;
-      addChatMessage("user", confirmationMsg);
-
-      // Progress messages to show while researching (simulated streaming)
-      const progressMessages = [
-        { delay: 0, message: "Starting research process..." },
-        { delay: 2000, message: `Generating research questions for "${finalPoints[0]?.substring(0, 40)}..."` },
-        { delay: 5000, message: "Searching for statistics and real-world examples..." },
-        { delay: 9000, message: "Analyzing common misconceptions to address..." },
-        { delay: 14000, message: "Compiling evidence and structuring findings..." },
-        { delay: 20000, message: "Almost done - finalizing research summary..." },
-      ];
-
-      // Track timeouts so we can clear them when response arrives
-      const timeoutIds: NodeJS.Timeout[] = [];
-      let researchComplete = false;
-
-      // Schedule progress messages
-      progressMessages.forEach(({ delay, message }) => {
-        const timeoutId = setTimeout(() => {
-          if (!researchComplete) {
-            addChatMessage("system", message);
-          }
-        }, delay);
-        timeoutIds.push(timeoutId);
+  // Handle angle approval for Knowledge Share
+  const handleKnowledgeShareAngleApprove = useCallback(
+    async (selectedAngle: string): Promise<void> => {
+      const response = await fetch(`/api/project/${projectId}/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "approve_angle",
+          payload: { selected_angle: selectedAngle },
+        }),
       });
 
-      try {
-        const response = await fetch(`/api/project/${projectId}/event`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            event: "confirm_talking_points",
-            payload: { feedback, editedPoints },
-          }),
-        });
+      if (!response.ok) {
+        throw new Error("Failed to approve angle");
+      }
 
-        if (!response.ok) {
-          throw new Error("Failed to confirm talking points");
-        }
+      const data = await response.json();
+      // Move to review
+      setKnowledgeShareRound("review");
+      setKnowledgeSharePerspectives([]);
 
-        // Clear progress message timeouts
-        researchComplete = true;
-        timeoutIds.forEach(clearTimeout);
-
-        const data = await response.json();
-
-        if (data.status === "round2_ready") {
-          setResearchChatState((prev) => ({
-            ...prev,
-            status: "complete",
-            isLoading: false,
-          }));
-          setResearchStatus("complete");
-          addChatMessage(
-            "system",
-            "✓ Research complete! I found statistics, examples, and identified common misconceptions. Your Section 3 fields have been populated with evidence."
-          );
-
-          // Update knowledge share fields with round 2 fields
-          if (data.brief_fields) {
-            setKnowledgeShareFields((prev) => ({ ...prev, ...data.brief_fields }));
-          }
-
-          // Advance to round 2
-          setKnowledgeShareRound(2);
-        }
-
-        setIsResearchChatLoading(false);
-      } catch (err) {
-        // Clear progress message timeouts on error
-        researchComplete = true;
-        timeoutIds.forEach(clearTimeout);
-
-        setIsResearchChatLoading(false);
-        setResearchChatState((prev) => ({
-          ...prev,
-          status: "awaiting_talking_points_confirm",
-          isLoading: false,
-          error: err instanceof Error ? err.message : "Research failed",
-        }));
-        addChatMessage("status", "Research encountered an error. You can try again.");
+      // Update fields if full_brief returned
+      if (data.full_brief?.fields) {
+        setKnowledgeShareFields(data.full_brief.fields);
       }
     },
-    [projectId, addChatMessage]
+    [projectId]
   );
 
   // Handle brief approval for Knowledge Share
@@ -897,34 +687,21 @@ export default function StageContent({
   // For Stage 1 (Brief), use KnowledgeShareBriefBuilder for Knowledge Share videos
   if (stage.id === 1 && USE_KNOWLEDGE_SHARE_FLOW && isKnowledgeShare && projectId && !aiContent) {
     return (
-      <div className="flex-1 flex flex-col md:flex-row" style={{ minHeight: 0, height: "100%" }}>
-        {/* Left Panel - Brief Fields (60%) */}
-        <div className="flex-1 md:w-[60%] overflow-hidden border-r">
-          <KnowledgeShareBriefBuilder
-            projectId={projectId}
-            initialFields={knowledgeShareFields}
-            initialRound={knowledgeShareRound}
-            researchComplete={researchStatus === "complete"}
-            isResearchRunning={isResearchChatLoading || researchStatus === "running"}
-            isAlreadyApproved={isBriefAlreadyApproved}
-            onRoundConfirm={handleKnowledgeShareRoundConfirm}
-            onBriefApprove={handleKnowledgeShareBriefApprove}
-            onEditBrief={handleKnowledgeShareEditBrief}
-          />
-        </div>
-
-        {/* Right Panel - Tabbed Research Panel (40%) */}
-        <div className="hidden md:block md:w-[40%] overflow-hidden bg-muted/10">
-          <TabbedResearchPanel
-            researchChatState={researchChatState}
-            onSelectPerspective={handleSelectPerspective}
-            onConfirmTalkingPoints={handleConfirmTalkingPoints}
-            isResearchChatLoading={isResearchChatLoading}
-            projectId={projectId}
-            processingLogs={processingLogs}
-            isPollingLogs={isPollingLogs}
-          />
-        </div>
+      <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
+        {/* RESEARCH DISABLED: Single-panel layout (was split 60/40 with TabbedResearchPanel) */}
+        <KnowledgeShareBriefBuilder
+          projectId={projectId}
+          initialFields={knowledgeShareFields}
+          initialRound={knowledgeShareRound}
+          perspectives={knowledgeSharePerspectives}
+          researchComplete={true}
+          isResearchRunning={false}
+          isAlreadyApproved={isBriefAlreadyApproved}
+          onRoundConfirm={handleKnowledgeShareRoundConfirm}
+          onAngleApprove={handleKnowledgeShareAngleApprove}
+          onBriefApprove={handleKnowledgeShareBriefApprove}
+          onEditBrief={handleKnowledgeShareEditBrief}
+        />
       </div>
     );
   }

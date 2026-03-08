@@ -87,7 +87,7 @@ class TestValidateStoryboardData:
             {
                 "screen_number": 1,
                 "voiceover_text": "Test voiceover",
-                "target_duration_sec": 8,
+                "duration": 8,
                 "screen_type": "stock-video",
                 "on_screen_visual_keywords": "test keywords",
                 "action_notes": "test notes"
@@ -106,7 +106,7 @@ class TestValidateStoryboardData:
             {
                 "screen_number": 1,
                 "voiceover_text": "Test",
-                "target_duration_sec": 8,
+                "duration": 8,
                 "screen_type": "slides/text overlay"  # Should convert to text-overlay
             }
         ]
@@ -120,7 +120,7 @@ class TestValidateStoryboardData:
         data = [
             {
                 "screen_number": 1,
-                # Missing voiceover_text, target_duration_sec, screen_type
+                # Missing voiceover_text, duration, screen_type
             }
         ]
 
@@ -142,7 +142,7 @@ class TestExtractJsonFromText:
           {
             "screen_number": 1,
             "voiceover_text": "Test voiceover text",
-            "target_duration_sec": 8,
+            "duration": 8,
             "screen_type": "stock-video",
             "on_screen_visual_keywords": "test keywords",
             "action_notes": "test notes"
@@ -193,7 +193,7 @@ class TestExtractJsonFromText:
           {
             "screen_number": 1,
             "voiceover_text": "The messaging industry is buzzing—brands just got a powerful new tool to boost engagement and expand brand equity.",
-            "target_duration_sec": 8,
+            "duration": 8,
             "screen_type": "slides/text overlay",
             "on_screen_visual_keywords": "animated buzzwords, brand logos, dynamic background",
             "action_notes": "Fast-paced intro animation, bold text overlays"
@@ -201,7 +201,7 @@ class TestExtractJsonFromText:
           {
             "screen_number": 2,
             "voiceover_text": "In a world where every business is fighting for attention, traditional SMS just isn't enough to build trust.",
-            "target_duration_sec": 8,
+            "duration": 8,
             "screen_type": "stock video",
             "on_screen_visual_keywords": "busy city, people on phones, generic SMS notifications",
             "action_notes": "Quick cuts, muted color palette"
@@ -229,7 +229,7 @@ class TestConvertToStoryFormat:
             StoryboardScreen(
                 screen_number=1,
                 voiceover_text="Test voiceover text for the first screen",
-                target_duration_sec=8,
+                duration=8,
                 screen_type="stock-video",
                 on_screen_visual_keywords="test keywords",
                 action_notes="test notes"
@@ -260,7 +260,7 @@ class TestConvertToStoryFormat:
             StoryboardScreen(
                 screen_number=1,
                 voiceover_text=long_text,
-                target_duration_sec=8,
+                duration=8,
                 screen_type="stock-video"
             )
         ]

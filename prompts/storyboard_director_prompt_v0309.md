@@ -72,7 +72,7 @@ If story_brief has `core_talking_points: ["CAC formula", "LTV calculation", "Pay
 ]
 ```
 
-If no `core_talking_points` are provided, create your own body sections based on the `primary_goal` and content of the story_brief. Name them descriptively: `"Talking Point 1: {your chosen topic}"`.
+If no `core_talking_points` are provided, create your own body sections based on the `viewer_outcome` and content of the story_brief. Name them descriptively: `"Talking Point 1: {your chosen topic}"`.
 
 ---
 
@@ -93,8 +93,8 @@ If no `core_talking_points` are provided, create your own body sections based on
 
 #### Step 1: Identify Narrative Structure
 
-Read `primary_goal` and `core_talking_points` from the story_brief:
-- **primary_goal** tells you the overall intent and framing
+Read `viewer_outcome` and `core_talking_points` from the story_brief:
+- **viewer_outcome** tells you what the viewer should know, do, or believe after watching
 - **core_talking_points** become your body sections
 
 Plan your phases:

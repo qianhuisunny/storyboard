@@ -8,7 +8,7 @@ from typing import Optional, Dict, Any
 
 from app.services.state import StateManager, StoryboardState, RevisionRecord
 from app.services.agents import (
-    TopicResearcher,
+    TopicResearcher,  # Re-enabled for angle/perspective generation
     BriefBuilder,
     StoryboardDirector,
     StoryboardWriter,
@@ -43,7 +43,7 @@ class StoryboardOrchestrator:
     def __init__(self):
         """Initialize the orchestrator with all agents."""
         self.agents = {
-            "researcher": TopicResearcher(),
+            "researcher": TopicResearcher(),  # Re-enabled for angle/perspective generation
             "brief_builder": BriefBuilder(),
             "director": StoryboardDirector(),
             "writer": StoryboardWriter(),
@@ -116,10 +116,12 @@ class StoryboardOrchestrator:
             # Knowledge Share 3-Round Briefing Flow
             ("intake", "submit_knowledge_share"): self._handle_submit_knowledge_share,
             ("brief_round1", "round1_confirm"): self._handle_round1_confirm,
-            ("brief_round1", "select_perspective"): self._handle_select_perspective,
-            ("brief_round1", "confirm_talking_points"): self._handle_confirm_talking_points,
+            # RESEARCH DISABLED: these events are no longer used
+            # ("brief_round1", "select_perspective"): self._handle_select_perspective,
+            # ("brief_round1", "confirm_talking_points"): self._handle_confirm_talking_points,
             ("brief_round2", "round2_confirm"): self._handle_round2_confirm,
             ("brief_round3", "round3_confirm"): self._handle_round3_confirm,
+            ("angle_selection", "approve_angle"): self._handle_approve_angle,
             ("brief_review", "brief_approve"): self._handle_brief_approve,
             ("brief_review", "edit"): self._handle_edit_brief,
         }
@@ -141,12 +143,12 @@ class StoryboardOrchestrator:
         # Store intake form
         state.intake_form = intake_form
         state = manager.transition(state, "submit")
-        result["message"] = "Intake received, starting research..."
+        result["message"] = "Intake received, building brief..."
 
-        # Run Topic Researcher (output not currently used - will be restructured)
-        self.agents["researcher"].run(state)
+        # RESEARCH DISABLED: Topic Researcher step skipped
+        # self.agents["researcher"].run(state)
         state = manager.transition(state, "context_ready")
-        result["message"] = "Research complete, building brief..."
+        result["message"] = "Building brief..."
 
         # Run Brief Builder
         story_brief = self.agents["brief_builder"].run(state)
@@ -175,7 +177,7 @@ class StoryboardOrchestrator:
         if "fields" in state.story_brief:
             # New Knowledge Share schema: {fields: {field_name: {value, source, confirmed}}}
             fields = state.story_brief.get("fields", {})
-            required_new = ["primary_goal", "target_audience", "core_talking_points"]
+            required_new = ["viewer_outcome", "target_audience", "core_talking_points"]
             missing = []
             for f in required_new:
                 field_data = fields.get(f, {})
@@ -335,8 +337,8 @@ class StoryboardOrchestrator:
 
         # Check each screen has required fields
         for i, screen in enumerate(state.storyboard):
-            if not screen.get("target_duration_sec"):
-                raise ValueError(f"Cannot approve: Screen {i+1} missing target_duration_sec")
+            if not screen.get("duration"):
+                raise ValueError(f"Cannot approve: Screen {i+1} missing duration")
 
         state = manager.transition(state, "approve")
         result["message"] = "Storyboard finalized!"
@@ -449,12 +451,9 @@ class StoryboardOrchestrator:
             # NEW: 3-Round Briefing Flow state
             "brief_round": state.brief_round,
             "confirmed_fields": state.confirmed_fields,
-            "research_complete": state.research_complete,
-            # NEW: Perspective-first research flow
+            "research_complete": getattr(state, 'research_complete', False),
             "pending_perspectives": state.pending_perspectives,
             "selected_perspective": state.selected_perspective,
-            "pending_talking_points": state.pending_talking_points,
-            "has_research_details": state.research_details is not None,
         }
 
     # =========================================================================
@@ -487,10 +486,9 @@ class StoryboardOrchestrator:
         state.intake_form = intake_form
         state.brief_round = 1
 
-        # NOTE: Research is now triggered by frontend after Section 1 confirm (two-phase flow)
-        # We skip research here to return fields immediately
+        # RESEARCH DISABLED: research is skipped entirely
         state.research_results = None
-        state.research_complete = False
+        state.research_complete = True  # Mark as complete since we're skipping it
 
         # Transition to brief_round1
         state = manager.transition(state, "submit_knowledge_share")
@@ -510,7 +508,7 @@ class StoryboardOrchestrator:
         result["message"] = "Knowledge Share brief started. Review Section 1: Core Intent."
         result["brief_fields"] = round1_result.get("fields", {})
         result["round"] = 1
-        result["research_status"] = "pending"
+        result["research_status"] = "complete"  # RESEARCH DISABLED: always complete
 
         print(f"[KS] _handle_submit_knowledge_share completed in {(time.time() - start_time)*1000:.0f}ms")
         return state, result
@@ -524,17 +522,8 @@ class StoryboardOrchestrator:
     ) -> tuple:
         """
         Handle Round 1 confirmation (Section 1: Core Intent).
-        Generates 3 perspective options for user selection.
-        Does NOT transition phase - stays in brief_round1 awaiting perspective selection.
+        RESEARCH DISABLED: Skips perspective generation, transitions directly to Round 2.
         """
-        import logging
-        logging.basicConfig(level=logging.DEBUG)
-        logger = logging.getLogger(__name__)
-
-        logger.info(f"_handle_round1_confirm called with state.phase={state.phase}")
-        logger.info(f"state.intake_form={state.intake_form}")
-        logger.info(f"state.confirmed_fields={state.confirmed_fields}")
-
         confirmed_fields = payload.get("confirmed_fields", {})
 
         # Ensure state.confirmed_fields is a dict
@@ -547,171 +536,14 @@ class StoryboardOrchestrator:
             **confirmed_fields
         }
 
-        # Generate perspectives based on confirmed Round 1 fields
-        try:
-            perspectives_result = self.agents["researcher"].generate_perspectives(
-                state.confirmed_fields, project_id=state.project_id
-            )
-            state.pending_perspectives = perspectives_result.get("perspectives", [])
-        except Exception as e:
-            # Perspective generation failed - create fallback
-            state.pending_perspectives = [
-                {
-                    "id": 1,
-                    "statement": "A fresh perspective on this topic",
-                    "hook": "New approach"
-                }
-            ]
-            result["perspective_error"] = str(e)
+        # RESEARCH DISABLED: Skip perspective generation and go directly to Round 2
+        # Original code generated perspectives via self.agents["researcher"].generate_perspectives()
+        # and stayed in brief_round1 awaiting perspective selection.
 
-        # Stay in brief_round1 - waiting for perspective selection
-        # Do NOT transition yet
-        result["message"] = "Section 1 confirmed. Here are some angles we could take..."
-        result["status"] = "awaiting_perspective"
-        result["perspectives"] = state.pending_perspectives
-        result["chat_message"] = f"I received your request. Here are some angles we could take for this video:"
-
-        return state, result
-
-    async def _handle_select_perspective(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """
-        Handle perspective selection.
-        Generates talking points based on selected perspective.
-        Does NOT transition phase - stays in brief_round1 awaiting talking point confirmation.
-        """
-        perspective = payload.get("perspective")
-
-        if not perspective:
-            raise ValueError("perspective is required in payload")
-
-        # Handle both perspective ID selection and custom text
-        if isinstance(perspective, dict):
-            # Selected from options
-            state.selected_perspective = perspective.get("statement", "")
-        elif isinstance(perspective, int):
-            # Selected by ID
-            for p in (state.pending_perspectives or []):
-                if p.get("id") == perspective:
-                    state.selected_perspective = p.get("statement", "")
-                    break
-        else:
-            # Custom text
-            state.selected_perspective = str(perspective)
-
-        if not state.selected_perspective:
-            raise ValueError("Could not determine selected perspective")
-
-        # Generate talking points based on selected perspective
-        try:
-            talking_points = self.agents["researcher"].generate_talking_points(
-                state.selected_perspective,
-                state.confirmed_fields,
-                project_id=state.project_id,
-            )
-            state.pending_talking_points = talking_points
-        except Exception as e:
-            # Fallback talking points
-            state.pending_talking_points = [
-                "Understanding the key concepts",
-                "Common challenges and solutions",
-                "Practical application"
-            ]
-            result["talking_points_error"] = str(e)
-
-        # Stay in brief_round1 - waiting for talking point confirmation
-        result["message"] = "Great choice! Based on this angle, here are the key talking points..."
-        result["status"] = "awaiting_talking_points_confirm"
-        result["talking_points"] = state.pending_talking_points
-        result["selected_perspective"] = state.selected_perspective
-        result["chat_message"] = "Based on this angle, here are the key talking points:"
-
-        return state, result
-
-    async def _handle_confirm_talking_points(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """
-        Handle talking points confirmation.
-        Runs full research flow and transitions to Round 2.
-        Research results stored for Round 3 field population.
-        """
-        feedback = payload.get("feedback")
-        edited_points = payload.get("editedPoints")
-        talking_points = state.pending_talking_points or []
-
-        # If user edited the points directly, use those
-        if edited_points and isinstance(edited_points, list):
-            talking_points = edited_points
-            state.pending_talking_points = talking_points
-        # If feedback provided (but no edits), regenerate talking points with feedback
-        elif feedback:
-            try:
-                talking_points = self.agents["researcher"].generate_talking_points(
-                    state.selected_perspective,
-                    state.confirmed_fields,
-                    feedback=feedback,
-                    project_id=state.project_id,
-                )
-                state.pending_talking_points = talking_points
-            except Exception as e:
-                result["regeneration_error"] = str(e)
-
-        # Generate research questions for ALL Round 3 fields
-        try:
-            questions = self.agents["researcher"].generate_research_questions(
-                talking_points,
-                state.confirmed_fields,
-                project_id=state.project_id,
-            )
-
-            # Run research for all questions
-            user_materials = None
-            if state.project_id and state.intake_form:
-                user_materials = self.agents["researcher"]._process_user_inputs(
-                    state.intake_form, state.project_id
-                )
-
-            research_output = self.agents["researcher"].research_questions(
-                questions,
-                state.confirmed_fields,
-                user_materials,
-                project_id=state.project_id,
-            )
-
-            # Store both outputs
-            state.research_results = research_output.get("round3_fields", {})
-            state.research_details = research_output.get("research_details", {})
-            state.research_complete = True
-
-        except Exception as e:
-            # Research failed - continue with talking points only
-            state.research_results = {
-                "core_talking_points": {
-                    "value": talking_points,
-                    "source": "inferred",
-                    "confirmed": False
-                },
-                "misconceptions": {"value": [], "source": "empty", "confirmed": False},
-                "practical_takeaway": {"value": "", "source": "empty", "confirmed": False},
-                "must_avoid": {"value": [], "source": "empty", "confirmed": False}
-            }
-            state.research_details = {}
-            state.research_complete = False
-            result["research_error"] = str(e)
-
-        # Now transition to Round 2
+        # Transition directly to Round 2
         state = manager.transition(state, "round1_confirm")
         state.brief_round = 2
+        state.research_complete = True
 
         # Generate Round 2 fields
         round2_result = self.agents["brief_builder"].run(
@@ -730,12 +562,87 @@ class StoryboardOrchestrator:
         else:
             state.story_brief = round2_result
 
-        result["message"] = "Research complete! Moving to Section 2: Delivery & Format."
+        result["message"] = "Section 1 confirmed. Moving to Section 2: Delivery & Format."
         result["status"] = "round2_ready"
         result["brief_fields"] = round2_result.get("fields", {})
         result["round"] = 2
-        result["research_status"] = "complete" if state.research_complete else "partial"
-        result["chat_message"] = "Research complete! I found statistics, examples, and identified common misconceptions. Now let's define the delivery format..."
+        result["research_status"] = "complete"
+
+        return state, result
+
+    # RESEARCH DISABLED: _handle_select_perspective
+    # This handler is no longer called since round1_confirm now skips perspectives
+    # and transitions directly to Round 2.
+    #
+    # async def _handle_select_perspective(self, state, manager, payload, result):
+    #     perspective = payload.get("perspective")
+    #     if not perspective:
+    #         raise ValueError("perspective is required in payload")
+    #     # ... perspective selection and talking points generation ...
+    #     talking_points = self.agents["researcher"].generate_talking_points(...)
+    #     state.pending_talking_points = talking_points
+    #     result["status"] = "awaiting_talking_points_confirm"
+    #     return state, result
+
+    # RESEARCH DISABLED: _handle_confirm_talking_points
+    # This handler is no longer called since round1_confirm now skips
+    # perspectives/talking points and transitions directly to Round 2.
+    #
+    # async def _handle_confirm_talking_points(self, state, manager, payload, result):
+    #     # Ran full research flow: generate_research_questions(), research_questions()
+    #     # Then transitioned to Round 2 and generated Round 2 fields.
+    #     # All research calls via self.agents["researcher"] are disabled.
+    #     pass
+
+    async def _handle_approve_angle(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle angle/perspective approval.
+        Stores the selected angle in the brief and transitions to brief_review.
+        """
+        selected_angle = payload.get("selected_angle", "")
+        if not selected_angle:
+            raise ValueError("selected_angle is required in payload")
+
+        # Store selected perspective
+        state.selected_perspective = selected_angle
+
+        # Store the angle in confirmed_fields so it flows into the brief
+        state.confirmed_fields["selected_angle"] = {
+            "value": selected_angle,
+            "source": "extracted",
+            "confirmed": True,
+        }
+
+        # Transition to brief_review
+        state = manager.transition(state, "approve_angle")
+        state.brief_round = 4  # Review phase
+        state.pending_perspectives = None  # Clear pending perspectives
+
+        # Update story_brief with angle and mark all fields as confirmed
+        if state.story_brief:
+            state.story_brief["round"] = "review"
+            # Add selected_angle to story_brief fields
+            state.story_brief.setdefault("fields", {})["selected_angle"] = {
+                "value": selected_angle,
+                "source": "extracted",
+                "confirmed": True,
+            }
+            # Mark all fields as confirmed
+            for key, field in state.story_brief.get("fields", {}).items():
+                if key in state.confirmed_fields:
+                    field["confirmed"] = True
+                    field["value"] = state.confirmed_fields[key].get("value", field.get("value"))
+
+        result["message"] = "Angle selected. Review complete brief before proceeding."
+        result["full_brief"] = state.story_brief
+        result["confirmed_fields"] = state.confirmed_fields
+        result["round"] = "review"
 
         return state, result
 
@@ -795,7 +702,7 @@ class StoryboardOrchestrator:
     ) -> tuple:
         """
         Handle Round 3 confirmation (Section 3: Content Spine).
-        Runs misc_research on confirmed misconceptions/takeaway/avoid, then shows review.
+        Generates angle/perspective options for user to select, then transitions to angle_selection.
         """
         confirmed_fields = payload.get("confirmed_fields", {})
 
@@ -805,52 +712,28 @@ class StoryboardOrchestrator:
             **confirmed_fields
         }
 
-        # Run misc_research on confirmed Round 3 fields (misconceptions, takeaway, avoid)
-        try:
-            # Get user materials if available
-            project_id = getattr(state, 'project_id', None)
-            user_materials = None
-            if project_id and state.intake_form:
-                user_materials = self.agents["researcher"]._process_user_inputs(
-                    state.intake_form, project_id
-                )
+        # Generate perspectives using TopicResearcher
+        perspectives_result = self.agents["researcher"].generate_perspectives(
+            confirmed_fields=state.confirmed_fields,
+            project_id=state.project_id,
+        )
+        perspectives = perspectives_result.get("perspectives", [])
+        state.pending_perspectives = perspectives
 
-            # Run deep research on the confirmed misc fields
-            misc_results = self.agents["researcher"].misc_research(
-                confirmed_fields,
-                state.confirmed_fields,
-                user_materials
-            )
-
-            # Merge misc research into research_details
-            if state.research_details is None:
-                state.research_details = {}
-            state.research_details["misconception_answers"] = misc_results.get("misconception_answers", [])
-            state.research_details["takeaway_answers"] = misc_results.get("takeaway_answers", [])
-            state.research_details["avoid_answers"] = misc_results.get("avoid_answers", [])
-
-            result["misc_research_status"] = "complete"
-        except Exception as e:
-            result["misc_research_error"] = str(e)
-            result["misc_research_status"] = "failed"
-
-        # Transition to brief_review
+        # Transition to angle_selection
         state = manager.transition(state, "round3_confirm")
-        state.brief_round = 4  # Review phase
 
-        # Update story_brief with final confirmed fields
+        # Update story_brief with confirmed fields from Round 3
         if state.story_brief:
-            state.story_brief["round"] = "review"
-            # Mark all fields as confirmed in story_brief
+            state.story_brief["round"] = 3
             for key, field in state.story_brief.get("fields", {}).items():
                 if key in state.confirmed_fields:
                     field["confirmed"] = True
                     field["value"] = state.confirmed_fields[key].get("value", field.get("value"))
 
-        result["message"] = "Section 3 confirmed. Review complete brief before proceeding."
-        result["full_brief"] = state.story_brief
-        result["confirmed_fields"] = state.confirmed_fields
-        result["round"] = "review"
+        result["message"] = "Section 3 confirmed. Select an angle for your video."
+        result["perspectives"] = perspectives
+        result["round"] = "angle_selection"
 
         return state, result
 

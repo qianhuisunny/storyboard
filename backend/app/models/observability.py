@@ -250,7 +250,7 @@ class Snapshot:
                         vo = screen.get("voiceover_text", "")
                         if vo:
                             total_words += len(vo.split())
-                        dur = screen.get("target_duration_sec", 0)
+                        dur = screen.get("duration", 0)
                         if dur:
                             total_duration += dur
 

@@ -216,7 +216,7 @@ class StoryboardDirector(BaseAgent):
             input_fields = {
                 "mode": mode,
                 "video_type": str(self._extract_brief_field(story_brief, "video_type") or ""),
-                "primary_goal": str(self._extract_brief_field(story_brief, "primary_goal") or ""),
+                "viewer_outcome": str(self._extract_brief_field(story_brief, "viewer_outcome") or self._extract_brief_field(story_brief, "primary_goal") or ""),
                 "duration": str(self._extract_brief_field(story_brief, "duration") or self._extract_brief_field(story_brief, "desired_length") or ""),
                 "target_audience": str(self._extract_brief_field(story_brief, "target_audience") or ""),
             }
@@ -275,7 +275,7 @@ class StoryboardDirector(BaseAgent):
         talking_points = self._extract_brief_field(story_brief, "core_talking_points") or []
         if isinstance(talking_points, str):
             talking_points = [talking_points]
-        primary_goal = self._extract_brief_field(story_brief, "primary_goal") or ""
+        viewer_outcome = self._extract_brief_field(story_brief, "viewer_outcome") or self._extract_brief_field(story_brief, "primary_goal") or ""
 
         return f"""Create a voiceover-first screen outline for this video.
 
@@ -290,7 +290,7 @@ ALLOWED SCREEN TYPES: {json.dumps(screen_type_info['allowed_screen_types'])}
 ON-CAMERA ALLOWED: {screen_type_info['on_camera_allowed']}
 
 NARRATIVE STRUCTURE:
-- Primary goal: {primary_goal}
+- Viewer outcome: {viewer_outcome}
 - Core talking points: {json.dumps(talking_points)}
 
 STORY BRIEF:
@@ -299,7 +299,7 @@ STORY BRIEF:
 MODE: initial
 
 Follow the VOICEOVER-FIRST PLANNING PROCESS in your system prompt:
-1. Identify narrative structure from primary_goal and core_talking_points
+1. Identify narrative structure from viewer_outcome and core_talking_points
 2. Write continuous voiceover per narrative phase (not per screen)
 3. Mark visual change points where message/subject shifts
 4. Those marks become screen boundaries

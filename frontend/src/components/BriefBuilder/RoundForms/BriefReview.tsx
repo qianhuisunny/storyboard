@@ -16,12 +16,11 @@ interface BriefReviewProps {
 
 const SECTION_1_FIELDS = [
   "video_type",
-  "primary_goal",
+  "viewer_outcome",
   "target_audience",
   "audience_level",
   "platform",
   "duration",
-  "one_big_thing",
   "viewer_next_action",
 ];
 
@@ -37,7 +36,6 @@ const SECTION_3_FIELDS = [
   "must_avoid",
   "core_talking_points",
   "misconceptions",
-  "practical_takeaway",
 ];
 
 function getDisplayValue(field: BriefField, fieldKey: string): string {

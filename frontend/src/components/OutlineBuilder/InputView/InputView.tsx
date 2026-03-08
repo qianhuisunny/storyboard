@@ -11,12 +11,11 @@ import type { InputViewProps } from "../types";
 // Field display labels for Knowledge Share format
 const FIELD_LABELS: Record<string, string> = {
   video_type: "Video Type",
-  primary_goal: "Primary Goal",
+  viewer_outcome: "Viewer Outcome",
   target_audience: "Target Audience",
   audience_level: "Audience Level",
   platform: "Platform",
   duration: "Duration",
-  one_big_thing: "One Big Thing",
   viewer_next_action: "Viewer Next Action",
   on_camera_presence: "On-Camera Presence",
   broll_type: "B-Roll Types",
@@ -24,10 +23,12 @@ const FIELD_LABELS: Record<string, string> = {
   freshness_expectation: "Freshness Expectation",
   source_assets: "Source Assets",
   must_avoid: "Must Avoid",
-  core_talking_points: "Core Talking Points",
+  core_talking_points: "Framework/Method/Key Talking Points",
   misconceptions: "Misconceptions",
-  practical_takeaway: "Practical Takeaway",
   // Legacy fields
+  primary_goal: "Primary Goal",
+  one_big_thing: "One Big Thing",
+  practical_takeaway: "Practical Takeaway",
   video_goal: "Video Goal",
   target_duration: "Target Duration",
   desired_length: "Desired Length",
@@ -85,9 +86,9 @@ export default function InputView({ stage1Output, researchDetails }: InputViewPr
   const isKnowledgeShare = hasStage1Output && "fields" in (stage1Output as object);
 
   // Define field groups
-  const coreIntentFields = ["video_type", "primary_goal", "target_audience", "audience_level", "platform", "duration", "one_big_thing", "viewer_next_action"];
+  const coreIntentFields = ["video_type", "viewer_outcome", "target_audience", "audience_level", "platform", "duration", "viewer_next_action"];
   const deliveryFields = ["on_camera_presence", "broll_type", "delivery_tone", "freshness_expectation"];
-  const contentFields = ["source_assets", "must_avoid", "core_talking_points", "misconceptions", "practical_takeaway"];
+  const contentFields = ["source_assets", "must_avoid", "core_talking_points", "misconceptions"];
   const legacyFields = ["video_goal", "target_audience", "video_type", "desired_length", "key_points", "tone_and_style"];
 
   // Get relevant fields based on format

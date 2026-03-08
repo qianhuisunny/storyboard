@@ -22,7 +22,6 @@ const SECTION_3_FIELDS = [
   "must_avoid",
   "core_talking_points",
   "misconceptions",
-  "practical_takeaway",
 ];
 
 export default function RoundThreeForm({

@@ -40,10 +40,14 @@ class TopicResearcher(BaseAgent):
         Phase 1: Generate 3 contrarian POV options based on Round 1 fields.
         See system prompt "Phase 1: Perspective Principles" for guidelines.
         """
-        # Extract field values
+        # Extract field values (supports both new viewer_outcome and legacy primary_goal+one_big_thing)
         target_audience = self._get_field_value(confirmed_fields, "target_audience", "")
-        primary_goal = self._get_field_value(confirmed_fields, "primary_goal", "")
-        one_big_thing = self._get_field_value(confirmed_fields, "one_big_thing", "")
+        viewer_outcome = self._get_field_value(confirmed_fields, "viewer_outcome", "")
+        # Fallback to legacy fields if viewer_outcome is empty
+        if not viewer_outcome:
+            primary_goal = self._get_field_value(confirmed_fields, "primary_goal", "")
+            one_big_thing = self._get_field_value(confirmed_fields, "one_big_thing", "")
+            viewer_outcome = primary_goal or one_big_thing
         audience_level = self._get_field_value(
             confirmed_fields, "audience_level", "intermediate"
         )
@@ -53,10 +57,9 @@ class TopicResearcher(BaseAgent):
 
 Generate 3 perspectives following the Phase 1 principles in your system prompt.
 
-## ROUND 1 CONTEXT
+## CONTEXT
 - Target Audience: {target_audience}
-- Primary Goal: {primary_goal}
-- One Big Thing: {one_big_thing}
+- Viewer Outcome (know, do, believe): {viewer_outcome}
 - Audience Level: {audience_level}
 - Duration: {duration} seconds
 
@@ -69,8 +72,7 @@ Each perspective should be distinct and offer a different angle on the topic."""
                 phase="generate_perspectives",
                 input_fields={
                     "target_audience": target_audience,
-                    "primary_goal": primary_goal,
-                    "one_big_thing": one_big_thing,
+                    "viewer_outcome": viewer_outcome,
                     "audience_level": audience_level,
                     "duration": duration,
                 },
@@ -101,17 +103,17 @@ Each perspective should be distinct and offer a different angle on the topic."""
             "perspectives": [
                 {
                     "id": 1,
-                    "statement": f"For {target_audience}, {primary_goal or one_big_thing} requires rethinking conventional approaches.",
+                    "statement": f"For {target_audience}, {viewer_outcome} requires rethinking conventional approaches.",
                     "hook": "A fresh perspective on an important topic",
                 },
                 {
                     "id": 2,
-                    "statement": f"Most {target_audience} misunderstand the key factors in {primary_goal or one_big_thing}.",
+                    "statement": f"Most {target_audience} misunderstand the key factors in {viewer_outcome}.",
                     "hook": "Common misconceptions revealed",
                 },
                 {
                     "id": 3,
-                    "statement": f"The hidden factor in {primary_goal or one_big_thing} that experts know but rarely share.",
+                    "statement": f"The hidden factor in {viewer_outcome} that experts know but rarely share.",
                     "hook": "Insider knowledge",
                 },
             ]

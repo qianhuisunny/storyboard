@@ -40,23 +40,21 @@ Return extracted fields immediately. All other fields are empty for user input.
 | Field | Source Rule | Description |
 |-------|-------------|-------------|
 | `video_type` | extracted, confirmed=true | Always "knowledge_share" |
+| `viewer_outcome` | empty | User fills in (red - needs input) |
 | `target_audience` | extracted | From initial form (blue) |
 | `duration` | extracted | From initial form (blue) |
-| `primary_goal` | empty | User fills in (red - needs input) |
 | `audience_level` | empty | User selects (red - needs input) |
 | `platform` | empty | User selects (red - needs input) |
-| `one_big_thing` | empty | User fills in (red - needs input) |
 | `viewer_next_action` | empty | User fills in (red - needs input) |
 
 **No LLM call in Round 1** - fields are returned immediately to ensure fast response.
 
 **Field Descriptions:**
 
-1. **primary_goal**: The main learning objective of this video.
+1. **viewer_outcome**: What the viewer should know, do, or believe after watching (combines old primary_goal + one_big_thing).
 2. **audience_level**: How familiar is the audience? (beginner/intermediate/advanced/mixed)
 3. **platform**: Where will this be published? (youtube/internal_lms)
-4. **one_big_thing**: The single most important takeaway.
-5. **viewer_next_action**: What viewers should do after watching.
+4. **viewer_next_action**: What viewers should do after watching.
 
 ---
 
@@ -82,19 +80,18 @@ All Round 2 fields are empty for user input. No AI suggestions.
 
 ---
 
-### Round 3: Section 3 — Content Spine (5 fields, after research)
+### Round 3: Section 3 — Content Spine (4 fields)
 
-4 fields are AI-suggested (inferred) based on research results. 1 field is optional user input.
+3 fields are AI-suggested (inferred) based on confirmed fields from Rounds 1-2. 1 field is optional user input.
 
 | Field | Source Rule | Description |
 |-------|-------------|-------------|
 | `must_avoid` | inferred | AI suggests things to avoid (yellow) |
-| `core_talking_points` | inferred | Framework/outline from research (yellow) |
+| `core_talking_points` | inferred | Framework/method/key talking points (yellow) |
 | `misconceptions` | inferred | Common mistakes to address (yellow) |
-| `practical_takeaway` | inferred | Actionable output (open text, yellow) |
 | `additional_notes` | empty | Optional user input (red if empty, but not required) |
 
-**LLM generates 4 fields** using research results + confirmed fields from Rounds 1-2.
+**LLM generates 3 fields** using confirmed fields from Rounds 1-2 (viewer outcome, target audience, audience level, duration, delivery tone, etc.).
 
 **Generation Guidelines:**
 
@@ -110,11 +107,7 @@ All Round 2 fields are empty for user input. No AI suggestions.
    - Focus on beliefs that could hurt the viewer
    - Example: ["IPO is the only 'real' exit", "Higher valuation = more founder payout"]
 
-4. **practical_takeaway**: Generate a specific, actionable takeaway for viewers.
-   - Should be a concrete action or deliverable viewers can use
-   - Example: "Create a one-page exit readiness scorecard for your startup"
-
-5. **additional_notes**: Leave empty - this is for optional user input only.
+4. **additional_notes**: Leave empty - this is for optional user input only.
 
 ---
 
@@ -156,7 +149,7 @@ For each round, return a JSON object with this structure:
       "source": "extracted",
       "confirmed": false
     },
-    "primary_goal": {
+    "viewer_outcome": {
       "value": "",
       "source": "empty",
       "confirmed": false
@@ -167,11 +160,6 @@ For each round, return a JSON object with this structure:
       "confirmed": false
     },
     "platform": {
-      "value": "",
-      "source": "empty",
-      "confirmed": false
-    },
-    "one_big_thing": {
       "value": "",
       "source": "empty",
       "confirmed": false
@@ -240,11 +228,6 @@ For each round, return a JSON object with this structure:
         "IPO is the only 'real' exit option",
         "Headline valuation equals founder payout"
       ],
-      "source": "inferred",
-      "confirmed": false
-    },
-    "practical_takeaway": {
-      "value": "Create a one-page exit readiness scorecard for your startup this quarter",
       "source": "inferred",
       "confirmed": false
     },
