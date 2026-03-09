@@ -112,8 +112,10 @@ export default function StageLayout() {
   // Load saved stages on mount
   useEffect(() => {
     const loadSavedStages = async () => {
-      if (!projectId || hasLoadedStages.current) return;
+      if (!projectId) return;
 
+      // StrictMode double-mount guard: ref survives remount but state resets.
+      // Always fetch and restore — skip only the "already loaded" early return.
       try {
         const response = await fetch(`/api/project/${projectId}/stages`);
         if (response.ok) {

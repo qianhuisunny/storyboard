@@ -66,6 +66,7 @@ User → Frontend (React/Vite :3000)
 - **Timeout handling** — AI generation can take 2+ minutes. Don't reduce timeouts without testing
 - **Data schema changes** — any change to project/story JSON schema must be backwards-compatible with existing projects in `data/`
 - **Prompt changes** — any change to any files under `/prompts` directory should be using a different versioning, for example, `storyboard_direcotr_prompt_V0303` indicating today's date.
+- **Prompt hygiene** — only active prompts live in `prompts/`. When a prompt is superseded (e.g., `v0310` replaced by `v0311`), move the old version to `prompts/archive/`. Check `prompt_file` references in `backend/app/services/agents/` to determine which prompts are active.
 - **API-Agent method coupling** — when writing endpoints in `main.py` that call agent methods, VERIFY the method exists in the agent class first. Don't assume methods exist. Read the agent file and check available methods before calling them.
 
 ### ✅ Always Do
@@ -197,20 +198,25 @@ BriefBuilder       → structures a creative brief
       ↓ brief
 StoryboardDirector → determines scene structure and flow
       ↓ outline
+  Evidence Research → TopicResearcher.research_evidence_claims() (post-outline, not during intake)
+      ↓ evidence_research
 StoryboardWriter   → writes detailed screen-by-screen content (includes duration calculation + placeholder images)
       ↓ final_storyboard
 ```
 
 Note: Duration calculation (word_count / 130 * 60s) is now a utility function, not a separate agent.
 
+Note: Evidence Research is a method on TopicResearcher, not a separate agent. It runs after the outline is approved (gate2 → run_research), using `system_prompt_override` to load `EVIDENCE_RESEARCH_PROMPT.md` instead of the researcher's default prompt.
+
 **Prompt ↔ Agent mapping:**
 
 | Agent File | Prompt File |
 |-----------|------------|
 | `agents/topic_researcher.py` | `prompts/TOPIC_RESEARCHER_SYSTEM_PROMPT.md` |
+| `agents/topic_researcher.py` (evidence) | `prompts/EVIDENCE_RESEARCH_PROMPT.md` |
 | `agents/brief_builder.py` | `prompts/BRIEF_BUILDER_SYSTEM_PROMPT.md` |
 | `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0311.md` |
-| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_2.md` |
+| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0308.md` |
 
 ### Agent Structure Pattern
 

@@ -599,7 +599,7 @@ export default function StageContent({
         const resp = await fetch(`/api/project/${projectId}/pipeline-state`);
         if (!resp.ok) return;
         const data = await resp.json();
-        if (data.phase === "outline_research" && data.data?.evidence_research) {
+        if (data.data?.evidence_research) {
           setOutlineResearchResults(data.data.evidence_research);
           onAnchorChange?.("evidence");
         }
@@ -679,6 +679,30 @@ export default function StageContent({
   const handleResearchContinue = useCallback(async () => {
     if (!projectId) return;
     try {
+      // Check current backend phase before sending event
+      const stateResp = await fetch(`/api/project/${projectId}/pipeline-state`);
+      if (!stateResp.ok) return;
+      const stateData = await stateResp.json();
+
+      // If project already past outline_research, advance frontend using existing storyboard
+      if (stateData.phase !== "outline_research") {
+        const storyboard = stateData.data?.storyboard;
+        // Validate: must be an array with screen objects (not just wrapped outline text)
+        const isValidStoryboard = Array.isArray(storyboard) &&
+          storyboard.length >= 3 &&
+          storyboard[0]?.screen_type != null;
+        if (isValidStoryboard) {
+          onApprove(currentOutlineText, {
+            skipNextGeneration: true,
+            nextStageContent: JSON.stringify(storyboard, null, 2),
+          });
+        } else {
+          // Storyboard missing or invalid — advance without it, let stage 3 regenerate
+          onApprove(currentOutlineText);
+        }
+        return;
+      }
+
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },

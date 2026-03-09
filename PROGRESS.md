@@ -288,3 +288,79 @@ Updated `_handle_gate1_approve` to detect which schema is being used and validat
 
 ### Lesson
 When introducing new data schemas (like the nested `{value, source, confirmed}` field structure), ensure all downstream validation and processing code handles both old and new formats for backward compatibility.
+
+---
+
+## Session: 2026-03-08 — Evidence Research Redesign (from Intake to Post-Outline, Flat to 3-Layer)
+
+### The Problem We Were Solving
+
+Evidence research was running during the intake/briefing stage — before an outline even existed. This produced vague, untargeted research because we didn't yet know what claims the video would make. The output was a flat dump of raw Google results (title + snippet + link) that no writer could use directly.
+
+### Decision 1: Move Research After the Outline
+
+Evidence research now runs **after** the outline is approved (gate2 → `run_research` event), not during briefing. The reasoning is simple: you can't research evidence for claims that don't exist yet. The outline defines sections with specific talking points and "evidence needed" bullets — those are what drive the research.
+
+This created a new UI step: "Evidence Research" appears in the sidebar between Video Outline and Storyboard Draft. It's not a separate page — same HTML page with anchor-based scrolling (`#outline` and `#evidence` sections).
+
+### Decision 2: 3-Layer Structured Output
+
+**Old flow:**
+```
+outline text → regex parse "Evidence needed" bullets → claims[]
+  → LLM generates 2 queries per claim
+  → Google CSE search (3 results per query)
+  → returns { evidence_map: [{ claim, section, queries, findings[] }] }
+```
+
+**New flow:**
+```
+outline text → LLM call #1: generate Section Research Briefs + Evidence Tasks
+  → Google CSE search per task (2 queries × 3 results)
+  → LLM call #2: select best evidence per task, produce usable line
+  → returns { sections: [{ section_title, research_brief, evidence_tasks[] }] }
+```
+
+**Why:** The old flow had three problems: (1) regex parsing LLM-generated text is fragile, (2) raw search results are not writer-ready, (3) no selection or summarization. The new flow lets the LLM read the outline directly (no regex), classifies evidence by type (definition, mechanism_explanation, example, authority_anchor, achievement_anchor, quote), and produces a "usable line" — one sentence that could be adapted into the video script.
+
+### Decision 3: Let the LLM Parse, Not Regex
+
+Deleted `_parse_evidence_from_outline()` and `_generate_queries_for_claims()`. These used regex to find "Evidence needed" bullets in the Director's text output. But the Director's output format isn't guaranteed — small prompt tweaks break the regex. The LLM reads the full outline and produces structured JSON. More reliable, more flexible.
+
+### Decision 4: 2 LLM Calls, Not N
+
+One call generates all section briefs + evidence tasks. One call selects best evidence across all tasks. Not per-claim. This keeps latency at ~20-30s total instead of scaling linearly with claim count.
+
+### Decision 5: `system_prompt_override` Instead of New Agent
+
+Evidence research is a method on `TopicResearcher`, not a separate agent. Added `system_prompt_override` parameter to `BaseAgent.call_llm()` so the evidence research call can use `EVIDENCE_RESEARCH_PROMPT.md` without creating a throwaway agent class. This is appropriate when an agent has multiple distinct LLM tasks with different system prompts.
+
+### Architecture: Evidence Type Taxonomy
+
+These are writer-oriented categories, not academic:
+- **definition** — canonical explanation of a concept
+- **mechanism_explanation** — how something works, step by step
+- **example** — concrete case or analogy
+- **authority_anchor** — citation from recognized expert/institution
+- **achievement_anchor** — specific statistic or milestone
+- **quote** — memorable statement from credible source
+
+Priority: `required` (section can't work without it), `helpful` (strengthens), `optional` (nice to have).
+
+### Bug: Path Resolution for Prompt Files
+
+`topic_researcher.py` is at `backend/app/services/agents/`. Reaching `prompts/` at repo root needs 5 `.parent` calls. We wrote 4. The evidence prompt file silently wasn't found, LLM got empty system prompt, returned garbage, JSON parsing failed, and the method returned `{"sections": []}`. The project moved to `outline_research` phase with empty data. On refresh, UI showed the "Run Research" button again, but the phase was already past `gate2`, so clicking it returned 500.
+
+**Lesson:** When loading prompt files outside of `BaseAgent._load_prompt()`, count the `.parent` chain carefully. `BaseAgent` uses 5 parents because it's also in the `agents/` directory. Any code in the same directory should use the same count.
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `backend/app/services/agents/topic_researcher.py` | Rewrote `research_evidence_claims()` for 3-layer flow, deleted old regex helpers |
+| `backend/app/services/agents/base.py` | Added `system_prompt_override` to `call_llm()` |
+| `prompts/EVIDENCE_RESEARCH_PROMPT.md` | New system prompt for evidence task generation |
+| `frontend/src/components/OutlineBuilder/types.ts` | Replaced `EvidenceMapEntry`/`EvidenceFinding` with `SelectedEvidence`/`EvidenceTask`/`SectionResearch` |
+| `frontend/src/components/OutlineBuilder/OutlineBuilder.tsx` | Section-grouped evidence display with research briefs, task cards, usable lines |
+| `frontend/src/components/StageNavigation.tsx` | Added Evidence Research as nav sub-step between Outline and Draft |
+| `frontend/src/components/StageLayout.tsx` | Anchor-based navigation for outline vs evidence sections |

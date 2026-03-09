@@ -656,16 +656,35 @@
         ],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 52,
+        "title": "Verify and Fix TopicResearcher PDF and Link Parsing Utilities",
+        "description": "Diagnose, implement/repair PDF parsing and link fetching functions in TopicResearcher agent, ensure proper integration with research flow, and add comprehensive testing.",
+        "details": "1. **PDF Parser (_parse_pdf)**: Use PyMuPDF (pymupdf) as primary library for robust text extraction (top performer per arXiv study[1]). Install via `pip install pymupdf`. Implement:\n```python\nimport fitz  # PyMuPDF\n\ndef _parse_pdf(file_path):\n    try:\n        doc = fitz.open(file_path)\n        text = ''\n        for page in doc:\n            text += page.get_text()\n        doc.close()\n        return text\n    except Exception as e:\n        logger.error(f'PDF parse error: {e}')\n        return ''\n```\nHandle corrupted PDFs with try-except and validation. Fallback to pdfplumber if needed.\n\n2. **Link Parser (_fetch_link_content)**: Use requests with timeout for fetching. Implement:\n```python\nimport requests\nfrom bs4 import BeautifulSoup\n\ndef _fetch_link_content(url, timeout=30):\n    try:\n        resp = requests.get(url, timeout=timeout)\n        resp.raise_for_status()\n        soup = BeautifulSoup(resp.content, 'html.parser')\n        # Extract main text (remove scripts, styles)\n        for script in soup(['script', 'style']):\n            script.decompose()\n        text = soup.get_text(separator='\\n', strip=True)\n        return text[:10000]  # Limit size\n    except Exception as e:\n        logger.error(f'Link fetch error: {e}')\n        return ''\n```\nTest with diverse URLs (articles, docs).\n\n3. **Integration**: Ensure `user_materials` dict parsed content is injected into LLM prompts in `backend/app/services/agents/topic_researcher.py`. Update research method to:\n```python\ncontext = parse_user_materials(user_materials) + base_context\n```\nUpdate affected files accordingly.",
+        "testStrategy": "1. **Unit Tests**: PDF - Test with sample PDFs (simple text, tables, scanned); assert extracted text matches expected (F1/BLEU metrics if possible). URL - Mock requests responses for valid/invalid/timeout URLs, assert content extraction. 2. **Error Handling**: Test corrupted PDF, invalid URLs, timeouts. 3. **Integration Test**: Mock upload PDF + links in research flow, verify parsed content in LLM prompt context using string matching/captured outputs. Use pytest with fixtures for files/URLs.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": "53",
+        "title": "Fix field source not preserved when user edits in same session",
+        "description": "Bug: When user selects/edits a field value in BriefBuilder, the field badge incorrectly shows 'AI Suggested' (yellow) instead of 'Provided' (blue). The field.source was not being updated to 'extracted' on user input.",
+        "details": "**Root Cause:**\nIn `KnowledgeShareBriefBuilder.tsx:handleFieldChange`, the source update logic was:\n```typescript\nsource: prev[key]?.source === \"inferred\" ? \"extracted\" : prev[key]?.source || \"extracted\"\n```\n\nThis only changed source to 'extracted' if it was previously 'inferred'. But fields start with source='empty' (from `createEmptyField`), so the source stayed as 'empty'.\n\nIn `getFieldColor`, when source is 'empty' (not 'extracted' and not 'inferred'), it falls through to the default return which is 'yellow' (AI Suggested).\n\n**Fix Applied:**\nChanged to always set `source: \"extracted\"` when user edits a field:\n```typescript\nsource: \"extracted\",\n```\n\nBecause if a user typed/selected it, it's user-provided input, period.\n\n**Files Changed:**\n- `frontend/src/components/BriefBuilder/KnowledgeShareBriefBuilder.tsx:69-80`\n\n**Note:** This is about in-session state preservation. Page refresh losing state is expected behavior (no persistence implemented yet).",
+        "testStrategy": "- Verify that selecting a value from a dropdown changes badge from 'Needs Input' (red) to 'Provided' (blue), not 'AI Suggested' (yellow)\n- Verify that typing in a text field changes badge to 'Provided' (blue)\n- Verify that confirming a field changes badge to 'Confirmed' (green)\n- Test with fields that start as 'empty', 'inferred', and 'extracted' sources",
+        "priority": "low",
+        "dependencies": [],
+        "status": "done",
+        "subtasks": [],
+        "updatedAt": "2026-03-03T19:45:00.000Z"
       }
     ],
     "metadata": {
-      "version": "1.0.0",
-      "lastModified": "2026-01-23T04:46:10.650Z",
-      "taskCount": 20,
-      "completedCount": 13,
-      "tags": [
-        "master"
-      ]
+      "created": "2026-03-04T08:38:53.824Z",
+      "updated": "2026-03-04T08:38:53.824Z",
+      "description": "Tasks for master context"
     }
   }
 }

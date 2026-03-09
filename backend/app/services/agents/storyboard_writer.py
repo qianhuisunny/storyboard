@@ -1,11 +1,17 @@
 """
-Storyboard Writer Agent - Adds visual assets to Director's screen outline.
-Simplified pipeline: Director handles voiceover and duration, Writer adds visuals.
+Storyboard Writer Agent - Expands section-level outlines into screen-by-screen storyboards.
+
+Takes Director's text outline + evidence research → calls LLM per section →
+post-processes with DurationCalculator → returns production-ready screen list.
 """
 
-from typing import Any
+import json
+import re
+from typing import Any, Optional
 
 from .base import BaseAgent
+from .duration_calculator import DurationCalculator
+from ..processing_log import log_llm_request, log_llm_response
 
 
 # Placeholder images per screen type, served from frontend/public/placeholders/
@@ -22,61 +28,554 @@ PLACEHOLDER_IMAGES = {
 
 class StoryboardWriter(BaseAgent):
     """
-    Adds visual assets to Director's screen outline.
+    Expands section-level outlines into screen-by-screen storyboards.
 
-    Input from Director (5 fields):
-    - screen_number, narrative_role, screen_type, voiceover_text, duration
-
-    Output (6 fields):
-    - screen_number, narrative_role, screen_type, duration, voiceover_text, on_screen_visual
+    Input: state.screen_outline (text) + state.evidence_research (dict)
+    Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_2.md"
+    prompt_file = "storyboard_writer_prompt_v0308.md"
+
+    def __init__(self):
+        super().__init__()
+        self.duration_calculator = DurationCalculator()
 
     def run(self, state: Any, **kwargs) -> list:
         """
         Process outline into production storyboard.
 
-        Handles both:
-        - Text-based outline (new): pass through as single-item list
-        - Screen-list outline (legacy): add visual assets per screen
-
-        Args:
-            state: StoryboardState with screen_outline
-
-        Returns:
-            list of production screens or wrapped text
+        For text outlines: parse sections, call LLM per section, post-process.
+        For legacy screen-lists: add duration + placeholder images.
         """
         if not state.screen_outline:
             raise ValueError("StoryboardWriter requires screen_outline in state")
 
-        # Text-based outline — wrap as single storyboard item for now
-        if isinstance(state.screen_outline, str):
-            return [{"type": "text_outline", "content": state.screen_outline}]
-
         # Legacy screen-list outline
-        storyboard = []
-        for screen in state.screen_outline:
-            production_screen = self._process_screen(screen, state.story_brief)
-            storyboard.append(production_screen)
+        if isinstance(state.screen_outline, list):
+            return self._process_legacy_screens(state.screen_outline, state.story_brief)
 
-        return storyboard
+        outline_text = state.screen_outline
+        story_brief = state.story_brief or {}
+        evidence_research = getattr(state, "evidence_research", None) or {}
+        project_id = getattr(state, "project_id", None)
 
-    def _process_screen(self, screen: dict, story_brief: dict) -> dict:
-        """Process screen - pass through fields and add visual asset."""
-        screen_type = screen.get("screen_type", "slides")
-        voiceover = screen.get("voiceover_text", "")
-        duration = screen.get("duration", 6.0)
-        narrative_role = screen.get("narrative_role", "")
+        # 1. Parse outline into sections
+        sections = self._parse_outline(outline_text)
+        if not sections:
+            raise ValueError("Could not parse any sections from outline")
 
-        # Get placeholder image based on screen type
-        visual = PLACEHOLDER_IMAGES.get(screen_type, "/placeholders/slides_and_diagrams.png")
+        # 2. Extract context from brief
+        brief_context = self._extract_brief_context(story_brief)
+        allowed_types = self._get_allowed_screen_types(story_brief)
+        target_duration = self._get_target_duration(story_brief)
 
+        # 3. Process each section
+        all_screens = []
+        for section in sections:
+            prev_screens = all_screens[-2:] if all_screens else []
+            start_number = len(all_screens) + 1
+
+            # Get evidence for this section
+            section_evidence = self._get_evidence_for_section(
+                evidence_research, section.get("title", "")
+            )
+
+            section_screens = self._process_section(
+                section=section,
+                evidence=section_evidence,
+                full_outline=outline_text,
+                brief_context=brief_context,
+                allowed_types=allowed_types,
+                prev_screens=prev_screens,
+                start_number=start_number,
+                project_id=project_id,
+            )
+            all_screens.extend(section_screens)
+
+        # 4. Post-process: add duration + on_screen_visual
+        all_screens = self._post_process_screens(all_screens, allowed_types)
+
+        # 5. Validate and adjust total duration
+        if target_duration > 0:
+            all_screens = self._adjust_total_duration(all_screens, target_duration)
+
+        # 6. Ensure sequential numbering
+        for i, screen in enumerate(all_screens):
+            screen["screen_number"] = i + 1
+
+        return all_screens
+
+    # =========================================================================
+    # Outline Parsing (mirrors frontend/src/components/OutlineBuilder/outlineParser.ts)
+    # =========================================================================
+
+    def _parse_outline(self, text: str) -> list:
+        """Parse Director's plain text outline into structured sections."""
+        if not text or not text.strip():
+            return []
+
+        # Split on "Section N — Title" headers
+        section_pattern = r"^Section\s+(\d+)\s*[—–\-]\s*(.+)$"
+        headers = [
+            (m.start(), int(m.group(1)), m.group(2).strip())
+            for m in re.finditer(section_pattern, text, re.MULTILINE)
+        ]
+
+        if not headers:
+            return []
+
+        sections = []
+        for i, (start, num, title) in enumerate(headers):
+            end = headers[i + 1][0] if i < len(headers) - 1 else len(text)
+            block = text[start:end]
+
+            sections.append({
+                "section_number": num,
+                "title": title,
+                "purpose": self._extract_field(block, "Purpose"),
+                "duration_range": self._extract_field(block, "Duration"),
+                "talking_points": self._extract_bullets(block, "Talking points"),
+                "evidence_needed": self._extract_bullets(block, "Evidence needed"),
+                "visual_intent": self._extract_bullets(block, "Visual intent"),
+            })
+
+        return sections
+
+    def _extract_field(self, block: str, header: str) -> str:
+        """Extract a single-value field from a section block.
+
+        Handles both Director format (plain headers) and reference format (**bold** headers).
+        Also handles variations like "Approx. duration" vs "Duration".
+        """
+        # Known headers with aliases (first in list is canonical)
+        known_headers = [
+            ["Purpose"],
+            ["Duration", "Approx. duration", "Approx duration"],
+            ["Talking points", "Talking point"],
+            ["Evidence needed", "Evidence"],
+            ["Visual intent", "Visual"],
+            ["Research queries", "Research query"],
+        ]
+
+        positions = []
+        for aliases in known_headers:
+            canonical = aliases[0]
+            for alias in aliases:
+                # Match both plain and **bold** markdown headers
+                pattern = rf"^(?:\*\*)?{re.escape(alias)}(?:\*\*)?\s*$"
+                m = re.search(pattern, block, re.MULTILINE | re.IGNORECASE)
+                if m:
+                    positions.append((m.start(), m.end(), canonical))
+                    break  # Use first matching alias
+
+        positions.sort(key=lambda x: x[0])
+
+        # Find the target header
+        for i, (start, end, name) in enumerate(positions):
+            if name.lower() == header.lower():
+                content_start = end
+                content_end = positions[i + 1][0] if i < len(positions) - 1 else len(block)
+                return block[content_start:content_end].strip()
+
+        return ""
+
+    def _extract_bullets(self, block: str, header: str) -> list:
+        """Extract bullet point list from a section block."""
+        content = self._extract_field(block, header)
+        if not content:
+            return []
+        return [
+            line.lstrip("- *").strip()
+            for line in content.split("\n")
+            if line.strip().startswith("-") or line.strip().startswith("*")
+        ]
+
+    def _parse_duration_range(self, duration_str: str) -> tuple:
+        """Parse duration ranges into (min_seconds, max_seconds).
+
+        Handles formats:
+        - '1:30–2:00' (mm:ss)
+        - '1.5–2 min' (minutes)
+        - '90–120' (seconds)
+        - '2–2.5 min'
+        """
+        if not duration_str:
+            return (120, 180)  # default 2-3 min
+
+        # Check if "min" appears → values are in minutes
+        is_minutes = "min" in duration_str.lower()
+        clean = re.sub(r"\s*min(utes?)?\s*", "", duration_str, flags=re.IGNORECASE).strip()
+
+        parts = re.split(r"[—–\-]", clean)
+
+        def to_seconds(t: str) -> int:
+            t = t.strip()
+            if ":" in t:
+                pieces = t.split(":")
+                return int(pieces[0]) * 60 + int(pieces[1])
+            try:
+                val = float(t)
+                return int(val * 60) if is_minutes else int(val)
+            except ValueError:
+                return 120
+
+        if len(parts) >= 2:
+            return (to_seconds(parts[0]), to_seconds(parts[1]))
+        elif len(parts) == 1:
+            s = to_seconds(parts[0])
+            return (s, s)
+        return (120, 180)
+
+    # =========================================================================
+    # Brief Context Extraction
+    # =========================================================================
+
+    def _extract_brief_field(self, story_brief: dict, field_name: str, default=None):
+        """Extract a field from story_brief, handling both new and legacy formats."""
+        if "fields" in story_brief:
+            field = story_brief["fields"].get(field_name, {})
+            if isinstance(field, dict) and "value" in field:
+                return field["value"]
+        return story_brief.get(field_name, default)
+
+    def _extract_brief_context(self, story_brief: dict) -> dict:
+        """Extract relevant fields from story brief for the user prompt."""
         return {
-            "screen_number": screen.get("screen_number", 1),
-            "narrative_role": narrative_role,
-            "screen_type": screen_type,
-            "duration": duration,
-            "voiceover_text": voiceover,
-            "on_screen_visual": visual
+            "target_audience": self._extract_brief_field(story_brief, "target_audience", ""),
+            "audience_level": self._extract_brief_field(story_brief, "audience_level", "intermediate"),
+            "delivery_tone": self._extract_brief_field(story_brief, "delivery_tone", ""),
+            "selected_angle": self._extract_brief_field(story_brief, "selected_angle", ""),
+            "duration": self._extract_brief_field(story_brief, "duration", "60"),
+            "viewer_outcome": self._extract_brief_field(story_brief, "viewer_outcome", ""),
         }
+
+    def _get_allowed_screen_types(self, story_brief: dict) -> list:
+        """Derive allowed screen types from broll_type + on_camera_presence."""
+        broll = self._extract_brief_field(story_brief, "broll_type", [])
+        if isinstance(broll, str):
+            broll = [broll] if broll else []
+
+        # Map brief broll_type values to valid screen types
+        type_map = {
+            "slides": "slides",
+            "whiteboard": "whiteboard",
+            "diagrams": "whiteboard",
+            "screen_recording": "screen_recording",
+            "code_editor": "code_editor",
+            "stock_footage": "stock_footage",
+            "real_world": "real_world",
+        }
+
+        allowed = []
+        for b in broll:
+            mapped = type_map.get(b.lower().strip(), b.lower().strip())
+            if mapped not in allowed:
+                allowed.append(mapped)
+
+        # Add talking_head if on-camera presence is enabled
+        on_camera = self._extract_brief_field(story_brief, "on_camera_presence", "")
+        if on_camera and on_camera.lower() not in ("no", "none", ""):
+            if "talking_head" not in allowed:
+                allowed.append("talking_head")
+
+        # Fallback if empty
+        if not allowed:
+            allowed = ["slides", "whiteboard"]
+
+        return allowed
+
+    def _get_target_duration(self, story_brief: dict) -> float:
+        """Get target duration in seconds from brief."""
+        duration = self._extract_brief_field(story_brief, "duration", "60")
+        try:
+            return float(duration)
+        except (ValueError, TypeError):
+            return 60.0
+
+    # =========================================================================
+    # Evidence Research Integration
+    # =========================================================================
+
+    def _get_evidence_for_section(self, evidence_research: dict, section_title: str) -> list:
+        """
+        Get evidence tasks with selected evidence for a section.
+        Returns list of evidence task dicts with high/medium confidence selections.
+        """
+        if not evidence_research:
+            return []
+
+        sections = evidence_research.get("sections", [])
+        for section in sections:
+            # Match by section title (fuzzy: check if title appears in section_title)
+            ev_title = section.get("section_title", "")
+            if section_title.lower() in ev_title.lower() or ev_title.lower() in f"section {section_title}".lower():
+                tasks = []
+                for task in section.get("evidence_tasks", []):
+                    selected = task.get("selected_evidence")
+                    if selected and selected.get("confidence") in ("high", "medium"):
+                        tasks.append({
+                            "task_label": task.get("task_label", ""),
+                            "supports": task.get("supports", ""),
+                            "evidence_type": task.get("evidence_type", ""),
+                            "priority": task.get("priority", ""),
+                            "evidence_summary": selected.get("evidence_summary", ""),
+                            "usable_line": selected.get("usable_line", ""),
+                            "source_title": selected.get("source_title", ""),
+                            "source_url": selected.get("source_url", ""),
+                        })
+                return tasks
+
+        return []
+
+    def _format_evidence_for_prompt(self, evidence: list, research_brief: str = "") -> str:
+        """Format evidence tasks into prompt-friendly text."""
+        if not evidence:
+            return "No evidence research available for this section."
+
+        lines = []
+        if research_brief:
+            lines.append(f"Research brief: {research_brief}")
+            lines.append("")
+
+        for task in evidence:
+            lines.append(f"Evidence: {task['task_label']} ({task['evidence_type']}, {task['priority']})")
+            if task.get("evidence_summary"):
+                lines.append(f"  Summary: {task['evidence_summary']}")
+            if task.get("usable_line"):
+                lines.append(f"  Usable line: {task['usable_line']}")
+            if task.get("source_title"):
+                lines.append(f"  Source: {task['source_title']} ({task.get('source_url', '')})")
+            lines.append("")
+
+        return "\n".join(lines)
+
+    # =========================================================================
+    # Section Processing (LLM call per section)
+    # =========================================================================
+
+    def _process_section(
+        self,
+        section: dict,
+        evidence: list,
+        full_outline: str,
+        brief_context: dict,
+        allowed_types: list,
+        prev_screens: list,
+        start_number: int,
+        project_id: Optional[str] = None,
+    ) -> list:
+        """Process one section: build prompt, call LLM, parse response."""
+        # Estimate screen count from duration range
+        min_sec, max_sec = self._parse_duration_range(section.get("duration_range", ""))
+        midpoint = (min_sec + max_sec) / 2
+        estimated_count = max(3, round(midpoint / 8))
+
+        # Build user prompt
+        user_prompt = self._build_section_prompt(
+            section=section,
+            evidence=evidence,
+            full_outline=full_outline,
+            brief_context=brief_context,
+            allowed_types=allowed_types,
+            prev_screens=prev_screens,
+            start_number=start_number,
+            estimated_count=estimated_count,
+            min_sec=min_sec,
+            max_sec=max_sec,
+        )
+
+        # Log request
+        if project_id:
+            log_llm_request(
+                project_id=project_id,
+                phase=f"storyboard_writer_section_{section.get('section_number', '?')}",
+                input_fields={
+                    "section": section.get("title", ""),
+                    "target_screens": str(estimated_count),
+                },
+                system_prompt=self.system_prompt[:200] if self.system_prompt else "",
+                user_prompt=user_prompt[:200],
+                max_tokens=8000,
+            )
+
+        # Call LLM
+        response = self.call_llm(user_prompt, max_tokens=8000, temperature=0.7)
+
+        # Parse JSON
+        parsed = self._extract_json(response)
+
+        # Log response
+        if project_id:
+            log_llm_response(
+                project_id=project_id,
+                phase=f"storyboard_writer_section_{section.get('section_number', '?')}",
+                raw_response=response[:500] if response else "",
+                parsed_result={
+                    "screens_generated": len(parsed) if isinstance(parsed, list) else 0,
+                },
+            )
+
+        if not parsed or not isinstance(parsed, list):
+            # Retry once with lower temperature
+            response = self.call_llm(user_prompt, max_tokens=8000, temperature=0.4)
+            parsed = self._extract_json(response)
+            if not parsed or not isinstance(parsed, list):
+                return []
+
+        return parsed
+
+    def _build_section_prompt(
+        self,
+        section: dict,
+        evidence: list,
+        full_outline: str,
+        brief_context: dict,
+        allowed_types: list,
+        prev_screens: list,
+        start_number: int,
+        estimated_count: int,
+        min_sec: int,
+        max_sec: int,
+    ) -> str:
+        """Construct the user prompt for one section's LLM call."""
+        # Format talking points
+        tp_text = "\n".join(f"- {tp}" for tp in section.get("talking_points", [])) or "- (none)"
+        ev_text = "\n".join(f"- {ev}" for ev in section.get("evidence_needed", [])) or "- (none)"
+        vi_text = "\n".join(f"- {vi}" for vi in section.get("visual_intent", [])) or "- (none)"
+
+        # Format evidence research
+        # Find the research_brief for this section from evidence_research
+        evidence_text = self._format_evidence_for_prompt(evidence)
+
+        # Format previous screens
+        if prev_screens:
+            prev_text = json.dumps(prev_screens, indent=2, ensure_ascii=False)
+        else:
+            prev_text = "This is the first section — no previous screens."
+
+        return f"""Generate screens for this section.
+
+=== FULL OUTLINE (context only — do not generate screens for other sections) ===
+{full_outline}
+
+=== STORY BRIEF ===
+Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
+Tone: {brief_context['delivery_tone']}
+Angle: {brief_context['selected_angle']}
+Viewer outcome: {brief_context['viewer_outcome']}
+Total video duration: {brief_context['duration']}s
+
+=== ALLOWED SCREEN TYPES ===
+{', '.join(allowed_types)}
+
+=== EVIDENCE RESEARCH FOR THIS SECTION ===
+{evidence_text}
+
+=== PREVIOUS SECTION'S LAST SCREENS (for visual continuity) ===
+{prev_text}
+
+=== SECTION TO EXPAND ===
+Section {section.get('section_number', '?')} — {section.get('title', '')}
+
+Purpose: {section.get('purpose', '')}
+Target duration: {min_sec}-{max_sec} seconds (~{estimated_count} screens)
+
+Talking points:
+{tp_text}
+
+Evidence needed:
+{ev_text}
+
+Visual intent:
+{vi_text}
+
+=== INSTRUCTIONS ===
+Starting screen number: {start_number}
+Generate approximately {estimated_count} screens for this section.
+Return a JSON array. Each element has exactly 5 fields:
+- screen_number (integer, starting from {start_number})
+- screen_type (one of: {', '.join(allowed_types)})
+- voiceover_text (conversational narration, 10-30 words per screen)
+- visual_direction (array of 3-5 specific visual elements describing exactly what appears on screen)
+- action_notes (1-2 sentences of production guidance)
+
+Remember: write the narration first as a flowing script, then break into screen beats."""
+
+    # =========================================================================
+    # Post-Processing
+    # =========================================================================
+
+    def _post_process_screens(self, screens: list, allowed_types: list) -> list:
+        """Add server-computed fields: duration and on_screen_visual."""
+        for screen in screens:
+            # Validate screen_type
+            st = screen.get("screen_type", "slides")
+            if st not in PLACEHOLDER_IMAGES:
+                st = allowed_types[0] if allowed_types else "slides"
+                screen["screen_type"] = st
+
+            # Calculate duration from voiceover word count
+            voiceover = screen.get("voiceover_text", "")
+            calc = self.duration_calculator.calculate(voiceover, st)
+            screen["duration"] = calc["duration"]
+
+            # Assign placeholder image
+            screen["on_screen_visual"] = PLACEHOLDER_IMAGES.get(st, "/placeholders/slides_and_diagrams.png")
+
+            # Ensure visual_direction is a list
+            vd = screen.get("visual_direction", [])
+            if isinstance(vd, str):
+                screen["visual_direction"] = [vd]
+            elif not isinstance(vd, list):
+                screen["visual_direction"] = []
+
+            # Ensure action_notes exists
+            if "action_notes" not in screen:
+                screen["action_notes"] = ""
+
+        return screens
+
+    def _adjust_total_duration(self, screens: list, target_seconds: float) -> list:
+        """Proportionally adjust durations if total is off by more than 5%."""
+        if not screens:
+            return screens
+
+        total = sum(s.get("duration", 0) for s in screens)
+        if total == 0:
+            return screens
+
+        deviation = abs(total - target_seconds) / target_seconds
+        if deviation <= 0.05:
+            return screens  # Within 5%, no adjustment needed
+
+        # Scale proportionally
+        scale = target_seconds / total
+        for screen in screens:
+            original = screen.get("duration", 6.0)
+            adjusted = original * scale
+            # Round to nearest 0.5, apply min/max
+            adjusted = round(adjusted * 2) / 2
+            adjusted = max(4.0, min(12.0, adjusted))
+            screen["duration"] = adjusted
+
+        return screens
+
+    # =========================================================================
+    # Legacy Support
+    # =========================================================================
+
+    def _process_legacy_screens(self, screen_list: list, story_brief: dict) -> list:
+        """Backward compat: process pre-built screen list by adding visual assets."""
+        storyboard = []
+        for screen in screen_list:
+            screen_type = screen.get("screen_type", "slides")
+            storyboard.append({
+                "screen_number": screen.get("screen_number", 1),
+                "screen_type": screen_type,
+                "duration": screen.get("duration", 6.0),
+                "voiceover_text": screen.get("voiceover_text", ""),
+                "visual_direction": screen.get("visual_direction", []),
+                "on_screen_visual": PLACEHOLDER_IMAGES.get(screen_type, "/placeholders/slides_and_diagrams.png"),
+                "action_notes": screen.get("action_notes", ""),
+            })
+        return storyboard
