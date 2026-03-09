@@ -51,6 +51,7 @@ interface StageContentProps {
   onApprove: (content: string, options?: ApproveOptions) => void;
   onRegenerate: (feedback: string) => void;
   onContentChange: (content: string) => void;
+  onAnchorChange?: (anchor: string | null) => void;
 }
 
 // Helper to get onboarding data from session storage
@@ -121,6 +122,7 @@ export default function StageContent({
   onApprove,
   onRegenerate,
   onContentChange,
+  onAnchorChange,
 }: StageContentProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [feedback, setFeedback] = useState("");
@@ -599,6 +601,7 @@ export default function StageContent({
         const data = await resp.json();
         if (data.phase === "outline_research" && data.data?.evidence_research) {
           setOutlineResearchResults(data.data.evidence_research);
+          onAnchorChange?.("evidence");
         }
       } catch {
         // Silently fail
@@ -659,6 +662,11 @@ export default function StageContent({
         const data = await response.json();
         if (data.evidence_research) {
           setOutlineResearchResults(data.evidence_research);
+          onAnchorChange?.("evidence");
+          // Scroll to evidence section
+          setTimeout(() => {
+            document.getElementById("evidence")?.scrollIntoView({ behavior: "smooth" });
+          }, 100);
         }
       }
     } catch (err) {
@@ -666,7 +674,7 @@ export default function StageContent({
     } finally {
       setIsResearchingEvidence(false);
     }
-  }, [projectId, currentOutlineText]);
+  }, [projectId, currentOutlineText, onAnchorChange]);
 
   const handleResearchContinue = useCallback(async () => {
     if (!projectId) return;

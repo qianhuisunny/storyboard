@@ -14,7 +14,10 @@ export interface Stage {
 interface StageNavigationProps {
   stages: Stage[];
   currentStageId: number;
+  activeAnchor?: string | null;
+  evidenceStatus?: StageStatus;
   onStageSelect: (stageId: number) => void;
+  onAnchorSelect?: (stageId: number, anchor: string) => void;
 }
 
 const statusIcons: Record<StageStatus, React.ReactNode> = {
@@ -34,7 +37,10 @@ const statusLabels: Record<StageStatus, string> = {
 export default function StageNavigation({
   stages,
   currentStageId,
+  activeAnchor = null,
+  evidenceStatus = "not_started",
   onStageSelect,
+  onAnchorSelect,
 }: StageNavigationProps) {
   return (
     <nav className="w-56 sm:w-48 h-full border-r border-border bg-card p-4 flex-shrink-0 overflow-y-auto flex flex-col">
@@ -44,7 +50,7 @@ export default function StageNavigation({
         </h2>
         <ul className="space-y-1">
           {stages.map((stage) => {
-            const isActive = stage.id === currentStageId;
+            const isActive = stage.id === currentStageId && activeAnchor !== "evidence";
             const isClickable = stage.status !== "not_started" || stage.id <= currentStageId;
 
             return (
@@ -76,6 +82,16 @@ export default function StageNavigation({
                     )}
                   </div>
                 </button>
+
+                {/* Evidence Research sub-step — shown after stage 2 */}
+                {stage.id === 2 && (
+                  <EvidenceSubStep
+                    isActive={currentStageId === 2 && activeAnchor === "evidence"}
+                    isClickable={isClickable}
+                    status={evidenceStatus}
+                    onSelect={() => onAnchorSelect?.(2, "evidence")}
+                  />
+                )}
               </li>
             );
           })}
@@ -97,5 +113,47 @@ export default function StageNavigation({
         </Link>
       </div>
     </nav>
+  );
+}
+
+/** Evidence Research step rendered between Video Outline and Storyboard Draft */
+function EvidenceSubStep({
+  isActive,
+  isClickable,
+  status,
+  onSelect,
+}: {
+  isActive: boolean;
+  isClickable: boolean;
+  status: StageStatus;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={() => isClickable && onSelect()}
+      disabled={!isClickable}
+      className={cn(
+        "w-full text-left px-3 py-2 rounded-md transition-colors mt-1",
+        "flex items-center",
+        isActive
+          ? "bg-primary/10 text-primary"
+          : isClickable
+          ? "hover:bg-muted text-foreground"
+          : "text-muted-foreground cursor-not-allowed opacity-50"
+      )}
+      style={{ gap: "8px" }}
+    >
+      <span className="flex-shrink-0">{statusIcons[status]}</span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center" style={{ gap: "4px" }}>
+          <span className="font-medium text-sm truncate">Evidence Research</span>
+        </div>
+        {isActive && (
+          <span className="text-xs text-muted-foreground block">
+            {statusLabels[status]}
+          </span>
+        )}
+      </div>
+    </button>
   );
 }

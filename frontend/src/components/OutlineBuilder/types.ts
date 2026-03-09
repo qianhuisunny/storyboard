@@ -1,7 +1,18 @@
 /**
  * TypeScript types for the Outline Builder component.
- * Text-based outline — no structured screen data.
  */
+
+// Structured outline section (parsed from Director's plain text)
+export interface OutlineSection {
+  id: string;
+  sectionNumber: number;
+  title: string;
+  purpose: string;
+  duration: string;
+  talkingPoints: string[];
+  evidenceNeeded: string[];
+  visualIntent: string[];
+}
 
 // Evidence research types
 export interface EvidenceFinding {

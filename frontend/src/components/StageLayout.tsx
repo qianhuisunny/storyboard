@@ -48,6 +48,7 @@ export default function StageLayout() {
   const [isLoadingStages, setIsLoadingStages] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [researchDetails, setResearchDetails] = useState<Record<string, unknown> | null>(null);
+  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const hasLoadedStages = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousStageIdRef = useRef<number | null>(null);
@@ -131,9 +132,7 @@ export default function StageLayout() {
             }
 
             // Restore stage statuses
-            let restoredStatuses: { id: number; status: StageStatus }[] = [];
             if (data.stageStatuses && Array.isArray(data.stageStatuses)) {
-              restoredStatuses = data.stageStatuses;
               setStages((prev) =>
                 prev.map((s) => {
                   const savedStatus = data.stageStatuses.find(
@@ -142,22 +141,6 @@ export default function StageLayout() {
                   return savedStatus ? { ...s, status: savedStatus.status } : s;
                 })
               );
-            }
-
-            // Navigate to first incomplete stage instead of staying on approved stage
-            // Find the first stage that isn't "approved"
-            const currentStatus = restoredStatuses.find(
-              (ss) => ss.id === data.currentStageId
-            );
-            if (currentStatus?.status === "approved") {
-              // Find first non-approved stage
-              const firstIncomplete = restoredStatuses.find(
-                (ss) => ss.status !== "approved"
-              );
-              if (firstIncomplete) {
-                console.log("Navigating to first incomplete stage:", firstIncomplete.id);
-                setCurrentStageId(firstIncomplete.id);
-              }
             }
 
             hasLoadedStages.current = true;
@@ -350,7 +333,18 @@ export default function StageLayout() {
 
   const handleStageSelect = (stageId: number) => {
     setCurrentStageId(stageId);
+    setActiveAnchor(null);
     setIsMobileMenuOpen(false);
+  };
+
+  const handleAnchorSelect = (stageId: number, anchor: string) => {
+    setCurrentStageId(stageId);
+    setActiveAnchor(anchor);
+    setIsMobileMenuOpen(false);
+    // Scroll to anchor
+    setTimeout(() => {
+      document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth" });
+    }, 50);
   };
 
   const handleApprove = async (
@@ -548,13 +542,25 @@ export default function StageLayout() {
         <StageNavigation
           stages={stages}
           currentStageId={currentStageId}
+          activeAnchor={activeAnchor}
+          evidenceStatus={
+            activeAnchor === "evidence" ? "needs_review"
+            : stages.find(s => s.id === 3)?.status !== "not_started" ? "approved"
+            : stages.find(s => s.id === 2)?.status === "approved" ? "in_progress"
+            : "not_started"
+          }
           onStageSelect={handleStageSelect}
+          onAnchorSelect={handleAnchorSelect}
         />
       </div>
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
-        {currentStage && (
+        {isLoadingStages ? (
+          <div className="flex-1 flex items-center justify-center">
+            <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : currentStage ? (
           <StageContent
             stage={currentStage}
             aiContent={currentData.aiVersion}
@@ -565,8 +571,9 @@ export default function StageLayout() {
             onApprove={handleApprove}
             onRegenerate={handleRegenerate}
             onContentChange={handleContentChange}
+            onAnchorChange={setActiveAnchor}
           />
-        )}
+        ) : null}
       </div>
 
       {/* Satisfaction Rating Modal - shown after Stage 4 completion */}
