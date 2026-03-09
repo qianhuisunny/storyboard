@@ -997,7 +997,7 @@ Focus on extracting actionable insights for creating the video."""
                 target_audience = ta.get("value", "")
 
         # --- Step 1: LLM generates research briefs + evidence tasks ---
-        evidence_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "EVIDENCE_RESEARCH_PROMPT.md"
+        evidence_prompt_path = Path(__file__).parent.parent.parent.parent.parent / "prompts" / "EVIDENCE_RESEARCH_PROMPT.md"
         evidence_system_prompt = ""
         if evidence_prompt_path.exists():
             evidence_system_prompt = evidence_prompt_path.read_text()
