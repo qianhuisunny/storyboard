@@ -947,7 +947,7 @@ Focus on extracting actionable insights for creating the video."""
         }
 
     # =========================================================================
-    # Step 6: Evidence Research from Outline
+    # Step 6: 3-Layer Evidence Research from Outline
     # =========================================================================
 
     def research_evidence_claims(
@@ -957,18 +957,27 @@ Focus on extracting actionable insights for creating the video."""
         project_id: Optional[str] = None,
     ) -> dict:
         """
-        Parse evidence claims from an approved outline, generate search queries,
-        run web searches, and return a mapping table of claim → findings.
+        3-layer evidence research:
+        1. LLM generates section research briefs + evidence tasks
+        2. Web search per evidence task
+        3. LLM selects best evidence per task
 
         Returns:
             {
-                "evidence_map": [
+                "sections": [
                     {
-                        "claim": "Original evidence text",
-                        "section": "Section title",
-                        "queries": ["query1", "query2"],
-                        "findings": [
-                            {"title": "...", "snippet": "...", "source_url": "...", "source_domain": "..."}
+                        "section_title": "Section 1 — ...",
+                        "research_brief": "...",
+                        "evidence_tasks": [
+                            {
+                                "task_label": "...",
+                                "supports": "...",
+                                "evidence_type": "definition",
+                                "priority": "required",
+                                "queries": [...],
+                                "selection_criteria": "...",
+                                "selected_evidence": { ... } or null
+                            }
                         ]
                     }
                 ]
@@ -976,159 +985,164 @@ Focus on extracting actionable insights for creating the video."""
         """
         from app.utils.web_search import search_web
 
-        # 1. Parse evidence claims from outline text
-        claims = self._parse_evidence_from_outline(outline_text)
-        if not claims:
-            return {"evidence_map": []}
-
-        # 2. Generate search queries for all claims in one LLM call
-        claims_with_queries = self._generate_queries_for_claims(claims, story_brief, project_id)
-
-        # 3. Run web search for each query and map results back
-        evidence_map = []
-        for item in claims_with_queries:
-            findings = []
-            for query in item.get("queries", [])[:2]:  # Max 2 queries per claim
-                results = search_web(query, num_results=3)
-                for r in results:
-                    findings.append({
-                        "title": r.get("title", ""),
-                        "snippet": r.get("snippet", ""),
-                        "source_url": r.get("link", ""),
-                        "source_domain": r.get("displayLink", ""),
-                    })
-
-            evidence_map.append({
-                "claim": item["claim"],
-                "section": item["section"],
-                "queries": item.get("queries", []),
-                "findings": findings,
-            })
-
-        return {"evidence_map": evidence_map}
-
-    def _parse_evidence_from_outline(self, outline_text: str) -> list:
-        """
-        Parse 'Evidence needed' items from plain text outline.
-        Returns list of {claim, section}.
-        """
-        import re
-
-        claims = []
-        current_section = ""
-
-        lines = outline_text.split("\n")
-        in_evidence_block = False
-
-        for line in lines:
-            stripped = line.strip()
-
-            # Track current section
-            section_match = re.match(r"^Section\s+\d+\s*[—–-]\s*(.+)", stripped)
-            if section_match:
-                current_section = section_match.group(0)
-                in_evidence_block = False
-                continue
-
-            # Detect start of Evidence needed block
-            if stripped.lower() == "evidence needed":
-                in_evidence_block = True
-                continue
-
-            # Detect end of Evidence needed block (next section heading)
-            if in_evidence_block and stripped and not stripped.startswith("-"):
-                # Check if this is a new section header (Purpose, Duration, etc.)
-                if stripped in ("Purpose", "Duration", "Talking points", "Visual intent", "Research queries"):
-                    in_evidence_block = False
-                    continue
-                if re.match(r"^Section\s+\d+", stripped):
-                    in_evidence_block = False
-                    continue
-
-            # Collect evidence items
-            if in_evidence_block and stripped.startswith("-"):
-                claim_text = stripped.lstrip("- ").strip()
-                if claim_text:
-                    claims.append({
-                        "claim": claim_text,
-                        "section": current_section,
-                    })
-
-        return claims
-
-    def _generate_queries_for_claims(
-        self, claims: list, story_brief: dict, project_id: Optional[str] = None
-    ) -> list:
-        """
-        Use LLM to generate 2 search queries per evidence claim.
-        """
         # Extract brief context
         viewer_outcome = ""
+        target_audience = ""
         if story_brief and "fields" in story_brief:
-            field = story_brief["fields"].get("viewer_outcome", {})
-            if isinstance(field, dict):
-                viewer_outcome = field.get("value", "")
+            vo = story_brief["fields"].get("viewer_outcome", {})
+            if isinstance(vo, dict):
+                viewer_outcome = vo.get("value", "")
+            ta = story_brief["fields"].get("target_audience", {})
+            if isinstance(ta, dict):
+                target_audience = ta.get("value", "")
 
-        claims_text = ""
-        for i, c in enumerate(claims):
-            claims_text += f"{i+1}. [{c['section']}] {c['claim']}\n"
+        # --- Step 1: LLM generates research briefs + evidence tasks ---
+        evidence_prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "EVIDENCE_RESEARCH_PROMPT.md"
+        evidence_system_prompt = ""
+        if evidence_prompt_path.exists():
+            evidence_system_prompt = evidence_prompt_path.read_text()
 
-        prompt = f"""Generate 2 web search queries for each evidence claim below.
-The queries should find real data, examples, statistics, or expert opinions that support the claim.
+        task_gen_prompt = f"""Analyze this video outline and generate structured evidence tasks.
 
 ## VIDEO CONTEXT
 Viewer outcome: {viewer_outcome}
+Target audience: {target_audience}
 
-## EVIDENCE CLAIMS
-{claims_text}
+## OUTLINE
+{outline_text}
 
-## OUTPUT FORMAT
-Return a JSON array where each element has:
-- "index": the claim number (1-based)
-- "queries": array of 2 search query strings
-
-Example:
-[
-  {{"index": 1, "queries": ["query one", "query two"]}},
-  {{"index": 2, "queries": ["query one", "query two"]}}
-]
-
-Write queries as actual search terms someone would type. Lowercase, specific, no punctuation."""
+Return JSON following the schema in your system prompt."""
 
         if project_id:
             log_llm_request(
                 project_id=project_id,
-                phase="evidence_query_generation",
-                input_fields={"num_claims": str(len(claims))},
-                system_prompt=self.system_prompt,
-                user_prompt=prompt,
-                max_tokens=2000,
+                phase="evidence_task_generation",
+                input_fields={"outline_length": str(len(outline_text))},
+                system_prompt=evidence_system_prompt[:200],
+                user_prompt=task_gen_prompt,
+                max_tokens=4000,
             )
 
-        response = self.call_llm(prompt, max_tokens=2000, temperature=0.4)
-        parsed = self._extract_json(response)
+        response = self.call_llm(
+            task_gen_prompt,
+            system_prompt_override=evidence_system_prompt,
+            max_tokens=4000,
+            temperature=0.4,
+        )
+        research_plan = self._extract_json(response)
 
         if project_id:
             log_llm_response(
                 project_id=project_id,
-                phase="evidence_query_generation",
+                phase="evidence_task_generation",
                 raw_response=response,
-                parsed_result={"type": "list", "length": len(parsed) if parsed else 0},
+                parsed_result={"type": "dict", "sections": len(research_plan.get("sections", [])) if isinstance(research_plan, dict) else 0},
             )
 
-        # Map queries back to claims
-        if parsed and isinstance(parsed, list):
-            for item in parsed:
-                idx = item.get("index", 0) - 1
-                if 0 <= idx < len(claims):
-                    claims[idx]["queries"] = item.get("queries", [])
+        if not research_plan or not isinstance(research_plan, dict):
+            return {"sections": []}
 
-        # Fallback: generate simple queries for any claim without queries
-        for c in claims:
-            if "queries" not in c or not c["queries"]:
-                c["queries"] = [c["claim"].lower()[:80]]
+        sections = research_plan.get("sections", [])
+        if not sections:
+            return {"sections": []}
 
-        return claims
+        # --- Step 2: Web search per evidence task ---
+        all_search_results = {}  # task_key → [raw results]
+        for section in sections:
+            for task in section.get("evidence_tasks", []):
+                queries = task.get("queries", [])[:2]
+                raw_results = []
+                for query in queries:
+                    results = search_web(query, num_results=3)
+                    for r in results:
+                        raw_results.append({
+                            "title": r.get("title", ""),
+                            "snippet": r.get("snippet", ""),
+                            "url": r.get("link", ""),
+                            "domain": r.get("displayLink", ""),
+                        })
+                task_key = f"{section.get('section_title', '')}||{task.get('task_label', '')}"
+                all_search_results[task_key] = raw_results
+
+        # --- Step 3: LLM selects best evidence per task ---
+        selection_input = []
+        for section in sections:
+            for task in section.get("evidence_tasks", []):
+                task_key = f"{section.get('section_title', '')}||{task.get('task_label', '')}"
+                results = all_search_results.get(task_key, [])
+                if results:
+                    selection_input.append({
+                        "task_label": task.get("task_label", ""),
+                        "supports": task.get("supports", ""),
+                        "evidence_type": task.get("evidence_type", ""),
+                        "selection_criteria": task.get("selection_criteria", ""),
+                        "search_results": results[:6],
+                    })
+
+        selected_map = {}
+        if selection_input:
+            selection_prompt = f"""For each evidence task below, select the single best search result and summarize it.
+
+## TASKS AND SEARCH RESULTS
+{json.dumps(selection_input, indent=2)}
+
+## OUTPUT FORMAT
+Return a JSON array. For each task:
+{{
+  "task_label": "...",
+  "source_title": "title of the best result",
+  "source_url": "url of the best result",
+  "source_type": "primary | official | educational | secondary",
+  "why_selected": "1 sentence why this is the best match",
+  "evidence_summary": "1-3 sentences summarizing the evidence",
+  "usable_line": "one sentence that could be adapted into a video script",
+  "confidence": "high | medium | low"
+}}
+
+If no result is good enough for a task, set confidence to "low" and explain why in why_selected.
+Prefer primary or official sources. Choose results that are specific, accurate, and easy to adapt for video."""
+
+            if project_id:
+                log_llm_request(
+                    project_id=project_id,
+                    phase="evidence_selection",
+                    input_fields={"num_tasks": str(len(selection_input))},
+                    system_prompt="",
+                    user_prompt=selection_prompt[:200],
+                    max_tokens=4000,
+                )
+
+            sel_response = self.call_llm(selection_prompt, max_tokens=4000, temperature=0.3)
+            sel_parsed = self._extract_json(sel_response)
+
+            if project_id:
+                log_llm_response(
+                    project_id=project_id,
+                    phase="evidence_selection",
+                    raw_response=sel_response,
+                    parsed_result={"type": "list", "length": len(sel_parsed) if isinstance(sel_parsed, list) else 0},
+                )
+
+            if sel_parsed and isinstance(sel_parsed, list):
+                for item in sel_parsed:
+                    label = item.get("task_label", "")
+                    selected_map[label] = {
+                        "source_title": item.get("source_title", ""),
+                        "source_url": item.get("source_url", ""),
+                        "source_type": item.get("source_type", "secondary"),
+                        "why_selected": item.get("why_selected", ""),
+                        "evidence_summary": item.get("evidence_summary", ""),
+                        "usable_line": item.get("usable_line", ""),
+                        "confidence": item.get("confidence", "low"),
+                    }
+
+        # --- Assemble final result ---
+        for section in sections:
+            for task in section.get("evidence_tasks", []):
+                label = task.get("task_label", "")
+                task["selected_evidence"] = selected_map.get(label, None)
+
+        return {"sections": sections}
 
     # =========================================================================
     # Legacy run() - stub for backward compatibility

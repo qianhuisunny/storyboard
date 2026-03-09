@@ -14,23 +14,36 @@ export interface OutlineSection {
   visualIntent: string[];
 }
 
-// Evidence research types
-export interface EvidenceFinding {
-  title: string;
-  snippet: string;
+// 3-Layer Evidence Research types
+
+export interface SelectedEvidence {
+  source_title: string;
   source_url: string;
-  source_domain: string;
+  source_type: "primary" | "official" | "educational" | "secondary";
+  why_selected: string;
+  evidence_summary: string;
+  usable_line: string;
+  confidence: "high" | "medium" | "low";
 }
 
-export interface EvidenceMapEntry {
-  claim: string;
-  section: string;
+export interface EvidenceTask {
+  task_label: string;
+  supports: string;
+  evidence_type: string;
+  priority: "required" | "helpful" | "optional";
   queries: string[];
-  findings: EvidenceFinding[];
+  selection_criteria: string;
+  selected_evidence: SelectedEvidence | null;
+}
+
+export interface SectionResearch {
+  section_title: string;
+  research_brief: string;
+  evidence_tasks: EvidenceTask[];
 }
 
 export interface EvidenceResearch {
-  evidence_map: EvidenceMapEntry[];
+  sections: SectionResearch[];
 }
 
 // Main component props

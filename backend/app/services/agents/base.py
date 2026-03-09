@@ -63,6 +63,7 @@ class BaseAgent:
         model: str = "gpt-4o",
         temperature: float = 0.7,
         max_tokens: int = 4000,
+        system_prompt_override: str = "",
     ) -> str:
         """
         Make a call to the LLM with the system prompt and user message.
@@ -72,15 +73,17 @@ class BaseAgent:
             model: OpenAI model to use
             temperature: Sampling temperature
             max_tokens: Maximum tokens in response
+            system_prompt_override: If provided, use this instead of the agent's default system prompt
 
         Returns:
             The assistant's response text
         """
         try:
+            sys_prompt = system_prompt_override if system_prompt_override else self.system_prompt
             response = self.client.chat.completions.create(
                 model=model,
                 messages=[
-                    {"role": "system", "content": self.system_prompt},
+                    {"role": "system", "content": sys_prompt},
                     {"role": "user", "content": user_prompt},
                 ],
                 temperature=temperature,
