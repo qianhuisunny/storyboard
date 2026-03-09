@@ -108,7 +108,9 @@ class StoryboardOrchestrator:
             ("gate1", "approve"): self._handle_gate1_approve,
             ("gate1", "edit"): self._handle_gate1_edit,
             ("gate2", "approve"): self._handle_gate2_approve,
+            ("gate2", "run_research"): self._handle_gate2_run_research,
             ("gate2", "edit"): self._handle_gate2_edit,
+            ("outline_research", "approve"): self._handle_outline_research_approve,
             ("review", "approve"): self._handle_review_approve,
             ("review", "edit"): self._handle_review_edit,
             ("done", "restart"): self._handle_restart,
@@ -199,11 +201,11 @@ class StoryboardOrchestrator:
         state = manager.transition(state, "approve")
         result["message"] = "Story Brief approved, creating outline..."
 
-        # Run Storyboard Director in initial mode
-        screen_outline = self.agents["director"].run(state, mode="initial")
+        # Run Storyboard Director — returns plain text outline
+        screen_outline = self.agents["director"].run(state)
         state.screen_outline = screen_outline
         state = manager.transition(state, "outline_ready")
-        result["message"] = "Screen Outline ready for review at Gate 2"
+        result["message"] = "Outline ready for review at Gate 2"
 
         # Include outline in result
         result["screen_outline"] = screen_outline
@@ -238,26 +240,18 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """Handle Gate 2 approval - locks outline and runs writer."""
-        # VALIDATION: Check screen_outline exists and has screens
+        # VALIDATION: Check screen_outline exists and is non-empty
         if not state.screen_outline:
-            raise ValueError("Cannot approve: Screen Outline is empty")
+            raise ValueError("Cannot approve: Outline is empty")
 
-        if len(state.screen_outline) < 3:
-            raise ValueError(
-                f"Cannot approve: Screen Outline has only {len(state.screen_outline)} screens (minimum 3 required)"
-            )
-
-        # Check each screen has required fields
-        for i, screen in enumerate(state.screen_outline):
-            required = ["voiceover_text", "screen_type", "visual_direction"]
-            missing = [f for f in required if not screen.get(f)]
-            if missing:
-                raise ValueError(f"Cannot approve: Screen {i+1} missing required fields: {missing}")
+        # For text-based outlines, just check it's non-empty text
+        if isinstance(state.screen_outline, str) and len(state.screen_outline.strip()) < 50:
+            raise ValueError("Cannot approve: Outline is too short")
 
         # Lock the outline
         state = manager.lock_outline(state)
         state = manager.transition(state, "approve")
-        result["message"] = "Screen Outline approved, generating storyboard..."
+        result["message"] = "Outline approved, generating storyboard..."
 
         # Run Storyboard Writer
         storyboard = self.agents["writer"].run(state)
@@ -282,10 +276,8 @@ class StoryboardOrchestrator:
 
         Payload:
         - target: "current" (edit outline) or "gate1" (go back to brief)
-        - feedback: optional revision feedback
         """
         target = payload.get("target", "current")
-        feedback = payload.get("feedback")
 
         if target == "gate1":
             # Cascade delete: remove outline, go back to gate1
@@ -298,23 +290,63 @@ class StoryboardOrchestrator:
             result["story_brief"] = state.story_brief
             result["cascade_deleted"] = ["screen_outline"]
         else:
-            # Edit outline in place
+            # Outline is edited directly by the user in the textarea — no re-generation
             state.outline_locked = False
+            result["message"] = "Outline unlocked for editing."
+            result["screen_outline"] = state.screen_outline
 
-            # If feedback provided, re-run Director with revision
-            if feedback:
-                state = manager.add_revision(state, gate=2, feedback=feedback)
-                screen_outline = self.agents["director"].run(
-                    state,
-                    mode="revision",
-                    revision_request=feedback
-                )
-                state.screen_outline = screen_outline
-                result["message"] = f"Outline revised (revision {state.revision_count_gate2}/{state.max_revisions})"
-                result["screen_outline"] = screen_outline
-            else:
-                result["message"] = "Screen Outline unlocked for editing."
-                result["screen_outline"] = state.screen_outline
+        return state, result
+
+    async def _handle_gate2_run_research(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """Handle 'Approve & Run Research Plan' — locks outline, runs evidence research."""
+        if not state.screen_outline:
+            raise ValueError("Cannot run research: Outline is empty")
+
+        if isinstance(state.screen_outline, str) and len(state.screen_outline.strip()) < 50:
+            raise ValueError("Cannot run research: Outline is too short")
+
+        # Lock the outline
+        state = manager.lock_outline(state)
+        state = manager.transition(state, "run_research")
+        result["message"] = "Running evidence research..."
+
+        # Run evidence research
+        outline_text = state.screen_outline if isinstance(state.screen_outline, str) else ""
+        evidence_research = self.agents["researcher"].research_evidence_claims(
+            outline_text=outline_text,
+            story_brief=state.story_brief or {},
+            project_id=state.project_id,
+        )
+
+        state.evidence_research = evidence_research
+        result["message"] = "Evidence research complete. Review results."
+        result["evidence_research"] = evidence_research
+
+        return state, result
+
+    async def _handle_outline_research_approve(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """Handle approval after evidence research — runs StoryboardWriter."""
+        state = manager.transition(state, "approve")
+        result["message"] = "Research approved, generating storyboard..."
+
+        # Run Storyboard Writer
+        storyboard = self.agents["writer"].run(state)
+        state.storyboard = storyboard
+        state = manager.transition(state, "storyboard_ready")
+        result["message"] = "Storyboard complete! Review and optionally refine."
+        result["storyboard"] = storyboard
 
         return state, result
 
@@ -386,36 +418,13 @@ class StoryboardOrchestrator:
             result["cascade_deleted"] = ["storyboard"]
 
         else:
-            # Refine storyboard in place
-            if not feedback:
-                raise ValueError("feedback is required for refinement")
+            # No revision mode — user edits directly. Go back to gate2 for re-approval.
+            state.storyboard = None
+            state.outline_locked = False
+            state = manager.go_back(state, target_gate=2)
 
-            # Add revision record
-            state.revision_history.append(RevisionRecord(
-                gate="optional",
-                feedback=feedback,
-                timestamp=datetime.now().isoformat(),
-                resolved=False
-            ))
-
-            # Re-run Director in revision mode
-            screen_outline = self.agents["director"].run(
-                state,
-                mode="revision",
-                revision_request=feedback
-            )
-            state.screen_outline = screen_outline
-
-            # Re-run Writer with updated outline
-            storyboard = self.agents["writer"].run(state)
-            state.storyboard = storyboard
-
-            # Mark revision as resolved
-            state.revision_history[-1].resolved = True
-
-            result["message"] = "Storyboard refined!"
-            result["screen_outline"] = screen_outline
-            result["storyboard"] = storyboard
+            result["message"] = "Returned to Gate 2. Edit the outline and re-approve."
+            result["screen_outline"] = state.screen_outline
 
         return state, result
 
@@ -454,6 +463,7 @@ class StoryboardOrchestrator:
             "research_complete": getattr(state, 'research_complete', False),
             "pending_perspectives": state.pending_perspectives,
             "selected_perspective": state.selected_perspective,
+            "has_evidence_research": state.evidence_research is not None,
         }
 
     # =========================================================================
@@ -605,6 +615,7 @@ class StoryboardOrchestrator:
         Handle angle/perspective approval.
         Stores the selected angle in the brief and transitions to brief_review.
         """
+        print(f"[approve_angle] phase={state.phase}, payload={payload}")
         selected_angle = payload.get("selected_angle", "")
         if not selected_angle:
             raise ValueError("selected_angle is required in payload")
@@ -755,9 +766,10 @@ class StoryboardOrchestrator:
         state = manager.transition(state, "brief_approve")
 
         # Immediately run Director (combining brief_approve + gate1_approve)
-        screen_outline = self.agents["director"].run(state, mode="initial")
+        state = manager.transition(state, "approve")  # gate1 → outline
+        screen_outline = self.agents["director"].run(state)
         state.screen_outline = screen_outline
-        state = manager.transition(state, "approve")  # gate1 → gate2
+        state = manager.transition(state, "outline_ready")  # outline → gate2
 
         result["message"] = "Screen Outline ready for review"
         result["story_brief"] = state.story_brief

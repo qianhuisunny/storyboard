@@ -270,6 +270,7 @@ export default function KnowledgeShareBriefBuilder({
             onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => {}}
             disabled={false}
+            showConfirmButton={false}
           />
         </CollapsibleSection>
       );
@@ -285,6 +286,7 @@ export default function KnowledgeShareBriefBuilder({
             onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => {}}
             disabled={false}
+            showConfirmButton={false}
           />
         </CollapsibleSection>
       );
@@ -301,6 +303,7 @@ export default function KnowledgeShareBriefBuilder({
             onSectionConfirm={() => {}}
             disabled={false}
             researchComplete={researchComplete}
+            showConfirmButton={false}
           />
         </CollapsibleSection>
       );

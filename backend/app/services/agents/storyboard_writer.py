@@ -35,17 +35,26 @@ class StoryboardWriter(BaseAgent):
 
     def run(self, state: Any, **kwargs) -> list:
         """
-        Add visual assets to Director's screen outline.
+        Process outline into production storyboard.
+
+        Handles both:
+        - Text-based outline (new): pass through as single-item list
+        - Screen-list outline (legacy): add visual assets per screen
 
         Args:
             state: StoryboardState with screen_outline
 
         Returns:
-            list of production screens with 5 fields each
+            list of production screens or wrapped text
         """
         if not state.screen_outline:
             raise ValueError("StoryboardWriter requires screen_outline in state")
 
+        # Text-based outline — wrap as single storyboard item for now
+        if isinstance(state.screen_outline, str):
+            return [{"type": "text_outline", "content": state.screen_outline}]
+
+        # Legacy screen-list outline
         storyboard = []
         for screen in state.screen_outline:
             production_screen = self._process_screen(screen, state.story_brief)

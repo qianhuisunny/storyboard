@@ -14,6 +14,7 @@ interface RoundOneFormProps {
   onFieldUnconfirm?: (key: string) => void;
   onSectionConfirm: () => void;
   disabled?: boolean;
+  showConfirmButton?: boolean;
 }
 
 const SECTION_1_FIELDS = [
@@ -33,6 +34,7 @@ export default function RoundOneForm({
   onFieldUnconfirm,
   onSectionConfirm,
   disabled = false,
+  showConfirmButton = true,
 }: RoundOneFormProps) {
   const requiredFields = KNOWLEDGE_SHARE_REQUIRED_FIELDS[1];
   const canConfirm = areRequiredFieldsFilled(fields, 1);
@@ -69,24 +71,26 @@ export default function RoundOneForm({
       </div>
 
       {/* Section Confirm Button */}
-      <div className="border-t pt-4">
-        <button
-          onClick={onSectionConfirm}
-          disabled={!canConfirm || disabled}
-          className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
-            canConfirm && !disabled
-              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-              : "bg-muted text-muted-foreground cursor-not-allowed"
-          }`}
-        >
-          {canConfirm ? "Confirm Section 1 →" : "Fill all required fields to continue"}
-        </button>
-        {!canConfirm && (
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            Fields marked with * are required
-          </p>
-        )}
-      </div>
+      {showConfirmButton && (
+        <div className="border-t pt-4">
+          <button
+            onClick={onSectionConfirm}
+            disabled={!canConfirm || disabled}
+            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+              canConfirm && !disabled
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
+            }`}
+          >
+            {canConfirm ? "Confirm Section 1 →" : "Fill all required fields to continue"}
+          </button>
+          {!canConfirm && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Fields marked with * are required
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -209,7 +209,7 @@ Note: Duration calculation (word_count / 130 * 60s) is now a utility function, n
 |-----------|------------|
 | `agents/topic_researcher.py` | `prompts/TOPIC_RESEARCHER_SYSTEM_PROMPT.md` |
 | `agents/brief_builder.py` | `prompts/BRIEF_BUILDER_SYSTEM_PROMPT.md` |
-| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0309.md` |
+| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0311.md` |
 | `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_2.md` |
 
 ### Agent Structure Pattern

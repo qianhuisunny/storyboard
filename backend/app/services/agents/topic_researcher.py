@@ -947,6 +947,190 @@ Focus on extracting actionable insights for creating the video."""
         }
 
     # =========================================================================
+    # Step 6: Evidence Research from Outline
+    # =========================================================================
+
+    def research_evidence_claims(
+        self,
+        outline_text: str,
+        story_brief: dict,
+        project_id: Optional[str] = None,
+    ) -> dict:
+        """
+        Parse evidence claims from an approved outline, generate search queries,
+        run web searches, and return a mapping table of claim → findings.
+
+        Returns:
+            {
+                "evidence_map": [
+                    {
+                        "claim": "Original evidence text",
+                        "section": "Section title",
+                        "queries": ["query1", "query2"],
+                        "findings": [
+                            {"title": "...", "snippet": "...", "source_url": "...", "source_domain": "..."}
+                        ]
+                    }
+                ]
+            }
+        """
+        from app.utils.web_search import search_web
+
+        # 1. Parse evidence claims from outline text
+        claims = self._parse_evidence_from_outline(outline_text)
+        if not claims:
+            return {"evidence_map": []}
+
+        # 2. Generate search queries for all claims in one LLM call
+        claims_with_queries = self._generate_queries_for_claims(claims, story_brief, project_id)
+
+        # 3. Run web search for each query and map results back
+        evidence_map = []
+        for item in claims_with_queries:
+            findings = []
+            for query in item.get("queries", [])[:2]:  # Max 2 queries per claim
+                results = search_web(query, num_results=3)
+                for r in results:
+                    findings.append({
+                        "title": r.get("title", ""),
+                        "snippet": r.get("snippet", ""),
+                        "source_url": r.get("link", ""),
+                        "source_domain": r.get("displayLink", ""),
+                    })
+
+            evidence_map.append({
+                "claim": item["claim"],
+                "section": item["section"],
+                "queries": item.get("queries", []),
+                "findings": findings,
+            })
+
+        return {"evidence_map": evidence_map}
+
+    def _parse_evidence_from_outline(self, outline_text: str) -> list:
+        """
+        Parse 'Evidence needed' items from plain text outline.
+        Returns list of {claim, section}.
+        """
+        import re
+
+        claims = []
+        current_section = ""
+
+        lines = outline_text.split("\n")
+        in_evidence_block = False
+
+        for line in lines:
+            stripped = line.strip()
+
+            # Track current section
+            section_match = re.match(r"^Section\s+\d+\s*[—–-]\s*(.+)", stripped)
+            if section_match:
+                current_section = section_match.group(0)
+                in_evidence_block = False
+                continue
+
+            # Detect start of Evidence needed block
+            if stripped.lower() == "evidence needed":
+                in_evidence_block = True
+                continue
+
+            # Detect end of Evidence needed block (next section heading)
+            if in_evidence_block and stripped and not stripped.startswith("-"):
+                # Check if this is a new section header (Purpose, Duration, etc.)
+                if stripped in ("Purpose", "Duration", "Talking points", "Visual intent", "Research queries"):
+                    in_evidence_block = False
+                    continue
+                if re.match(r"^Section\s+\d+", stripped):
+                    in_evidence_block = False
+                    continue
+
+            # Collect evidence items
+            if in_evidence_block and stripped.startswith("-"):
+                claim_text = stripped.lstrip("- ").strip()
+                if claim_text:
+                    claims.append({
+                        "claim": claim_text,
+                        "section": current_section,
+                    })
+
+        return claims
+
+    def _generate_queries_for_claims(
+        self, claims: list, story_brief: dict, project_id: Optional[str] = None
+    ) -> list:
+        """
+        Use LLM to generate 2 search queries per evidence claim.
+        """
+        # Extract brief context
+        viewer_outcome = ""
+        if story_brief and "fields" in story_brief:
+            field = story_brief["fields"].get("viewer_outcome", {})
+            if isinstance(field, dict):
+                viewer_outcome = field.get("value", "")
+
+        claims_text = ""
+        for i, c in enumerate(claims):
+            claims_text += f"{i+1}. [{c['section']}] {c['claim']}\n"
+
+        prompt = f"""Generate 2 web search queries for each evidence claim below.
+The queries should find real data, examples, statistics, or expert opinions that support the claim.
+
+## VIDEO CONTEXT
+Viewer outcome: {viewer_outcome}
+
+## EVIDENCE CLAIMS
+{claims_text}
+
+## OUTPUT FORMAT
+Return a JSON array where each element has:
+- "index": the claim number (1-based)
+- "queries": array of 2 search query strings
+
+Example:
+[
+  {{"index": 1, "queries": ["query one", "query two"]}},
+  {{"index": 2, "queries": ["query one", "query two"]}}
+]
+
+Write queries as actual search terms someone would type. Lowercase, specific, no punctuation."""
+
+        if project_id:
+            log_llm_request(
+                project_id=project_id,
+                phase="evidence_query_generation",
+                input_fields={"num_claims": str(len(claims))},
+                system_prompt=self.system_prompt,
+                user_prompt=prompt,
+                max_tokens=2000,
+            )
+
+        response = self.call_llm(prompt, max_tokens=2000, temperature=0.4)
+        parsed = self._extract_json(response)
+
+        if project_id:
+            log_llm_response(
+                project_id=project_id,
+                phase="evidence_query_generation",
+                raw_response=response,
+                parsed_result={"type": "list", "length": len(parsed) if parsed else 0},
+            )
+
+        # Map queries back to claims
+        if parsed and isinstance(parsed, list):
+            for item in parsed:
+                idx = item.get("index", 0) - 1
+                if 0 <= idx < len(claims):
+                    claims[idx]["queries"] = item.get("queries", [])
+
+        # Fallback: generate simple queries for any claim without queries
+        for c in claims:
+            if "queries" not in c or not c["queries"]:
+                c["queries"] = [c["claim"].lower()[:80]]
+
+        return claims
+
+    # =========================================================================
     # Legacy run() - stub for backward compatibility
     # =========================================================================
 

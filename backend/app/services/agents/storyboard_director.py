@@ -1,165 +1,26 @@
 """
-Storyboard Director Agent - Creates screen-level outlines with voiceover drafts.
-Operates in two modes: Initial Planning and Revision.
+Storyboard Director Agent - Generates a text-based video outline.
 
-Uses voiceover-first approach:
-1. Calculate word budget from duration
-2. Write continuous voiceover per narrative phase
-3. Mark visual change points to determine screen boundaries
-4. Screen count emerges organically from content needs
+One-shot: takes story_brief → returns formatted plain text outline with sections.
+No JSON, no revision mode. Output is human-readable and editable.
 """
 
-import json
-import re
-from typing import Any, Optional, Literal
+from typing import Any
 
 from .base import BaseAgent
-from .duration_calculator import DurationCalculator
 from ..processing_log import log_llm_request, log_llm_response
-
-
-# broll_type values that map directly to screen_type (1:1)
-# Only exception: "diagrams" merges into "slides"
-BROLL_TO_SCREEN_TYPE = {
-    "diagrams": "slides",
-}
-
-# Normalize legacy screen_type values to new vocabulary
-LEGACY_SCREEN_TYPE_MAP = {
-    "screencast": "screen_recording",
-    "stock video": "stock_footage",
-    "slides/text overlay": "slides",
-    "text overlay": "slides",
-    "talking head": "talking_head",
-    "CTA": "slides",
-    "cta": "slides",
-}
 
 
 class StoryboardDirector(BaseAgent):
     """
-    Strategic planner that creates screen outlines.
+    Generates a structured text outline from the story brief.
 
-    Initial Mode: Creates complete outline from Story Brief
-    Revision Mode: Updates outline based on feedback
-
-    Output: screen_outline list with complete screen specifications
+    Input: story_brief with fields (viewer_outcome, core_talking_points, etc.)
+    Output: plain text outline with sections (purpose, duration, talking points,
+            evidence needed, research queries, visual intent)
     """
 
-    prompt_file = "storyboard_director_prompt_v0309.md"
-
-    _duration_calculator = DurationCalculator()
-
-    def _parse_duration_to_seconds(self, duration_str: str) -> int:
-        """
-        Convert duration string to target seconds.
-
-        Handles formats:
-        - "60-90s" -> 75 (midpoint)
-        - "2-5min" -> 210 (3.5 min midpoint)
-        - "60" -> 60
-        - "90" -> 90
-        """
-        if not duration_str:
-            return 60  # Default 60 seconds
-
-        duration_str = str(duration_str).lower().strip()
-
-        # Handle range formats like "60-90s" or "2-5min"
-        range_match = re.match(r'(\d+)-(\d+)\s*(s|sec|min)?', duration_str)
-        if range_match:
-            low = int(range_match.group(1))
-            high = int(range_match.group(2))
-            unit = range_match.group(3) or ''
-            midpoint = (low + high) // 2
-            if 'min' in unit:
-                return midpoint * 60
-            return midpoint
-
-        # Handle single value with unit like "5min" or "90s"
-        single_match = re.match(r'(\d+)\s*(s|sec|min|mins|minutes)?', duration_str)
-        if single_match:
-            value = int(single_match.group(1))
-            unit = single_match.group(2) or ''
-            if 'min' in unit:
-                return value * 60
-            # If no unit and value is small (< 10), assume minutes
-            if not unit and value < 10:
-                return value * 60
-            return value
-
-        # Fallback mapping for legacy formats
-        legacy_map = {
-            "30": 30,
-            "45": 45,
-            "60": 60,
-            "90": 90,
-            "120": 120,
-            "180": 180,
-            "300": 300,
-        }
-        return legacy_map.get(duration_str, 60)
-
-    def _calculate_word_budget(self, duration_str: str) -> dict:
-        """
-        Calculate word budget from target duration.
-
-        Uses 2.0-2.5 words per second (120-150 words per minute).
-        Target is 2.2 wps (~130 wpm) for natural speaking pace.
-
-        Args:
-            duration_str: Duration string like "60-90s", "2-5min", "60"
-
-        Returns:
-            dict with target_seconds, min_words, max_words, target_words
-        """
-        duration_seconds = self._parse_duration_to_seconds(duration_str)
-
-        words_per_second_min = 2.0
-        words_per_second_max = 2.5
-        words_per_second_target = 2.2
-
-        return {
-            "target_seconds": duration_seconds,
-            "min_words": int(duration_seconds * words_per_second_min),
-            "max_words": int(duration_seconds * words_per_second_max),
-            "target_words": int(duration_seconds * words_per_second_target),
-            "words_per_second": words_per_second_target
-        }
-
-    def _map_broll_to_screen_types(self, broll_types: list, on_camera: str = "no") -> dict:
-        """
-        Map user's broll_type preferences to allowed screen_types.
-
-        broll_type values pass through directly as screen_types (1:1),
-        except "diagrams" which merges into "slides".
-
-        Args:
-            broll_types: List of user-selected broll types
-            on_camera: "no", "yes_throughout", or "yes_intro_outro"
-
-        Returns:
-            dict with allowed_screen_types list and mapping info
-        """
-        allowed_types = set()
-
-        for broll in (broll_types or []):
-            # Map through BROLL_TO_SCREEN_TYPE if there's an override, otherwise use as-is
-            allowed_types.add(BROLL_TO_SCREEN_TYPE.get(broll, broll))
-
-        # talking_head allowed if on_camera is not "no"
-        if on_camera and on_camera.lower() != "no":
-            allowed_types.add("talking_head")
-
-        # If no broll types selected, provide defaults
-        if len(allowed_types) == 0:
-            allowed_types.update(["slides", "stock_footage"])
-
-        return {
-            "allowed_screen_types": sorted(list(allowed_types)),
-            "user_preferences": broll_types or [],
-            "on_camera_allowed": on_camera and on_camera.lower() != "no"
-        }
+    prompt_file = "storyboard_director_prompt_v0311.md"
 
     def _extract_brief_field(self, story_brief: dict, field_name: str, default=None):
         """
@@ -168,324 +29,125 @@ class StoryboardDirector(BaseAgent):
         New format: story_brief.fields.{field_name}.value
         Legacy format: story_brief.{field_name}
         """
-        # Try new format first
         if "fields" in story_brief:
             field = story_brief["fields"].get(field_name, {})
             if isinstance(field, dict) and "value" in field:
                 return field["value"]
-
-        # Fall back to legacy format
         return story_brief.get(field_name, default)
 
-    def run(
-        self,
-        state: Any,
-        mode: Literal["initial", "revision"] = "initial",
-        revision_request: Optional[str] = None,
-        **kwargs
-    ) -> list:
+    def run(self, state: Any, **kwargs) -> str:
         """
-        Create or revise a screen outline.
+        Generate a text outline from the story brief.
 
         Args:
-            state: StoryboardState with story_brief and intake_form
-            mode: "initial" for new outline, "revision" for updates
-            revision_request: Feedback text (required for revision mode)
+            state: StoryboardState with story_brief
 
         Returns:
-            screen_outline list with screen specifications
+            Plain text outline string
         """
-        if mode == "revision" and not revision_request:
-            raise ValueError("Revision mode requires revision_request")
-
         if not state.story_brief:
             raise ValueError("StoryboardDirector requires story_brief in state")
 
         project_id = getattr(state, "project_id", None)
-        phase = f"storyboard_director_{mode}"
+        story_brief = state.story_brief
 
-        # Build the user prompt based on mode
-        if mode == "initial":
-            user_prompt = self._build_initial_prompt(state)
-        else:
-            user_prompt = self._build_revision_prompt(state, revision_request)
+        # Build the user prompt
+        user_prompt = self._build_prompt(story_brief)
 
         # Log request
         if project_id:
-            story_brief = state.story_brief
-            input_fields = {
-                "mode": mode,
-                "video_type": str(self._extract_brief_field(story_brief, "video_type") or ""),
-                "viewer_outcome": str(self._extract_brief_field(story_brief, "viewer_outcome") or self._extract_brief_field(story_brief, "primary_goal") or ""),
-                "duration": str(self._extract_brief_field(story_brief, "duration") or self._extract_brief_field(story_brief, "desired_length") or ""),
-                "target_audience": str(self._extract_brief_field(story_brief, "target_audience") or ""),
-            }
-            if revision_request:
-                input_fields["revision_request"] = revision_request[:200]
             log_llm_request(
                 project_id=project_id,
-                phase=phase,
-                input_fields=input_fields,
+                phase="storyboard_director",
+                input_fields={
+                    "viewer_outcome": str(self._extract_brief_field(story_brief, "viewer_outcome") or ""),
+                    "duration": str(self._extract_brief_field(story_brief, "duration") or ""),
+                    "target_audience": str(self._extract_brief_field(story_brief, "target_audience") or ""),
+                },
                 system_prompt=self.system_prompt,
                 user_prompt=user_prompt,
                 max_tokens=8000,
             )
 
-        # Call LLM
-        response = self.call_llm(user_prompt, max_tokens=8000)
+        # Call LLM — return raw text, no parsing
+        response = self.call_llm(user_prompt, max_tokens=8000, temperature=0.7)
 
-        # Parse the response
-        if mode == "initial":
-            result = self._parse_screen_outline(response)
-        else:
-            result = self._parse_revision_response(response, state.screen_outline)
+        # Strip any markdown code block wrappers if the LLM adds them
+        text = response.strip()
+        if text.startswith("```"):
+            # Remove opening ``` line
+            lines = text.split("\n")
+            lines = lines[1:]  # skip first ```
+            # Remove closing ``` if present
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
 
         # Log response
         if project_id:
             log_llm_response(
                 project_id=project_id,
-                phase=phase,
+                phase="storyboard_director",
                 raw_response=response,
-                parsed_result=result,
+                parsed_result={"type": "text", "length": len(text)},
             )
 
-        return result
+        return text
 
-    def _build_initial_prompt(self, state: Any) -> str:
-        """Build prompt for initial outline creation with voiceover-first approach."""
-        story_brief = state.story_brief
+    def _build_prompt(self, story_brief: dict) -> str:
+        """Build user prompt with brief fields as context."""
+        viewer_outcome = self._extract_brief_field(story_brief, "viewer_outcome") or ""
+        target_audience = self._extract_brief_field(story_brief, "target_audience") or ""
+        audience_level = self._extract_brief_field(story_brief, "audience_level") or "intermediate"
+        duration = self._extract_brief_field(story_brief, "duration") or "60"
+        platform = self._extract_brief_field(story_brief, "platform") or ""
+        delivery_tone = self._extract_brief_field(story_brief, "delivery_tone") or ""
+        selected_angle = self._extract_brief_field(story_brief, "selected_angle") or ""
 
-        # Extract duration and calculate word budget
-        duration = self._extract_brief_field(story_brief, "duration") or \
-                   self._extract_brief_field(story_brief, "desired_length") or "60"
-        word_budget = self._calculate_word_budget(duration)
-
-        # Extract broll_type preferences
-        broll_types = self._extract_brief_field(story_brief, "broll_type") or []
-        if isinstance(broll_types, str):
-            broll_types = [broll_types]
-
-        # Extract on_camera_presence
-        on_camera = self._extract_brief_field(story_brief, "on_camera_presence") or "no"
-
-        # Map to allowed screen types
-        screen_type_info = self._map_broll_to_screen_types(broll_types, on_camera)
-
-        # Extract core_talking_points for narrative structure
         talking_points = self._extract_brief_field(story_brief, "core_talking_points") or []
         if isinstance(talking_points, str):
             talking_points = [talking_points]
-        viewer_outcome = self._extract_brief_field(story_brief, "viewer_outcome") or self._extract_brief_field(story_brief, "primary_goal") or ""
 
-        return f"""Create a voiceover-first screen outline for this video.
+        misconceptions = self._extract_brief_field(story_brief, "misconceptions") or []
+        if isinstance(misconceptions, str):
+            misconceptions = [misconceptions]
 
-WORD BUDGET:
-- Target duration: {word_budget['target_seconds']} seconds
-- Target word count: {word_budget['target_words']} words
-- Acceptable range: {word_budget['min_words']} - {word_budget['max_words']} words
-- Speaking rate: {word_budget['words_per_second']} words per second
+        must_avoid = self._extract_brief_field(story_brief, "must_avoid") or []
+        if isinstance(must_avoid, str):
+            must_avoid = [must_avoid]
 
-USER'S PREFERRED VISUAL TYPES: {json.dumps(screen_type_info['user_preferences'])}
-ALLOWED SCREEN TYPES: {json.dumps(screen_type_info['allowed_screen_types'])}
-ON-CAMERA ALLOWED: {screen_type_info['on_camera_allowed']}
+        # Format lists
+        tp_text = "\n".join(f"- {tp}" for tp in talking_points) if talking_points else "- (none provided)"
+        misc_text = "\n".join(f"- {m}" for m in misconceptions) if misconceptions else "- (none)"
+        avoid_text = "\n".join(f"- {a}" for a in must_avoid) if must_avoid else "- (none)"
 
-NARRATIVE STRUCTURE:
-- Viewer outcome: {viewer_outcome}
-- Core talking points: {json.dumps(talking_points)}
+        return f"""Generate a video outline for this brief.
 
-STORY BRIEF:
-{json.dumps(story_brief, indent=2)}
+VIEWER OUTCOME
+{viewer_outcome}
 
-MODE: initial
+TARGET AUDIENCE
+{target_audience} (level: {audience_level})
 
-Follow the VOICEOVER-FIRST PLANNING PROCESS in your system prompt:
-1. Identify narrative structure from viewer_outcome and core_talking_points
-2. Write continuous voiceover per narrative phase (not per screen)
-3. Mark visual change points where message/subject shifts
-4. Those marks become screen boundaries
-5. Verify total word count matches target ±10%
+TOTAL DURATION
+{duration} seconds
 
-Return the outline as a JSON array with EXACTLY 4 fields per screen:
-- screen_number (sequential: 1, 2, 3...)
-- narrative_role (see Narrative Roles in system prompt: "hook", "Talking Point N: text", "takeaway", "cta")
-- screen_type (from ALLOWED SCREEN TYPES only)
-- voiceover_text (complete script, numbers written out for speech)
+PLATFORM
+{platform}
 
-DO NOT include: duration, purpose, rough_duration, visual_direction, notes.
-Duration is calculated automatically — do not output it."""
+DELIVERY TONE
+{delivery_tone}
 
-    def _build_revision_prompt(self, state: Any, revision_request: str) -> str:
-        """Build prompt for outline revision."""
-        # Include intake_form for full context
-        return f"""Revise the screen outline based on user feedback:
+SELECTED ANGLE
+{selected_angle}
 
-INPUT:
-{{
-  "user_revision_request": {json.dumps(revision_request)},
-  "current_outline": {json.dumps(state.screen_outline, indent=2)},
-  "story_brief": {json.dumps(state.story_brief, indent=2)},
-  "intake_form": {json.dumps(state.intake_form, indent=2)},
-  "mode": "revision"
-}}
+CORE TALKING POINTS
+{tp_text}
 
-Analyze the revision request and determine the appropriate operations:
-- REORDER: Change screen sequence
-- SPLIT: Break one screen into multiple
-- MERGE: Combine multiple screens
-- ADD_AFTER: Insert new screen
-- REMOVE: Delete a screen
-- REWRITE_SCREEN: Change content/messaging
-- UPDATE_VISUALS: Change visual approach
-- TIGHTEN_VO: Compress voiceover
-- CHANGE_TONE: Adjust tone across screens
+MISCONCEPTIONS TO ADDRESS
+{misc_text}
 
-Return either:
-1. A revision_requests array with operations, OR
-2. An updated screen_outline array if simpler
+MUST AVOID
+{avoid_text}
 
-Ensure all changes align with the story_brief constraints and key_points."""
-
-    def _parse_screen_outline(self, response: str) -> list:
-        """Parse LLM response into a screen outline."""
-        parsed = self._extract_json(response)
-
-        if parsed:
-            # Handle both array and object with screen_outline field
-            if isinstance(parsed, list):
-                return self._normalize_screens(parsed)
-            elif isinstance(parsed, dict) and "screen_outline" in parsed:
-                return self._normalize_screens(parsed["screen_outline"])
-
-        # Fallback: return empty outline with error
-        error_voiceover = "An error occurred while generating the outline."
-        duration_result = self._duration_calculator.calculate(error_voiceover, "slides")
-        return [{
-            "screen_number": 1,
-            "narrative_role": "",
-            "screen_type": "slides",
-            "voiceover_text": error_voiceover,
-            "duration": duration_result["duration"],
-            "error": True
-        }]
-
-    def _parse_revision_response(self, response: str, current_outline: list) -> list:
-        """Parse revision response and apply changes."""
-        parsed = self._extract_json(response)
-
-        if not parsed:
-            # If parsing fails, return current outline unchanged
-            return current_outline
-
-        # If it's a direct screen outline, use it
-        if isinstance(parsed, list):
-            return self._normalize_screens(parsed)
-
-        # If it's a revision_requests object, apply the operations
-        if isinstance(parsed, dict):
-            if "screen_outline" in parsed:
-                return self._normalize_screens(parsed["screen_outline"])
-            elif "revision_requests" in parsed:
-                return self._apply_revisions(current_outline, parsed["revision_requests"])
-
-        return current_outline
-
-    def _apply_revisions(self, outline: list, revisions: list) -> list:
-        """Apply revision operations to the outline."""
-        result = list(outline)  # Copy
-
-        for rev in revisions:
-            operation = rev.get("operation", "").upper()
-            screen_num = rev.get("screen_number")
-
-            if operation == "REMOVE":
-                result = [s for s in result if s.get("screen_number") != screen_num]
-
-            elif operation == "REWRITE_SCREEN":
-                updated = rev.get("updated_screen", {})
-                for i, screen in enumerate(result):
-                    if screen.get("screen_number") == screen_num:
-                        result[i] = {**screen, **updated}
-                        break
-
-            elif operation == "ADD_AFTER":
-                new_screen = rev.get("new_screen", {})
-                for i, screen in enumerate(result):
-                    if screen.get("screen_number") == screen_num:
-                        result.insert(i + 1, new_screen)
-                        break
-
-            elif operation == "SPLIT":
-                new_screens = rev.get("new_screens", [])
-                for i, screen in enumerate(result):
-                    if screen.get("screen_number") == screen_num:
-                        result = result[:i] + new_screens + result[i+1:]
-                        break
-
-            elif operation == "MERGE":
-                screen_nums = rev.get("screen_numbers", [])
-                merged = rev.get("merged_screen", {})
-                result = [s for s in result if s.get("screen_number") not in screen_nums]
-                # Insert merged screen at first position
-                if screen_nums:
-                    insert_pos = min(screen_nums) - 1
-                    result.insert(max(0, insert_pos), merged)
-
-            elif operation == "TIGHTEN_VO":
-                new_vo = rev.get("updated_voiceover", "")
-                for screen in result:
-                    if screen.get("screen_number") == screen_num:
-                        screen["voiceover_text"] = new_vo
-                        if "target_duration" in rev:
-                            screen["rough_duration"] = rev["target_duration"]
-                        break
-
-            elif operation == "UPDATE_VISUALS":
-                updated = rev.get("updated_visual", {})
-                for screen in result:
-                    if screen.get("screen_number") == screen_num:
-                        screen.update(updated)
-                        break
-
-        # Renumber screens
-        for i, screen in enumerate(result):
-            screen["screen_number"] = i + 1
-
-        return result
-
-    def _normalize_screens(self, screens: list) -> list:
-        """
-        Normalize screens to 5-field output.
-
-        Output fields: screen_number, narrative_role, screen_type, voiceover_text, duration
-        Duration is calculated by DurationCalculator from voiceover word count.
-        Legacy screen_type values are mapped to the new vocabulary.
-        """
-        normalized = []
-        for i, screen in enumerate(screens):
-            if not isinstance(screen, dict):
-                continue
-
-            voiceover = screen.get("voiceover_text", "")
-            screen_type = screen.get("screen_type", "slides")
-            narrative_role = screen.get("narrative_role", "")
-
-            # Normalize legacy screen_type values
-            screen_type = LEGACY_SCREEN_TYPE_MAP.get(screen_type, screen_type)
-
-            # If legacy "cta" screen_type was mapped to "slides", set narrative_role
-            if screen.get("screen_type") in ("cta", "CTA") and not narrative_role:
-                narrative_role = "cta"
-
-            # Calculate duration using DurationCalculator
-            duration_result = self._duration_calculator.calculate(voiceover, screen_type)
-
-            norm_screen = {
-                "screen_number": i + 1,
-                "narrative_role": narrative_role,
-                "screen_type": screen_type,
-                "voiceover_text": voiceover,
-                "duration": duration_result["duration"]
-            }
-            normalized.append(norm_screen)
-
-        return normalized
+Generate the outline now. Return plain text only, following the section format in your system prompt."""

@@ -33,6 +33,7 @@ class StoryboardState(BaseModel):
         "gate1",          # Human review of Story Brief
         "outline",        # Storyboard Director is running
         "gate2",          # Human review of Screen Outline
+        "outline_research",  # Evidence research running on approved outline
         "write",          # Storyboard Writer is running
         "review",         # Final review (optional refinements)
         "done"            # Complete
@@ -41,7 +42,7 @@ class StoryboardState(BaseModel):
     # Accumulated data through pipeline
     intake_form: Optional[dict] = None
     story_brief: Optional[dict] = None
-    screen_outline: Optional[list] = None
+    screen_outline: Optional[Union[str, list]] = None
     storyboard: Optional[list] = None
 
     # NEW: 3-Round Briefing Flow State
@@ -56,6 +57,7 @@ class StoryboardState(BaseModel):
     selected_perspective: Optional[str] = None  # User's selected perspective
     pending_talking_points: Optional[list] = None  # Generated talking points awaiting confirmation
     research_details: Optional[dict] = None  # Detailed research for StoryboardWriter
+    evidence_research: Optional[dict] = None  # Evidence research results from outline
 
     # Revision tracking
     revision_history: List[RevisionRecord] = Field(default_factory=list)
@@ -85,7 +87,9 @@ class StateManager:
         ("gate1", "reject"): "brief",  # Revision loop
         ("outline", "outline_ready"): "gate2",
         ("gate2", "approve"): "write",
+        ("gate2", "run_research"): "outline_research",  # Run evidence research
         ("gate2", "reject"): "outline",  # Revision loop
+        ("outline_research", "approve"): "write",  # Approve research, run writer
         ("write", "storyboard_ready"): "review",
         ("review", "approve"): "done",
         ("review", "refine"): "outline",  # Optional refinement
@@ -274,17 +278,19 @@ class StateManager:
             state.phase = "intake"
 
         elif target_gate == 1:
-            # Go back to Gate 1 - unlock brief, clear outline and storyboard
+            # Go back to Gate 1 - unlock brief, clear outline, storyboard and research
             state.brief_locked = False
             state.outline_locked = False
             state.screen_outline = None
             state.storyboard = None
+            state.evidence_research = None
             state.phase = "gate1"
 
         elif target_gate == 2:
-            # Go back to Gate 2 - unlock outline, clear storyboard
+            # Go back to Gate 2 - unlock outline, clear storyboard and research
             state.outline_locked = False
             state.storyboard = None
+            state.evidence_research = None
             state.phase = "gate2"
 
         return state

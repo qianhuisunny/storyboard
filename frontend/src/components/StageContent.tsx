@@ -9,7 +9,7 @@ import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
 import { type OnboardingData, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
 // RESEARCH DISABLED: import { type ResearchChatState, type PerspectiveOption, type ChatMessage } from "./BriefBuilder/SplitBriefBuilder/types";
 // RESEARCH DISABLED: import { TabbedResearchPanel } from "./BriefBuilder/SplitBriefBuilder/ResearchPanel/TabbedResearchPanel";
-import { OutlineBuilder, parseScreens, type Screen, type OutlineProcessingEntry } from "./OutlineBuilder";
+import { OutlineBuilder, type EvidenceResearch } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
 
@@ -425,16 +425,25 @@ export default function StageContent({
   // Handle angle approval for Knowledge Share
   const handleKnowledgeShareAngleApprove = useCallback(
     async (selectedAngle: string): Promise<void> => {
+      console.log("[KS AngleApprove] selectedAngle:", selectedAngle);
+      console.log("[KS AngleApprove] projectId:", projectId);
+      const body = {
+        event: "approve_angle",
+        payload: { selected_angle: selectedAngle },
+      };
+      console.log("[KS AngleApprove] request body:", JSON.stringify(body, null, 2));
+
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "approve_angle",
-          payload: { selected_angle: selectedAngle },
-        }),
+        body: JSON.stringify(body),
       });
 
+      console.log("[KS AngleApprove] response status:", response.status);
+
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error("[KS AngleApprove] error response:", errorText);
         throw new Error("Failed to approve angle");
       }
 
@@ -493,11 +502,14 @@ export default function StageContent({
 
       if (data.screen_outline) {
         console.log("[KS StageContent] Got screen_outline, calling onApprove with nextStageContent");
-        // Pass brief as current stage content, outline as next stage content
+        // Pass brief as current stage content, outline as next stage content (plain text)
         onContentChange(briefContent);
+        const outlineText = typeof data.screen_outline === "string"
+          ? data.screen_outline
+          : JSON.stringify(data.screen_outline, null, 2);
         onApprove(briefContent, {
           skipNextGeneration: true,
-          nextStageContent: JSON.stringify(data.screen_outline, null, 2),
+          nextStageContent: outlineText,
         });
       } else {
         console.log("[KS StageContent] No screen_outline, calling onApprove without nextStageContent");
@@ -525,16 +537,7 @@ export default function StageContent({
     }
   }, [stage.id, aiContent]);
 
-  // For Outline stage, parse the AI content into screens array
-  const screensData = useMemo<Screen[]>(() => {
-    if (stage.id !== 2 || !aiContent) return [];
-    try {
-      const parsed = typeof aiContent === "string" ? JSON.parse(aiContent) : aiContent;
-      return parseScreens(parsed);
-    } catch {
-      return [];
-    }
-  }, [stage.id, aiContent]);
+  // For Outline stage, content is plain text (no parsing needed)
 
   // For Draft stage, parse the AI content into production screens array
   const draftData = useMemo<ProductionScreen[]>(() => {
@@ -562,8 +565,11 @@ export default function StageContent({
   // Track brief updates for the Brief stage
   const [localBrief, setLocalBrief] = useState<StoryBrief | null>(null);
 
-  // Track screens updates for the Outline stage
-  const [localScreens, setLocalScreens] = useState<Screen[] | null>(null);
+  // Track outline text updates for the Outline stage
+  const [localOutlineText, setLocalOutlineText] = useState<string | null>(null);
+  // Evidence research state for outline stage
+  const [outlineResearchResults, setOutlineResearchResults] = useState<EvidenceResearch | null>(null);
+  const [isResearchingEvidence, setIsResearchingEvidence] = useState(false);
 
   // Track draft updates for the Draft stage
   const [localDraft, setLocalDraft] = useState<ProductionScreen[] | null>(null);
@@ -574,8 +580,8 @@ export default function StageContent({
   // Use local brief if edited, otherwise use parsed AI brief
   const currentBrief = localBrief ?? briefData;
 
-  // Use local screens if edited, otherwise use parsed AI screens
-  const currentScreens = localScreens ?? screensData;
+  // For outline stage: use local edits if present, otherwise use AI content directly
+  const currentOutlineText = localOutlineText ?? (stage.id === 2 ? (humanContent ?? aiContent ?? "") : "");
 
   // Use local draft if edited, otherwise use parsed AI draft
   const currentDraft = localDraft ?? draftData;
@@ -583,20 +589,29 @@ export default function StageContent({
   // Use local review if edited, otherwise use parsed AI review
   const currentReview = localReview ?? reviewData;
 
+  // Restore evidence research on page load (if outline_research phase)
+  useEffect(() => {
+    if (stage.id !== 2 || !projectId || outlineResearchResults) return;
+    const restoreResearch = async () => {
+      try {
+        const resp = await fetch(`/api/project/${projectId}/pipeline-state`);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        if (data.phase === "outline_research" && data.data?.evidence_research) {
+          setOutlineResearchResults(data.data.evidence_research);
+        }
+      } catch {
+        // Silently fail
+      }
+    };
+    restoreResearch();
+  }, [stage.id, projectId, outlineResearchResults]);
+
   // Processing log for child components (legacy BriefBuilder)
   const processingLog: LegacyProcessingLogEntry[] = [];
   const draftProcessingLog: DraftProcessingEntry[] = [];
 
-  // Filter processing logs for outline stage (storyboard_director_* phases)
-  const outlineProcessingLog: OutlineProcessingEntry[] = processingLogs
-    .filter((log) => log.phase?.startsWith("storyboard_director"))
-    .map((log) => ({
-      id: log.id,
-      timestamp: log.timestamp,
-      phase: log.phase,
-      type: log.type as "request" | "response",
-      data: log.data,
-    }));
+  // Processing logs for outline stage (currently unused by simplified OutlineBuilder)
 
   // Outline summary for draft stage
   const outlineSummary = useMemo(() => {
@@ -623,17 +638,59 @@ export default function StageContent({
     }
   };
 
-  const handleScreensUpdate = (updatedScreens: Screen[]) => {
-    setLocalScreens(updatedScreens);
-    onContentChange(JSON.stringify(updatedScreens, null, 2));
+  const handleOutlineTextChange = (text: string) => {
+    setLocalOutlineText(text);
+    onContentChange(text);
   };
 
-  const handleOutlineConfirm = () => {
-    const screensToApprove = currentScreens.length > 0 ? currentScreens : screensData;
-    if (screensToApprove.length > 0) {
-      onApprove(JSON.stringify(screensToApprove, null, 2));
+  const handleRunResearch = useCallback(async () => {
+    if (!projectId || !currentOutlineText.trim()) return;
+    setIsResearchingEvidence(true);
+    try {
+      const response = await fetch(`/api/project/${projectId}/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "run_research",
+          payload: {},
+        }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.evidence_research) {
+          setOutlineResearchResults(data.evidence_research);
+        }
+      }
+    } catch (err) {
+      console.error("[Outline] Research failed:", err);
+    } finally {
+      setIsResearchingEvidence(false);
     }
-  };
+  }, [projectId, currentOutlineText]);
+
+  const handleResearchContinue = useCallback(async () => {
+    if (!projectId) return;
+    try {
+      const response = await fetch(`/api/project/${projectId}/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ event: "approve", payload: {} }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.storyboard) {
+          onApprove(currentOutlineText, {
+            skipNextGeneration: true,
+            nextStageContent: JSON.stringify(data.storyboard, null, 2),
+          });
+        } else {
+          onApprove(currentOutlineText);
+        }
+      }
+    } catch (err) {
+      console.error("[Outline] Continue failed:", err);
+    }
+  }, [projectId, currentOutlineText, onApprove]);
 
   const handleDraftUpdate = (updatedDraft: ProductionScreen[]) => {
     setLocalDraft(updatedDraft);
@@ -765,19 +822,16 @@ export default function StageContent({
   }
 
   // Render OutlineBuilder for the Outline stage (stage 2)
-  if (stage.id === 2 && currentScreens.length > 0) {
-    // Stage 1 output is the Brief data from previous stage
-    const stage1Output = previousStageOutput || null;
-
+  if (stage.id === 2 && currentOutlineText) {
     return (
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
         <OutlineBuilder
-          screens={currentScreens}
-          stage1Output={stage1Output}
-          researchDetails={researchDetails}
-          processingLog={outlineProcessingLog}
-          onScreensUpdate={handleScreensUpdate}
-          onConfirm={handleOutlineConfirm}
+          content={currentOutlineText}
+          onChange={handleOutlineTextChange}
+          onRunResearch={handleRunResearch}
+          onContinue={handleResearchContinue}
+          isResearching={isResearchingEvidence}
+          researchResults={outlineResearchResults}
         />
       </div>
     );

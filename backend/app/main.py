@@ -929,9 +929,15 @@ async def get_pipeline_state(project_id: str):
 
         # Determine available events based on current phase
         available_events = {
-            "intake": ["submit"],
+            "intake": ["submit", "submit_knowledge_share"],
+            "brief_round1": ["round1_confirm"],
+            "brief_round2": ["round2_confirm"],
+            "brief_round3": ["round3_confirm"],
+            "angle_selection": ["approve_angle"],
+            "brief_review": ["brief_approve", "edit_brief"],
             "gate1": ["approve", "reject"],
-            "gate2": ["approve", "reject", "go_back_gate1"],
+            "gate2": ["approve", "run_research", "reject", "go_back_gate1"],
+            "outline_research": ["approve"],
             "review": ["approve", "refine", "go_back_gate1", "go_back_gate2"],
             "done": ["restart"],
         }.get(state.phase, [])
@@ -952,11 +958,13 @@ async def get_pipeline_state(project_id: str):
                 "has_screen_outline": state.screen_outline is not None,
                 "has_storyboard": state.storyboard is not None,
             },
+            "pending_perspectives": state.pending_perspectives,
             "data": {
                 "intake_form": state.intake_form,
                 "story_brief": state.story_brief,
                 "screen_outline": state.screen_outline,
                 "storyboard": state.storyboard,
+                "evidence_research": state.evidence_research,
                 # RESEARCH DISABLED: "research_details": state.research_details,
             },
             "revision_history": [r.model_dump() for r in state.revision_history],
