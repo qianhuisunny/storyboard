@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Plotline — Form 70% Width Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;1,9..144,400&family=Nunito:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #FFFFFF;
+    --surface: #FAFBF8;
+    --surface-hover: #EEF1E9;
+    --border: #D9DDD2;
+    --border-strong: #BFC6B5;
+    --text-primary: #1C2118;
+    --text-secondary: #5A6352;
+    --text-muted: #626B58;
+
+    --accent: #3A6B47;
+    --accent-hover: #2E5439;
+    --accent-light: #E8F0E9;
+    --accent-mid: #A8C8AD;
+
+    --green: #2D6A4F;
+    --green-light: #E6F2EB;
+    --red: #A63228;
+    --red-light: #FBEAE8;
+    --blue: #2E5F8A;
+    --blue-light: #E6EFF7;
+    --warning: #7A5C1E;
+    --warning-light: #F7F0E0;
+
+    --sidebar-w: 220px;
+    --card-bg: #FFFFFF;
+  }
+
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text-primary);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    font-size: 13.5px;
+  }
+
+  /* ── NAV ── */
+  nav {
+    height: 54px;
+    background: #FAFBF8;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 22px;
+    flex-shrink: 0;
+  }
+
+  .nav-brand {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    margin-right: auto;
+  }
+
+  .nav-brand .logo {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    font-weight: 400;
+    color: var(--accent);
+    letter-spacing: -0.3px;
+  }
+
+  .nav-brand .beta {
+    font-size: 9.5px;
+    font-weight: 600;
+    color: var(--text-muted);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    padding: 2px 6px;
+    border-radius: 4px;
+    letter-spacing: 0.6px;
+    text-transform: uppercase;
+    position: relative;
+    top: -1px;
+  }
+
+  .nav-links {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
+  .nav-links a {
+    text-decoration: none;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 400;
+    padding: 6px 11px;
+    border-radius: 6px;
+    transition: all 0.15s;
+  }
+
+  .nav-links a:hover { background: var(--surface-hover); color: var(--text-primary); }
+
+  .nav-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    background: var(--accent-light); border: 1.5px solid var(--accent-mid);
+    margin-left: 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; color: var(--accent); cursor: pointer;
+  }
+
+  /* ── LAYOUT ── */
+  .app-body { display: flex; flex: 1; overflow: hidden; }
+
+  /* ── SIDEBAR ── */
+  aside {
+    width: var(--sidebar-w);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    padding: 22px 0;
+    flex-shrink: 0;
+  }
+
+  .sidebar-section-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.9px;
+    text-transform: uppercase; color: var(--text-muted); padding: 0 18px 10px;
+  }
+
+  .stage-item {
+    padding: 10px 18px; display: flex; align-items: center; gap: 11px;
+    cursor: pointer; transition: background 0.12s; position: relative;
+  }
+  .stage-item:hover { background: var(--surface-hover); }
+  .stage-item.active { background: var(--accent-light); }
+  .stage-item.active::before {
+    content: ''; position: absolute; left: 0; top: 8px; bottom: 8px;
+    width: 3px; background: var(--accent); border-radius: 0 3px 3px 0;
+  }
+
+  .stage-num {
+    width: 24px; height: 24px; border-radius: 50%;
+    border: 1.5px solid var(--border-strong);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; color: var(--text-muted);
+    flex-shrink: 0; font-family: 'Fraunces', serif;
+  }
+  .stage-item.active .stage-num { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .stage-name { font-size: 13px; font-weight: 500; color: var(--text-primary); line-height: 1.2; }
+  .stage-item.active .stage-name { color: var(--accent); font-weight: 600; }
+  .stage-sub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+  .sidebar-divider { height: 1px; background: var(--border); margin: 14px 18px; }
+
+  .sidebar-nav-item {
+    padding: 8px 18px; display: flex; align-items: center; gap: 8px;
+    cursor: pointer; color: var(--text-secondary); font-size: 13px; transition: all 0.12s;
+  }
+  .sidebar-nav-item:hover { background: var(--surface-hover); color: var(--text-primary); }
+  .sidebar-nav-item svg { opacity: 0.45; }
+
+  /* ── MAIN ── */
+  main {
+    flex: 1;
+    overflow-y: auto;
+    padding: 30px 38px;
+    min-width: 0;
+  }
+
+  main::-webkit-scrollbar { width: 4px; }
+  main::-webkit-scrollbar-track { background: transparent; }
+  main::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+  /* ── Content area — sidebar + form = 70vw total ── */
+  .content-wrapper {
+    width: calc(70vw - var(--sidebar-w));
+  }
+
+  /* ── PROGRESS ── */
+  .progress-bar {
+    display: flex; align-items: stretch; margin-bottom: 28px;
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 10px; overflow: hidden;
+  }
+
+  .progress-step {
+    flex: 1; display: flex; align-items: center; gap: 9px;
+    padding: 11px 16px; cursor: pointer; transition: background 0.15s;
+    border-right: 1px solid var(--border);
+  }
+  .progress-step:last-child { border-right: none; }
+  .progress-step:hover { background: var(--surface-hover); }
+  .progress-step.active { background: var(--accent-light); }
+  .progress-step.done { opacity: 0.55; }
+
+  .step-circle {
+    width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+    border: 1.5px solid var(--border-strong); color: var(--text-muted);
+    font-family: 'Fraunces', serif;
+  }
+  .progress-step.active .step-circle { background: var(--accent); border-color: var(--accent); color: white; }
+  .progress-step.done .step-circle { background: var(--green-light); border-color: var(--green); color: var(--green); font-size: 13px; }
+
+  .step-label { font-size: 10.5px; color: var(--text-muted); letter-spacing: 0.2px; }
+  .step-name { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+  .progress-step.active .step-name { color: var(--accent); }
+
+  /* ── COMPLETED SECTION ── */
+  .collapsible-c {
+    display: flex; align-items: center; gap: 10px;
+    padding: 13px 16px; margin-bottom: 8px;
+    background: #F8F8F6; border: 1px solid var(--border);
+    border-radius: 8px; cursor: pointer;
+    transition: all 0.12s;
+  }
+  .collapsible-c:hover { background: var(--surface-hover); border-color: var(--border-strong); }
+  .collapsible-c .icon {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: white;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .collapsible-c .icon svg { width: 12px; height: 12px; }
+  .collapsible-c .title { font-size: 13px; font-weight: 500; color: var(--text-primary); }
+  .collapsible-c .badge {
+    font-size: 9px; font-weight: 700; letter-spacing: 0.3px;
+    padding: 2px 7px; border-radius: 20px; text-transform: uppercase;
+    color: var(--text-muted); background: var(--surface-hover);
+  }
+  .collapsible-c .chev { margin-left: auto; color: var(--text-muted); }
+
+
+  /* ── SECTION HEADER ── */
+  .section-header { margin-bottom: 22px; }
+  .section-header h1 {
+    font-family: 'Fraunces', serif; font-size: 28px; font-weight: 400;
+    color: var(--text-primary); letter-spacing: -0.6px; line-height: 1.15; margin-bottom: 5px;
+  }
+  .section-header p { color: var(--text-secondary); font-size: 13.5px; font-weight: 300; }
+
+  /* ── FIELDS ── */
+  .field-group { display: flex; flex-direction: column; gap: 11px; }
+
+  .field-card {
+    background: var(--card-bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 15px 18px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field-card:hover { border-color: var(--border-strong); }
+  .field-card.confirmed { border-color: #A8CBAF; background: #FAFDF9; }
+
+  .field-top {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px; gap: 10px;
+  }
+
+  .field-label-row { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+  .field-label { font-size: 13px; font-weight: 600; color: var(--text-primary); }
+
+  .badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.3px;
+    padding: 2px 7px; border-radius: 20px; text-transform: uppercase;
+  }
+  .badge-confirmed { background: var(--green-light); color: var(--green); }
+  .badge-needs { background: var(--warning-light); color: var(--warning); }
+  .badge-provided { background: var(--blue-light); color: var(--blue); }
+  .badge-ai { background: var(--warning-light); color: var(--warning); }
+  .badge-required { background: transparent; color: var(--text-muted); border: 1px solid var(--border-strong); }
+
+  .confirm-btn {
+    font-size: 12px; font-weight: 600; color: var(--accent);
+    background: var(--accent-light); border: 1px solid var(--accent-mid);
+    padding: 5px 13px; border-radius: 6px; cursor: pointer;
+    transition: all 0.15s; white-space: nowrap; flex-shrink: 0;
+  }
+  .confirm-btn:hover { background: var(--accent); border-color: var(--accent); color: white; }
+
+  .field-value {
+    font-size: 13.5px; color: var(--text-primary); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px;
+    width: 100%; font-family: 'Nunito', sans-serif;
+  }
+
+  .field-input {
+    font-size: 13.5px; color: var(--text-primary); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px; padding: 9px 12px;
+    width: 100%; font-family: 'Nunito', sans-serif; outline: none;
+    resize: vertical; min-height: 70px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field-input::placeholder { color: var(--text-muted); }
+  .field-input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(58, 107, 71, 0.1); }
+
+  .field-select {
+    font-size: 13.5px; color: var(--text-muted); background: var(--bg);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 9px 36px 9px 12px; width: 100%;
+    font-family: 'Nunito', sans-serif; outline: none;
+    appearance: none; cursor: pointer;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23626B58' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 12px center;
+  }
+  .field-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(58, 107, 71, 0.1); color: var(--text-primary); }
+
+  /* ── CHECKBOX LIST ── */
+  .checkbox-list { display: flex; flex-direction: column; gap: 0; }
+  .checkbox-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 12px; border: 1px solid var(--border); border-top: none;
+    background: var(--bg); font-size: 13.5px; cursor: pointer;
+    transition: background 0.1s;
+  }
+  .checkbox-item:first-child { border-top: 1px solid var(--border); border-radius: 6px 6px 0 0; }
+  .checkbox-item:last-child { border-radius: 0 0 6px 6px; }
+  .checkbox-item:hover { background: var(--surface-hover); }
+  .checkbox-item.selected { background: var(--accent-light); }
+
+  .checkbox-box {
+    width: 16px; height: 16px; border-radius: 3px;
+    border: 1.5px solid var(--border-strong); flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.12s;
+  }
+  .checkbox-item.selected .checkbox-box {
+    background: var(--accent); border-color: var(--accent);
+  }
+  .checkbox-box svg { width: 10px; height: 10px; color: white; display: none; }
+  .checkbox-item.selected .checkbox-box svg { display: block; }
+
+  /* ── APPROVED BRIEF ── */
+  .approved-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-top: 32px; margin-bottom: 6px;
+  }
+  .approved-header svg { width: 22px; height: 22px; color: var(--text-muted); }
+  .approved-header h2 {
+    font-family: 'Fraunces', serif; font-size: 20px; font-weight: 400;
+    color: var(--text-primary);
+  }
+  .approved-sub { font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; }
+
+  .brief-table {
+    width: 100%; border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; background: var(--card-bg);
+  }
+  .brief-section-header {
+    padding: 10px 18px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.5px; text-transform: uppercase; color: var(--text-muted);
+    background: var(--bg); border-bottom: 1px solid var(--border);
+  }
+  .brief-row {
+    display: flex; justify-content: space-between; padding: 10px 18px;
+    border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .brief-row:last-child { border-bottom: none; }
+  .brief-row .label { color: var(--text-secondary); }
+  .brief-row .value { color: var(--text-primary); font-weight: 500; text-align: right; }
+
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-brand">
+    <span class="logo">Plotline</span>
+    <span class="beta">Beta</span>
+  </div>
+  <div class="nav-links">
+    <a href="#">My Projects</a>
+    <a href="#">Analytics</a>
+  </div>
+  <div class="nav-avatar">GS</div>
+</nav>
+
+<div class="app-body">
+
+  <aside>
+    <div class="sidebar-section-label">Stages</div>
+
+    <div class="stage-item active">
+      <div class="stage-num">1</div>
+      <div class="stage-text">
+        <div class="stage-name">Video Briefing</div>
+        <div class="stage-sub">In progress</div>
+      </div>
+    </div>
+
+    <div class="stage-item">
+      <div class="stage-num">2</div>
+      <div class="stage-text">
+        <div class="stage-name">Video Outline</div>
+        <div class="stage-sub">Not started</div>
+      </div>
+    </div>
+
+    <div class="stage-item">
+      <div class="stage-num">3</div>
+      <div class="stage-text">
+        <div class="stage-name">Evidence Research</div>
+        <div class="stage-sub">Not started</div>
+      </div>
+    </div>
+
+    <div class="stage-item">
+      <div class="stage-num">4</div>
+      <div class="stage-text">
+        <div class="stage-name">Storyboard Draft</div>
+        <div class="stage-sub">Not started</div>
+      </div>
+    </div>
+
+    <div class="stage-item">
+      <div class="stage-num">5</div>
+      <div class="stage-text">
+        <div class="stage-name">Review and Share</div>
+        <div class="stage-sub">Not started</div>
+      </div>
+    </div>
+
+    <div class="sidebar-divider"></div>
+
+    <div class="sidebar-nav-item">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+      My Projects
+    </div>
+  </aside>
+
+  <main>
+    <div class="content-wrapper">
+    <div class="progress-bar">
+      <div class="progress-step done">
+        <div class="step-circle">&#10003;</div>
+        <div class="step-info">
+          <div class="step-label">Step 1</div>
+          <div class="step-name">Core Intent</div>
+        </div>
+      </div>
+      <div class="progress-step active">
+        <div class="step-circle">2</div>
+        <div class="step-info">
+          <div class="step-label">Step 2</div>
+          <div class="step-name">Delivery</div>
+        </div>
+      </div>
+      <div class="progress-step">
+        <div class="step-circle">3</div>
+        <div class="step-info">
+          <div class="step-label">Step 3</div>
+          <div class="step-name">Content Spine</div>
+        </div>
+      </div>
+      <div class="progress-step">
+        <div class="step-circle">4</div>
+        <div class="step-info">
+          <div class="step-label">Step 4</div>
+          <div class="step-name">Angle</div>
+        </div>
+      </div>
+      <div class="progress-step">
+        <div class="step-circle">R</div>
+        <div class="step-info">
+          <div class="step-label">Step 5</div>
+          <div class="step-name">Review</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Form content at 70% width -->
+    <div class="form-container">
+
+      <!-- Collapsed: Section 1 -->
+      <div class="collapsible-c">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="title">Section 1: Core Intent</span>
+        <span class="badge">Confirmed</span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+
+      <!-- Active: Section 2 -->
+      <div class="section-header">
+        <h1>Section 2: Delivery &amp; Format</h1>
+        <p>Define how your video will look and feel to viewers.</p>
+      </div>
+
+      <div class="field-group">
+
+        <div class="field-card">
+          <div class="field-top">
+            <div class="field-label-row">
+              <span class="field-label">Do you want your face on screen?</span>
+              <span class="badge badge-ai">AI Suggested</span>
+              <span class="badge badge-required">Required</span>
+            </div>
+          </div>
+          <div class="field-value">No</div>
+        </div>
+
+        <div class="field-card confirmed">
+          <div class="field-top">
+            <div class="field-label-row">
+              <span class="field-label">What should viewers mostly see while you explain?</span>
+              <span class="badge badge-confirmed">Confirmed</span>
+              <span class="badge badge-required">Required</span>
+            </div>
+          </div>
+          <div class="checkbox-list">
+            <div class="checkbox-item">
+              <div class="checkbox-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              Screen recording (product/demo/document)
+            </div>
+            <div class="checkbox-item selected">
+              <div class="checkbox-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              Slides / key points
+            </div>
+            <div class="checkbox-item">
+              <div class="checkbox-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              Diagrams / frameworks
+            </div>
+            <div class="checkbox-item selected">
+              <div class="checkbox-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              Whiteboard drawing
+            </div>
+            <div class="checkbox-item">
+              <div class="checkbox-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              Code editor / notebook
+            </div>
+            <div class="checkbox-item">
+              <div class="checkbox-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              Stock footage
+            </div>
+            <div class="checkbox-item">
+              <div class="checkbox-box"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+              Real-world footage / camera shots
+            </div>
+          </div>
+        </div>
+
+        <div class="field-card confirmed">
+          <div class="field-top">
+            <div class="field-label-row">
+              <span class="field-label">How should this feel to the viewer?</span>
+              <span class="badge badge-confirmed">Confirmed</span>
+              <span class="badge badge-required">Required</span>
+            </div>
+          </div>
+          <div class="field-value">Analytical &amp; informative</div>
+        </div>
+
+        <div class="field-card confirmed">
+          <div class="field-top">
+            <div class="field-label-row">
+              <span class="field-label">How time-sensitive is this video?</span>
+              <span class="badge badge-confirmed">Confirmed</span>
+              <span class="badge badge-required">Required</span>
+            </div>
+          </div>
+          <div class="field-value">Evergreen (should stay useful for a long time)</div>
+        </div>
+
+      </div>
+
+      <!-- Collapsed: Section 3 -->
+      <div class="collapsible-c" style="margin-top: 18px;">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <span class="title">Section 3: Content Spine</span>
+        <span class="badge">Confirmed</span>
+        <svg class="chev" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </div>
+
+      <!-- Approved Brief -->
+      <div class="approved-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <h2>Your Video Brief — Approved</h2>
+      </div>
+      <div class="approved-sub">This brief has been approved. View the outline stage for next steps.</div>
+
+      <div class="brief-table">
+        <div class="brief-section-header">Section 1: Core Intent</div>
+        <div class="brief-row">
+          <span class="label">Video type</span>
+          <span class="value">knowledge_share</span>
+        </div>
+        <div class="brief-row">
+          <span class="label">Main goal</span>
+          <span class="value">Help founders understand exit options</span>
+        </div>
+        <div class="brief-row">
+          <span class="label">Target audience</span>
+          <span class="value">SaaS founders</span>
+        </div>
+      </div>
+
+    </div><!-- /form-container -->
+    </div><!-- /content-wrapper -->
+  </main>
+
+</div>
+</body>
+</html>
