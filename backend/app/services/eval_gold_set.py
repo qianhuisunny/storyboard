@@ -373,6 +373,109 @@ def compute_analysis(gold: dict, director_output: str,
 
 
 # ---------------------------------------------------------------------------
+# Ingestion
+# ---------------------------------------------------------------------------
+
+_SPONSOR_KEYWORDS = ["sponsor", "pitch", "ad ", "cta", "call to action", "advertisement"]
+
+
+def _strip_sponsor_sections(outline: list, storyboard: list) -> tuple[list, list]:
+    """Remove sponsor/CTA sections and their screens, renumber sequentially."""
+    kept_section_nums = set()
+    new_outline = []
+    for s in outline:
+        purpose_lower = s.get("purpose", "").lower()
+        if any(kw in purpose_lower for kw in _SPONSOR_KEYWORDS):
+            continue
+        kept_section_nums.add(s["section_number"])
+        new_outline.append(s)
+
+    # Renumber sections
+    for i, s in enumerate(new_outline, 1):
+        s["section_number"] = i
+
+    # Filter and renumber screens
+    new_sb = [s for s in storyboard if s.get("section_number") in kept_section_nums]
+    # Remap section numbers
+    old_to_new = {}
+    for i, orig_num in enumerate(sorted(kept_section_nums), 1):
+        old_to_new[orig_num] = i
+    for s in new_sb:
+        s["section_number"] = old_to_new[s["section_number"]]
+    for i, s in enumerate(new_sb, 1):
+        s["screen_number"] = i
+
+    return new_outline, new_sb
+
+
+def _slugify(title: str) -> str:
+    """Convert video title to directory-safe slug."""
+    slug = title.lower().strip()
+    slug = re.sub(r"[-]+", " ", slug)    # dashes to spaces (before stripping)
+    slug = re.sub(r"[^\w\s]", "", slug)  # remove non-alphanumeric
+    slug = re.sub(r"\s+", "_", slug)     # spaces to underscores
+    slug = re.sub(r"_+", "_", slug)      # collapse multiple underscores
+    return slug.strip("_")
+
+
+def auto_compute_meta(outline: list, total_duration_sec: int) -> dict:
+    """Auto-compute meta fields from outline data."""
+    # Duration bucket
+    if total_duration_sec < 600:
+        bucket = "short"
+    elif total_duration_sec < 1200:
+        bucket = "medium"
+    else:
+        bucket = "long"
+
+    # Narrative opening — keyword heuristic on Section 1
+    opening = "direct_framework"
+    if outline:
+        s1 = outline[0]
+        text = (s1.get("section_title", "") + " " + s1.get("purpose", "")).lower()
+        story_keywords = ["story", "anecdote", "tale", "narrative", "parable", "once upon"]
+        problem_keywords = ["problem", "challenge", "mistake", "struggle", "failing", "wrong"]
+        if any(kw in text for kw in story_keywords):
+            opening = "story_hook"
+        elif any(kw in text for kw in problem_keywords):
+            opening = "problem_statement"
+
+    return {
+        "duration_bucket": bucket,
+        "structure": "linear",
+        "narrative_opening": opening,
+    }
+
+
+def ingest_gold_set(raw_json: dict) -> dict:
+    """Process raw Gemini JSON into a gold standard file."""
+    brief = raw_json["brief"]
+    outline = raw_json["outline"]
+    storyboard = raw_json["storyboard"]
+
+    outline, storyboard = _strip_sponsor_sections(outline, storyboard)
+    total_duration = sum(s.get("duration_sec", 0) for s in outline)
+    brief["total_duration_sec"] = total_duration
+    meta = auto_compute_meta(outline, total_duration)
+
+    gold_set = {
+        "meta": meta,
+        "brief": brief,
+        "outline": outline,
+        "storyboard": storyboard,
+    }
+
+    title = brief.get("video_title", "untitled")
+    slug = _slugify(title)
+    save_dir = GOLD_SETS_DIR / slug
+    save_dir.mkdir(parents=True, exist_ok=True)
+    save_path = save_dir / "gold_standard.json"
+    save_path.write_text(json.dumps(gold_set, indent=2, ensure_ascii=False))
+
+    return {"slug": slug, "gold_set": gold_set}
+
+
+# ---------------------------------------------------------------------------
 # Cache
 # ---------------------------------------------------------------------------
 
