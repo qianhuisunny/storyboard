@@ -7,12 +7,12 @@ const statusConfig: Record<
 > = {
   auto_filled: {
     label: "Auto-filled",
-    className: "bg-[#EFF5F0] text-[#3D6B40] border-[#4A7A4D]/20",
+    className: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20",
     icon: "✓",
   },
   inferred: {
     label: "Inferred",
-    className: "bg-[#FBF6ED] text-[#8B6B2A] border-[#9B7730]/20",
+    className: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20",
     icon: "?",
   },
   not_applicable: {
@@ -25,11 +25,11 @@ const statusConfig: Record<
 const confidenceConfig: Record<ConfidenceLevel, { label: string; className: string }> = {
   high: {
     label: "High",
-    className: "text-[#3D6B40]",
+    className: "text-[#3A6B47]",
   },
   medium: {
     label: "Med",
-    className: "text-[#8B6B2A]",
+    className: "text-[#7A5C1E]",
   },
   low: {
     label: "Low",
@@ -57,9 +57,10 @@ export default function StatusBadge({
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full border",
+        "inline-flex items-center border",
         config.className
       )}
+      style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.3px", padding: "2px 7px", borderRadius: "20px", textTransform: "uppercase" as const, gap: "4px" }}
     >
       {config.icon && <span className="text-[10px]">{config.icon}</span>}
       {config.label}
