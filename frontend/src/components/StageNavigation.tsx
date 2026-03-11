@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { Check, Circle, AlertCircle, Loader2, FolderOpen } from "lucide-react";
+import { Check, FolderOpen } from "lucide-react";
 
 export type StageStatus = "not_started" | "in_progress" | "needs_review" | "approved";
 
@@ -20,19 +20,22 @@ interface StageNavigationProps {
   onAnchorSelect?: (stageId: number, anchor: string) => void;
 }
 
-const statusIcons: Record<StageStatus, React.ReactNode> = {
-  not_started: <Circle className="w-4 h-4 text-muted-foreground" />,
-  in_progress: <Loader2 className="w-4 h-4 text-primary animate-spin" />,
-  needs_review: <AlertCircle className="w-4 h-4 text-warning" />,
-  approved: <Check className="w-4 h-4 text-success" />,
-};
-
 const statusLabels: Record<StageStatus, string> = {
   not_started: "Not started",
   in_progress: "In progress",
   needs_review: "Needs review",
   approved: "Approved",
 };
+
+/** Visual stage item for the 5-stage sidebar display */
+interface VisualStage {
+  visualNumber: number;
+  name: string;
+  status: StageStatus;
+  isActive: boolean;
+  isClickable: boolean;
+  onClick: () => void;
+}
 
 export default function StageNavigation({
   stages,
@@ -42,6 +45,63 @@ export default function StageNavigation({
   onStageSelect,
   onAnchorSelect,
 }: StageNavigationProps) {
+  // Build 5 visual stages from 4 internal stages + Evidence Research
+  // Internal stages: 1=Brief, 2=Outline, 3=Draft, 4=Review
+  // Visual stages:   1=Brief, 2=Outline, 3=Evidence, 4=Draft, 5=Review
+  const internalStage = (id: number) => stages.find((s) => s.id === id);
+
+  const brief = internalStage(1);
+  const outline = internalStage(2);
+  const draft = internalStage(3);
+  const review = internalStage(4);
+
+  const isOutlineClickable = outline
+    ? outline.status !== "not_started" || 2 <= currentStageId
+    : false;
+
+  const visualStages: VisualStage[] = [
+    {
+      visualNumber: 1,
+      name: "Video Briefing",
+      status: brief?.status ?? "not_started",
+      isActive: currentStageId === 1,
+      isClickable: brief ? brief.status !== "not_started" || 1 <= currentStageId : false,
+      onClick: () => onStageSelect(1),
+    },
+    {
+      visualNumber: 2,
+      name: "Video Outline",
+      status: outline?.status ?? "not_started",
+      isActive: currentStageId === 2 && activeAnchor !== "evidence",
+      isClickable: isOutlineClickable,
+      onClick: () => onStageSelect(2),
+    },
+    {
+      visualNumber: 3,
+      name: "Evidence Research",
+      status: evidenceStatus,
+      isActive: currentStageId === 2 && activeAnchor === "evidence",
+      isClickable: isOutlineClickable,
+      onClick: () => onAnchorSelect?.(2, "evidence"),
+    },
+    {
+      visualNumber: 4,
+      name: "Storyboard Draft",
+      status: draft?.status ?? "not_started",
+      isActive: currentStageId === 3,
+      isClickable: draft ? draft.status !== "not_started" || 3 <= currentStageId : false,
+      onClick: () => onStageSelect(3),
+    },
+    {
+      visualNumber: 5,
+      name: "Review and Share",
+      status: review?.status ?? "not_started",
+      isActive: currentStageId === 4,
+      isClickable: review ? review.status !== "not_started" || 4 <= currentStageId : false,
+      onClick: () => onStageSelect(4),
+    },
+  ];
+
   return (
     <nav className="h-full border-r border-border bg-white flex-shrink-0 overflow-y-auto flex flex-col" style={{ width: "220px", padding: "22px 0" }}>
       <div className="flex-1">
@@ -49,75 +109,60 @@ export default function StageNavigation({
           Stages
         </h2>
         <ul>
-          {stages.map((stage) => {
-            const isActive = stage.id === currentStageId && activeAnchor !== "evidence";
-            const isClickable = stage.status !== "not_started" || stage.id <= currentStageId;
-
-            return (
-              <li key={stage.id}>
-                <button
-                  onClick={() => isClickable && onStageSelect(stage.id)}
-                  disabled={!isClickable}
-                  className={cn(
-                    "w-full text-left transition-colors relative",
-                    "flex items-center",
-                    isActive
-                      ? "bg-[#E8F0E9]"
-                      : isClickable
-                      ? "hover:bg-[#EEF1E9]"
-                      : "text-[#626B58] cursor-not-allowed opacity-50"
-                  )}
-                  style={{ padding: "10px 18px", gap: "11px" }}
-                >
-                  {isActive && (
-                    <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-[#3A6B47] rounded-r-sm" />
-                  )}
-                  <span
-                    className={cn(
-                      "rounded-full flex items-center justify-center flex-shrink-0",
-                      isActive
-                        ? "bg-[#3A6B47] text-white"
-                        : stage.status === "approved"
-                        ? "bg-[#E6F2EB] text-[#2D6A4F]"
-                        : "text-[#626B58]"
-                    )}
-                    style={{
-                      width: "24px",
-                      height: "24px",
-                      border: isActive
-                        ? "1.5px solid #3A6B47"
-                        : stage.status === "approved"
-                        ? "1.5px solid #2D6A4F"
-                        : "1.5px solid #BFC6B5",
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      fontFamily: "'Fraunces', serif",
-                    }}
-                  >
-                    {stage.status === "approved" ? <Check className="w-3.5 h-3.5" /> : stage.id}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <span className={cn("block truncate", isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: isActive ? 600 : 500, lineHeight: "1.2" }}>
-                      {stage.name}
-                    </span>
-                    <span className="block text-[#626B58]" style={{ fontSize: "11px", marginTop: "2px" }}>
-                      {statusLabels[stage.status]}
-                    </span>
-                  </div>
-                </button>
-
-                {/* Evidence Research sub-step — shown after stage 2 */}
-                {stage.id === 2 && (
-                  <EvidenceSubStep
-                    isActive={currentStageId === 2 && activeAnchor === "evidence"}
-                    isClickable={isClickable}
-                    status={evidenceStatus}
-                    onSelect={() => onAnchorSelect?.(2, "evidence")}
-                  />
+          {visualStages.map((vs) => (
+            <li key={vs.visualNumber}>
+              <button
+                onClick={() => vs.isClickable && vs.onClick()}
+                disabled={!vs.isClickable}
+                className={cn(
+                  "w-full text-left transition-colors relative",
+                  "flex items-center",
+                  vs.isActive
+                    ? "bg-[#E8F0E9]"
+                    : vs.isClickable
+                    ? "hover:bg-[#EEF1E9]"
+                    : "text-[#626B58] cursor-not-allowed opacity-50"
                 )}
-              </li>
-            );
-          })}
+                style={{ padding: "10px 18px", gap: "11px" }}
+              >
+                {vs.isActive && (
+                  <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-[#3A6B47] rounded-r-sm" />
+                )}
+                <span
+                  className={cn(
+                    "rounded-full flex items-center justify-center flex-shrink-0",
+                    vs.isActive
+                      ? "bg-[#3A6B47] text-white"
+                      : vs.status === "approved"
+                      ? "bg-[#E6F2EB] text-[#2D6A4F]"
+                      : "text-[#626B58]"
+                  )}
+                  style={{
+                    width: "24px",
+                    height: "24px",
+                    border: vs.isActive
+                      ? "1.5px solid #3A6B47"
+                      : vs.status === "approved"
+                      ? "1.5px solid #2D6A4F"
+                      : "1.5px solid #BFC6B5",
+                    fontSize: "11px",
+                    fontWeight: 600,
+                    fontFamily: "'Fraunces', serif",
+                  }}
+                >
+                  {vs.status === "approved" ? <Check className="w-3.5 h-3.5" /> : vs.visualNumber}
+                </span>
+                <div className="flex-1 min-w-0">
+                  <span className={cn("block truncate", vs.isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: vs.isActive ? 600 : 500, lineHeight: "1.2" }}>
+                    {vs.name}
+                  </span>
+                  <span className="block text-[#626B58]" style={{ fontSize: "11px", marginTop: "2px" }}>
+                    {statusLabels[vs.status]}
+                  </span>
+                </div>
+              </button>
+            </li>
+          ))}
         </ul>
       </div>
 
@@ -132,48 +177,5 @@ export default function StageNavigation({
         <span style={{ fontWeight: 500 }}>My Projects</span>
       </Link>
     </nav>
-  );
-}
-
-/** Evidence Research step rendered between Video Outline and Storyboard Draft */
-function EvidenceSubStep({
-  isActive,
-  isClickable,
-  status,
-  onSelect,
-}: {
-  isActive: boolean;
-  isClickable: boolean;
-  status: StageStatus;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      onClick={() => isClickable && onSelect()}
-      disabled={!isClickable}
-      className={cn(
-        "w-full text-left transition-colors mt-1 relative",
-        "flex items-center",
-        isActive
-          ? "bg-[#E8F0E9]"
-          : isClickable
-          ? "hover:bg-[#EEF1E9]"
-          : "text-[#626B58] cursor-not-allowed opacity-50"
-      )}
-      style={{ padding: "10px 18px 10px 42px", gap: "11px" }}
-    >
-      {isActive && (
-        <span className="absolute left-0 top-2 bottom-2 w-[3px] bg-[#3A6B47] rounded-r-sm" />
-      )}
-      <span className="flex-shrink-0">{statusIcons[status]}</span>
-      <div className="flex-1 min-w-0">
-        <span className={cn("block truncate", isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: isActive ? 600 : 500, lineHeight: "1.2" }}>
-          Evidence Research
-        </span>
-        <span className="block text-[#626B58]" style={{ fontSize: "11px", marginTop: "2px" }}>
-          {statusLabels[status]}
-        </span>
-      </div>
-    </button>
   );
 }

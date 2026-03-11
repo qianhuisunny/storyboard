@@ -504,7 +504,7 @@ export default function StageLayout() {
   };
 
   return (
-    <div className="h-full w-full flex flex-col md:flex-row relative" style={{ minHeight: 0 }}>
+    <div className="h-full flex flex-col md:flex-row relative" style={{ minHeight: 0, maxWidth: "70vw" }}>
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-2 border-b border-border bg-background">
         <Button

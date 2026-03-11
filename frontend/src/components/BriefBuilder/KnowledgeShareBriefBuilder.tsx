@@ -390,7 +390,7 @@ export default function KnowledgeShareBriefBuilder({
             const isPast = currentIndex > roundIndex;
             const isCompleted =
               typeof round === "number" && completedRounds.has(round);
-            const stepNames = ["Core Intent", "Delivery", "Content", "Angle", "Review"];
+            const stepNames = ["Core Intent", "Delivery", "Content Spine", "Angle", "Review"];
 
             return (
               <div
