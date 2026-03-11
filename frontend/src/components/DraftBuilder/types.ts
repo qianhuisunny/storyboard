@@ -22,28 +22,28 @@ export const SCREEN_TYPE_CONFIG: Record<
   { label: string; color: string; icon: string }
 > = {
   // Primary production screen types
-  screen_recording: { label: "Screen Recording", color: "bg-purple-100 text-purple-700 border-purple-200", icon: "monitor" },
-  slides: { label: "Slides", color: "bg-amber-100 text-amber-700 border-amber-200", icon: "presentation" },
-  whiteboard: { label: "Whiteboard", color: "bg-orange-100 text-orange-700 border-orange-200", icon: "edit-3" },
-  code_editor: { label: "Code Editor", color: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: "code" },
-  stock_footage: { label: "Stock Footage", color: "bg-blue-100 text-blue-700 border-blue-200", icon: "video" },
-  real_world: { label: "Real-World", color: "bg-cyan-100 text-cyan-700 border-cyan-200", icon: "camera" },
-  talking_head: { label: "Talking Head", color: "bg-green-100 text-green-700 border-green-200", icon: "user" },
+  screen_recording: { label: "Screen Recording", color: "bg-[#F5F0EA] text-[#7C6A56] border-[#E8E0D4]", icon: "monitor" },
+  slides: { label: "Slides", color: "bg-[#FBF6ED] text-[#C4963C] border-[#C4963C]/20", icon: "presentation" },
+  whiteboard: { label: "Whiteboard", color: "bg-[#FBF6ED] text-[#C4963C] border-[#C4963C]/20", icon: "edit-3" },
+  code_editor: { label: "Code Editor", color: "bg-[#F5F0EA] text-[#7C6A56] border-[#E8E0D4]", icon: "code" },
+  stock_footage: { label: "Stock Footage", color: "bg-[#F5F0EA] text-[#7C6A56] border-[#E8E0D4]", icon: "video" },
+  real_world: { label: "Real-World", color: "bg-[#F5F0EA] text-[#9C8E7C] border-[#E8E0D4]", icon: "camera" },
+  talking_head: { label: "Talking Head", color: "bg-[#EFF5F0] text-[#5E8C61] border-[#5E8C61]/20", icon: "user" },
   // Legacy fallbacks for existing project data
-  stock_video: { label: "Stock Video", color: "bg-blue-100 text-blue-700 border-blue-200", icon: "video" },
-  screencast: { label: "Screencast", color: "bg-purple-100 text-purple-700 border-purple-200", icon: "monitor" },
-  slide: { label: "Slide", color: "bg-amber-100 text-amber-700 border-amber-200", icon: "presentation" },
-  text_overlay: { label: "Text Overlay", color: "bg-orange-100 text-orange-700 border-orange-200", icon: "type" },
+  stock_video: { label: "Stock Video", color: "bg-[#F5F0EA] text-[#7C6A56] border-[#E8E0D4]", icon: "video" },
+  screencast: { label: "Screencast", color: "bg-[#F5F0EA] text-[#7C6A56] border-[#E8E0D4]", icon: "monitor" },
+  slide: { label: "Slide", color: "bg-[#FBF6ED] text-[#C4963C] border-[#C4963C]/20", icon: "presentation" },
+  text_overlay: { label: "Text Overlay", color: "bg-[#FBF6ED] text-[#C4963C] border-[#C4963C]/20", icon: "type" },
   // Fallbacks for outline screen types
-  hook: { label: "Hook", color: "bg-purple-100 text-purple-700 border-purple-200", icon: "zap" },
-  problem: { label: "Problem", color: "bg-red-100 text-red-700 border-red-200", icon: "alert-circle" },
-  solution: { label: "Solution", color: "bg-green-100 text-green-700 border-green-200", icon: "check-circle" },
-  benefit: { label: "Benefit", color: "bg-amber-100 text-amber-700 border-amber-200", icon: "star" },
-  social_proof: { label: "Social Proof", color: "bg-indigo-100 text-indigo-700 border-indigo-200", icon: "users" },
-  step: { label: "Step", color: "bg-teal-100 text-teal-700 border-teal-200", icon: "list-ordered" },
-  tip: { label: "Tip", color: "bg-yellow-100 text-yellow-700 border-yellow-200", icon: "lightbulb" },
-  warning: { label: "Warning", color: "bg-rose-100 text-rose-700 border-rose-200", icon: "alert-triangle" },
-  recap: { label: "Recap", color: "bg-slate-100 text-slate-700 border-slate-200", icon: "repeat" },
+  hook: { label: "Hook", color: "bg-[#F5F0EA] text-[#7C6A56] border-[#E8E0D4]", icon: "zap" },
+  problem: { label: "Problem", color: "bg-[#FBF0ED] text-[#C4644A] border-[#C4644A]/20", icon: "alert-circle" },
+  solution: { label: "Solution", color: "bg-[#EFF5F0] text-[#5E8C61] border-[#5E8C61]/20", icon: "check-circle" },
+  benefit: { label: "Benefit", color: "bg-[#FBF6ED] text-[#C4963C] border-[#C4963C]/20", icon: "star" },
+  social_proof: { label: "Social Proof", color: "bg-[#F5F0EA] text-[#7C6A56] border-[#E8E0D4]", icon: "users" },
+  step: { label: "Step", color: "bg-[#EFF5F0] text-[#5E8C61] border-[#5E8C61]/20", icon: "list-ordered" },
+  tip: { label: "Tip", color: "bg-[#FBF6ED] text-[#C4963C] border-[#C4963C]/20", icon: "lightbulb" },
+  warning: { label: "Warning", color: "bg-[#FBF0ED] text-[#C4644A] border-[#C4644A]/20", icon: "alert-triangle" },
+  recap: { label: "Recap", color: "bg-muted text-muted-foreground border-border", icon: "repeat" },
 };
 
 // Individual production screen in the storyboard

@@ -76,7 +76,7 @@ export default function PanelCard({
 
   const config = SCREEN_TYPE_CONFIG[screen.screen_type] || {
     label: screen.screen_type,
-    color: "bg-gray-100 text-gray-700 border-gray-200",
+    color: "bg-muted text-muted-foreground border-border",
     icon: "film",
   };
 

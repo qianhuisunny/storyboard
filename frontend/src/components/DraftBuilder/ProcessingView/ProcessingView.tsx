@@ -125,7 +125,7 @@ export default function ProcessingView({
               {Object.entries(screenTypeCounts).map(([type, count]) => {
                 const config = SCREEN_TYPE_CONFIG[type] || {
                   label: type,
-                  color: "bg-gray-100 text-gray-700",
+                  color: "bg-muted text-muted-foreground",
                 };
                 const percentage = Math.round((count / screens.length) * 100);
                 return (
@@ -206,7 +206,7 @@ export default function ProcessingView({
               {screens.map((screen, index) => {
                 const config = SCREEN_TYPE_CONFIG[screen.screen_type] || {
                   label: screen.screen_type,
-                  color: "bg-gray-100 text-gray-700",
+                  color: "bg-muted text-muted-foreground",
                 };
                 return (
                   <div key={index} className="flex items-center">

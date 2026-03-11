@@ -66,18 +66,18 @@ export default function UserView({
         },
         header: {
           marginBottom: 30,
-          borderBottom: "2px solid #3b82f6",
+          borderBottom: "2px solid #E8E0D4",
           paddingBottom: 15,
         },
         title: {
           fontSize: 24,
           fontWeight: "bold",
-          color: "#1f2937",
+          color: "#2C2418",
           marginBottom: 8,
         },
         subtitle: {
           fontSize: 12,
-          color: "#6b7280",
+          color: "#9C8E7C",
         },
         statsRow: {
           flexDirection: "row",
@@ -86,11 +86,11 @@ export default function UserView({
         },
         stat: {
           fontSize: 10,
-          color: "#6b7280",
+          color: "#9C8E7C",
         },
         card: {
           marginBottom: 20,
-          border: "1px solid #e5e7eb",
+          border: "1px solid #E8E0D4",
           borderRadius: 8,
           overflow: "hidden",
         },
@@ -98,14 +98,14 @@ export default function UserView({
           flexDirection: "row",
           alignItems: "center",
           padding: 12,
-          backgroundColor: "#f9fafb",
-          borderBottom: "1px solid #e5e7eb",
+          backgroundColor: "#F5F0EA",
+          borderBottom: "1px solid #E8E0D4",
         },
         screenNumber: {
           width: 28,
           height: 28,
           borderRadius: 14,
-          backgroundColor: "#3b82f6",
+          backgroundColor: "#7C6A56",
           color: "#ffffff",
           fontSize: 14,
           fontWeight: "bold",
@@ -116,13 +116,13 @@ export default function UserView({
         screenType: {
           fontSize: 10,
           fontWeight: "bold",
-          color: "#3b82f6",
+          color: "#7C6A56",
           textTransform: "uppercase",
         },
         duration: {
           marginLeft: "auto",
           fontSize: 10,
-          color: "#6b7280",
+          color: "#9C8E7C",
         },
         cardBody: {
           padding: 15,
@@ -133,23 +133,23 @@ export default function UserView({
         sectionLabel: {
           fontSize: 8,
           fontWeight: "bold",
-          color: "#9ca3af",
+          color: "#9C8E7C",
           textTransform: "uppercase",
           letterSpacing: 0.5,
           marginBottom: 4,
         },
         sectionContent: {
           fontSize: 11,
-          color: "#374151",
+          color: "#2C2418",
           lineHeight: 1.5,
         },
         voiceoverBox: {
-          backgroundColor: "#f3f4f6",
+          backgroundColor: "#F5F0EA",
           padding: 10,
           borderRadius: 4,
         },
         visualDirection: {
-          backgroundColor: "#eff6ff",
+          backgroundColor: "#F5F0EA",
           padding: 10,
           borderRadius: 4,
         },
@@ -160,12 +160,12 @@ export default function UserView({
         bullet: {
           width: 15,
           fontSize: 11,
-          color: "#3b82f6",
+          color: "#7C6A56",
         },
         bulletText: {
           flex: 1,
           fontSize: 11,
-          color: "#374151",
+          color: "#2C2418",
         },
         footer: {
           position: "absolute",
@@ -174,8 +174,8 @@ export default function UserView({
           right: 40,
           textAlign: "center",
           fontSize: 9,
-          color: "#9ca3af",
-          borderTop: "1px solid #e5e7eb",
+          color: "#9C8E7C",
+          borderTop: "1px solid #E8E0D4",
           paddingTop: 10,
         },
       });
