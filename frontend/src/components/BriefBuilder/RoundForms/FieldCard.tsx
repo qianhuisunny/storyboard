@@ -20,22 +20,22 @@ interface FieldCardProps {
 // Subtle design: neutral cards, only badges have color
 const COLOR_CLASSES: Record<FieldColor, { badge: string; border: string; bg: string }> = {
   green: {
-    badge: "bg-[#5E8C61] text-white",
+    badge: "bg-[#4A7A4D] text-white",
     border: "border-border",
     bg: "bg-background",
   },
   blue: {
-    badge: "bg-[#7C6A56] text-white",
+    badge: "bg-[#655340] text-white",
     border: "border-border",
     bg: "bg-background",
   },
   yellow: {
-    badge: "bg-[#C4963C] text-white",
+    badge: "bg-[#9B7730] text-white",
     border: "border-border",
     bg: "bg-background",
   },
   red: {
-    badge: "bg-[#C4644A] text-white",
+    badge: "bg-[#A04030] text-white",
     border: "border-border",
     bg: "bg-background",
   },

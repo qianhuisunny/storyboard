@@ -42,7 +42,7 @@ export default function InputView({ brief }: InputViewProps) {
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}
-                <MessageSquare className="w-4 h-4 text-[#7C6A56]" />
+                <MessageSquare className="w-4 h-4 text-[#655340]" />
                 <span className="font-medium">User Inputs</span>
               </div>
               <span className="text-xs text-muted-foreground">

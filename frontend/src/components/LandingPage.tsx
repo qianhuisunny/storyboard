@@ -86,11 +86,11 @@ export default function LandingPage() {
             <span className="text-muted-foreground">HUMAN JUDGMENT</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-[#EFF5F0] border border-[#5E8C61]" />
+            <div className="w-3 h-3 rounded-sm bg-[#EFF5F0] border border-[#4A7A4D]" />
             <span className="text-muted-foreground">AI EXECUTION</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-[#FBF6ED] border border-[#C4963C]" />
+            <div className="w-3 h-3 rounded-sm bg-[#FBF6ED] border border-[#9B7730]" />
             <span className="text-muted-foreground">HUMAN GATING</span>
           </div>
           <div className="flex items-center gap-1.5">
@@ -98,7 +98,7 @@ export default function LandingPage() {
             <span className="text-muted-foreground">CODIFIED EXPERTISE</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-[#FBF0ED] border border-[#C4644A]" />
+            <div className="w-3 h-3 rounded-sm bg-[#FBF0ED] border border-[#A04030]" />
             <span className="text-muted-foreground">CAPTURE DRIFT</span>
           </div>
         </div>
@@ -109,8 +109,8 @@ export default function LandingPage() {
           <div className="flex items-start gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
               <div className="bg-[#F5F0EA] border border-[#E8E0D4] rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-[#7C6A56] mb-1">Human Strategize</h4>
-                <p className="text-xs text-[#7C6A56]">Define objectives, audience & quality criteria</p>
+                <h4 className="font-semibold text-[#655340] mb-1">Human Strategize</h4>
+                <p className="text-xs text-[#655340]">Define objectives, audience & quality criteria</p>
               </div>
             </div>
           </div>
@@ -121,24 +121,24 @@ export default function LandingPage() {
           {/* Step 2: AI Outline */}
           <div className="flex items-center gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-[#EFF5F0] border border-[#5E8C61] rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-[#5E8C61] mb-1">AI Scales the Writing</h4>
-                <p className="text-xs text-[#5E8C61]">Outline</p>
+              <div className="bg-[#EFF5F0] border border-[#4A7A4D] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#3D6B40] mb-1">AI Scales the Writing</h4>
+                <p className="text-xs text-[#3D6B40]">Outline</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-gray-400">←</span>
               <div className="flex items-center gap-2 bg-[#F5F0EA] border border-[#E8E0D4] rounded-lg px-3 py-2">
-                <FileText className="w-4 h-4 text-[#9C8E7C]" />
+                <FileText className="w-4 h-4 text-[#716453]" />
                 <div className="text-left">
-                  <p className="text-xs font-medium text-[#9C8E7C]">Codified Expertise</p>
-                  <p className="text-xs text-[#9C8E7C]">in Writing Outline</p>
-                  <p className="text-[10px] text-[#9C8E7C]">Structure, pacing, depth</p>
+                  <p className="text-xs font-medium text-[#716453]">Codified Expertise</p>
+                  <p className="text-xs text-[#716453]">in Writing Outline</p>
+                  <p className="text-[10px] text-[#716453]">Structure, pacing, depth</p>
                 </div>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-2 text-[#C4644A] text-xs">
-              <span className="border-t border-dashed border-[#C4644A] w-8" />
+            <div className="hidden md:flex items-center gap-2 text-[#A04030] text-xs">
+              <span className="border-t border-dashed border-[#A04030] w-8" />
               <span>THE SYSTEM GETS SMARTER OVER TIME</span>
             </div>
           </div>
@@ -149,19 +149,19 @@ export default function LandingPage() {
           {/* Step 3: Human Gate */}
           <div className="flex items-center gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-[#FBF6ED] border border-[#C4963C] rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-[#C4963C] mb-1">Human Gate</h4>
+              <div className="bg-[#FBF6ED] border border-[#9B7730] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#8B6B2A] mb-1">Human Gate</h4>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-[#FBF6ED]/50 border border-[#C4963C] rounded-lg px-3 py-2">
-              <Check className="w-4 h-4 text-[#C4963C]" />
-              <p className="text-xs text-[#C4963C]">Review AI output against quality criteria</p>
+            <div className="flex items-center gap-2 bg-[#FBF6ED]/50 border border-[#9B7730] rounded-lg px-3 py-2">
+              <Check className="w-4 h-4 text-[#8B6B2A]" />
+              <p className="text-xs text-[#8B6B2A]">Review AI output against quality criteria</p>
             </div>
-            <div className="flex items-center gap-2 bg-[#FBF0ED] border border-[#C4644A] rounded-lg px-3 py-2">
-              <RefreshCw className="w-4 h-4 text-[#C4644A]" />
+            <div className="flex items-center gap-2 bg-[#FBF0ED] border border-[#A04030] rounded-lg px-3 py-2">
+              <RefreshCw className="w-4 h-4 text-[#A04030]" />
               <div className="text-left">
-                <p className="text-xs text-[#C4644A]">Capture what drifted → write</p>
-                <p className="text-xs text-[#C4644A]">corrections back into AI guidance</p>
+                <p className="text-xs text-[#A04030]">Capture what drifted → write</p>
+                <p className="text-xs text-[#A04030]">corrections back into AI guidance</p>
               </div>
             </div>
           </div>
@@ -172,24 +172,24 @@ export default function LandingPage() {
           {/* Step 4: AI Content */}
           <div className="flex items-center gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-[#EFF5F0] border border-[#5E8C61] rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-[#5E8C61] mb-1">AI Scales the Writing</h4>
-                <p className="text-xs text-[#5E8C61]">Content</p>
+              <div className="bg-[#EFF5F0] border border-[#4A7A4D] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#3D6B40] mb-1">AI Scales the Writing</h4>
+                <p className="text-xs text-[#3D6B40]">Content</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-gray-400">←</span>
               <div className="flex items-center gap-2 bg-[#F5F0EA] border border-[#E8E0D4] rounded-lg px-3 py-2">
-                <FileText className="w-4 h-4 text-[#9C8E7C]" />
+                <FileText className="w-4 h-4 text-[#716453]" />
                 <div className="text-left">
-                  <p className="text-xs font-medium text-[#9C8E7C]">Codified Expertise</p>
-                  <p className="text-xs text-[#9C8E7C]">in Writing Content</p>
-                  <p className="text-[10px] text-[#9C8E7C]">Tone, accuracy, examples</p>
+                  <p className="text-xs font-medium text-[#716453]">Codified Expertise</p>
+                  <p className="text-xs text-[#716453]">in Writing Content</p>
+                  <p className="text-[10px] text-[#716453]">Tone, accuracy, examples</p>
                 </div>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-2 text-[#C4644A] text-xs">
-              <span className="border-t border-dashed border-[#C4644A] w-8" />
+            <div className="hidden md:flex items-center gap-2 text-[#A04030] text-xs">
+              <span className="border-t border-dashed border-[#A04030] w-8" />
               <span>THE SYSTEM GETS SMARTER OVER TIME</span>
             </div>
           </div>
@@ -200,19 +200,19 @@ export default function LandingPage() {
           {/* Step 5: Human Gate */}
           <div className="flex items-center gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-[#FBF6ED] border border-[#C4963C] rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-[#C4963C] mb-1">Human Gate</h4>
+              <div className="bg-[#FBF6ED] border border-[#9B7730] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#8B6B2A] mb-1">Human Gate</h4>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-[#FBF6ED]/50 border border-[#C4963C] rounded-lg px-3 py-2">
-              <Check className="w-4 h-4 text-[#C4963C]" />
-              <p className="text-xs text-[#C4963C]">Review AI output against quality criteria</p>
+            <div className="flex items-center gap-2 bg-[#FBF6ED]/50 border border-[#9B7730] rounded-lg px-3 py-2">
+              <Check className="w-4 h-4 text-[#8B6B2A]" />
+              <p className="text-xs text-[#8B6B2A]">Review AI output against quality criteria</p>
             </div>
-            <div className="flex items-center gap-2 bg-[#FBF0ED] border border-[#C4644A] rounded-lg px-3 py-2">
-              <RefreshCw className="w-4 h-4 text-[#C4644A]" />
+            <div className="flex items-center gap-2 bg-[#FBF0ED] border border-[#A04030] rounded-lg px-3 py-2">
+              <RefreshCw className="w-4 h-4 text-[#A04030]" />
               <div className="text-left">
-                <p className="text-xs text-[#C4644A]">Capture what drifted → write</p>
-                <p className="text-xs text-[#C4644A]">corrections back into AI guidance</p>
+                <p className="text-xs text-[#A04030]">Capture what drifted → write</p>
+                <p className="text-xs text-[#A04030]">corrections back into AI guidance</p>
               </div>
             </div>
           </div>
@@ -224,8 +224,8 @@ export default function LandingPage() {
           <div className="flex items-start gap-6">
             <div className="flex-1 max-w-[220px]">
               <div className="bg-[#F5F0EA] border border-[#E8E0D4] rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-[#7C6A56] mb-1">Final Version</h4>
-                <p className="text-xs text-[#7C6A56]">Ready to publish</p>
+                <h4 className="font-semibold text-[#655340] mb-1">Final Version</h4>
+                <p className="text-xs text-[#655340]">Ready to publish</p>
               </div>
             </div>
           </div>
@@ -234,8 +234,8 @@ export default function LandingPage() {
         {/* Bottom Note */}
         <div className="mt-10 flex justify-center">
           <div className="inline-flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-4 py-2">
-            <FileText className="w-4 h-4 text-[#5E8C61]" />
-            <span className="text-sm font-medium text-[#5E8C61]">These Guidance Docs Are a Team Asset</span>
+            <FileText className="w-4 h-4 text-[#3D6B40]" />
+            <span className="text-sm font-medium text-[#3D6B40]">These Guidance Docs Are a Team Asset</span>
           </div>
         </div>
       </div>

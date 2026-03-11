@@ -27,9 +27,9 @@ export function MobileDrawer({
       case "running":
         return <Search className="w-4 h-4 animate-pulse" />;
       case "complete":
-        return <CheckCircle2 className="w-4 h-4 text-[#5E8C61]" />;
+        return <CheckCircle2 className="w-4 h-4 text-[#3D6B40]" />;
       case "error":
-        return <AlertCircle className="w-4 h-4 text-[#C4644A]" />;
+        return <AlertCircle className="w-4 h-4 text-[#A04030]" />;
       default:
         return <Search className="w-4 h-4 text-muted-foreground" />;
     }

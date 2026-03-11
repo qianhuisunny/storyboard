@@ -34,11 +34,11 @@ function SearchQueryItem({ event }: { event: SearchEvent }) {
   const getIcon = () => {
     switch (event.status) {
       case "started":
-        return <Loader2 className="w-4 h-4 animate-spin text-[#7C6A56]" />;
+        return <Loader2 className="w-4 h-4 animate-spin text-[#655340]" />;
       case "complete":
-        return <CheckCircle2 className="w-4 h-4 text-[#5E8C61]" />;
+        return <CheckCircle2 className="w-4 h-4 text-[#3D6B40]" />;
       case "error":
-        return <XCircle className="w-4 h-4 text-[#C4644A]" />;
+        return <XCircle className="w-4 h-4 text-[#A04030]" />;
     }
   };
 
@@ -47,8 +47,8 @@ function SearchQueryItem({ event }: { event: SearchEvent }) {
       className={cn(
         "flex items-start gap-3 p-3 rounded-lg border transition-colors",
         event.status === "started" && "bg-[#F5F0EA] border-[#7C6A56]/20",
-        event.status === "complete" && "bg-[#EFF5F0] border-[#5E8C61]/20",
-        event.status === "error" && "bg-[#FBF0ED] border-[#C4644A]/20"
+        event.status === "complete" && "bg-[#EFF5F0] border-[#4A7A4D]/20",
+        event.status === "error" && "bg-[#FBF0ED] border-[#A04030]/20"
       )}
     >
       <div className="flex-shrink-0 mt-0.5">{getIcon()}</div>
@@ -59,7 +59,7 @@ function SearchQueryItem({ event }: { event: SearchEvent }) {
         </div>
         <p className="text-xs text-muted-foreground mt-1">{event.purpose}</p>
         {event.status === "complete" && event.resultsCount !== undefined && (
-          <p className="text-xs text-[#5E8C61] mt-1">
+          <p className="text-xs text-[#3D6B40] mt-1">
             Found {event.resultsCount} result{event.resultsCount !== 1 ? "s" : ""}
           </p>
         )}

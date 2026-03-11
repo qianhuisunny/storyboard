@@ -7,12 +7,12 @@ const statusConfig: Record<
 > = {
   auto_filled: {
     label: "Auto-filled",
-    className: "bg-[#EFF5F0] text-[#5E8C61] border-[#5E8C61]/20",
+    className: "bg-[#EFF5F0] text-[#3D6B40] border-[#4A7A4D]/20",
     icon: "✓",
   },
   inferred: {
     label: "Inferred",
-    className: "bg-[#FBF6ED] text-[#C4963C] border-[#C4963C]/20",
+    className: "bg-[#FBF6ED] text-[#8B6B2A] border-[#9B7730]/20",
     icon: "?",
   },
   not_applicable: {
@@ -25,11 +25,11 @@ const statusConfig: Record<
 const confidenceConfig: Record<ConfidenceLevel, { label: string; className: string }> = {
   high: {
     label: "High",
-    className: "text-[#5E8C61]",
+    className: "text-[#3D6B40]",
   },
   medium: {
     label: "Med",
-    className: "text-[#C4963C]",
+    className: "text-[#8B6B2A]",
   },
   low: {
     label: "Low",

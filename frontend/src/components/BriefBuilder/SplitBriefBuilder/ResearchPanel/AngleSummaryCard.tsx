@@ -20,7 +20,7 @@ export function AngleSummaryCard({ angle }: AngleSummaryCardProps) {
   return (
     <div className="bg-muted/50 rounded-lg p-3 border">
       <div className="flex items-center gap-2 mb-2">
-        <CheckCircle2 className="w-4 h-4 text-[#5E8C61]" />
+        <CheckCircle2 className="w-4 h-4 text-[#3D6B40]" />
         <span className="text-sm font-medium">Research Plan</span>
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs">

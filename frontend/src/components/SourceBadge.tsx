@@ -27,19 +27,19 @@ const sourceConfig: Record<
     icon: FileText,
     label: "Your Input",
     bgColor: "bg-[#F5F0EA]",
-    textColor: "text-[#7C6A56]",
+    textColor: "text-[#655340]",
   },
   web_search: {
     icon: Search,
     label: "Web Search",
     bgColor: "bg-[#F5F0EA]",
-    textColor: "text-[#9C8E7C]",
+    textColor: "text-[#716453]",
   },
   ai_generated: {
     icon: Sparkles,
     label: "AI Generated",
     bgColor: "bg-[#FBF6ED]",
-    textColor: "text-[#C4963C]",
+    textColor: "text-[#8B6B2A]",
   },
 };
 

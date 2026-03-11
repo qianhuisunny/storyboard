@@ -47,7 +47,7 @@ export default function RoundThreeForm({
           Define the structure and key points for your video content.
         </p>
         {!researchComplete && (
-          <div className="mt-2 flex items-center gap-2 text-sm text-[#C4963C] bg-[#FBF6ED] px-3 py-2 rounded">
+          <div className="mt-2 flex items-center gap-2 text-sm text-[#8B6B2A] bg-[#FBF6ED] px-3 py-2 rounded">
             <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
               <circle
                 className="opacity-25"

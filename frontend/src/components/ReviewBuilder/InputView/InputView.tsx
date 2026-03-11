@@ -85,7 +85,7 @@ export default function InputView({ previousStageOutput }: InputViewProps) {
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}
-                <Layers className="w-4 h-4 text-[#9C8E7C]" />
+                <Layers className="w-4 h-4 text-[#716453]" />
                 <span className="font-medium">Production Screens</span>
               </div>
               <span className="text-xs text-muted-foreground">

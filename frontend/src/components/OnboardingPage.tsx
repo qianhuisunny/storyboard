@@ -511,7 +511,7 @@ const OnboardingPage: React.FC = () => {
               {/* Duration Selector */}
               <div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Video Duration (seconds) <span className="text-[#C4644A]">*</span>
+                  Video Duration (seconds) <span className="text-[#A04030]">*</span>
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Enter your target video length in seconds
@@ -544,7 +544,7 @@ const OnboardingPage: React.FC = () => {
               {/* Target Audience */}
               <div>
                 <h3 className="text-lg font-semibold text-foreground mb-2">
-                  Target Audience <span className="text-[#C4644A]">*</span>
+                  Target Audience <span className="text-[#A04030]">*</span>
                 </h3>
                 <p className="text-sm text-muted-foreground mb-4">
                   Who is this video for?

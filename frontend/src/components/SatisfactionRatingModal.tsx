@@ -150,7 +150,7 @@ export function SatisfactionRatingModal({
                     className={cn(
                       "h-8 w-8 transition-colors duration-150",
                       star <= displayRating
-                        ? "fill-[#C4963C] text-[#C4963C]"
+                        ? "fill-[#9B7730] text-[#8B6B2A]"
                         : "fill-transparent text-muted-foreground/40"
                     )}
                   />

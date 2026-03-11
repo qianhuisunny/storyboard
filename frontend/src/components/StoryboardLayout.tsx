@@ -100,7 +100,7 @@ const StoryboardLayout: React.FC = () => {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-[#C4644A] mb-4">{error}</p>
+          <p className="text-[#A04030] mb-4">{error}</p>
           <button
             onClick={() => navigate("/")}
             className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"

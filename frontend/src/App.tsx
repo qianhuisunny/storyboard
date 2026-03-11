@@ -16,7 +16,8 @@ import OnboardingPage from "@/components/OnboardingPage";
 import LandingPage from "@/components/LandingPage";
 import ProjectsPage from "@/components/ProjectsPage";
 import AdminDashboard from "@/components/admin/AdminDashboard";
-import { BarChart3 } from "lucide-react";
+import GoldSetEval from "@/components/admin/GoldSetEval";
+import { BarChart3, FlaskConical } from "lucide-react";
 import "./App.css";
 
 // Check if user has admin role (set in Clerk public metadata)
@@ -51,14 +52,24 @@ function AppHeader() {
               My Projects
             </Link>
             {isAdmin && (
-              <Link
-                to="/admin/dashboard"
-                className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity"
-                title="Admin Dashboard"
-              >
-                <BarChart3 className="h-4 w-4" />
-                <span className="hidden sm:inline">Analytics</span>
-              </Link>
+              <>
+                <Link
+                  to="/admin/dashboard"
+                  className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity"
+                  title="Admin Dashboard"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Analytics</span>
+                </Link>
+                <Link
+                  to="/admin/gold-set-eval"
+                  className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity"
+                  title="Gold Set Eval"
+                >
+                  <FlaskConical className="h-4 w-4" />
+                  <span className="hidden sm:inline">Eval</span>
+                </Link>
+              </>
             )}
             <UserButton afterSignOutUrl="/" />
           </SignedIn>
@@ -94,6 +105,7 @@ function App() {
                 element={<StageLayout />}
               />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/gold-set-eval" element={<GoldSetEval />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </SignedIn>

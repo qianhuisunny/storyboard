@@ -77,7 +77,7 @@ export default function UserView({
         },
         subtitle: {
           fontSize: 12,
-          color: "#9C8E7C",
+          color: "#716453",
         },
         statsRow: {
           flexDirection: "row",
@@ -86,7 +86,7 @@ export default function UserView({
         },
         stat: {
           fontSize: 10,
-          color: "#9C8E7C",
+          color: "#716453",
         },
         card: {
           marginBottom: 20,
@@ -105,7 +105,7 @@ export default function UserView({
           width: 28,
           height: 28,
           borderRadius: 14,
-          backgroundColor: "#7C6A56",
+          backgroundColor: "#655340",
           color: "#ffffff",
           fontSize: 14,
           fontWeight: "bold",
@@ -116,13 +116,13 @@ export default function UserView({
         screenType: {
           fontSize: 10,
           fontWeight: "bold",
-          color: "#7C6A56",
+          color: "#655340",
           textTransform: "uppercase",
         },
         duration: {
           marginLeft: "auto",
           fontSize: 10,
-          color: "#9C8E7C",
+          color: "#716453",
         },
         cardBody: {
           padding: 15,
@@ -133,7 +133,7 @@ export default function UserView({
         sectionLabel: {
           fontSize: 8,
           fontWeight: "bold",
-          color: "#9C8E7C",
+          color: "#716453",
           textTransform: "uppercase",
           letterSpacing: 0.5,
           marginBottom: 4,
@@ -160,7 +160,7 @@ export default function UserView({
         bullet: {
           width: 15,
           fontSize: 11,
-          color: "#7C6A56",
+          color: "#655340",
         },
         bulletText: {
           flex: 1,
@@ -174,7 +174,7 @@ export default function UserView({
           right: 40,
           textAlign: "center",
           fontSize: 9,
-          color: "#9C8E7C",
+          color: "#716453",
           borderTop: "1px solid #E8E0D4",
           paddingTop: 10,
         },
@@ -315,7 +315,7 @@ export default function UserView({
               <span className={cn(
                 "text-xs px-2 py-1 rounded flex items-center gap-1",
                 saveStatus === "saving" && "text-muted-foreground",
-                saveStatus === "saved" && "text-[#5E8C61] bg-[#EFF5F0]"
+                saveStatus === "saved" && "text-[#3D6B40] bg-[#EFF5F0]"
               )}>
                 {saveStatus === "saving" && <Loader2 className="w-3 h-3 animate-spin" />}
                 {saveStatus === "saved" && <Check className="w-3 h-3" />}
@@ -402,7 +402,7 @@ export default function UserView({
         </div>
         <button
           onClick={onExport}
-          className="px-4 py-2 bg-[#5E8C61] text-white rounded-lg hover:bg-[#4A7A4D] transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-[#4A7A4D] text-white rounded-lg hover:bg-[#4A7A4D] transition-colors flex items-center gap-2"
         >
           <Check className="w-4 h-4" />
           Mark as Complete

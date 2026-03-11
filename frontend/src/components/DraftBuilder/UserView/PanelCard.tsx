@@ -378,7 +378,7 @@ export default function PanelCard({
               {/* Delete */}
               <button
                 onClick={onDelete}
-                className="p-1.5 rounded text-muted-foreground hover:text-[#C4644A] hover:bg-[#FBF0ED] transition-colors"
+                className="p-1.5 rounded text-muted-foreground hover:text-[#A04030] hover:bg-[#FBF0ED] transition-colors"
                 title="Delete panel"
               >
                 <Trash2 className="w-4 h-4" />

@@ -28,7 +28,7 @@ export default function ProcessingView({ screens, processingLog = [] }: Processi
       {/* Header */}
       <header className="px-6 py-4 border-b border-border bg-background">
         <h2 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
-          <Cpu className="w-5 h-5 text-[#9C8E7C]" />
+          <Cpu className="w-5 h-5 text-[#716453]" />
           Review Processing
         </h2>
         <p className="text-sm text-muted-foreground">
@@ -51,7 +51,7 @@ export default function ProcessingView({ screens, processingLog = [] }: Processi
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}
-                <Layers className="w-4 h-4 text-[#7C6A56]" />
+                <Layers className="w-4 h-4 text-[#655340]" />
                 <span className="font-medium">Storyboard Summary</span>
               </div>
               <span className="text-xs text-muted-foreground">
@@ -87,7 +87,7 @@ export default function ProcessingView({ screens, processingLog = [] }: Processi
                     <div className="text-xs font-medium text-muted-foreground uppercase mb-1">
                       Stage Status
                     </div>
-                    <div className="text-lg font-semibold flex items-center gap-1 text-[#5E8C61]">
+                    <div className="text-lg font-semibold flex items-center gap-1 text-[#3D6B40]">
                       <CheckCircle className="w-4 h-4" />
                       Ready
                     </div>
@@ -130,7 +130,7 @@ export default function ProcessingView({ screens, processingLog = [] }: Processi
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}
-                <Cpu className="w-4 h-4 text-[#9C8E7C]" />
+                <Cpu className="w-4 h-4 text-[#716453]" />
                 <span className="font-medium">Processing Log</span>
               </div>
               <span className="text-xs text-muted-foreground">
@@ -147,7 +147,7 @@ export default function ProcessingView({ screens, processingLog = [] }: Processi
                         key={entry.id}
                         className="flex items-start gap-3 p-2 bg-muted/20 rounded-md"
                       >
-                        <CheckCircle className="w-4 h-4 text-[#5E8C61] mt-0.5 flex-shrink-0" />
+                        <CheckCircle className="w-4 h-4 text-[#3D6B40] mt-0.5 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           <div className="text-sm font-medium">{entry.step}</div>
                           {entry.details && (

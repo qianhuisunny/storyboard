@@ -219,15 +219,15 @@ function SectionResearchCard({ section }: { section: SectionResearch }) {
 /** Single evidence task card with selected evidence */
 function EvidenceTaskCard({ task }: { task: EvidenceTask }) {
   const priorityColors: Record<string, string> = {
-    required: "bg-[#FBF0ED] text-[#C4644A]",
-    helpful: "bg-[#FBF6ED] text-[#C4963C]",
+    required: "bg-[#FBF0ED] text-[#A04030]",
+    helpful: "bg-[#FBF6ED] text-[#8B6B2A]",
     optional: "bg-muted text-muted-foreground",
   };
 
   const confidenceColors: Record<string, string> = {
-    high: "text-[#5E8C61]",
-    medium: "text-[#C4963C]",
-    low: "text-[#C4644A]",
+    high: "text-[#3D6B40]",
+    medium: "text-[#8B6B2A]",
+    low: "text-[#A04030]",
   };
 
   const ev = task.selected_evidence;
@@ -262,7 +262,7 @@ function EvidenceTaskCard({ task }: { task: EvidenceTask }) {
         {ev ? (
           <div className="space-y-1.5">
             <div className="flex items-start gap-2">
-              <Check className="w-3.5 h-3.5 text-[#5E8C61] mt-0.5 flex-shrink-0" />
+              <Check className="w-3.5 h-3.5 text-[#3D6B40] mt-0.5 flex-shrink-0" />
               <div className="flex-1 min-w-0">
                 <a
                   href={ev.source_url}

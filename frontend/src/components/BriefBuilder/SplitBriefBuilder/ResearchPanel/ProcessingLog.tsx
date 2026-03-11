@@ -71,23 +71,23 @@ function LogEntry({ entry }: { entry: ProcessingLogEntry }) {
         "rounded-lg border p-3 space-y-2",
         isRequest
           ? "border-[#7C6A56]/20 bg-[#F5F0EA]/50"
-          : "border-[#5E8C61]/20 bg-[#EFF5F0]/50"
+          : "border-[#4A7A4D]/20 bg-[#EFF5F0]/50"
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isRequest ? (
-            <ArrowUpCircle className="w-4 h-4 text-[#7C6A56]" />
+            <ArrowUpCircle className="w-4 h-4 text-[#655340]" />
           ) : (
-            <ArrowDownCircle className="w-4 h-4 text-[#5E8C61]" />
+            <ArrowDownCircle className="w-4 h-4 text-[#3D6B40]" />
           )}
           <span
             className={cn(
               "text-sm font-medium",
               isRequest
-                ? "text-[#7C6A56]"
-                : "text-[#5E8C61]"
+                ? "text-[#655340]"
+                : "text-[#3D6B40]"
             )}
           >
             {entry.phase}() - {isRequest ? "Request" : "Response"}
@@ -205,7 +205,7 @@ export function ProcessingLog({
           <h2 className="text-lg font-semibold">Processing</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Cpu
-              className={cn("w-4 h-4", isPolling && "animate-pulse text-[#7C6A56]")}
+              className={cn("w-4 h-4", isPolling && "animate-pulse text-[#655340]")}
             />
             <span>{entries.length} events</span>
           </div>
@@ -239,7 +239,7 @@ export function ProcessingLog({
       {/* Footer */}
       {isPolling && (
         <div className="p-3 border-t bg-background text-xs text-muted-foreground flex items-center gap-2">
-          <Cpu className="w-3 h-3 animate-pulse text-[#7C6A56]" />
+          <Cpu className="w-3 h-3 animate-pulse text-[#655340]" />
           Listening for processing events...
         </div>
       )}

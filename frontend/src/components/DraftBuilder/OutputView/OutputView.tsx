@@ -51,7 +51,7 @@ export default function OutputView({ screens }: OutputViewProps) {
             className={cn(
               "flex items-center gap-2 px-3 py-1.5 text-sm rounded-md transition-colors",
               copied
-                ? "bg-[#EFF5F0] text-[#5E8C61]"
+                ? "bg-[#EFF5F0] text-[#3D6B40]"
                 : "bg-muted hover:bg-muted/80 text-foreground"
             )}
           >
