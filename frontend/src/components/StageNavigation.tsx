@@ -48,7 +48,7 @@ export default function StageNavigation({
         <h2 className="uppercase text-[#8D9885]" style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.9px", padding: "0 18px 10px" }}>
           Stages
         </h2>
-        <ul className="space-y-1">
+        <ul>
           {stages.map((stage) => {
             const isActive = stage.id === currentStageId && activeAnchor !== "evidence";
             const isClickable = stage.status !== "not_started" || stage.id <= currentStageId;
@@ -97,14 +97,12 @@ export default function StageNavigation({
                     {stage.status === "approved" ? <Check className="w-3.5 h-3.5" /> : stage.id}
                   </span>
                   <div className="flex-1 min-w-0">
-                    <span className={cn("truncate", isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: isActive ? 600 : 500, lineHeight: "1.2" }}>
+                    <span className={cn("block truncate", isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: isActive ? 600 : 500, lineHeight: "1.2" }}>
                       {stage.name}
                     </span>
-                    {isActive && (
-                      <span className="block text-[#8D9885]" style={{ fontSize: "11px", marginTop: "2px" }}>
-                        {statusLabels[stage.status]}
-                      </span>
-                    )}
+                    <span className="block text-[#8D9885]" style={{ fontSize: "11px", marginTop: "2px" }}>
+                      {statusLabels[stage.status]}
+                    </span>
                   </div>
                 </button>
 
@@ -169,14 +167,12 @@ function EvidenceSubStep({
       )}
       <span className="flex-shrink-0">{statusIcons[status]}</span>
       <div className="flex-1 min-w-0">
-        <span className={cn("truncate", isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: isActive ? 600 : 500, lineHeight: "1.2" }}>
+        <span className={cn("block truncate", isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: isActive ? 600 : 500, lineHeight: "1.2" }}>
           Evidence Research
         </span>
-        {isActive && (
-          <span className="block text-[#8D9885]" style={{ fontSize: "11px", marginTop: "2px" }}>
-            {statusLabels[status]}
-          </span>
-        )}
+        <span className="block text-[#8D9885]" style={{ fontSize: "11px", marginTop: "2px" }}>
+          {statusLabels[status]}
+        </span>
       </div>
     </button>
   );
