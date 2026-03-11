@@ -34,7 +34,7 @@ class StoryboardWriter(BaseAgent):
     Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_v0308.md"
+    prompt_file = "storyboard_writer_prompt_v0309.md"
 
     def __init__(self):
         super().__init__()
@@ -133,6 +133,9 @@ class StoryboardWriter(BaseAgent):
                 "section_number": num,
                 "title": title,
                 "purpose": self._extract_field(block, "Purpose"),
+                "entry_assumption": self._extract_field(block, "Entry assumption"),
+                "exit_state": self._extract_field(block, "Exit state"),
+                "misconception_to_preempt": self._extract_field(block, "Misconception to preempt"),
                 "duration_range": self._extract_field(block, "Duration"),
                 "talking_points": self._extract_bullets(block, "Talking points"),
                 "evidence_needed": self._extract_bullets(block, "Evidence needed"),
@@ -150,6 +153,9 @@ class StoryboardWriter(BaseAgent):
         # Known headers with aliases (first in list is canonical)
         known_headers = [
             ["Purpose"],
+            ["Entry assumption"],
+            ["Exit state"],
+            ["Misconception to preempt", "Misconception"],
             ["Duration", "Approx. duration", "Approx duration"],
             ["Talking points", "Talking point"],
             ["Evidence needed", "Evidence"],
@@ -368,7 +374,7 @@ class StoryboardWriter(BaseAgent):
         # Estimate screen count from duration range
         min_sec, max_sec = self._parse_duration_range(section.get("duration_range", ""))
         midpoint = (min_sec + max_sec) / 2
-        estimated_count = max(3, round(midpoint / 8))
+        estimated_count = max(2, round(midpoint / 45))
 
         # Build user prompt
         user_prompt = self._build_section_prompt(
@@ -478,6 +484,9 @@ Total video duration: {brief_context['duration']}s
 Section {section.get('section_number', '?')} — {section.get('title', '')}
 
 Purpose: {section.get('purpose', '')}
+Entry assumption: {section.get('entry_assumption', 'None')}
+Exit state: {section.get('exit_state', '')}
+Misconception to preempt: {section.get('misconception_to_preempt', 'None')}
 Target duration: {min_sec}-{max_sec} seconds (~{estimated_count} screens)
 
 Talking points:
@@ -495,11 +504,11 @@ Generate approximately {estimated_count} screens for this section.
 Return a JSON array. Each element has exactly 5 fields:
 - screen_number (integer, starting from {start_number})
 - screen_type (one of: {', '.join(allowed_types)})
-- voiceover_text (conversational narration, 10-30 words per screen)
-- visual_direction (array of 3-5 specific visual elements describing exactly what appears on screen)
-- action_notes (1-2 sentences of production guidance)
+- voiceover_text (30-80 words per screen — enough to develop one complete teaching thought)
+- visual_direction (array of 2-4 specific visual elements that EXPLAIN the voiceover content)
+- action_notes (1-2 sentences: cognitive function + execution guidance)
 
-Remember: write the narration first as a flowing script, then break into screen beats."""
+Follow your system prompt rules strictly. Every sentence of voiceover must teach — no filler, no announcements, no motivation."""
 
     # =========================================================================
     # Post-Processing
@@ -555,7 +564,7 @@ Remember: write the narration first as a flowing script, then break into screen 
             adjusted = original * scale
             # Round to nearest 0.5, apply min/max
             adjusted = round(adjusted * 2) / 2
-            adjusted = max(4.0, min(12.0, adjusted))
+            adjusted = max(15.0, min(90.0, adjusted))
             screen["duration"] = adjusted
 
         return screens

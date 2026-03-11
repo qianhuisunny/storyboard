@@ -31,9 +31,9 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  "Product Release": "bg-[#F5F0EA] text-[#655340]",
-  "Product Demo Video": "bg-[#EFF5F0] text-[#3D6B40]",
-  "Knowledge Sharing": "bg-[#F5F0EA] text-[#716453]",
+  "Product Release": "bg-[#E8F0E9] text-[#3A6B47]",
+  "Product Demo Video": "bg-[#E6F2EB] text-[#3A6B47]",
+  "Knowledge Sharing": "bg-[#E8F0E9] text-[#5A6352]",
 };
 
 const STAGE_NAMES = ["", "Video Briefing", "Video Outline", "Storyboard Draft", "Review and Share"];
@@ -189,7 +189,7 @@ export default function ProjectsPage() {
                     disabled={deletingId === project.id}
                     className={cn(
                       "p-1.5 rounded-lg opacity-0 group-hover:opacity-100",
-                      "text-muted-foreground hover:text-[#A04030] hover:bg-[#FBF0ED]",
+                      "text-muted-foreground hover:text-[#A63228] hover:bg-[#FBEAE8]",
                       "transition-all"
                     )}
                     title="Delete project"

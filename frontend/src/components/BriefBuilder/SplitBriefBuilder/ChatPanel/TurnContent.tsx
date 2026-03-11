@@ -38,8 +38,8 @@ function Turn1Content({
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-full bg-[#F5F0EA] flex items-center justify-center flex-shrink-0">
-          <User className="w-4 h-4 text-[#655340]" />
+        <div className="w-8 h-8 rounded-full bg-[#E8F0E9] flex items-center justify-center flex-shrink-0">
+          <User className="w-4 h-4 text-[#3A6B47]" />
         </div>
         <div className="flex-1">
           <p className="text-sm text-muted-foreground mb-3">
@@ -71,7 +71,7 @@ function Turn1Content({
                         href={link}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-[#655340] hover:underline truncate"
+                        className="block text-[#3A6B47] hover:underline truncate"
                       >
                         {link}
                       </a>
@@ -96,8 +96,8 @@ function Turn2Content({
   if (!findings) {
     return (
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-full bg-[#F5F0EA] flex items-center justify-center flex-shrink-0">
-          <FileText className="w-4 h-4 text-[#716453]" />
+        <div className="w-8 h-8 rounded-full bg-[#E8F0E9] flex items-center justify-center flex-shrink-0">
+          <FileText className="w-4 h-4 text-[#5A6352]" />
         </div>
         <div className="flex-1">
           <p className="text-sm text-muted-foreground">
@@ -132,8 +132,8 @@ function Turn2Content({
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-full bg-[#F5F0EA] flex items-center justify-center flex-shrink-0">
-          <FileText className="w-4 h-4 text-[#716453]" />
+        <div className="w-8 h-8 rounded-full bg-[#E8F0E9] flex items-center justify-center flex-shrink-0">
+          <FileText className="w-4 h-4 text-[#5A6352]" />
         </div>
         <div className="flex-1">
           <p className="text-sm text-muted-foreground mb-3">
@@ -148,7 +148,7 @@ function Turn2Content({
               {renderFindings(findings.terminology, "Key Terms")}
               {findings.uncertainties && findings.uncertainties.length > 0 && (
                 <div className="mt-4 pt-4 border-t">
-                  <h4 className="text-sm font-medium text-[#8B6B2A] mb-2">
+                  <h4 className="text-sm font-medium text-[#7A5C1E] mb-2">
                     Uncertainties (will not be included in brief)
                   </h4>
                   <ul className="text-sm text-muted-foreground space-y-1">
@@ -203,8 +203,8 @@ function Turn3Content({
   return (
     <div className="space-y-4">
       <div className="flex items-start gap-3">
-        <div className="w-8 h-8 rounded-full bg-[#FBF6ED] flex items-center justify-center flex-shrink-0">
-          <Lightbulb className="w-4 h-4 text-[#8B6B2A]" />
+        <div className="w-8 h-8 rounded-full bg-[#F7F0E0] flex items-center justify-center flex-shrink-0">
+          <Lightbulb className="w-4 h-4 text-[#7A5C1E]" />
         </div>
         <div className="flex-1">
           <p className="text-sm text-muted-foreground mb-3">
@@ -251,8 +251,8 @@ function Turn3Content({
 function Turn4Content() {
   return (
     <div className="flex items-start gap-3">
-      <div className="w-8 h-8 rounded-full bg-[#EFF5F0] flex items-center justify-center flex-shrink-0">
-        <ClipboardCheck className="w-4 h-4 text-[#3D6B40]" />
+      <div className="w-8 h-8 rounded-full bg-[#E6F2EB] flex items-center justify-center flex-shrink-0">
+        <ClipboardCheck className="w-4 h-4 text-[#3A6B47]" />
       </div>
       <div className="flex-1">
         <p className="text-sm text-muted-foreground">

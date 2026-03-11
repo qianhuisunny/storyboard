@@ -54,12 +54,12 @@ function CollapsibleSection({
 const statusConfig: Record<FieldStatus, { label: string; className: string; icon: string }> = {
   auto_filled: {
     label: "Auto-filled",
-    className: "bg-[#EFF5F0] text-[#3D6B40]",
+    className: "bg-[#E6F2EB] text-[#3A6B47]",
     icon: "✓",
   },
   inferred: {
     label: "Inferred",
-    className: "bg-[#FBF6ED] text-[#8B6B2A]",
+    className: "bg-[#F7F0E0] text-[#7A5C1E]",
     icon: "?",
   },
   not_applicable: {
@@ -71,9 +71,9 @@ const statusConfig: Record<FieldStatus, { label: string; className: string; icon
 
 // Confidence badge colors
 const confidenceColors = {
-  high: "text-[#3D6B40]",
-  medium: "text-[#8B6B2A]",
-  low: "text-[#A04030]",
+  high: "text-[#3A6B47]",
+  medium: "text-[#7A5C1E]",
+  low: "text-[#A63228]",
 };
 
 // Source citation component
@@ -86,12 +86,12 @@ function SourceCitation({ sources }: { sources: SourceReference[] }) {
       <ul className="space-y-1">
         {sources.map((source, index) => (
           <li key={index} className="flex items-center gap-2 text-xs">
-            <ExternalLink className="w-3 h-3 text-[#655340]" />
+            <ExternalLink className="w-3 h-3 text-[#3A6B47]" />
             <a
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[#655340] hover:text-[#5E4A36] hover:underline truncate max-w-md"
+              className="text-[#3A6B47] hover:text-[#2E5439] hover:underline truncate max-w-md"
             >
               {source.title || source.url}
             </a>
@@ -311,12 +311,12 @@ export default function ProcessingView({
                   )}
                   {entry.source && (
                     <div className="mt-2 flex items-center gap-2 text-xs">
-                      <ExternalLink className="w-3 h-3 text-[#655340]" />
+                      <ExternalLink className="w-3 h-3 text-[#3A6B47]" />
                       <a
                         href={entry.source}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-[#655340] hover:text-[#5E4A36] hover:underline"
+                        className="text-[#3A6B47] hover:text-[#2E5439] hover:underline"
                       >
                         {entry.source}
                       </a>

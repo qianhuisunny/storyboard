@@ -215,8 +215,8 @@ Note: Evidence Research is a method on TopicResearcher, not a separate agent. It
 | `agents/topic_researcher.py` | `prompts/TOPIC_RESEARCHER_SYSTEM_PROMPT.md` |
 | `agents/topic_researcher.py` (evidence) | `prompts/EVIDENCE_RESEARCH_PROMPT.md` |
 | `agents/brief_builder.py` | `prompts/BRIEF_BUILDER_SYSTEM_PROMPT.md` |
-| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0311.md` |
-| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0308.md` |
+| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0309.md` |
+| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0309.md` |
 
 ### Agent Structure Pattern
 

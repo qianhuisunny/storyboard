@@ -37,12 +37,28 @@ Each task should include:
 - **achievement_anchor**: specific statistic, milestone, or measurable result
 - **quote**: memorable statement from a credible source
 
-## Rules
+## Knowledge Share Priority Rules
 
-- Do not create vague filler tasks like "find a thought leader quote" unless it clearly improves the section
+For educational/knowledge-share videos, evidence exists to help the viewer **understand a mechanism**, not to impress them with credentials. Apply these priorities:
+
+### High priority (mark as `required`)
+- **mechanism_explanation**: How something works step by step — the writer needs this to write accurate voiceover
+- **definition**: Canonical explanation that the writer can weave into the narration
+- **example**: Concrete worked example that illustrates an abstract concept (e.g., "how 'bank' gets different attention weights in 'river bank' vs 'bank account'")
+
+### Medium priority (mark as `helpful`)
+- **authority_anchor**: Citation from a recognized paper or institution — only when it adds credibility to a specific claim, not for decoration
+
+### Low priority (mark as `optional`)
+- **achievement_anchor**: Statistics or milestones — only when they concretely illustrate scale or impact that helps understanding
+- **quote**: Almost never useful for knowledge-share. Only include if it provides a genuinely memorable framing of a concept. Never search for generic "thought leader quotes"
+
+## General Rules
+
+- Do not create vague filler tasks like "find a thought leader quote" or "find an inspiring statistic"
 - Consolidate overlapping tasks — if two evidence needs can be served by one search, merge them
-- Prefer tasks that support conceptual clarity, mechanism accuracy, and beginner-friendly examples
-- For educational/concept-building sections, prioritize definitions and mechanism explanations over quotes
+- Every task must support a specific teaching point — ask yourself: "Will the writer use this to explain something more clearly?"
+- If the outline section already contains enough information for the writer to explain the concept, don't add redundant evidence tasks
 - Each section should have 2–5 tasks. Fewer is better if the section is simple.
 
 ## Output Format

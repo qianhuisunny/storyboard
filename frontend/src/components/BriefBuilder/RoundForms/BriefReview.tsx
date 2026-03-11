@@ -168,7 +168,7 @@ export default function BriefReview({
           </button>
         )}
         {isAlreadyApproved && (
-          <div className="flex-1 py-3 px-4 rounded-lg font-medium bg-[#EFF5F0] text-[#3D6B40] text-center border border-[#4A7A4D]/20">
+          <div className="flex-1 py-3 px-4 rounded-lg font-medium bg-[#E6F2EB] text-[#3A6B47] text-center border border-[#2D6A4F]/20">
             ✓ Brief Approved — Click "Video Outline" in the sidebar to continue
           </div>
         )}

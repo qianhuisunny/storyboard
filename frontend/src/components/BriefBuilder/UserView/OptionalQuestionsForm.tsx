@@ -182,7 +182,7 @@ export default function OptionalQuestionsForm({
                     isSkipped
                       ? "border-muted bg-muted/20"
                       : isAnswered
-                      ? "border-[#4A7A4D]/20 bg-[#EFF5F0]/50"
+                      ? "border-[#2D6A4F]/20 bg-[#E6F2EB]/50"
                       : "border-border"
                   )}
                 >
@@ -217,7 +217,7 @@ export default function OptionalQuestionsForm({
                       </span>
                     )}
                     {isAnswered && !isSkipped && (
-                      <span className="text-xs text-[#3D6B40]">Answered</span>
+                      <span className="text-xs text-[#3A6B47]">Answered</span>
                     )}
                   </button>
 

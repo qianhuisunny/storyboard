@@ -426,8 +426,8 @@ export function ResearchChat({
 
           {/* Error display */}
           {state.error && (
-            <div className="p-4 rounded-lg bg-[#FBF0ED] border border-[#A04030]/20">
-              <p className="text-sm text-[#A04030]">
+            <div className="p-4 rounded-lg bg-[#FBEAE8] border border-[#A63228]/20">
+              <p className="text-sm text-[#A63228]">
                 {state.error}
               </p>
             </div>
@@ -447,9 +447,9 @@ export function ResearchChat({
 
           {/* Complete state */}
           {state.status === "complete" && (
-            <div className="flex items-center gap-3 p-4 rounded-lg bg-[#EFF5F0] border border-[#4A7A4D]/20 my-4">
-              <Check className="w-5 h-5 text-[#3D6B40]" />
-              <span className="text-sm text-[#3D6B40]">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-[#E6F2EB] border border-[#2D6A4F]/20 my-4">
+              <Check className="w-5 h-5 text-[#3A6B47]" />
+              <span className="text-sm text-[#3A6B47]">
                 Research complete! Your Round 3 fields have been populated.
               </span>
             </div>

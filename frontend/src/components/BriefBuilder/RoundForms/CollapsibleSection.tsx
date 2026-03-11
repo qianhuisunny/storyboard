@@ -22,19 +22,19 @@ export default function CollapsibleSection({
   const [isExpanded, setIsExpanded] = useState(defaultExpanded);
 
   return (
-    <div className={cn("border rounded-lg overflow-hidden", completed ? "border-[#4A7A4D]/20" : "border-border")}>
+    <div className={cn("border rounded-lg overflow-hidden", completed ? "border-[#2D6A4F]/20" : "border-border")}>
       {/* Header - clickable to toggle */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
         className={cn(
           "w-full flex items-center justify-between px-4 py-3 text-left transition-colors",
-          completed ? "bg-[#EFF5F0] hover:bg-[#EFF5F0]" : "bg-muted/50 hover:bg-muted"
+          completed ? "bg-[#E6F2EB] hover:bg-[#E6F2EB]" : "bg-muted/50 hover:bg-muted"
         )}
       >
         <div className="flex items-center gap-3">
           {/* Status Icon */}
           {completed ? (
-            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#4A7A4D] text-white">
+            <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[#2D6A4F] text-white">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
               </svg>
@@ -53,13 +53,13 @@ export default function CollapsibleSection({
           )}
 
           {/* Title */}
-          <span className={cn("font-medium", completed ? "text-[#3D6B40]" : "text-foreground")}>
+          <span className={cn("font-medium", completed ? "text-[#3A6B47]" : "text-foreground")}>
             {title}
           </span>
 
           {/* Completed badge */}
           {completed && (
-            <span className="px-2 py-0.5 text-xs font-medium bg-[#EFF5F0] text-[#3D6B40] rounded">
+            <span className="px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide bg-[#E6F2EB] text-[#2D6A4F] rounded-full">
               Confirmed
             </span>
           )}

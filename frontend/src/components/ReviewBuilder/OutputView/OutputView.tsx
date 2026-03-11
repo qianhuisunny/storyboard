@@ -36,7 +36,7 @@ export default function OutputView({ screens }: OutputViewProps) {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-foreground mb-1 flex items-center gap-2">
-              <Code className="w-5 h-5 text-[#655340]" />
+              <Code className="w-5 h-5 text-[#3A6B47]" />
               Final Output (JSON)
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -97,27 +97,27 @@ export default function OutputView({ screens }: OutputViewProps) {
             </p>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-xs">
               <div className="p-2 bg-background rounded">
-                <span className="font-mono text-[#655340]">screen_number</span>
+                <span className="font-mono text-[#3A6B47]">screen_number</span>
                 <span className="text-muted-foreground ml-2">number</span>
               </div>
               <div className="p-2 bg-background rounded">
-                <span className="font-mono text-[#655340]">screen_type</span>
+                <span className="font-mono text-[#3A6B47]">screen_type</span>
                 <span className="text-muted-foreground ml-2">string</span>
               </div>
               <div className="p-2 bg-background rounded">
-                <span className="font-mono text-[#655340]">duration</span>
+                <span className="font-mono text-[#3A6B47]">duration</span>
                 <span className="text-muted-foreground ml-2">number</span>
               </div>
               <div className="p-2 bg-background rounded">
-                <span className="font-mono text-[#655340]">voiceover_text</span>
+                <span className="font-mono text-[#3A6B47]">voiceover_text</span>
                 <span className="text-muted-foreground ml-2">string</span>
               </div>
               <div className="p-2 bg-background rounded">
-                <span className="font-mono text-[#655340]">visual_direction</span>
+                <span className="font-mono text-[#3A6B47]">visual_direction</span>
                 <span className="text-muted-foreground ml-2">string | string[]</span>
               </div>
               <div className="p-2 bg-background rounded">
-                <span className="font-mono text-[#655340]">text_overlay</span>
+                <span className="font-mono text-[#3A6B47]">text_overlay</span>
                 <span className="text-muted-foreground ml-2">string?</span>
               </div>
             </div>

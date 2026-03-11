@@ -27,9 +27,9 @@ export function MobileDrawer({
       case "running":
         return <Search className="w-4 h-4 animate-pulse" />;
       case "complete":
-        return <CheckCircle2 className="w-4 h-4 text-[#3D6B40]" />;
+        return <CheckCircle2 className="w-4 h-4 text-[#3A6B47]" />;
       case "error":
-        return <AlertCircle className="w-4 h-4 text-[#A04030]" />;
+        return <AlertCircle className="w-4 h-4 text-[#A63228]" />;
       default:
         return <Search className="w-4 h-4 text-muted-foreground" />;
     }
@@ -57,9 +57,9 @@ export function MobileDrawer({
           variant="secondary"
           className={cn(
             "w-full rounded-none border-t h-12 justify-between px-4",
-            status === "running" && "bg-[#F5F0EA]",
-            status === "complete" && "bg-[#EFF5F0]",
-            status === "error" && "bg-[#FBF0ED]"
+            status === "running" && "bg-[#E8F0E9]",
+            status === "complete" && "bg-[#E6F2EB]",
+            status === "error" && "bg-[#FBEAE8]"
           )}
         >
           <div className="flex items-center gap-2">
@@ -101,7 +101,7 @@ export function MobileDrawer({
       {/* Overlay when drawer is open */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-[#2C2418]/20 z-20 md:hidden"
+          className="fixed inset-0 bg-[#1C2118]/20 z-20 md:hidden"
           onClick={onToggle}
         />
       )}

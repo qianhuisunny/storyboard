@@ -43,32 +43,32 @@ export function ResearchPanel({
         return {
           icon: <Search className="w-4 h-4 animate-pulse" />,
           text: "Round 1 research...",
-          color: "text-[#655340]",
+          color: "text-[#3A6B47]",
         };
       case "round1_complete":
         return {
           icon: <Search className="w-4 h-4 animate-pulse" />,
           text: "Starting Round 3...",
-          color: "text-[#655340]",
+          color: "text-[#3A6B47]",
         };
       case "round3_running":
         return {
           icon: <Search className="w-4 h-4 animate-pulse" />,
           text: "Round 3 research...",
-          color: "text-[#655340]",
+          color: "text-[#3A6B47]",
         };
       case "complete":
         return {
           icon: <CheckCircle2 className="w-4 h-4" />,
           text: "All research complete",
-          color: "text-[#3D6B40]",
+          color: "text-[#3A6B47]",
         };
       default:
         if (error) {
           return {
             icon: <AlertCircle className="w-4 h-4" />,
             text: "Error occurred",
-            color: "text-[#A04030]",
+            color: "text-[#A63228]",
           };
         }
         return {
@@ -106,12 +106,12 @@ export function ResearchPanel({
         <div className="p-4 space-y-4">
           {/* Error state */}
           {error && (
-            <div className="p-4 rounded-lg bg-[#FBF0ED] border border-[#A04030]/30">
+            <div className="p-4 rounded-lg bg-[#FBEAE8] border border-[#A63228]/30">
               <div className="flex items-start gap-2">
-                <AlertCircle className="w-5 h-5 text-[#A04030] flex-shrink-0 mt-0.5" />
+                <AlertCircle className="w-5 h-5 text-[#A63228] flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-medium text-[#A04030]">Research Error</p>
-                  <p className="text-sm text-[#A04030] mt-1">{error}</p>
+                  <p className="text-sm font-medium text-[#A63228]">Research Error</p>
+                  <p className="text-sm text-[#A63228] mt-1">{error}</p>
                 </div>
               </div>
             </div>
@@ -137,15 +137,15 @@ export function ResearchPanel({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 {isRound1Complete ? (
-                  <CheckCircle2 className="w-4 h-4 text-[#3D6B40]" />
+                  <CheckCircle2 className="w-4 h-4 text-[#3A6B47]" />
                 ) : isRound1Running ? (
-                  <Search className="w-4 h-4 text-[#655340] animate-pulse" />
+                  <Search className="w-4 h-4 text-[#3A6B47] animate-pulse" />
                 ) : (
                   <Clock className="w-4 h-4 text-muted-foreground" />
                 )}
                 <span className={cn(
                   "text-sm font-medium",
-                  isRound1Complete ? "text-[#3D6B40]" : isRound1Running ? "text-[#655340]" : "text-muted-foreground"
+                  isRound1Complete ? "text-[#3A6B47]" : isRound1Running ? "text-[#3A6B47]" : "text-muted-foreground"
                 )}>
                   Round 1 Research
                   {isRound1Complete && " ✓"}
@@ -171,15 +171,15 @@ export function ResearchPanel({
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 {isRound3Complete ? (
-                  <CheckCircle2 className="w-4 h-4 text-[#3D6B40]" />
+                  <CheckCircle2 className="w-4 h-4 text-[#3A6B47]" />
                 ) : isRound3Running ? (
-                  <Search className="w-4 h-4 text-[#655340] animate-pulse" />
+                  <Search className="w-4 h-4 text-[#3A6B47] animate-pulse" />
                 ) : (
                   <Clock className="w-4 h-4 text-muted-foreground" />
                 )}
                 <span className={cn(
                   "text-sm font-medium",
-                  isRound3Complete ? "text-[#3D6B40]" : isRound3Running ? "text-[#655340]" : "text-muted-foreground"
+                  isRound3Complete ? "text-[#3A6B47]" : isRound3Running ? "text-[#3A6B47]" : "text-muted-foreground"
                 )}>
                   Round 3 Research
                   {isRound3Complete && " ✓"}
@@ -203,7 +203,7 @@ export function ResearchPanel({
           {/* Combined findings - show when complete */}
           {researchPhase === "complete" && findings && (
             <div className="mt-4 pt-4 border-t">
-              <div className="flex items-center gap-2 text-[#3D6B40] mb-3">
+              <div className="flex items-center gap-2 text-[#3A6B47] mb-3">
                 <CheckCircle2 className="w-4 h-4" />
                 <span className="text-sm font-medium">
                   All research complete ({(round1Events.length || 0) + (round3Events.length || 0)} total queries)

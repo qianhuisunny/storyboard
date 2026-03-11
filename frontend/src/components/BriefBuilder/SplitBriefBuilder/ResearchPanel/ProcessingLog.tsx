@@ -70,24 +70,24 @@ function LogEntry({ entry }: { entry: ProcessingLogEntry }) {
       className={cn(
         "rounded-lg border p-3 space-y-2",
         isRequest
-          ? "border-[#7C6A56]/20 bg-[#F5F0EA]/50"
-          : "border-[#4A7A4D]/20 bg-[#EFF5F0]/50"
+          ? "border-[#5A6352]/20 bg-[#E8F0E9]/50"
+          : "border-[#2D6A4F]/20 bg-[#E6F2EB]/50"
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isRequest ? (
-            <ArrowUpCircle className="w-4 h-4 text-[#655340]" />
+            <ArrowUpCircle className="w-4 h-4 text-[#3A6B47]" />
           ) : (
-            <ArrowDownCircle className="w-4 h-4 text-[#3D6B40]" />
+            <ArrowDownCircle className="w-4 h-4 text-[#3A6B47]" />
           )}
           <span
             className={cn(
               "text-sm font-medium",
               isRequest
-                ? "text-[#655340]"
-                : "text-[#3D6B40]"
+                ? "text-[#3A6B47]"
+                : "text-[#3A6B47]"
             )}
           >
             {entry.phase}() - {isRequest ? "Request" : "Response"}
@@ -205,7 +205,7 @@ export function ProcessingLog({
           <h2 className="text-lg font-semibold">Processing</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Cpu
-              className={cn("w-4 h-4", isPolling && "animate-pulse text-[#655340]")}
+              className={cn("w-4 h-4", isPolling && "animate-pulse text-[#3A6B47]")}
             />
             <span>{entries.length} events</span>
           </div>
@@ -239,7 +239,7 @@ export function ProcessingLog({
       {/* Footer */}
       {isPolling && (
         <div className="p-3 border-t bg-background text-xs text-muted-foreground flex items-center gap-2">
-          <Cpu className="w-3 h-3 animate-pulse text-[#655340]" />
+          <Cpu className="w-3 h-3 animate-pulse text-[#3A6B47]" />
           Listening for processing events...
         </div>
       )}

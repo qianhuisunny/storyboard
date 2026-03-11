@@ -66,18 +66,18 @@ export default function UserView({
         },
         header: {
           marginBottom: 30,
-          borderBottom: "2px solid #E8E0D4",
+          borderBottom: "2px solid #D9DDD2",
           paddingBottom: 15,
         },
         title: {
           fontSize: 24,
           fontWeight: "bold",
-          color: "#2C2418",
+          color: "#1C2118",
           marginBottom: 8,
         },
         subtitle: {
           fontSize: 12,
-          color: "#716453",
+          color: "#5A6352",
         },
         statsRow: {
           flexDirection: "row",
@@ -86,11 +86,11 @@ export default function UserView({
         },
         stat: {
           fontSize: 10,
-          color: "#716453",
+          color: "#5A6352",
         },
         card: {
           marginBottom: 20,
-          border: "1px solid #E8E0D4",
+          border: "1px solid #D9DDD2",
           borderRadius: 8,
           overflow: "hidden",
         },
@@ -98,14 +98,14 @@ export default function UserView({
           flexDirection: "row",
           alignItems: "center",
           padding: 12,
-          backgroundColor: "#F5F0EA",
-          borderBottom: "1px solid #E8E0D4",
+          backgroundColor: "#E8F0E9",
+          borderBottom: "1px solid #D9DDD2",
         },
         screenNumber: {
           width: 28,
           height: 28,
           borderRadius: 14,
-          backgroundColor: "#655340",
+          backgroundColor: "#3A6B47",
           color: "#ffffff",
           fontSize: 14,
           fontWeight: "bold",
@@ -116,13 +116,13 @@ export default function UserView({
         screenType: {
           fontSize: 10,
           fontWeight: "bold",
-          color: "#655340",
+          color: "#3A6B47",
           textTransform: "uppercase",
         },
         duration: {
           marginLeft: "auto",
           fontSize: 10,
-          color: "#716453",
+          color: "#5A6352",
         },
         cardBody: {
           padding: 15,
@@ -133,23 +133,23 @@ export default function UserView({
         sectionLabel: {
           fontSize: 8,
           fontWeight: "bold",
-          color: "#716453",
+          color: "#5A6352",
           textTransform: "uppercase",
           letterSpacing: 0.5,
           marginBottom: 4,
         },
         sectionContent: {
           fontSize: 11,
-          color: "#2C2418",
+          color: "#1C2118",
           lineHeight: 1.5,
         },
         voiceoverBox: {
-          backgroundColor: "#F5F0EA",
+          backgroundColor: "#E8F0E9",
           padding: 10,
           borderRadius: 4,
         },
         visualDirection: {
-          backgroundColor: "#F5F0EA",
+          backgroundColor: "#E8F0E9",
           padding: 10,
           borderRadius: 4,
         },
@@ -160,12 +160,12 @@ export default function UserView({
         bullet: {
           width: 15,
           fontSize: 11,
-          color: "#655340",
+          color: "#3A6B47",
         },
         bulletText: {
           flex: 1,
           fontSize: 11,
-          color: "#2C2418",
+          color: "#1C2118",
         },
         footer: {
           position: "absolute",
@@ -174,8 +174,8 @@ export default function UserView({
           right: 40,
           textAlign: "center",
           fontSize: 9,
-          color: "#716453",
-          borderTop: "1px solid #E8E0D4",
+          color: "#5A6352",
+          borderTop: "1px solid #D9DDD2",
           paddingTop: 10,
         },
       });
@@ -315,7 +315,7 @@ export default function UserView({
               <span className={cn(
                 "text-xs px-2 py-1 rounded flex items-center gap-1",
                 saveStatus === "saving" && "text-muted-foreground",
-                saveStatus === "saved" && "text-[#3D6B40] bg-[#EFF5F0]"
+                saveStatus === "saved" && "text-[#3A6B47] bg-[#E6F2EB]"
               )}>
                 {saveStatus === "saving" && <Loader2 className="w-3 h-3 animate-spin" />}
                 {saveStatus === "saved" && <Check className="w-3 h-3" />}
@@ -402,7 +402,7 @@ export default function UserView({
         </div>
         <button
           onClick={onExport}
-          className="px-4 py-2 bg-[#4A7A4D] text-white rounded-lg hover:bg-[#4A7A4D] transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-[#2D6A4F] text-white rounded-lg hover:bg-[#2D6A4F] transition-colors flex items-center gap-2"
         >
           <Check className="w-4 h-4" />
           Mark as Complete

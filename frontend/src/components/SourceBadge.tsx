@@ -26,20 +26,20 @@ const sourceConfig: Record<
   user_input: {
     icon: FileText,
     label: "Your Input",
-    bgColor: "bg-[#F5F0EA]",
-    textColor: "text-[#655340]",
+    bgColor: "bg-[#E8F0E9]",
+    textColor: "text-[#3A6B47]",
   },
   web_search: {
     icon: Search,
     label: "Web Search",
-    bgColor: "bg-[#F5F0EA]",
-    textColor: "text-[#716453]",
+    bgColor: "bg-[#E8F0E9]",
+    textColor: "text-[#5A6352]",
   },
   ai_generated: {
     icon: Sparkles,
     label: "AI Generated",
-    bgColor: "bg-[#FBF6ED]",
-    textColor: "text-[#8B6B2A]",
+    bgColor: "bg-[#F7F0E0]",
+    textColor: "text-[#7A5C1E]",
   },
 };
 

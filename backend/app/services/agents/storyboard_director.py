@@ -20,7 +20,7 @@ class StoryboardDirector(BaseAgent):
             evidence needed, research queries, visual intent)
     """
 
-    prompt_file = "storyboard_director_prompt_v0311.md"
+    prompt_file = "storyboard_director_prompt_v0309.md"
 
     def _extract_brief_field(self, story_brief: dict, field_name: str, default=None):
         """

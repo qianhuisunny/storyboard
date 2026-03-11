@@ -54,7 +54,7 @@ export function ChatPanel({
             Step {turn} of 4
           </span>
           {turnState.status === "confirmed" && (
-            <span className="text-xs text-[#3D6B40]">Confirmed</span>
+            <span className="text-xs text-[#3A6B47]">Confirmed</span>
           )}
         </div>
 
@@ -148,8 +148,8 @@ export function ChatPanel({
 
           {/* Error display */}
           {state.error && (
-            <div className="py-4 px-4 bg-[#FBF0ED] border-t border-[#A04030]/30">
-              <p className="text-sm text-[#A04030]">{state.error}</p>
+            <div className="py-4 px-4 bg-[#FBEAE8] border-t border-[#A63228]/30">
+              <p className="text-sm text-[#A63228]">{state.error}</p>
             </div>
           )}
         </div>
