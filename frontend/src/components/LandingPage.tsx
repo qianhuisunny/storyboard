@@ -19,7 +19,7 @@ export default function LandingPage() {
         </h1>
 
         <p className="text-lg text-muted-foreground mb-8 max-w-2xl mx-auto">
-          Transform your ideas into detailed storyboards with AI assistance.
+          Turn briefs into production-ready storyboards in minutes.
           Perfect for instructional designers, video creators, and content teams.
         </p>
 
@@ -82,23 +82,23 @@ export default function LandingPage() {
         {/* Legend */}
         <div className="flex flex-wrap justify-center gap-4 mb-10 text-xs">
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-blue-100 border border-blue-300" />
+            <div className="w-3 h-3 rounded-sm bg-[#F5F0EA] border border-[#E8E0D4]" />
             <span className="text-muted-foreground">HUMAN JUDGMENT</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-emerald-100 border border-emerald-300" />
+            <div className="w-3 h-3 rounded-sm bg-[#EFF5F0] border border-[#5E8C61]" />
             <span className="text-muted-foreground">AI EXECUTION</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-amber-100 border border-amber-300" />
+            <div className="w-3 h-3 rounded-sm bg-[#FBF6ED] border border-[#C4963C]" />
             <span className="text-muted-foreground">HUMAN GATING</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-cyan-50 border border-cyan-200" />
+            <div className="w-3 h-3 rounded-sm bg-[#F5F0EA] border border-[#E8E0D4]" />
             <span className="text-muted-foreground">CODIFIED EXPERTISE</span>
           </div>
           <div className="flex items-center gap-1.5">
-            <div className="w-3 h-3 rounded-sm bg-rose-50 border border-rose-200" />
+            <div className="w-3 h-3 rounded-sm bg-[#FBF0ED] border border-[#C4644A]" />
             <span className="text-muted-foreground">CAPTURE DRIFT</span>
           </div>
         </div>
@@ -108,9 +108,9 @@ export default function LandingPage() {
           {/* Step 1: Human Strategize */}
           <div className="flex items-start gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-blue-700 mb-1">Human Strategize</h4>
-                <p className="text-xs text-blue-600">Define objectives, audience & quality criteria</p>
+              <div className="bg-[#F5F0EA] border border-[#E8E0D4] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#7C6A56] mb-1">Human Strategize</h4>
+                <p className="text-xs text-[#7C6A56]">Define objectives, audience & quality criteria</p>
               </div>
             </div>
           </div>
@@ -121,24 +121,24 @@ export default function LandingPage() {
           {/* Step 2: AI Outline */}
           <div className="flex items-center gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-emerald-700 mb-1">AI Scales the Writing</h4>
-                <p className="text-xs text-emerald-600">Outline</p>
+              <div className="bg-[#EFF5F0] border border-[#5E8C61] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#5E8C61] mb-1">AI Scales the Writing</h4>
+                <p className="text-xs text-[#5E8C61]">Outline</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-gray-400">←</span>
-              <div className="flex items-center gap-2 bg-cyan-50 border border-cyan-200 rounded-lg px-3 py-2">
-                <FileText className="w-4 h-4 text-cyan-600" />
+              <div className="flex items-center gap-2 bg-[#F5F0EA] border border-[#E8E0D4] rounded-lg px-3 py-2">
+                <FileText className="w-4 h-4 text-[#9C8E7C]" />
                 <div className="text-left">
-                  <p className="text-xs font-medium text-cyan-700">Codified Expertise</p>
-                  <p className="text-xs text-cyan-600">in Writing Outline</p>
-                  <p className="text-[10px] text-cyan-500">Structure, pacing, depth</p>
+                  <p className="text-xs font-medium text-[#9C8E7C]">Codified Expertise</p>
+                  <p className="text-xs text-[#9C8E7C]">in Writing Outline</p>
+                  <p className="text-[10px] text-[#9C8E7C]">Structure, pacing, depth</p>
                 </div>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-2 text-rose-500 text-xs">
-              <span className="border-t border-dashed border-rose-300 w-8" />
+            <div className="hidden md:flex items-center gap-2 text-[#C4644A] text-xs">
+              <span className="border-t border-dashed border-[#C4644A] w-8" />
               <span>THE SYSTEM GETS SMARTER OVER TIME</span>
             </div>
           </div>
@@ -149,19 +149,19 @@ export default function LandingPage() {
           {/* Step 3: Human Gate */}
           <div className="flex items-center gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-amber-700 mb-1">Human Gate</h4>
+              <div className="bg-[#FBF6ED] border border-[#C4963C] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#C4963C] mb-1">Human Gate</h4>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-100 rounded-lg px-3 py-2">
-              <Check className="w-4 h-4 text-amber-600" />
-              <p className="text-xs text-amber-700">Review AI output against quality criteria</p>
+            <div className="flex items-center gap-2 bg-[#FBF6ED]/50 border border-[#C4963C] rounded-lg px-3 py-2">
+              <Check className="w-4 h-4 text-[#C4963C]" />
+              <p className="text-xs text-[#C4963C]">Review AI output against quality criteria</p>
             </div>
-            <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
-              <RefreshCw className="w-4 h-4 text-rose-500" />
+            <div className="flex items-center gap-2 bg-[#FBF0ED] border border-[#C4644A] rounded-lg px-3 py-2">
+              <RefreshCw className="w-4 h-4 text-[#C4644A]" />
               <div className="text-left">
-                <p className="text-xs text-rose-600">Capture what drifted → write</p>
-                <p className="text-xs text-rose-600">corrections back into AI guidance</p>
+                <p className="text-xs text-[#C4644A]">Capture what drifted → write</p>
+                <p className="text-xs text-[#C4644A]">corrections back into AI guidance</p>
               </div>
             </div>
           </div>
@@ -172,24 +172,24 @@ export default function LandingPage() {
           {/* Step 4: AI Content */}
           <div className="flex items-center gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-emerald-700 mb-1">AI Scales the Writing</h4>
-                <p className="text-xs text-emerald-600">Content</p>
+              <div className="bg-[#EFF5F0] border border-[#5E8C61] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#5E8C61] mb-1">AI Scales the Writing</h4>
+                <p className="text-xs text-[#5E8C61]">Content</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <span className="text-gray-400">←</span>
-              <div className="flex items-center gap-2 bg-cyan-50 border border-cyan-200 rounded-lg px-3 py-2">
-                <FileText className="w-4 h-4 text-cyan-600" />
+              <div className="flex items-center gap-2 bg-[#F5F0EA] border border-[#E8E0D4] rounded-lg px-3 py-2">
+                <FileText className="w-4 h-4 text-[#9C8E7C]" />
                 <div className="text-left">
-                  <p className="text-xs font-medium text-cyan-700">Codified Expertise</p>
-                  <p className="text-xs text-cyan-600">in Writing Content</p>
-                  <p className="text-[10px] text-cyan-500">Tone, accuracy, examples</p>
+                  <p className="text-xs font-medium text-[#9C8E7C]">Codified Expertise</p>
+                  <p className="text-xs text-[#9C8E7C]">in Writing Content</p>
+                  <p className="text-[10px] text-[#9C8E7C]">Tone, accuracy, examples</p>
                 </div>
               </div>
             </div>
-            <div className="hidden md:flex items-center gap-2 text-rose-500 text-xs">
-              <span className="border-t border-dashed border-rose-300 w-8" />
+            <div className="hidden md:flex items-center gap-2 text-[#C4644A] text-xs">
+              <span className="border-t border-dashed border-[#C4644A] w-8" />
               <span>THE SYSTEM GETS SMARTER OVER TIME</span>
             </div>
           </div>
@@ -200,19 +200,19 @@ export default function LandingPage() {
           {/* Step 5: Human Gate */}
           <div className="flex items-center gap-6 mb-2">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-amber-700 mb-1">Human Gate</h4>
+              <div className="bg-[#FBF6ED] border border-[#C4963C] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#C4963C] mb-1">Human Gate</h4>
               </div>
             </div>
-            <div className="flex items-center gap-2 bg-amber-50/50 border border-amber-100 rounded-lg px-3 py-2">
-              <Check className="w-4 h-4 text-amber-600" />
-              <p className="text-xs text-amber-700">Review AI output against quality criteria</p>
+            <div className="flex items-center gap-2 bg-[#FBF6ED]/50 border border-[#C4963C] rounded-lg px-3 py-2">
+              <Check className="w-4 h-4 text-[#C4963C]" />
+              <p className="text-xs text-[#C4963C]">Review AI output against quality criteria</p>
             </div>
-            <div className="flex items-center gap-2 bg-rose-50 border border-rose-200 rounded-lg px-3 py-2">
-              <RefreshCw className="w-4 h-4 text-rose-500" />
+            <div className="flex items-center gap-2 bg-[#FBF0ED] border border-[#C4644A] rounded-lg px-3 py-2">
+              <RefreshCw className="w-4 h-4 text-[#C4644A]" />
               <div className="text-left">
-                <p className="text-xs text-rose-600">Capture what drifted → write</p>
-                <p className="text-xs text-rose-600">corrections back into AI guidance</p>
+                <p className="text-xs text-[#C4644A]">Capture what drifted → write</p>
+                <p className="text-xs text-[#C4644A]">corrections back into AI guidance</p>
               </div>
             </div>
           </div>
@@ -223,9 +223,9 @@ export default function LandingPage() {
           {/* Step 6: Final Version */}
           <div className="flex items-start gap-6">
             <div className="flex-1 max-w-[220px]">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
-                <h4 className="font-semibold text-blue-700 mb-1">Final Version</h4>
-                <p className="text-xs text-blue-600">Ready to publish</p>
+              <div className="bg-[#F5F0EA] border border-[#E8E0D4] rounded-lg p-4 text-center">
+                <h4 className="font-semibold text-[#7C6A56] mb-1">Final Version</h4>
+                <p className="text-xs text-[#7C6A56]">Ready to publish</p>
               </div>
             </div>
           </div>
@@ -234,8 +234,8 @@ export default function LandingPage() {
         {/* Bottom Note */}
         <div className="mt-10 flex justify-center">
           <div className="inline-flex items-center gap-2 bg-muted/50 border border-border rounded-lg px-4 py-2">
-            <FileText className="w-4 h-4 text-emerald-600" />
-            <span className="text-sm font-medium text-emerald-700">These Guidance Docs Are a Team Asset</span>
+            <FileText className="w-4 h-4 text-[#5E8C61]" />
+            <span className="text-sm font-medium text-[#5E8C61]">These Guidance Docs Are a Team Asset</span>
           </div>
         </div>
       </div>
