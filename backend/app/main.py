@@ -2177,3 +2177,47 @@ async def ingest_gold_set_endpoint(request: Request):
         return {"success": True, "slug": result["slug"], "gold_set": result["gold_set"]}
     except Exception as e:
         return JSONResponse({"success": False, "detail": str(e)}, status_code=500)
+
+
+# --- Batch eval endpoints ---
+
+@app.post("/api/eval/batch")
+async def start_batch_eval(request: Request):
+    """Kick off batch evaluation in background."""
+    from app.services.eval_batch import get_batch_status, run_batch_eval
+    import asyncio
+
+    status = get_batch_status()
+    if status["status"] == "running":
+        return {"success": True, "message": "Batch already running", "status": status}
+
+    body = {}
+    try:
+        body = await request.json()
+    except Exception:
+        pass  # empty body = run all
+
+    names = body.get("names", None)  # None = all gold sets
+    force = body.get("force", False)
+
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, lambda: run_batch_eval(names=names, force=force))
+
+    return {"success": True, "message": "Batch eval started"}
+
+
+@app.get("/api/eval/batch/status")
+async def batch_eval_status():
+    """Poll batch eval progress."""
+    from app.services.eval_batch import get_batch_status
+    return get_batch_status()
+
+
+@app.get("/api/eval/batch/report")
+async def batch_eval_report():
+    """Return latest batch report."""
+    from app.services.eval_batch import get_batch_report
+    report = get_batch_report()
+    if report is None:
+        return {"success": False, "detail": "No batch report available"}
+    return {"success": True, "report": report}
