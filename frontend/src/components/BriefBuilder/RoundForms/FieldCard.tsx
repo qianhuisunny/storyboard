@@ -17,28 +17,12 @@ interface FieldCardProps {
   disabled?: boolean;
 }
 
-// Subtle design: neutral cards, only badges have color
-const COLOR_CLASSES: Record<FieldColor, { badge: string; border: string; bg: string }> = {
-  green: {
-    badge: "bg-[#4A7A4D] text-white",
-    border: "border-border",
-    bg: "bg-background",
-  },
-  blue: {
-    badge: "bg-[#655340] text-white",
-    border: "border-border",
-    bg: "bg-background",
-  },
-  yellow: {
-    badge: "bg-[#9B7730] text-white",
-    border: "border-border",
-    bg: "bg-background",
-  },
-  red: {
-    badge: "bg-[#A04030] text-white",
-    border: "border-border",
-    bg: "bg-background",
-  },
+// Badge inline styles by color
+const BADGE_COLORS: Record<FieldColor, { background: string; color: string }> = {
+  green: { background: "#E6F2EB", color: "#2D6A4F" },
+  blue: { background: "#E6EFF7", color: "#2E5F8A" },
+  yellow: { background: "#F7F0E0", color: "#7A5C1E" },
+  red: { background: "#F7F0E0", color: "#7A5C1E" },
 };
 
 const COLOR_LABELS: Record<FieldColor, string> = {
@@ -47,6 +31,20 @@ const COLOR_LABELS: Record<FieldColor, string> = {
   yellow: "AI Suggested",
   red: "Needs Input",
 };
+
+// Shared input styles
+const inputStyle: React.CSSProperties = {
+  fontSize: "13.5px",
+  color: "#1C2118",
+  background: "#F3F5F0",
+  border: "1px solid #D9DDD2",
+  borderRadius: "6px",
+  padding: "9px 12px",
+  width: "100%",
+  fontFamily: "'Nunito', sans-serif",
+};
+
+const inputClassName = "focus:border-[#3A6B47] focus:shadow-[0_0_0_3px_rgba(58,107,71,0.1)] outline-none";
 
 export default function FieldCard({
   fieldKey,
@@ -58,7 +56,6 @@ export default function FieldCard({
   disabled = false,
 }: FieldCardProps) {
   const color = getFieldColor(field, isRequired);
-  const colorClasses = COLOR_CLASSES[color];
   const label = KNOWLEDGE_SHARE_FIELD_LABELS[fieldKey] || fieldKey;
   const fieldType = KNOWLEDGE_SHARE_FIELD_TYPES[fieldKey] || "text";
   const options = KNOWLEDGE_SHARE_OPTIONS[fieldKey] || [];
@@ -79,10 +76,14 @@ export default function FieldCard({
   })();
 
   const renderInput = () => {
+    const disabledStyle: React.CSSProperties = (disabled || field.confirmed)
+      ? { background: "#EEF1E9", cursor: "not-allowed" }
+      : {};
+
     // Read-only fields
     if (fieldType === "readonly") {
       return (
-        <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded">
+        <div style={{ ...inputStyle, ...disabledStyle }}>
           {String(field.value) || "—"}
         </div>
       );
@@ -92,7 +93,7 @@ export default function FieldCard({
     if (fieldType === "readonly-list") {
       const items = Array.isArray(field.value) ? field.value : [];
       return (
-        <div className="text-sm text-muted-foreground bg-muted px-3 py-2 rounded">
+        <div style={{ ...inputStyle, ...disabledStyle }}>
           {items.length > 0 ? items.join(", ") : "No assets uploaded"}
         </div>
       );
@@ -105,11 +106,8 @@ export default function FieldCard({
           value={String(field.value) || ""}
           onChange={(e) => handleValueChange(e.target.value)}
           disabled={disabled || field.confirmed}
-          className={cn(
-            "w-full px-3 py-2 text-sm border rounded-md resize-none",
-            "focus:outline-none focus:ring-2 focus:ring-primary/20",
-            disabled || field.confirmed ? "bg-muted cursor-not-allowed" : "bg-background"
-          )}
+          className={cn(inputClassName, (disabled || field.confirmed) && "cursor-not-allowed")}
+          style={{ ...inputStyle, ...disabledStyle, minHeight: "70px", resize: "vertical" as const }}
           rows={3}
           placeholder={`Enter ${label.toLowerCase()}...`}
         />
@@ -123,11 +121,8 @@ export default function FieldCard({
           value={String(field.value) || ""}
           onChange={(e) => handleValueChange(e.target.value)}
           disabled={disabled || field.confirmed}
-          className={cn(
-            "w-full px-3 py-2 text-sm border rounded-md",
-            "focus:outline-none focus:ring-2 focus:ring-primary/20",
-            disabled || field.confirmed ? "bg-muted cursor-not-allowed" : "bg-background"
-          )}
+          className={cn(inputClassName, (disabled || field.confirmed) && "cursor-not-allowed")}
+          style={{ ...inputStyle, ...disabledStyle }}
         >
           <option value="">Select...</option>
           {options.map((opt) => (
@@ -148,12 +143,17 @@ export default function FieldCard({
             <label
               key={opt.value}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 text-sm border rounded-md cursor-pointer",
-                selectedValues.includes(opt.value)
-                  ? "bg-primary/10 border-primary"
-                  : "bg-background border-border",
+                "flex items-center gap-2 cursor-pointer",
                 (disabled || field.confirmed) && "opacity-50 cursor-not-allowed"
               )}
+              style={{
+                ...inputStyle,
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                borderColor: selectedValues.includes(opt.value) ? "#3A6B47" : "#D9DDD2",
+                background: selectedValues.includes(opt.value) ? "#E8F0E9" : "#F3F5F0",
+              }}
             >
               <input
                 type="checkbox"
@@ -191,11 +191,8 @@ export default function FieldCard({
                   handleValueChange(newItems);
                 }}
                 disabled={disabled || field.confirmed}
-                className={cn(
-                  "flex-1 px-3 py-2 text-sm border rounded-md",
-                  "focus:outline-none focus:ring-2 focus:ring-primary/20",
-                  disabled || field.confirmed ? "bg-muted cursor-not-allowed" : "bg-background"
-                )}
+                className={cn(inputClassName, "flex-1", (disabled || field.confirmed) && "cursor-not-allowed")}
+                style={{ ...inputStyle, ...disabledStyle }}
               />
               {!field.confirmed && !disabled && (
                 <button
@@ -231,10 +228,10 @@ export default function FieldCard({
             <label
               key={index}
               className={cn(
-                "flex items-center gap-2 px-3 py-2 text-sm border rounded-md cursor-pointer",
-                "bg-background border-border",
+                "flex items-center gap-2 cursor-pointer",
                 (disabled || field.confirmed) && "opacity-50 cursor-not-allowed"
               )}
+              style={{ ...inputStyle, display: "flex", alignItems: "center", gap: "8px" }}
             >
               <input
                 type="checkbox"
@@ -270,11 +267,8 @@ export default function FieldCard({
               }
             }}
             disabled={disabled || field.confirmed}
-            className={cn(
-              "w-full px-3 py-2 text-sm border rounded-md",
-              "focus:outline-none focus:ring-2 focus:ring-primary/20",
-              disabled || field.confirmed ? "bg-muted cursor-not-allowed" : "bg-background"
-            )}
+            className={cn(inputClassName, (disabled || field.confirmed) && "cursor-not-allowed")}
+            style={{ ...inputStyle, ...disabledStyle }}
           >
             <option value="">Select format...</option>
             {options.map((opt) => (
@@ -289,11 +283,8 @@ export default function FieldCard({
             onChange={(e) => handleValueChange(e.target.value)}
             disabled={disabled || field.confirmed}
             placeholder="Customize the takeaway..."
-            className={cn(
-              "w-full px-3 py-2 text-sm border rounded-md",
-              "focus:outline-none focus:ring-2 focus:ring-primary/20",
-              disabled || field.confirmed ? "bg-muted cursor-not-allowed" : "bg-background"
-            )}
+            className={cn(inputClassName, (disabled || field.confirmed) && "cursor-not-allowed")}
+            style={{ ...inputStyle, ...disabledStyle }}
           />
         </div>
       );
@@ -320,11 +311,8 @@ export default function FieldCard({
               }
             }}
             disabled={disabled || field.confirmed}
-            className={cn(
-              "w-32 px-3 py-2 text-sm border rounded-md",
-              "focus:outline-none focus:ring-2 focus:ring-primary/20",
-              disabled || field.confirmed ? "bg-muted cursor-not-allowed" : "bg-background"
-            )}
+            className={cn(inputClassName, (disabled || field.confirmed) && "cursor-not-allowed")}
+            style={{ ...inputStyle, ...disabledStyle, width: "8rem" }}
             placeholder="e.g., 60"
           />
           <span className="text-sm text-muted-foreground">seconds</span>
@@ -339,52 +327,104 @@ export default function FieldCard({
         value={String(field.value) || ""}
         onChange={(e) => handleValueChange(e.target.value)}
         disabled={disabled || field.confirmed}
-        className={cn(
-          "w-full px-3 py-2 text-sm border rounded-md",
-          "focus:outline-none focus:ring-2 focus:ring-primary/20",
-          disabled || field.confirmed ? "bg-muted cursor-not-allowed" : "bg-background"
-        )}
+        className={cn(inputClassName, (disabled || field.confirmed) && "cursor-not-allowed")}
+        style={{ ...inputStyle, ...disabledStyle }}
         placeholder={`Enter ${label.toLowerCase()}...`}
       />
     );
   };
 
   return (
-    <div className={cn("rounded-lg border p-4", colorClasses.border, colorClasses.bg)}>
-      {/* Header */}
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span className={cn("px-2 py-0.5 text-xs font-medium rounded", colorClasses.badge)}>
+    <div
+      className={cn(
+        "border transition-colors hover:border-[#BFC6B5]",
+        color === "green" ? "border-[#A8CBAF] bg-[#F7FBF7]" : "border-[#D9DDD2] bg-[#FAFBF8]"
+      )}
+      style={{ borderRadius: "10px", padding: "15px 18px" }}
+    >
+      {/* Header — label + badges on left, confirm button on right */}
+      <div className="flex items-center justify-between" style={{ marginBottom: "10px", gap: "10px" }}>
+        <div className="flex items-center gap-2 flex-wrap">
+          <span style={{ fontSize: "13px", fontWeight: 600, color: "#1C2118" }}>{label}</span>
+          <span
+            style={{
+              fontSize: "10px",
+              fontWeight: 700,
+              letterSpacing: "0.3px",
+              padding: "2px 7px",
+              borderRadius: "20px",
+              textTransform: "uppercase" as const,
+              background: BADGE_COLORS[color].background,
+              color: BADGE_COLORS[color].color,
+            }}
+          >
             {COLOR_LABELS[color]}
           </span>
-          {isRequired && !field.confirmed && !hasContent && (
-            <span className="text-xs text-destructive">*Required</span>
+          {isRequired && (
+            <span
+              style={{
+                fontSize: "10px",
+                fontWeight: 700,
+                letterSpacing: "0.3px",
+                padding: "2px 7px",
+                borderRadius: "20px",
+                textTransform: "uppercase" as const,
+                background: "transparent",
+                color: "#8D9885",
+                border: "1px solid #BFC6B5",
+              }}
+            >
+              Required
+            </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-shrink-0">
           {/* Edit button for confirmed fields */}
           {field.confirmed && !disabled && onUnconfirm && fieldType !== "readonly" && fieldType !== "readonly-list" && (
             <button
               onClick={onUnconfirm}
-              className="px-3 py-1 text-xs font-medium text-muted-foreground border border-border rounded hover:bg-muted transition-colors"
+              className="px-3 py-1 text-xs font-semibold text-muted-foreground border border-border rounded-md hover:bg-muted transition-colors"
             >
               Edit
             </button>
           )}
-          {/* Confirm button - only show if field has content */}
-          {!field.confirmed && !disabled && fieldType !== "readonly" && fieldType !== "readonly-list" && hasContent && (
+          {/* Confirm button — outline green, fills on hover */}
+          {!field.confirmed && !disabled && fieldType !== "readonly" && fieldType !== "readonly-list" && (
             <button
               onClick={onConfirm}
-              className="px-3 py-1 text-xs font-medium text-primary border border-primary rounded hover:bg-primary hover:text-primary-foreground transition-colors"
+              disabled={!hasContent}
+              className="transition-all flex-shrink-0"
+              style={{
+                fontSize: "12px",
+                fontWeight: 600,
+                color: hasContent ? "#3A6B47" : "#8D9885",
+                background: hasContent ? "#E8F0E9" : "#EEF1E9",
+                border: hasContent ? "1px solid #A8C8AD" : "1px solid #D9DDD2",
+                padding: "5px 13px",
+                borderRadius: "6px",
+                cursor: hasContent ? "pointer" : "not-allowed",
+                opacity: hasContent ? 1 : 0.5,
+              }}
+              onMouseEnter={(e) => {
+                if (hasContent) {
+                  e.currentTarget.style.background = "#3A6B47";
+                  e.currentTarget.style.borderColor = "#3A6B47";
+                  e.currentTarget.style.color = "white";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (hasContent) {
+                  e.currentTarget.style.background = "#E8F0E9";
+                  e.currentTarget.style.borderColor = "#A8C8AD";
+                  e.currentTarget.style.color = "#3A6B47";
+                }
+              }}
             >
               Confirm
             </button>
           )}
         </div>
       </div>
-
-      {/* Label */}
-      <label className="block text-sm font-medium text-foreground mb-2">{label}</label>
 
       {/* Input */}
       {renderInput()}
