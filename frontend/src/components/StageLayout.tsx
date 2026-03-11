@@ -489,14 +489,14 @@ export default function StageLayout() {
         )}
         {saveStatus === "saved" && (
           <>
-            <Cloud className="w-3.5 h-3.5 text-green-500" />
-            <span className="text-green-600">Saved</span>
+            <Cloud className="w-3.5 h-3.5 text-success" />
+            <span className="text-success">Saved</span>
           </>
         )}
         {saveStatus === "error" && (
           <>
-            <CloudOff className="w-3.5 h-3.5 text-red-500" />
-            <span className="text-red-600">Save failed</span>
+            <CloudOff className="w-3.5 h-3.5 text-destructive" />
+            <span className="text-destructive">Save failed</span>
           </>
         )}
       </div>
