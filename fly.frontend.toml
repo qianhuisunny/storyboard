@@ -1,4 +1,4 @@
-app = "plotline-app-web"
+app = "plotline-eval-web"
 primary_region = "sjc"
 
 [build]
@@ -7,7 +7,7 @@ primary_region = "sjc"
     VITE_CLERK_PUBLISHABLE_KEY = "pk_test_bm90ZWQtcmFiYml0LTI5LmNsZXJrLmFjY291bnRzLmRldiQ"
 
 [env]
-  BACKEND_URL = "https://plotline-app-api.fly.dev"
+  BACKEND_URL = "https://plotline-eval-api.fly.dev"
 
 [http_service]
   internal_port = 8080

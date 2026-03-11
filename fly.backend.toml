@@ -1,4 +1,4 @@
-app = "plotline-app-api"
+app = "plotline-eval-api"
 primary_region = "sjc"
 
 [build]
