@@ -31,9 +31,9 @@ const TYPE_ICONS: Record<string, React.ReactNode> = {
 };
 
 const TYPE_COLORS: Record<string, string> = {
-  "Product Release": "bg-blue-100 text-blue-700",
-  "Product Demo Video": "bg-green-100 text-green-700",
-  "Knowledge Sharing": "bg-purple-100 text-purple-700",
+  "Product Release": "bg-[#F5F0EA] text-[#7C6A56]",
+  "Product Demo Video": "bg-[#EFF5F0] text-[#5E8C61]",
+  "Knowledge Sharing": "bg-[#F5F0EA] text-[#9C8E7C]",
 };
 
 const STAGE_NAMES = ["", "Video Briefing", "Video Outline", "Storyboard Draft", "Review and Share"];
