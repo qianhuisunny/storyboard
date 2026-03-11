@@ -20,9 +20,9 @@ interface SectionRowProps {
 
 /** Color accent based on position */
 function getAccentColor(index: number, total: number): string {
-  if (index === 0) return "border-l-blue-400";
-  if (index === total - 1) return "border-l-green-400";
-  return "border-l-gray-300";
+  if (index === 0) return "border-l-[#C4963C]";
+  if (index === total - 1) return "border-l-[#5E8C61]";
+  return "border-l-[#7C6A56]";
 }
 
 /**
