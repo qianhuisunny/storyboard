@@ -1,5 +1,6 @@
 from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File as FastAPIFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from app.services.chatbot import StoryboardChatbot, ChatRequest, ChatResponse
 from app.services.orchestrator import orchestrator
 from app.services.edit_tracker import edit_tracker
@@ -2152,3 +2153,27 @@ async def run_gold_set_eval(name: str):
     loop.run_in_executor(None, _run)
 
     return {"success": True, "message": "Eval started"}
+
+
+@app.post("/api/eval/gold-set/ingest")
+async def ingest_gold_set_endpoint(request: Request):
+    """Ingest raw Gemini JSON as a new gold set."""
+    try:
+        raw_json = await request.json()
+    except Exception:
+        return JSONResponse({"success": False, "detail": "Invalid JSON"}, status_code=400)
+
+    required = ["brief", "outline", "storyboard"]
+    for field in required:
+        if field not in raw_json:
+            return JSONResponse(
+                {"success": False, "detail": f"Missing required field: {field}"},
+                status_code=400,
+            )
+
+    try:
+        from app.services.eval_gold_set import ingest_gold_set
+        result = ingest_gold_set(raw_json)
+        return {"success": True, "slug": result["slug"], "gold_set": result["gold_set"]}
+    except Exception as e:
+        return JSONResponse({"success": False, "detail": str(e)}, status_code=500)
