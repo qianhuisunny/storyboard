@@ -33,47 +33,48 @@ function AppHeader() {
   const isAdmin = useIsAdmin();
 
   return (
-    <header className="bg-[var(--header-background)] text-[var(--header-foreground)] border-b border-[var(--header-border)] px-4 py-3.5 flex-shrink-0">
-      <div className="flex items-center justify-between">
-        <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
-          <h1 className="text-xl font-semibold">
-            Plotline
-          </h1>
-          <span className="text-xs bg-white/[0.08] px-2 py-0.5 rounded text-[10px]">
-            Beta
-          </span>
-        </Link>
-        <div className="flex items-center gap-4">
-          <SignedIn>
-            <Link
-              to="/projects"
-              className="text-sm hover:opacity-80 transition-opacity hidden sm:inline"
-            >
-              My Projects
-            </Link>
-            {isAdmin && (
-              <>
-                <Link
-                  to="/admin/dashboard"
-                  className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity"
-                  title="Admin Dashboard"
-                >
-                  <BarChart3 className="h-4 w-4" />
-                  <span className="hidden sm:inline">Analytics</span>
-                </Link>
-                <Link
-                  to="/admin/gold-set-eval"
-                  className="flex items-center gap-1.5 text-sm hover:opacity-80 transition-opacity"
-                  title="Gold Set Eval"
-                >
-                  <FlaskConical className="h-4 w-4" />
-                  <span className="hidden sm:inline">Eval</span>
-                </Link>
-              </>
-            )}
-            <UserButton afterSignOutUrl="/" />
-          </SignedIn>
-        </div>
+    <header className="bg-[var(--header-background)] text-[var(--header-foreground)] border-b border-[var(--header-border)] flex-shrink-0 flex items-center justify-between" style={{ height: "54px", padding: "0 22px" }}>
+      <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+        <h1 className="text-[20px] text-[#3A6B47]" style={{ fontFamily: "'Fraunces', serif", fontWeight: 400, letterSpacing: "-0.3px" }}>
+          Plotline
+        </h1>
+        <span className="text-[9.5px] font-semibold text-[#8D9885] bg-[#F3F5F0] border border-[#D9DDD2] rounded uppercase relative -top-px" style={{ padding: "2px 6px", letterSpacing: "0.6px" }}>
+          Beta
+        </span>
+      </Link>
+      <div className="flex items-center gap-4">
+        <SignedIn>
+          <Link
+            to="/projects"
+            className="text-[13px] font-normal text-[#5A6352] rounded-md transition-all hover:bg-[#EEF1E9] hover:text-[#1C2118] hidden sm:inline-flex"
+            style={{ padding: "6px 11px" }}
+          >
+            My Projects
+          </Link>
+          {isAdmin && (
+            <>
+              <Link
+                to="/admin/dashboard"
+                className="flex items-center gap-1.5 text-[13px] font-normal text-[#5A6352] rounded-md transition-all hover:bg-[#EEF1E9] hover:text-[#1C2118]"
+                style={{ padding: "6px 11px" }}
+                title="Admin Dashboard"
+              >
+                <BarChart3 className="h-4 w-4" />
+                <span className="hidden sm:inline">Analytics</span>
+              </Link>
+              <Link
+                to="/admin/gold-set-eval"
+                className="flex items-center gap-1.5 text-[13px] font-normal text-[#5A6352] rounded-md transition-all hover:bg-[#EEF1E9] hover:text-[#1C2118]"
+                style={{ padding: "6px 11px" }}
+                title="Gold Set Eval"
+              >
+                <FlaskConical className="h-4 w-4" />
+                <span className="hidden sm:inline">Eval</span>
+              </Link>
+            </>
+          )}
+          <UserButton afterSignOutUrl="/" />
+        </SignedIn>
       </div>
     </header>
   );
