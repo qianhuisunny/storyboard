@@ -57,9 +57,9 @@ export function MobileDrawer({
           variant="secondary"
           className={cn(
             "w-full rounded-none border-t h-12 justify-between px-4",
-            status === "running" && "bg-blue-50",
-            status === "complete" && "bg-green-50",
-            status === "error" && "bg-red-50"
+            status === "running" && "bg-[#F5F0EA]",
+            status === "complete" && "bg-[#EFF5F0]",
+            status === "error" && "bg-[#FBF0ED]"
           )}
         >
           <div className="flex items-center gap-2">
