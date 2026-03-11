@@ -7,17 +7,17 @@ const statusConfig: Record<
 > = {
   auto_filled: {
     label: "Auto-filled",
-    className: "bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-400 dark:border-green-800",
+    className: "bg-[#EFF5F0] text-[#5E8C61] border-[#5E8C61]/20",
     icon: "✓",
   },
   inferred: {
     label: "Inferred",
-    className: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-800",
+    className: "bg-[#FBF6ED] text-[#C4963C] border-[#C4963C]/20",
     icon: "?",
   },
   not_applicable: {
     label: "N/A",
-    className: "bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700",
+    className: "bg-muted text-muted-foreground border-border",
     icon: "—",
   },
 };
@@ -25,15 +25,15 @@ const statusConfig: Record<
 const confidenceConfig: Record<ConfidenceLevel, { label: string; className: string }> = {
   high: {
     label: "High",
-    className: "text-green-600 dark:text-green-400",
+    className: "text-[#5E8C61]",
   },
   medium: {
     label: "Med",
-    className: "text-yellow-600 dark:text-yellow-400",
+    className: "text-[#C4963C]",
   },
   low: {
     label: "Low",
-    className: "text-red-600 dark:text-red-400",
+    className: "text-destructive",
   },
 };
 
