@@ -20,22 +20,22 @@ interface FieldCardProps {
 // Subtle design: neutral cards, only badges have color
 const COLOR_CLASSES: Record<FieldColor, { badge: string; border: string; bg: string }> = {
   green: {
-    badge: "bg-green-500 text-white",
+    badge: "bg-[#5E8C61] text-white",
     border: "border-border",
     bg: "bg-background",
   },
   blue: {
-    badge: "bg-blue-500 text-white",
+    badge: "bg-[#7C6A56] text-white",
     border: "border-border",
     bg: "bg-background",
   },
   yellow: {
-    badge: "bg-amber-500 text-white",
+    badge: "bg-[#C4963C] text-white",
     border: "border-border",
     bg: "bg-background",
   },
   red: {
-    badge: "bg-red-500 text-white",
+    badge: "bg-[#C4644A] text-white",
     border: "border-border",
     bg: "bg-background",
   },
@@ -203,7 +203,7 @@ export default function FieldCard({
                     const newItems = items.filter((_, i) => i !== index);
                     handleValueChange(newItems);
                   }}
-                  className="text-red-500 hover:text-red-700 text-sm"
+                  className="text-destructive hover:text-destructive text-sm"
                 >
                   Remove
                 </button>
@@ -358,7 +358,7 @@ export default function FieldCard({
             {COLOR_LABELS[color]}
           </span>
           {isRequired && !field.confirmed && !hasContent && (
-            <span className="text-xs text-red-500">*Required</span>
+            <span className="text-xs text-destructive">*Required</span>
           )}
         </div>
         <div className="flex items-center gap-2">
