@@ -52,19 +52,19 @@
 
 :root {
   /* Green-Tinted Neutral Scale */
-  --sage-1: 243, 245, 240;    /* #F3F5F0 — page background */
+  --sage-1: 255, 255, 255;    /* #FFFFFF — page background */
   --sage-2: 232, 240, 233;    /* #E8F0E9 — accent-light surface */
   --sage-3: 217, 221, 210;    /* #D9DDD2 — borders */
   --sage-4: 191, 198, 181;    /* #BFC6B5 — strong borders */
   --sage-5: 168, 200, 173;    /* #A8C8AD — accent-mid */
-  --sage-6: 141, 152, 133;    /* #8D9885 — muted text */
+  --sage-6: 98, 107, 88;      /* #626B58 — muted text (WCAG 4.8:1) */
   --sage-7: 90, 99, 82;       /* #5A6352 — secondary text */
   --sage-8: 58, 107, 71;      /* #3A6B47 — accent */
   --sage-9: 46, 84, 57;       /* #2E5439 — accent hover */
   --sage-10: 28, 33, 24;      /* #1C2118 — primary text */
 
   /* Surface */
-  --surface: 250, 251, 248;   /* #FAFBF8 — cards, nav */
+  --surface: 255, 255, 255;   /* #FFFFFF — cards, nav */
 
   /* Mapped Variables */
   --radius: 0.5rem;

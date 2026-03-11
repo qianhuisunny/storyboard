@@ -50,7 +50,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
 
         <div className="flex flex-col">
           {!isUser && (
-            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" as const, color: "#8D9885" }}>
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" as const, color: "#626B58" }}>
               AI Assistant
             </span>
           )}
@@ -67,7 +67,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
                     lineHeight: "1.6",
                   }
                 : {
-                    background: "#F3F5F0",
+                    background: "#FFFFFF",
                     border: "1px solid #D9DDD2",
                     borderRadius: "3px 10px 10px 10px",
                     padding: "10px 13px",
@@ -79,7 +79,7 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
             <p className="whitespace-pre-wrap text-left">{message.content}</p>
           </div>
           {message.createdAt && (
-            <span style={{ fontSize: "10px", color: "#8D9885", marginTop: "1px" }}>
+            <span style={{ fontSize: "10px", color: "#626B58", marginTop: "1px" }}>
               {formatTime(message.createdAt)}
             </span>
           )}

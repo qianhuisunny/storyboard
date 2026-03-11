@@ -299,13 +299,13 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
       )}
     >
       {/* Header */}
-      <div style={{ padding: "18px 20px 15px", borderBottom: "1px solid #D9DDD2", background: "#FAFBF8" }}>
+      <div style={{ padding: "18px 20px 15px", borderBottom: "1px solid #D9DDD2", background: "#FFFFFF" }}>
         <div className="flex items-center space-x-2">
           <Bot className="w-5 h-5 text-[#3A6B47]" />
           <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: "18px", fontWeight: 400, color: "#1C2118", letterSpacing: "-0.3px" }}>Storyboard AI Assistant</h3>
         </div>
         <div className="flex">
-          <p style={{ fontSize: "12px", color: "#8D9885", fontWeight: 300, marginTop: "2px" }}>
+          <p style={{ fontSize: "12px", color: "#626B58", fontWeight: 300, marginTop: "2px" }}>
             Edit and iterate your storyboard
           </p>
         </div>

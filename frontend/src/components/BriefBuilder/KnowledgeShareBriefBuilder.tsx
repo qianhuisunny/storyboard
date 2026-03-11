@@ -381,7 +381,7 @@ export default function KnowledgeShareBriefBuilder({
     <div className="h-full flex flex-col relative">
       {/* Progress Bar — mockup-style rounded card with step segments */}
       <div className="flex-shrink-0" style={{ padding: "0 38px" }}>
-        <div className="flex items-stretch bg-[#FAFBF8] border border-[#D9DDD2] overflow-hidden" style={{ borderRadius: "10px", marginBottom: "28px" }}>
+        <div className="flex items-stretch bg-white border border-[#D9DDD2] overflow-hidden" style={{ borderRadius: "10px", marginBottom: "28px" }}>
           {([1, 2, 3, "angle_selection", "review"] as const).map((round, index) => {
             const isActive = currentRound === round;
             const stepOrder = [1, 2, 3, "angle_selection", "review"];
@@ -409,7 +409,7 @@ export default function KnowledgeShareBriefBuilder({
                     "flex-shrink-0 rounded-full flex items-center justify-center",
                     isActive && "bg-[#3A6B47] text-white",
                     (isCompleted || isPast) && !isActive && "bg-[#E6F2EB] text-[#2D6A4F]",
-                    !isActive && !isCompleted && !isPast && "text-[#8D9885]"
+                    !isActive && !isCompleted && !isPast && "text-[#626B58]"
                   )}
                   style={{
                     width: "26px", height: "26px",
@@ -420,7 +420,7 @@ export default function KnowledgeShareBriefBuilder({
                   {isCompleted || isPast ? "\u2713" : round === "review" ? "R" : round === "angle_selection" ? "A" : round}
                 </div>
                 <div>
-                  <div className="text-[#8D9885]" style={{ fontSize: "10.5px", letterSpacing: "0.2px", lineHeight: "1.3" }}>Step {index + 1}</div>
+                  <div className="text-[#626B58]" style={{ fontSize: "10.5px", letterSpacing: "0.2px", lineHeight: "1.3" }}>Step {index + 1}</div>
                   <div className={cn("text-[#1C2118]", isActive && "text-[#3A6B47]")} style={{ fontSize: "13px", fontWeight: 600, lineHeight: "1.3" }}>{stepNames[index]}</div>
                 </div>
               </div>

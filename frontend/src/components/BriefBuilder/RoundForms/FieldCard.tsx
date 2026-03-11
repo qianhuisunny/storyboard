@@ -36,7 +36,7 @@ const COLOR_LABELS: Record<FieldColor, string> = {
 const inputStyle: React.CSSProperties = {
   fontSize: "13.5px",
   color: "#1C2118",
-  background: "#F3F5F0",
+  background: "#FFFFFF",
   border: "1px solid #D9DDD2",
   borderRadius: "6px",
   padding: "9px 12px",
@@ -152,7 +152,7 @@ export default function FieldCard({
                 alignItems: "center",
                 gap: "8px",
                 borderColor: selectedValues.includes(opt.value) ? "#3A6B47" : "#D9DDD2",
-                background: selectedValues.includes(opt.value) ? "#E8F0E9" : "#F3F5F0",
+                background: selectedValues.includes(opt.value) ? "#E8F0E9" : "#FFFFFF",
               }}
             >
               <input
@@ -338,7 +338,7 @@ export default function FieldCard({
     <div
       className={cn(
         "border transition-colors hover:border-[#BFC6B5]",
-        color === "green" ? "border-[#A8CBAF] bg-[#F7FBF7]" : "border-[#D9DDD2] bg-[#FAFBF8]"
+        color === "green" ? "border-[#A8CBAF] bg-[#F7FBF7]" : "border-[#D9DDD2] bg-white"
       )}
       style={{ borderRadius: "10px", padding: "15px 18px" }}
     >
@@ -370,7 +370,7 @@ export default function FieldCard({
                 borderRadius: "20px",
                 textTransform: "uppercase" as const,
                 background: "transparent",
-                color: "#8D9885",
+                color: "#626B58",
                 border: "1px solid #BFC6B5",
               }}
             >
@@ -397,7 +397,7 @@ export default function FieldCard({
               style={{
                 fontSize: "12px",
                 fontWeight: 600,
-                color: hasContent ? "#3A6B47" : "#8D9885",
+                color: hasContent ? "#3A6B47" : "#626B58",
                 background: hasContent ? "#E8F0E9" : "#EEF1E9",
                 border: hasContent ? "1px solid #A8C8AD" : "1px solid #D9DDD2",
                 padding: "5px 13px",

@@ -39,7 +39,7 @@ function AppHeader() {
         <h1 className="text-[20px] text-[#3A6B47]" style={{ fontFamily: "'Fraunces', serif", fontWeight: 400, letterSpacing: "-0.3px" }}>
           Plotline
         </h1>
-        <span className="text-[9.5px] font-semibold text-[#8D9885] bg-[#F3F5F0] border border-[#D9DDD2] rounded uppercase relative -top-px" style={{ padding: "2px 6px", letterSpacing: "0.6px" }}>
+        <span className="text-[9.5px] font-semibold text-[#626B58] bg-white border border-[#D9DDD2] rounded uppercase relative -top-px" style={{ padding: "2px 6px", letterSpacing: "0.6px" }}>
           Beta
         </span>
       </Link>

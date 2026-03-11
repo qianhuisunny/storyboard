@@ -43,9 +43,9 @@ export default function StageNavigation({
   onAnchorSelect,
 }: StageNavigationProps) {
   return (
-    <nav className="h-full border-r border-border bg-[#FAFBF8] flex-shrink-0 overflow-y-auto flex flex-col" style={{ width: "220px", padding: "22px 0" }}>
+    <nav className="h-full border-r border-border bg-white flex-shrink-0 overflow-y-auto flex flex-col" style={{ width: "220px", padding: "22px 0" }}>
       <div className="flex-1">
-        <h2 className="uppercase text-[#8D9885]" style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.9px", padding: "0 18px 10px" }}>
+        <h2 className="uppercase text-[#626B58]" style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.9px", padding: "0 18px 10px" }}>
           Stages
         </h2>
         <ul>
@@ -65,7 +65,7 @@ export default function StageNavigation({
                       ? "bg-[#E8F0E9]"
                       : isClickable
                       ? "hover:bg-[#EEF1E9]"
-                      : "text-[#8D9885] cursor-not-allowed opacity-50"
+                      : "text-[#626B58] cursor-not-allowed opacity-50"
                   )}
                   style={{ padding: "10px 18px", gap: "11px" }}
                 >
@@ -79,7 +79,7 @@ export default function StageNavigation({
                         ? "bg-[#3A6B47] text-white"
                         : stage.status === "approved"
                         ? "bg-[#E6F2EB] text-[#2D6A4F]"
-                        : "text-[#8D9885]"
+                        : "text-[#626B58]"
                     )}
                     style={{
                       width: "24px",
@@ -100,7 +100,7 @@ export default function StageNavigation({
                     <span className={cn("block truncate", isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: isActive ? 600 : 500, lineHeight: "1.2" }}>
                       {stage.name}
                     </span>
-                    <span className="block text-[#8D9885]" style={{ fontSize: "11px", marginTop: "2px" }}>
+                    <span className="block text-[#626B58]" style={{ fontSize: "11px", marginTop: "2px" }}>
                       {statusLabels[stage.status]}
                     </span>
                   </div>
@@ -158,7 +158,7 @@ function EvidenceSubStep({
           ? "bg-[#E8F0E9]"
           : isClickable
           ? "hover:bg-[#EEF1E9]"
-          : "text-[#8D9885] cursor-not-allowed opacity-50"
+          : "text-[#626B58] cursor-not-allowed opacity-50"
       )}
       style={{ padding: "10px 18px 10px 42px", gap: "11px" }}
     >
@@ -170,7 +170,7 @@ function EvidenceSubStep({
         <span className={cn("block truncate", isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: isActive ? 600 : 500, lineHeight: "1.2" }}>
           Evidence Research
         </span>
-        <span className="block text-[#8D9885]" style={{ fontSize: "11px", marginTop: "2px" }}>
+        <span className="block text-[#626B58]" style={{ fontSize: "11px", marginTop: "2px" }}>
           {statusLabels[status]}
         </span>
       </div>

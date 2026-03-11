@@ -27,7 +27,7 @@ export const getTypeColor = (type: StoryboardPanelType["type"]) => {
   const colors = {
     "stock-video": "bg-[#3A6B47]",
     screencast: "bg-[#2D6A4F]",
-    "talking-head": "bg-[#8D9885]",
+    "talking-head": "bg-[#626B58]",
     cta: "bg-[#A63228]",
     "text-overlay": "bg-[#7A5C1E]",
   };
