@@ -51,136 +51,65 @@
 }
 
 :root {
-  /* Cal.com Neutral Scale (Light Mode) */
-  --neutral-1: 255, 255, 255;
-  --neutral-2: 252, 252, 252;
-  --neutral-3: 247, 247, 247;
-  --neutral-4: 242, 242, 242;
-  --neutral-5: 237, 237, 237;
-  --neutral-6: 229, 229, 229;
-  --neutral-7: 219, 219, 219;
-  --neutral-8: 204, 204, 204;
-  --neutral-9: 120, 120, 120;
-  --neutral-10: 102, 102, 102;
-  --neutral-11: 61, 61, 61;
-  --neutral-12: 29, 29, 29;
+  /* Warm Neutral Scale */
+  --warm-1: 250, 248, 245;
+  --warm-2: 245, 240, 234;
+  --warm-3: 232, 224, 212;
+  --warm-4: 212, 201, 186;
+  --warm-5: 196, 185, 168;
+  --warm-6: 156, 142, 124;
+  --warm-7: 124, 106, 86;
+  --warm-8: 92, 78, 60;
+  --warm-9: 61, 50, 38;
+  --warm-10: 44, 36, 24;
 
-  /* Semantic Color Bases */
-  --warning-base: 254, 154, 0;
-  --danger-base: 251, 44, 54;
-  --success-base: 0, 201, 80;
-  --info-base: 120, 120, 120;
-
-  /* Mapped Variables (Light Mode) */
+  /* Mapped Variables */
   --radius: 0.5rem;
-  --background: rgb(var(--neutral-1));
-  --foreground: rgb(var(--neutral-12));
-  --card: rgb(var(--neutral-1));
-  --card-foreground: rgb(var(--neutral-12));
-  --popover: rgb(var(--neutral-1));
-  --popover-foreground: rgb(var(--neutral-12));
-  --primary: rgb(var(--neutral-12));
-  --primary-foreground: rgb(var(--neutral-1));
-  --secondary: rgb(var(--neutral-3));
-  --secondary-foreground: rgb(var(--neutral-12));
-  --muted: rgb(var(--neutral-4));
-  --muted-foreground: rgb(var(--neutral-9));
-  --accent: rgb(var(--neutral-3));
-  --accent-foreground: rgb(var(--neutral-12));
-  --destructive: rgb(var(--danger-base));
-  --destructive-foreground: rgb(var(--neutral-1));
-  --warning: rgb(var(--warning-base));
-  --warning-foreground: rgb(var(--neutral-12));
-  --success: rgb(var(--success-base));
-  --success-foreground: rgb(var(--neutral-1));
-  --border: rgb(var(--neutral-6));
-  --input: rgb(var(--neutral-6));
-  --ring: rgb(var(--neutral-9));
+  --background: rgb(var(--warm-1));
+  --foreground: rgb(var(--warm-10));
+  --card: rgb(255, 255, 255);
+  --card-foreground: rgb(var(--warm-10));
+  --popover: rgb(255, 255, 255);
+  --popover-foreground: rgb(var(--warm-10));
+  --primary: rgb(var(--warm-7));
+  --primary-foreground: rgb(255, 255, 255);
+  --secondary: rgb(var(--warm-2));
+  --secondary-foreground: rgb(var(--warm-10));
+  --muted: rgb(var(--warm-2));
+  --muted-foreground: rgb(var(--warm-6));
+  --accent: rgb(var(--warm-2));
+  --accent-foreground: rgb(var(--warm-10));
+  --destructive: rgb(196, 100, 74);
+  --destructive-foreground: rgb(255, 255, 255);
+  --warning: rgb(196, 150, 60);
+  --warning-foreground: rgb(var(--warm-10));
+  --success: rgb(94, 140, 97);
+  --success-foreground: rgb(255, 255, 255);
+  --border: rgb(var(--warm-3));
+  --input: rgb(var(--warm-3));
+  --ring: rgb(var(--warm-7));
 
-  /* Chart colors */
-  --chart-1: rgb(59, 130, 246);
-  --chart-2: rgb(16, 185, 129);
-  --chart-3: rgb(139, 92, 246);
-  --chart-4: rgb(245, 158, 11);
-  --chart-5: rgb(239, 68, 68);
+  /* Chart colors (warm-compatible) */
+  --chart-1: rgb(124, 106, 86);
+  --chart-2: rgb(94, 140, 97);
+  --chart-3: rgb(156, 142, 124);
+  --chart-4: rgb(196, 150, 60);
+  --chart-5: rgb(196, 100, 74);
 
   /* Sidebar */
-  --sidebar: rgb(var(--neutral-2));
-  --sidebar-foreground: rgb(var(--neutral-12));
-  --sidebar-primary: rgb(var(--neutral-12));
-  --sidebar-primary-foreground: rgb(var(--neutral-1));
-  --sidebar-accent: rgb(var(--neutral-4));
-  --sidebar-accent-foreground: rgb(var(--neutral-12));
-  --sidebar-border: rgb(var(--neutral-6));
-  --sidebar-ring: rgb(var(--neutral-9));
+  --sidebar: rgb(255, 255, 255);
+  --sidebar-foreground: rgb(var(--warm-10));
+  --sidebar-primary: rgb(var(--warm-7));
+  --sidebar-primary-foreground: rgb(255, 255, 255);
+  --sidebar-accent: rgb(var(--warm-2));
+  --sidebar-accent-foreground: rgb(var(--warm-10));
+  --sidebar-border: rgb(var(--warm-3));
+  --sidebar-ring: rgb(var(--warm-7));
 
-  /* Header (white in light mode) */
-  --header-background: rgb(var(--neutral-1));
-  --header-foreground: rgb(var(--neutral-12));
-  --header-border: rgb(var(--neutral-6));
-}
-
-.dark {
-  /* Cal.com Neutral Scale (Dark Mode - Inverted) */
-  --neutral-1: 29, 29, 29;
-  --neutral-2: 35, 35, 35;
-  --neutral-3: 43, 43, 43;
-  --neutral-4: 51, 51, 51;
-  --neutral-5: 60, 60, 60;
-  --neutral-6: 70, 70, 70;
-  --neutral-7: 78, 78, 78;
-  --neutral-8: 91, 91, 91;
-  --neutral-9: 255, 255, 255;
-  --neutral-10: 219, 219, 219;
-  --neutral-11: 180, 180, 180;
-  --neutral-12: 255, 255, 255;
-
-  /* Mapped Variables (Dark Mode) */
-  --background: rgb(var(--neutral-1));
-  --foreground: rgb(var(--neutral-12));
-  --card: rgb(var(--neutral-3));
-  --card-foreground: rgb(var(--neutral-12));
-  --popover: rgb(var(--neutral-3));
-  --popover-foreground: rgb(var(--neutral-12));
-  --primary: rgb(var(--neutral-12));
-  --primary-foreground: rgb(29, 29, 29);
-  --secondary: rgb(var(--neutral-4));
-  --secondary-foreground: rgb(var(--neutral-12));
-  --muted: rgb(var(--neutral-4));
-  --muted-foreground: rgb(var(--neutral-10));
-  --accent: rgb(var(--neutral-4));
-  --accent-foreground: rgb(var(--neutral-12));
-  --destructive: rgb(var(--danger-base));
-  --destructive-foreground: rgb(29, 29, 29);
-  --warning: rgb(var(--warning-base));
-  --warning-foreground: rgb(29, 29, 29);
-  --success: rgb(var(--success-base));
-  --success-foreground: rgb(29, 29, 29);
-  --border: rgb(var(--neutral-6));
-  --input: rgb(var(--neutral-6));
-  --ring: rgb(var(--neutral-9));
-
-  /* Chart colors (adjusted for dark mode) */
-  --chart-1: rgb(96, 165, 250);
-  --chart-2: rgb(52, 211, 153);
-  --chart-3: rgb(167, 139, 250);
-  --chart-4: rgb(251, 191, 36);
-  --chart-5: rgb(248, 113, 113);
-
-  /* Sidebar (Dark Mode) */
-  --sidebar: rgb(var(--neutral-2));
-  --sidebar-foreground: rgb(var(--neutral-12));
-  --sidebar-primary: rgb(96, 165, 250);
-  --sidebar-primary-foreground: rgb(var(--neutral-1));
-  --sidebar-accent: rgb(var(--neutral-4));
-  --sidebar-accent-foreground: rgb(var(--neutral-12));
-  --sidebar-border: rgb(var(--neutral-6));
-  --sidebar-ring: rgb(var(--neutral-9));
-
-  /* Header (dark in dark mode) */
-  --header-background: rgb(var(--neutral-2));
-  --header-foreground: rgb(var(--neutral-12));
-  --header-border: rgb(var(--neutral-6));
+  /* Header (warm dark) */
+  --header-background: rgb(var(--warm-10));
+  --header-foreground: rgb(255, 255, 255);
+  --header-border: rgb(var(--warm-9));
 }
 
 @layer base {
@@ -197,9 +126,21 @@
   body {
     @apply bg-background text-foreground antialiased;
     font-family: var(--font-inter);
+    line-height: 1.6;
   }
-  h1, h2, h3, h4, h5, h6 {
+  h1 {
     font-family: var(--font-cal);
     font-weight: 600;
+    letter-spacing: -0.5px;
+  }
+  h2 {
+    font-family: var(--font-cal);
+    font-weight: 600;
+    letter-spacing: -0.4px;
+  }
+  h3, h4, h5, h6 {
+    font-family: var(--font-cal);
+    font-weight: 600;
+    letter-spacing: -0.3px;
   }
 }
