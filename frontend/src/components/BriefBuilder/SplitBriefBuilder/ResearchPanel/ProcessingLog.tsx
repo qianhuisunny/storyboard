@@ -70,24 +70,24 @@ function LogEntry({ entry }: { entry: ProcessingLogEntry }) {
       className={cn(
         "rounded-lg border p-3 space-y-2",
         isRequest
-          ? "border-blue-200 bg-blue-50/50 dark:border-blue-800 dark:bg-blue-900/20"
-          : "border-green-200 bg-green-50/50 dark:border-green-800 dark:bg-green-900/20"
+          ? "border-[#7C6A56]/20 bg-[#F5F0EA]/50"
+          : "border-[#5E8C61]/20 bg-[#EFF5F0]/50"
       )}
     >
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           {isRequest ? (
-            <ArrowUpCircle className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+            <ArrowUpCircle className="w-4 h-4 text-[#7C6A56]" />
           ) : (
-            <ArrowDownCircle className="w-4 h-4 text-green-600 dark:text-green-400" />
+            <ArrowDownCircle className="w-4 h-4 text-[#5E8C61]" />
           )}
           <span
             className={cn(
               "text-sm font-medium",
               isRequest
-                ? "text-blue-700 dark:text-blue-300"
-                : "text-green-700 dark:text-green-300"
+                ? "text-[#7C6A56]"
+                : "text-[#5E8C61]"
             )}
           >
             {entry.phase}() - {isRequest ? "Request" : "Response"}
@@ -205,7 +205,7 @@ export function ProcessingLog({
           <h2 className="text-lg font-semibold">Processing</h2>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Cpu
-              className={cn("w-4 h-4", isPolling && "animate-pulse text-blue-500")}
+              className={cn("w-4 h-4", isPolling && "animate-pulse text-[#7C6A56]")}
             />
             <span>{entries.length} events</span>
           </div>
@@ -239,7 +239,7 @@ export function ProcessingLog({
       {/* Footer */}
       {isPolling && (
         <div className="p-3 border-t bg-background text-xs text-muted-foreground flex items-center gap-2">
-          <Cpu className="w-3 h-3 animate-pulse text-blue-500" />
+          <Cpu className="w-3 h-3 animate-pulse text-[#7C6A56]" />
           Listening for processing events...
         </div>
       )}

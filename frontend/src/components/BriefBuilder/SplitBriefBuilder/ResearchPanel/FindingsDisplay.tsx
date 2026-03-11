@@ -28,35 +28,35 @@ const categoryConfig: Record<
   company: {
     icon: <Building2 className="w-4 h-4" />,
     title: "Company Background",
-    color: "bg-blue-100 text-blue-700",
+    color: "bg-[#F5F0EA] text-[#7C6A56]",
   },
   product: {
     icon: <Package className="w-4 h-4" />,
     title: "Product Information",
-    color: "bg-purple-100 text-purple-700",
+    color: "bg-[#F5F0EA] text-[#9C8E7C]",
   },
   industry: {
     icon: <TrendingUp className="w-4 h-4" />,
     title: "Industry Context",
-    color: "bg-green-100 text-green-700",
+    color: "bg-[#EFF5F0] text-[#5E8C61]",
   },
   workflows: {
     icon: <GitBranch className="w-4 h-4" />,
     title: "Typical Workflows",
-    color: "bg-amber-100 text-amber-700",
+    color: "bg-[#FBF6ED] text-[#C4963C]",
   },
   terminology: {
     icon: <BookOpen className="w-4 h-4" />,
     title: "Key Terms",
-    color: "bg-slate-100 text-slate-700",
+    color: "bg-muted text-muted-foreground",
   },
 };
 
 function FindingCard({ finding }: { finding: ResearchFinding }) {
   const confidenceColors = {
-    high: "bg-green-100 text-green-700",
-    medium: "bg-amber-100 text-amber-700",
-    low: "bg-red-100 text-red-700",
+    high: "bg-[#EFF5F0] text-[#5E8C61]",
+    medium: "bg-[#FBF6ED] text-[#C4963C]",
+    low: "bg-[#FBF0ED] text-[#C4644A]",
   };
 
   return (
@@ -78,7 +78,7 @@ function FindingCard({ finding }: { finding: ResearchFinding }) {
                 href={source.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"
+                className="inline-flex items-center gap-1 text-xs text-[#7C6A56] hover:underline"
               >
                 <ExternalLink className="w-3 h-3" />
                 {source.title || "Source"}
@@ -101,7 +101,7 @@ function CategorySection({
   const config = categoryConfig[category] || {
     icon: <BookOpen className="w-4 h-4" />,
     title: category,
-    color: "bg-slate-100 text-slate-700",
+    color: "bg-muted text-muted-foreground",
   };
 
   return (
@@ -160,20 +160,20 @@ export function FindingsDisplay({ findings }: FindingsDisplayProps) {
       )}
 
       {findings.uncertainties && findings.uncertainties.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50">
+        <Card className="border-[#C4963C]/30 bg-[#FBF6ED]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm flex items-center gap-2 text-amber-700">
+            <CardTitle className="text-sm flex items-center gap-2 text-[#C4963C]">
               <AlertTriangle className="w-4 h-4" />
               Uncertainties
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-xs text-amber-600 mb-2">
+            <p className="text-xs text-[#C4963C] mb-2">
               These items could not be verified and will be excluded from the brief:
             </p>
             <ul className="text-sm space-y-1">
               {findings.uncertainties.map((uncertainty, i) => (
-                <li key={i} className="text-amber-700">
+                <li key={i} className="text-[#C4963C]">
                   • {uncertainty}
                 </li>
               ))}

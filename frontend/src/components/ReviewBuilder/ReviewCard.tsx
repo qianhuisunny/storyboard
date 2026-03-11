@@ -328,8 +328,8 @@ export default function ReviewCard({
               <FileText className="w-4 h-4" />
               <span className="font-medium uppercase tracking-wide">Notes</span>
             </div>
-            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-              <p className="text-sm text-amber-800 dark:text-amber-200">
+            <div className="bg-[#FBF6ED] border border-[#C4963C]/30 rounded-lg p-3">
+              <p className="text-sm text-[#C4963C]">
                 {screen.action_notes}
               </p>
             </div>

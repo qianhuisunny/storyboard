@@ -38,7 +38,7 @@ export function ConfirmationGate({
   // Show confirmed state
   if (status === "confirmed") {
     return (
-      <div className="flex items-center gap-2 text-green-600 text-sm mt-4">
+      <div className="flex items-center gap-2 text-[#5E8C61] text-sm mt-4">
         <Check className="w-4 h-4" />
         <span>Confirmed</span>
       </div>
@@ -80,7 +80,7 @@ export function ConfirmationGate({
         <Button
           onClick={onConfirm}
           disabled={disabled}
-          className="bg-green-600 hover:bg-green-700"
+          className="bg-[#5E8C61] hover:bg-[#4A7A4D]"
         >
           <Check className="w-4 h-4 mr-2" />
           {turn === 1 ? "Looks Good" : turn === 2 ? "Confirm Research" : "Confirm"}
@@ -100,7 +100,7 @@ export function ConfirmationGate({
   // Correcting state
   if (status === "correcting") {
     return (
-      <div className="flex items-center gap-2 text-amber-600 text-sm mt-4">
+      <div className="flex items-center gap-2 text-[#C4963C] text-sm mt-4">
         <Edit3 className="w-4 h-4" />
         <span>Processing corrections...</span>
       </div>

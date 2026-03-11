@@ -54,26 +54,26 @@ function CollapsibleSection({
 const statusConfig: Record<FieldStatus, { label: string; className: string; icon: string }> = {
   auto_filled: {
     label: "Auto-filled",
-    className: "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+    className: "bg-[#EFF5F0] text-[#5E8C61]",
     icon: "✓",
   },
   inferred: {
     label: "Inferred",
-    className: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400",
+    className: "bg-[#FBF6ED] text-[#C4963C]",
     icon: "?",
   },
   not_applicable: {
     label: "N/A",
-    className: "bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-400",
+    className: "bg-muted text-muted-foreground",
     icon: "—",
   },
 };
 
 // Confidence badge colors
 const confidenceColors = {
-  high: "text-green-600 dark:text-green-400",
-  medium: "text-yellow-600 dark:text-yellow-400",
-  low: "text-red-600 dark:text-red-400",
+  high: "text-[#5E8C61]",
+  medium: "text-[#C4963C]",
+  low: "text-[#C4644A]",
 };
 
 // Source citation component
@@ -86,12 +86,12 @@ function SourceCitation({ sources }: { sources: SourceReference[] }) {
       <ul className="space-y-1">
         {sources.map((source, index) => (
           <li key={index} className="flex items-center gap-2 text-xs">
-            <ExternalLink className="w-3 h-3 text-blue-500" />
+            <ExternalLink className="w-3 h-3 text-[#7C6A56]" />
             <a
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 hover:underline truncate max-w-md"
+              className="text-[#7C6A56] hover:text-[#5E4A36] hover:underline truncate max-w-md"
             >
               {source.title || source.url}
             </a>
@@ -311,12 +311,12 @@ export default function ProcessingView({
                   )}
                   {entry.source && (
                     <div className="mt-2 flex items-center gap-2 text-xs">
-                      <ExternalLink className="w-3 h-3 text-blue-500" />
+                      <ExternalLink className="w-3 h-3 text-[#7C6A56]" />
                       <a
                         href={entry.source}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:text-blue-800 dark:text-blue-400 hover:underline"
+                        className="text-[#7C6A56] hover:text-[#5E4A36] hover:underline"
                       >
                         {entry.source}
                       </a>

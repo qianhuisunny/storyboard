@@ -129,7 +129,7 @@ export default function EditableList({
                 <button
                   type="button"
                   onClick={() => handleRemove(index)}
-                  className="p-1 text-muted-foreground hover:text-red-500"
+                  className="p-1 text-muted-foreground hover:text-[#C4644A]"
                   aria-label="Remove item"
                 >
                   <X className="w-3 h-3" />

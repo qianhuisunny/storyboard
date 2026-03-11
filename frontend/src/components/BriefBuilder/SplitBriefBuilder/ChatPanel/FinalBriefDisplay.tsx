@@ -19,7 +19,7 @@ export function FinalBriefDisplay({
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-lg flex items-center gap-2">
-              <CheckCircle2 className="w-5 h-5 text-green-600" />
+              <CheckCircle2 className="w-5 h-5 text-[#5E8C61]" />
               Story Brief Complete
             </CardTitle>
             <Badge variant="secondary">{brief.video_type}</Badge>
@@ -45,7 +45,7 @@ export function FinalBriefDisplay({
               <ul className="text-sm mt-1 space-y-1">
                 {brief.key_points.map((point, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="text-green-600">•</span>
+                    <span className="text-[#5E8C61]">•</span>
                     {point}
                   </li>
                 ))}
@@ -80,7 +80,7 @@ export function FinalBriefDisplay({
               <ul className="text-sm mt-1 space-y-1">
                 {brief.constraints.map((constraint, i) => (
                   <li key={i} className="flex items-start gap-2">
-                    <span className="text-amber-600">!</span>
+                    <span className="text-[#C4963C]">!</span>
                     {constraint}
                   </li>
                 ))}
@@ -110,7 +110,7 @@ export function FinalBriefDisplay({
       <div className="flex gap-3">
         <Button
           onClick={onSendToStoryboard}
-          className="flex-1 bg-green-600 hover:bg-green-700"
+          className="flex-1 bg-[#5E8C61] hover:bg-[#4A7A4D]"
         >
           Send to Storyboard
           <ArrowRight className="w-4 h-4 ml-2" />

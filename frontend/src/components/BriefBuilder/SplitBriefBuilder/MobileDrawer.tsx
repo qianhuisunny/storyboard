@@ -27,9 +27,9 @@ export function MobileDrawer({
       case "running":
         return <Search className="w-4 h-4 animate-pulse" />;
       case "complete":
-        return <CheckCircle2 className="w-4 h-4 text-green-600" />;
+        return <CheckCircle2 className="w-4 h-4 text-[#5E8C61]" />;
       case "error":
-        return <AlertCircle className="w-4 h-4 text-red-600" />;
+        return <AlertCircle className="w-4 h-4 text-[#C4644A]" />;
       default:
         return <Search className="w-4 h-4 text-muted-foreground" />;
     }
@@ -101,7 +101,7 @@ export function MobileDrawer({
       {/* Overlay when drawer is open */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/20 z-20 md:hidden"
+          className="fixed inset-0 bg-[#2C2418]/20 z-20 md:hidden"
           onClick={onToggle}
         />
       )}

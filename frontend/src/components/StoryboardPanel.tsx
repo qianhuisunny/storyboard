@@ -25,11 +25,11 @@ interface StoryboardPanelProps {
 
 export const getTypeColor = (type: StoryboardPanelType["type"]) => {
   const colors = {
-    "stock-video": "bg-blue-500",
-    screencast: "bg-green-500",
-    "talking-head": "bg-purple-500",
-    cta: "bg-red-500",
-    "text-overlay": "bg-orange-500",
+    "stock-video": "bg-[#7C6A56]",
+    screencast: "bg-[#5E8C61]",
+    "talking-head": "bg-[#9C8E7C]",
+    cta: "bg-[#C4644A]",
+    "text-overlay": "bg-[#C4963C]",
   };
   return colors[type];
 };
@@ -108,7 +108,7 @@ const StoryboardPanel: React.FC<StoryboardPanelProps> = ({
 
           {panel.notes && (
             <div className="pt-2 border-t border-border">
-              <p className="text-sm text-blue-600 italic text-left">
+              <p className="text-sm text-[#7C6A56] italic text-left">
                 <span className="font-medium">Note:</span> {panel.notes}
               </p>
             </div>

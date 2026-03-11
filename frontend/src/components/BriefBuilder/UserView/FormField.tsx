@@ -42,7 +42,7 @@ export default function FormField({
               "bg-background text-foreground placeholder:text-muted-foreground",
               "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
               "resize-y min-h-[80px]",
-              error ? "border-red-500" : "border-border"
+              error ? "border-[#C4644A]" : "border-border"
             )}
           />
         );
@@ -58,7 +58,7 @@ export default function FormField({
               "w-full px-3 py-2 border rounded-md text-sm",
               "bg-background text-foreground",
               "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
-              error ? "border-red-500" : "border-border"
+              error ? "border-[#C4644A]" : "border-border"
             )}
           >
             <option value="">Select an option</option>
@@ -130,7 +130,7 @@ export default function FormField({
                 "bg-background text-foreground placeholder:text-muted-foreground",
                 "focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent",
                 suffix ? "pr-16" : "",
-                error ? "border-red-500" : "border-border"
+                error ? "border-[#C4644A]" : "border-border"
               )}
             />
             {suffix && (
@@ -152,7 +152,7 @@ export default function FormField({
           className="text-sm font-medium text-foreground"
         >
           {label}
-          {required && <span className="text-red-500 ml-1">*</span>}
+          {required && <span className="text-[#C4644A] ml-1">*</span>}
         </label>
         <StatusBadge status={status} />
       </div>
@@ -167,7 +167,7 @@ export default function FormField({
 
       {/* Error message */}
       {error && (
-        <p className="text-xs text-red-500" role="alert">
+        <p className="text-xs text-[#C4644A]" role="alert">
           {error}
         </p>
       )}

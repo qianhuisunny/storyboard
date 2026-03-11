@@ -397,7 +397,7 @@ export default function KnowledgeShareBriefBuilder({
                     isActive
                       ? "bg-primary text-primary-foreground"
                       : isCompleted || isPast
-                      ? "bg-green-500 text-white"
+                      ? "bg-[#5E8C61] text-white"
                       : "bg-muted text-muted-foreground"
                   }`}
                 >
@@ -421,7 +421,7 @@ export default function KnowledgeShareBriefBuilder({
                 {index < 4 && (
                   <div
                     className={`flex-1 h-1 rounded ${
-                      isPast || isCompleted ? "bg-green-500" : "bg-muted"
+                      isPast || isCompleted ? "bg-[#5E8C61]" : "bg-muted"
                     }`}
                   />
                 )}
@@ -440,7 +440,7 @@ export default function KnowledgeShareBriefBuilder({
 
       {/* Error Message */}
       {error && (
-        <div className="flex-shrink-0 mx-4 mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+        <div className="flex-shrink-0 mx-4 mt-4 px-4 py-3 bg-[#FBF0ED] border border-[#C4644A]/30 rounded-lg text-[#C4644A] text-sm">
           {error}
         </div>
       )}

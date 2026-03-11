@@ -53,7 +53,7 @@ export default function OutputView({ brief }: OutputViewProps) {
           >
             {copied ? (
               <>
-                <Check className="w-4 h-4 text-green-600" />
+                <Check className="w-4 h-4 text-[#5E8C61]" />
                 <span>Copied!</span>
               </>
             ) : (
@@ -93,21 +93,21 @@ function JsonDisplay({ data }: { data: unknown }) {
     const nextIndent = "  ".repeat(depth + 1);
 
     if (value === null) {
-      return <span className="text-orange-600">null</span>;
+      return <span className="text-[#C4963C]">null</span>;
     }
 
     if (typeof value === "boolean") {
-      return <span className="text-purple-600">{value.toString()}</span>;
+      return <span className="text-[#9C8E7C]">{value.toString()}</span>;
     }
 
     if (typeof value === "number") {
-      return <span className="text-blue-600">{value}</span>;
+      return <span className="text-[#7C6A56]">{value}</span>;
     }
 
     if (typeof value === "string") {
       // Escape quotes and handle multiline
       const escaped = value.replace(/"/g, '\\"').replace(/\n/g, "\\n");
-      return <span className="text-green-600">"{escaped}"</span>;
+      return <span className="text-[#5E8C61]">"{escaped}"</span>;
     }
 
     if (Array.isArray(value)) {
@@ -144,7 +144,7 @@ function JsonDisplay({ data }: { data: unknown }) {
           {entries.map(([key, val], index) => (
             <span key={key}>
               {nextIndent}
-              <span className="text-red-600">"{key}"</span>
+              <span className="text-[#C4644A]">"{key}"</span>
               <span className="text-foreground">: </span>
               {renderValue(val, depth + 1)}
               {index < entries.length - 1 ? "," : ""}

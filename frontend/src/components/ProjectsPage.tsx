@@ -178,7 +178,7 @@ export default function ProjectsPage() {
                   <div
                     className={cn(
                       "flex items-center gap-2 px-2.5 py-1 rounded-full text-xs font-medium",
-                      TYPE_COLORS[project.typeName] || "bg-gray-100 text-gray-700"
+                      TYPE_COLORS[project.typeName] || "bg-muted text-muted-foreground"
                     )}
                   >
                     {TYPE_ICONS[project.typeName] || <Film className="w-4 h-4" />}
@@ -189,7 +189,7 @@ export default function ProjectsPage() {
                     disabled={deletingId === project.id}
                     className={cn(
                       "p-1.5 rounded-lg opacity-0 group-hover:opacity-100",
-                      "text-muted-foreground hover:text-red-500 hover:bg-red-50",
+                      "text-muted-foreground hover:text-[#C4644A] hover:bg-[#FBF0ED]",
                       "transition-all"
                     )}
                     title="Delete project"

@@ -527,7 +527,7 @@ export default function StageLayout() {
       {/* Mobile Sidebar Overlay */}
       {isMobileMenuOpen && (
         <div
-          className="md:hidden fixed inset-0 bg-black/50 z-40"
+          className="md:hidden fixed inset-0 bg-[#2C2418]/50 z-40"
           onClick={() => setIsMobileMenuOpen(false)}
         />
       )}

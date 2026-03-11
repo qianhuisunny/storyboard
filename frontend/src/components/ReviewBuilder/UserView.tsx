@@ -315,7 +315,7 @@ export default function UserView({
               <span className={cn(
                 "text-xs px-2 py-1 rounded flex items-center gap-1",
                 saveStatus === "saving" && "text-muted-foreground",
-                saveStatus === "saved" && "text-green-600 bg-green-50"
+                saveStatus === "saved" && "text-[#5E8C61] bg-[#EFF5F0]"
               )}>
                 {saveStatus === "saving" && <Loader2 className="w-3 h-3 animate-spin" />}
                 {saveStatus === "saved" && <Check className="w-3 h-3" />}
@@ -402,7 +402,7 @@ export default function UserView({
         </div>
         <button
           onClick={onExport}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-[#5E8C61] text-white rounded-lg hover:bg-[#4A7A4D] transition-colors flex items-center gap-2"
         >
           <Check className="w-4 h-4" />
           Mark as Complete

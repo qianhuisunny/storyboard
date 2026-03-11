@@ -113,7 +113,7 @@ export default function InputView({ previousStageOutput, outlineSummary }: Input
                 ) : (
                   <ChevronRight className="w-4 h-4" />
                 )}
-                <Layers className="w-4 h-4 text-purple-500" />
+                <Layers className="w-4 h-4 text-[#9C8E7C]" />
                 <span className="font-medium">Screen Outlines</span>
               </div>
               <span className="text-xs text-muted-foreground">

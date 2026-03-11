@@ -100,10 +100,10 @@ const StoryboardLayout: React.FC = () => {
     return (
       <div className="h-screen flex items-center justify-center">
         <div className="text-center">
-          <p className="text-red-600 mb-4">{error}</p>
+          <p className="text-[#C4644A] mb-4">{error}</p>
           <button
             onClick={() => navigate("/")}
-            className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
           >
             Go to Home
           </button>

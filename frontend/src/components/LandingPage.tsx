@@ -116,7 +116,7 @@ export default function LandingPage() {
           </div>
 
           {/* Connector */}
-          <div className="w-px h-6 bg-gray-300 ml-[110px]" />
+          <div className="w-px h-6 bg-border ml-[110px]" />
 
           {/* Step 2: AI Outline */}
           <div className="flex items-center gap-6 mb-2">
@@ -144,7 +144,7 @@ export default function LandingPage() {
           </div>
 
           {/* Connector */}
-          <div className="w-px h-6 bg-gray-300 ml-[110px]" />
+          <div className="w-px h-6 bg-border ml-[110px]" />
 
           {/* Step 3: Human Gate */}
           <div className="flex items-center gap-6 mb-2">
@@ -167,7 +167,7 @@ export default function LandingPage() {
           </div>
 
           {/* Connector */}
-          <div className="w-px h-6 bg-gray-300 ml-[110px]" />
+          <div className="w-px h-6 bg-border ml-[110px]" />
 
           {/* Step 4: AI Content */}
           <div className="flex items-center gap-6 mb-2">
@@ -195,7 +195,7 @@ export default function LandingPage() {
           </div>
 
           {/* Connector */}
-          <div className="w-px h-6 bg-gray-300 ml-[110px]" />
+          <div className="w-px h-6 bg-border ml-[110px]" />
 
           {/* Step 5: Human Gate */}
           <div className="flex items-center gap-6 mb-2">
@@ -218,7 +218,7 @@ export default function LandingPage() {
           </div>
 
           {/* Connector */}
-          <div className="w-px h-6 bg-gray-300 ml-[110px]" />
+          <div className="w-px h-6 bg-border ml-[110px]" />
 
           {/* Step 6: Final Version */}
           <div className="flex items-start gap-6">
