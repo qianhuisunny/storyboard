@@ -7,6 +7,7 @@ import React, { useState, useCallback, useEffect, useRef } from "react";
 import { RoundOneForm, RoundTwoForm, RoundThreeForm, BriefReview, AngleSelectionForm, CollapsibleSection } from "./RoundForms";
 import type { BriefField, BriefRound } from "./types";
 import { createInitialKnowledgeShareFields } from "./types";
+import { cn } from "@/lib/utils";
 
 interface Perspective {
   id: number;
@@ -378,9 +379,9 @@ export default function KnowledgeShareBriefBuilder({
 
   return (
     <div className="h-full flex flex-col relative">
-      {/* Progress Indicator */}
-      <div className="flex-shrink-0 px-4 py-3 bg-muted/30 border-b">
-        <div className="flex items-center gap-2">
+      {/* Progress Bar — mockup-style rounded card with step segments */}
+      <div className="flex-shrink-0" style={{ padding: "0 38px" }}>
+        <div className="flex items-stretch bg-[#FAFBF8] border border-[#D9DDD2] overflow-hidden" style={{ borderRadius: "10px", marginBottom: "28px" }}>
           {([1, 2, 3, "angle_selection", "review"] as const).map((round, index) => {
             const isActive = currentRound === round;
             const stepOrder = [1, 2, 3, "angle_selection", "review"];
@@ -389,64 +390,56 @@ export default function KnowledgeShareBriefBuilder({
             const isPast = currentIndex > roundIndex;
             const isCompleted =
               typeof round === "number" && completedRounds.has(round);
+            const stepNames = ["Core Intent", "Delivery", "Content", "Angle", "Review"];
 
             return (
-              <React.Fragment key={String(round)}>
-                <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-full text-sm font-medium transition-colors ${
-                    isActive
-                      ? "bg-primary text-primary-foreground"
-                      : isCompleted || isPast
-                      ? "bg-[#4A7A4D] text-white"
-                      : "bg-muted text-muted-foreground"
-                  }`}
-                >
-                  {isCompleted || isPast ? (
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M5 13l4 4L19 7"
-                      />
-                    </svg>
-                  ) : round === "review" ? (
-                    "R"
-                  ) : round === "angle_selection" ? (
-                    "A"
-                  ) : (
-                    round
-                  )}
-                </div>
-                {index < 4 && (
-                  <div
-                    className={`flex-1 h-1 rounded ${
-                      isPast || isCompleted ? "bg-[#4A7A4D]" : "bg-muted"
-                    }`}
-                  />
+              <div
+                key={String(round)}
+                className={cn(
+                  "flex-1 flex items-center cursor-pointer transition-colors",
+                  index < 4 && "border-r border-[#D9DDD2]",
+                  isActive && "bg-[#E8F0E9]",
+                  !isActive && "hover:bg-[#EEF1E9]",
+                  (isPast && !isActive) && "opacity-55"
                 )}
-              </React.Fragment>
+                style={{ gap: "9px", padding: "11px 16px" }}
+              >
+                <div
+                  className={cn(
+                    "flex-shrink-0 rounded-full flex items-center justify-center",
+                    isActive && "bg-[#3A6B47] text-white",
+                    (isCompleted || isPast) && !isActive && "bg-[#E6F2EB] text-[#2D6A4F]",
+                    !isActive && !isCompleted && !isPast && "text-[#8D9885]"
+                  )}
+                  style={{
+                    width: "26px", height: "26px",
+                    border: isActive ? "1.5px solid #3A6B47" : (isCompleted || isPast) ? "1.5px solid #2D6A4F" : "1.5px solid #BFC6B5",
+                    fontSize: "12px", fontWeight: 700, fontFamily: "'Fraunces', serif"
+                  }}
+                >
+                  {isCompleted || isPast ? "\u2713" : round === "review" ? "R" : round === "angle_selection" ? "A" : round}
+                </div>
+                <div>
+                  <div className="text-[#8D9885]" style={{ fontSize: "10.5px", letterSpacing: "0.2px", lineHeight: "1.3" }}>Step {index + 1}</div>
+                  <div className={cn("text-[#1C2118]", isActive && "text-[#3A6B47]")} style={{ fontSize: "13px", fontWeight: 600, lineHeight: "1.3" }}>{stepNames[index]}</div>
+                </div>
+              </div>
             );
           })}
-        </div>
-        <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-          <span>Core Intent</span>
-          <span>Delivery</span>
-          <span>Content</span>
-          <span>Angle</span>
-          <span>Review</span>
         </div>
       </div>
 
       {/* Error Message */}
       {error && (
-        <div className="flex-shrink-0 mx-4 mt-4 px-4 py-3 bg-[#FBF0ED] border border-[#A04030]/30 rounded-lg text-[#A04030] text-sm">
+        <div className="flex-shrink-0 mx-4 mt-4 flex items-center gap-2.5 bg-[#FBEAE8] border border-[#E8C0BC] text-[#A63228]" style={{ borderRadius: "8px", padding: "11px 16px", fontSize: "13px", fontWeight: 500 }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="flex-shrink-0"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
           {error}
         </div>
       )}
 
       {/* Main Content */}
-      <div className="flex-1 overflow-auto p-4 space-y-4 relative">
+      <div className="flex-1 overflow-auto relative" style={{ padding: "30px 38px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "11px" }}>
         {/* Completed Sections */}
         {renderCompletedSections()}
 
@@ -454,6 +447,7 @@ export default function KnowledgeShareBriefBuilder({
         {renderCurrentForm()}
 
         {/* RESEARCH DISABLED: Research Running Overlay removed */}
+        </div>
       </div>
 
       {/* Loading Overlay (for section confirm) */}
