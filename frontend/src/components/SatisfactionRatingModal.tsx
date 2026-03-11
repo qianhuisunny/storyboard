@@ -102,7 +102,7 @@ export function SatisfactionRatingModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-[#2C2418]/40 backdrop-blur-sm"
         onClick={onClose}
         aria-hidden="true"
       />
@@ -150,7 +150,7 @@ export function SatisfactionRatingModal({
                     className={cn(
                       "h-8 w-8 transition-colors duration-150",
                       star <= displayRating
-                        ? "fill-yellow-400 text-yellow-400"
+                        ? "fill-[#C4963C] text-[#C4963C]"
                         : "fill-transparent text-muted-foreground/40"
                     )}
                   />

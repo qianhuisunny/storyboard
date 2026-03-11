@@ -72,10 +72,10 @@ export default function DiffView({
           <span className="text-sm font-medium">Changes</span>
           {showDiff && (
             <div className="flex items-center gap-2 text-xs">
-              <span className="text-green-600 bg-green-50 px-2 py-0.5 rounded">
+              <span className="text-[#5E8C61] bg-[#EFF5F0] px-2 py-0.5 rounded">
                 +{diff.added} added
               </span>
-              <span className="text-red-600 bg-red-50 px-2 py-0.5 rounded">
+              <span className="text-[#C4644A] bg-[#FBF0ED] px-2 py-0.5 rounded">
                 -{diff.removed} removed
               </span>
             </div>
@@ -123,7 +123,7 @@ export default function DiffView({
             {/* Original */}
             <div className="p-4">
               <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-red-400" />
+                <span className="w-2 h-2 rounded-full bg-[#C4644A]" />
                 {originalLabel}
               </div>
               <pre className="whitespace-pre-wrap font-sans text-sm text-muted-foreground">
@@ -133,7 +133,7 @@ export default function DiffView({
             {/* Modified */}
             <div className="p-4">
               <div className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-green-400" />
+                <span className="w-2 h-2 rounded-full bg-[#5E8C61]" />
                 {modifiedLabel}
               </div>
               <pre className="whitespace-pre-wrap font-sans text-sm">{modified}</pre>
@@ -143,19 +143,19 @@ export default function DiffView({
           /* Inline view */
           <div className="p-4">
             <div className="space-y-2">
-              <div className="p-2 bg-red-50 border-l-2 border-red-400 rounded-r">
-                <div className="text-xs font-medium text-red-600 mb-1">
+              <div className="p-2 bg-[#FBF0ED] border-l-2 border-[#C4644A] rounded-r">
+                <div className="text-xs font-medium text-[#C4644A] mb-1">
                   {originalLabel} (removed)
                 </div>
-                <pre className="whitespace-pre-wrap font-sans text-sm text-red-800 line-through">
+                <pre className="whitespace-pre-wrap font-sans text-sm text-[#C4644A] line-through">
                   {original}
                 </pre>
               </div>
-              <div className="p-2 bg-green-50 border-l-2 border-green-400 rounded-r">
-                <div className="text-xs font-medium text-green-600 mb-1">
+              <div className="p-2 bg-[#EFF5F0] border-l-2 border-[#5E8C61] rounded-r">
+                <div className="text-xs font-medium text-[#5E8C61] mb-1">
                   {modifiedLabel} (added)
                 </div>
-                <pre className="whitespace-pre-wrap font-sans text-sm text-green-800">
+                <pre className="whitespace-pre-wrap font-sans text-sm text-[#5E8C61]">
                   {modified}
                 </pre>
               </div>
