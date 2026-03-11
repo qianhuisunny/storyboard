@@ -2084,3 +2084,71 @@ async def generate_brief(project_id: str, request: BriefGenerateRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating brief: {str(e)}")
+
+
+# ============================================================================
+# Gold Set Evaluation Endpoints (dev tool)
+# ============================================================================
+
+# In-memory eval job status: {name: {"status": "running"|"done"|"error", "error": str|None}}
+_eval_jobs: dict = {}
+
+
+@app.get("/api/eval/gold-sets")
+async def list_gold_sets():
+    """List available gold sets."""
+    from app.services.eval_gold_set import list_gold_sets as _list
+    return {"gold_sets": _list()}
+
+
+@app.get("/api/eval/gold-set/{name}")
+async def get_gold_set_eval(name: str):
+    """Get cached gold set evaluation result."""
+    from app.services.eval_gold_set import get_cached_eval, load_gold_set
+    cached = get_cached_eval(name)
+    if cached:
+        return {"success": True, "cached": True, "data": cached}
+    # Return gold standard data without eval results
+    try:
+        gold = load_gold_set(name)
+        return {"success": True, "cached": False, "data": {"gold": gold, "gold_set_name": name}}
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Gold set '{name}' not found")
+
+
+@app.get("/api/eval/gold-set/{name}/status")
+async def get_eval_status(name: str):
+    """Poll eval job status."""
+    job = _eval_jobs.get(name)
+    if not job:
+        return {"status": "idle"}
+    return job
+
+
+@app.post("/api/eval/gold-set/{name}")
+async def run_gold_set_eval(name: str):
+    """Start gold set evaluation in background thread. Poll /status for progress."""
+    import asyncio
+    from app.services.eval_gold_set import run_eval, load_gold_set
+    try:
+        load_gold_set(name)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Gold set '{name}' not found")
+
+    # Don't start if already running
+    if _eval_jobs.get(name, {}).get("status") == "running":
+        return {"success": True, "message": "Already running"}
+
+    _eval_jobs[name] = {"status": "running", "error": None}
+
+    def _run():
+        try:
+            run_eval(name, force=True)
+            _eval_jobs[name] = {"status": "done", "error": None}
+        except Exception as e:
+            _eval_jobs[name] = {"status": "error", "error": str(e)}
+
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, _run)
+
+    return {"success": True, "message": "Eval started"}
