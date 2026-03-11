@@ -15,7 +15,6 @@ import StageLayout from "@/components/StageLayout";
 import OnboardingPage from "@/components/OnboardingPage";
 import LandingPage from "@/components/LandingPage";
 import ProjectsPage from "@/components/ProjectsPage";
-import ThemeToggle from "@/components/ThemeToggle";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import { BarChart3 } from "lucide-react";
 import "./App.css";
@@ -33,21 +32,17 @@ function AppHeader() {
   const isAdmin = useIsAdmin();
 
   return (
-    <header className="bg-[var(--header-background)] text-[var(--header-foreground)] border-b border-[var(--header-border)] px-4 py-3 flex-shrink-0">
+    <header className="bg-[var(--header-background)] text-[var(--header-foreground)] border-b border-[var(--header-border)] px-4 py-3.5 flex-shrink-0">
       <div className="flex items-center justify-between">
         <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
           <h1 className="text-xl font-semibold">
             Plotline
           </h1>
-          <span className="text-xs bg-white/10 px-2 py-0.5 rounded text-[10px]">
+          <span className="text-xs bg-white/[0.08] px-2 py-0.5 rounded text-[10px]">
             Beta
           </span>
         </Link>
         <div className="flex items-center gap-4">
-          <span className="text-sm opacity-80 hidden sm:inline">
-            AI-Powered Storyboard Generator
-          </span>
-          <ThemeToggle />
           <SignedIn>
             <Link
               to="/projects"
@@ -77,7 +72,7 @@ function App() {
   return (
     <Router>
       <div className="h-screen flex flex-col">
-        {/* Global Header - Cal.com inverted style */}
+        {/* Global Header */}
         <AppHeader />
 
         {/* Main Content */}
