@@ -46,70 +46,73 @@
   --color-sidebar-ring: var(--sidebar-ring);
 
   /* Font families */
-  --font-inter: 'Inter', system-ui, -apple-system, sans-serif;
-  --font-cal: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-body: 'Nunito', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Fraunces', Georgia, serif;
 }
 
 :root {
-  /* Warm Neutral Scale */
-  --warm-1: 250, 248, 245;
-  --warm-2: 245, 240, 234;
-  --warm-3: 232, 224, 212;
-  --warm-4: 212, 201, 186;
-  --warm-5: 196, 185, 168;
-  --warm-6: 113, 100, 83;
-  --warm-7: 101, 83, 64;
-  --warm-8: 92, 78, 60;
-  --warm-9: 61, 50, 38;
-  --warm-10: 44, 36, 24;
+  /* Green-Tinted Neutral Scale */
+  --sage-1: 243, 245, 240;    /* #F3F5F0 — page background */
+  --sage-2: 232, 240, 233;    /* #E8F0E9 — accent-light surface */
+  --sage-3: 217, 221, 210;    /* #D9DDD2 — borders */
+  --sage-4: 191, 198, 181;    /* #BFC6B5 — strong borders */
+  --sage-5: 168, 200, 173;    /* #A8C8AD — accent-mid */
+  --sage-6: 141, 152, 133;    /* #8D9885 — muted text */
+  --sage-7: 90, 99, 82;       /* #5A6352 — secondary text */
+  --sage-8: 58, 107, 71;      /* #3A6B47 — accent */
+  --sage-9: 46, 84, 57;       /* #2E5439 — accent hover */
+  --sage-10: 28, 33, 24;      /* #1C2118 — primary text */
+
+  /* Surface */
+  --surface: 250, 251, 248;   /* #FAFBF8 — cards, nav */
 
   /* Mapped Variables */
   --radius: 0.5rem;
-  --background: rgb(var(--warm-1));
-  --foreground: rgb(var(--warm-10));
-  --card: rgb(255, 255, 255);
-  --card-foreground: rgb(var(--warm-10));
-  --popover: rgb(255, 255, 255);
-  --popover-foreground: rgb(var(--warm-10));
-  --primary: rgb(var(--warm-7));
+  --background: rgb(var(--sage-1));
+  --foreground: rgb(var(--sage-10));
+  --card: rgb(var(--surface));
+  --card-foreground: rgb(var(--sage-10));
+  --popover: rgb(var(--surface));
+  --popover-foreground: rgb(var(--sage-10));
+  --primary: rgb(var(--sage-8));
   --primary-foreground: rgb(255, 255, 255);
-  --secondary: rgb(var(--warm-2));
-  --secondary-foreground: rgb(var(--warm-10));
-  --muted: rgb(var(--warm-2));
-  --muted-foreground: rgb(var(--warm-6));
-  --accent: rgb(var(--warm-2));
-  --accent-foreground: rgb(var(--warm-10));
-  --destructive: rgb(196, 100, 74);
+  --secondary: rgb(var(--sage-2));
+  --secondary-foreground: rgb(var(--sage-10));
+  --muted: rgb(238, 241, 233);
+  --muted-foreground: rgb(var(--sage-6));
+  --accent: rgb(var(--sage-2));
+  --accent-foreground: rgb(var(--sage-10));
+  --destructive: rgb(166, 50, 40);
   --destructive-foreground: rgb(255, 255, 255);
-  --warning: rgb(196, 150, 60);
-  --warning-foreground: rgb(var(--warm-10));
-  --success: rgb(94, 140, 97);
+  --warning: rgb(122, 92, 30);
+  --warning-foreground: rgb(var(--sage-10));
+  --success: rgb(45, 106, 79);
   --success-foreground: rgb(255, 255, 255);
-  --border: rgb(var(--warm-3));
-  --input: rgb(var(--warm-3));
-  --ring: rgb(var(--warm-7));
+  --border: rgb(var(--sage-3));
+  --input: rgb(var(--sage-3));
+  --ring: rgb(var(--sage-8));
 
-  /* Chart colors (warm-compatible) */
-  --chart-1: rgb(124, 106, 86);
-  --chart-2: rgb(94, 140, 97);
-  --chart-3: rgb(156, 142, 124);
-  --chart-4: rgb(196, 150, 60);
-  --chart-5: rgb(196, 100, 74);
+  /* Chart colors */
+  --chart-1: rgb(58, 107, 71);
+  --chart-2: rgb(45, 106, 79);
+  --chart-3: rgb(141, 152, 133);
+  --chart-4: rgb(122, 92, 30);
+  --chart-5: rgb(166, 50, 40);
 
   /* Sidebar */
-  --sidebar: rgb(255, 255, 255);
-  --sidebar-foreground: rgb(var(--warm-10));
-  --sidebar-primary: rgb(var(--warm-7));
+  --sidebar: rgb(var(--surface));
+  --sidebar-foreground: rgb(var(--sage-10));
+  --sidebar-primary: rgb(var(--sage-8));
   --sidebar-primary-foreground: rgb(255, 255, 255);
-  --sidebar-accent: rgb(var(--warm-2));
-  --sidebar-accent-foreground: rgb(var(--warm-10));
-  --sidebar-border: rgb(var(--warm-3));
-  --sidebar-ring: rgb(var(--warm-7));
+  --sidebar-accent: rgb(var(--sage-2));
+  --sidebar-accent-foreground: rgb(var(--sage-10));
+  --sidebar-border: rgb(var(--sage-3));
+  --sidebar-ring: rgb(var(--sage-8));
 
-  /* Header (warm dark) */
-  --header-background: rgb(var(--warm-10));
-  --header-foreground: rgb(255, 255, 255);
-  --header-border: rgb(var(--warm-9));
+  /* Header (light nav) */
+  --header-background: rgb(var(--surface));
+  --header-foreground: rgb(var(--sage-10));
+  --header-border: rgb(var(--sage-3));
 }
 
 @layer base {
@@ -125,22 +128,29 @@
   }
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: var(--font-inter);
+    font-family: var(--font-body);
+    font-size: 13.5px;
     line-height: 1.6;
   }
   h1 {
-    font-family: var(--font-cal);
-    font-weight: 600;
-    letter-spacing: -0.5px;
+    font-family: var(--font-heading);
+    font-weight: 400;
+    letter-spacing: -0.6px;
+    line-height: 1.15;
   }
   h2 {
-    font-family: var(--font-cal);
-    font-weight: 600;
-    letter-spacing: -0.4px;
+    font-family: var(--font-heading);
+    font-weight: 400;
+    letter-spacing: -0.3px;
   }
   h3, h4, h5, h6 {
-    font-family: var(--font-cal);
+    font-family: var(--font-heading);
     font-weight: 600;
     letter-spacing: -0.3px;
   }
 }
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #BFC6B5; border-radius: 2px; }
