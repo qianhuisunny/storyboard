@@ -39,9 +39,11 @@ export default function RoundTwoForm({
   return (
     <div className="space-y-6">
       {/* Section Header */}
-      <div className="border-b pb-4">
-        <h2 className="text-lg font-semibold text-foreground">Section 2: Delivery & Format</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div style={{ marginBottom: "22px" }}>
+        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "28px", fontWeight: 400, color: "#1C2118", letterSpacing: "-0.6px", lineHeight: "1.15", marginBottom: "5px" }}>
+          Section 2: Delivery & Format
+        </h2>
+        <p style={{ fontSize: "13.5px", fontWeight: 300, color: "#5A6352" }}>
           Define how your video will look and feel to viewers.
         </p>
       </div>

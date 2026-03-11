@@ -41,13 +41,15 @@ export default function RoundThreeForm({
   return (
     <div className="space-y-6">
       {/* Section Header */}
-      <div className="border-b pb-4">
-        <h2 className="text-lg font-semibold text-foreground">Section 3: Content Spine</h2>
-        <p className="text-sm text-muted-foreground mt-1">
+      <div style={{ marginBottom: "22px" }}>
+        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "28px", fontWeight: 400, color: "#1C2118", letterSpacing: "-0.6px", lineHeight: "1.15", marginBottom: "5px" }}>
+          Section 3: Content Spine
+        </h2>
+        <p style={{ fontSize: "13.5px", fontWeight: 300, color: "#5A6352" }}>
           Define the structure and key points for your video content.
         </p>
         {!researchComplete && (
-          <div className="mt-2 flex items-center gap-2 text-sm text-[#8B6B2A] bg-[#FBF6ED] px-3 py-2 rounded">
+          <div className="mt-2 flex items-center gap-2 text-sm text-[#7A5C1E] bg-[#F7F0E0] px-3 py-2 rounded">
             <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
               <circle
                 className="opacity-25"
