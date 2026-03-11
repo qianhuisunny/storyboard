@@ -43,7 +43,7 @@ export default function StageNavigation({
   onAnchorSelect,
 }: StageNavigationProps) {
   return (
-    <nav className="w-56 sm:w-48 h-full border-r border-border bg-card p-4 flex-shrink-0 overflow-y-auto flex flex-col">
+    <nav className="w-56 sm:w-48 h-full border-r border-border bg-white p-4 flex-shrink-0 overflow-y-auto flex flex-col">
       <div className="flex-1">
         <h2 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
           Stages
@@ -62,7 +62,7 @@ export default function StageNavigation({
                     "w-full text-left px-3 py-2 rounded-md transition-colors",
                     "flex items-center",
                     isActive
-                      ? "bg-primary/10 text-primary"
+                      ? "bg-accent text-primary border-l-2 border-l-primary"
                       : isClickable
                       ? "hover:bg-muted text-foreground"
                       : "text-muted-foreground cursor-not-allowed opacity-50"
@@ -72,7 +72,6 @@ export default function StageNavigation({
                   <span className="flex-shrink-0">{statusIcons[stage.status]}</span>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center" style={{ gap: "4px" }}>
-                      <span className="text-xs text-muted-foreground">{stage.id}</span>
                       <span className="font-medium text-sm truncate">{stage.name}</span>
                     </div>
                     {isActive && (
@@ -133,10 +132,10 @@ function EvidenceSubStep({
       onClick={() => isClickable && onSelect()}
       disabled={!isClickable}
       className={cn(
-        "w-full text-left px-3 py-2 rounded-md transition-colors mt-1",
+        "w-full text-left pl-6 pr-3 py-2 rounded-md transition-colors mt-1",
         "flex items-center",
         isActive
-          ? "bg-primary/10 text-primary"
+          ? "bg-accent text-primary border-l-2 border-l-primary"
           : isClickable
           ? "hover:bg-muted text-foreground"
           : "text-muted-foreground cursor-not-allowed opacity-50"
