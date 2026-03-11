@@ -17,6 +17,11 @@ interface ChatMessageProps {
 const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
   const isUser = message.role === "user";
 
+  const formatTime = (date?: Date) => {
+    if (!date) return "";
+    return date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  };
+
   return (
     <div
       className={cn("flex w-full", isUser ? "justify-end" : "justify-start")}
@@ -43,15 +48,41 @@ const ChatMessage: React.FC<ChatMessageProps> = ({ message }) => {
           </AvatarFallback>
         </Avatar>
 
-        <div
-          className={cn(
-            "rounded-lg p-3 text-sm flex-col",
-            isUser
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted text-muted-foreground"
+        <div className="flex flex-col">
+          {!isUser && (
+            <span style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.5px", textTransform: "uppercase" as const, color: "#8D9885" }}>
+              AI Assistant
+            </span>
           )}
-        >
-          <p className="whitespace-pre-wrap text-left">{message.content}</p>
+          <div
+            style={
+              isUser
+                ? {
+                    background: "#3A6B47",
+                    color: "white",
+                    border: "none",
+                    borderRadius: "10px 10px 3px 10px",
+                    padding: "10px 13px",
+                    fontSize: "13px",
+                    lineHeight: "1.6",
+                  }
+                : {
+                    background: "#F3F5F0",
+                    border: "1px solid #D9DDD2",
+                    borderRadius: "3px 10px 10px 10px",
+                    padding: "10px 13px",
+                    fontSize: "13px",
+                    lineHeight: "1.6",
+                  }
+            }
+          >
+            <p className="whitespace-pre-wrap text-left">{message.content}</p>
+          </div>
+          {message.createdAt && (
+            <span style={{ fontSize: "10px", color: "#8D9885", marginTop: "1px" }}>
+              {formatTime(message.createdAt)}
+            </span>
+          )}
         </div>
       </div>
     </div>

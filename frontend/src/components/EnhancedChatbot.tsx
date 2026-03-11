@@ -298,22 +298,22 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
         className
       )}
     >
-      {/* Header - Cal.com inverted style */}
-      <div className="bg-[var(--header-background)] text-[var(--header-foreground)] p-4">
+      {/* Header */}
+      <div style={{ padding: "18px 20px 15px", borderBottom: "1px solid #D9DDD2", background: "#FAFBF8" }}>
         <div className="flex items-center space-x-2">
-          <Bot className="w-5 h-5" />
-          <h3 className="font-semibold">Storyboard AI Assistant</h3>
+          <Bot className="w-5 h-5 text-[#3A6B47]" />
+          <h3 style={{ fontFamily: "'Fraunces', serif", fontSize: "18px", fontWeight: 400, color: "#1C2118", letterSpacing: "-0.3px" }}>Storyboard AI Assistant</h3>
         </div>
         <div className="flex">
-          <p className="text-xs opacity-80 mt-1">
+          <p style={{ fontSize: "12px", color: "#8D9885", fontWeight: 300, marginTop: "2px" }}>
             Edit and iterate your storyboard
           </p>
         </div>
       </div>
 
       {/* Messages */}
-      <ScrollArea ref={scrollAreaRef} className="flex-1 p-4">
-        <div className="space-y-4">
+      <ScrollArea ref={scrollAreaRef} className="flex-1" style={{ padding: "16px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
           {messages.map((message) => (
             <ChatMessage key={message.id} message={message} />
           ))}
@@ -344,7 +344,7 @@ const EnhancedChatbot: React.FC<EnhancedChatbotProps> = ({ className }) => {
       </ScrollArea>
 
       {/* Input */}
-      <div className="p-4 border-t border-border">
+      <div style={{ borderTop: "1px solid #D9DDD2", padding: "12px 16px" }}>
         <form onSubmit={handleSubmit} className="space-y-2">
           <div className="flex space-x-2">
             <Textarea
