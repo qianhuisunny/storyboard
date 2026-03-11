@@ -1,0 +1,206 @@
+{
+  "brief": {
+    "video_url": "uploaded file",
+    "video_title": "How to Study Way More Effectively The Feynman Technique",
+    "viewer_outcome": "Understand the difference between deep and shallow knowledge, and apply the 4-step Feynman Technique to identify gaps in understanding and learn subjects deeply.",
+    "target_audience": "Students, self-taught learners, and professionals wanting to improve their comprehension of complex topics.",
+    "audience_level": "beginner",
+    "total_duration_sec": 303,
+    "platform": "youtube",
+    "delivery_tone": "educational, narrative, and structured",
+    "on_camera_presence": "none",
+    "broll_type": [
+      "whiteboard",
+      "screen_recording"
+    ],
+    "core_talking_points": [
+      "Memorizing words or a speech is shallow knowledge, whereas truly grasping the concepts is deep knowledge.",
+      "The Feynman Technique uses four steps—explaining simply, identifying gaps, reviewing source material, and repeating—to force deep understanding.",
+      "Creating an original analogy is the ultimate test of mastery because it requires relating new, complex ideas to concepts the student already knows intuitively."
+    ],
+    "selected_angle": "Using extreme simplicity and teaching as a mechanism to expose your own ignorance and achieve true mastery of a subject.",
+    "misconceptions": [
+      "Knowing the name of a concept or memorizing the definition means you actually understand it."
+    ],
+    "must_avoid": [
+      "Complex jargon or overly academic explanations that hide a lack of foundational understanding."
+    ]
+  },
+  "outline": [
+    {
+      "section_number": 1,
+      "section_title": "The Max Planck Story",
+      "purpose": "To introduce the distinction between knowing the name of something and truly understanding it through a memorable parable.",
+      "entry_assumption": "The viewer is looking for ways to study or learn more effectively.",
+      "exit_state": "The viewer recognizes that memorization and regurgitation can successfully fake knowledge until tested by a real question.",
+      "misconception_to_preempt": "Regurgitating a lecture perfectly means you possess the knowledge of the lecturer.",
+      "start_timestamp": "0:00",
+      "end_timestamp": "1:00",
+      "duration_sec": 60,
+      "talking_points": [
+        "A memorized speech can mimic expertise flawlessly until it is challenged with a simple, foundational question."
+      ],
+      "evidence_used": [
+        "Charlie Munger's 2007 graduation speech story about Max Planck and his chauffeur."
+      ],
+      "visual_intent": [
+        "Animated characters representing Max Planck and the chauffeur visually separate the 'source' of the knowledge from the 'mimic'."
+      ]
+    },
+    {
+      "section_number": 2,
+      "section_title": "Deep vs. Shallow Knowledge",
+      "purpose": "To define the two types of knowledge and explain why shallow knowledge is dangerous when acted upon.",
+      "entry_assumption": "The viewer understands that the chauffeur faked his expertise.",
+      "exit_state": "The viewer understands that while shallow knowledge is necessary for time-saving and casual connection, acting on it without deep review leads to foolishness.",
+      "misconception_to_preempt": "Shallow knowledge is entirely useless.",
+      "start_timestamp": "1:00",
+      "end_timestamp": "2:04",
+      "duration_sec": 64,
+      "talking_points": [
+        "Shallow knowledge has utility for surface-level conversations and delegating to experts, but it is dangerous to act on information you haven't reviewed yourself.",
+        "We risk fooling ourselves into believing we know something when we only possess surface-level familiarity."
+      ],
+      "evidence_used": [
+        "Richard Feynman quote: 'The first principle is that you must not fool yourself and you are the easiest person to fool.'"
+      ],
+      "visual_intent": [
+        "A liquid container graphic comparing a full container (deep) versus a nearly empty one (shallow) gives a visual anchor to the two states of knowledge."
+      ]
+    },
+    {
+      "section_number": 3,
+      "section_title": "The Four Steps of the Feynman Technique",
+      "purpose": "To provide the actionable framework the viewer clicked on the video to learn.",
+      "entry_assumption": "The viewer wants a reliable method to ensure they are building deep knowledge rather than fooling themselves.",
+      "exit_state": "The viewer knows the exact 4-step loop to test and build their own understanding.",
+      "misconception_to_preempt": null,
+      "start_timestamp": "2:04",
+      "end_timestamp": "2:48",
+      "duration_sec": 44,
+      "talking_points": [
+        "Step 1: Explain the topic out loud to someone unfamiliar with it using simple language.",
+        "Step 2: Identify gaps where you struggle to explain things simply.",
+        "Step 3: Go back to the source material to fix those weak points.",
+        "Step 4: Repeat the process until mastery is achieved."
+      ],
+      "evidence_used": null,
+      "visual_intent": [
+        "A sequential horizontal timeline of 4 icons appears step-by-step to show the cyclical and logical nature of the technique."
+      ]
+    },
+    {
+      "section_number": 4,
+      "section_title": "The Power of Analogies",
+      "purpose": "To show how to successfully execute the 'simple language' requirement using analogies.",
+      "entry_assumption": "The viewer knows they need to explain things simply but might not know what 'simple' actually looks like in practice.",
+      "exit_state": "The viewer understands that creating an original analogy proves true mastery because it maps new information to existing intuitive shapes or concepts.",
+      "misconception_to_preempt": "Simple language means just using shorter words.",
+      "start_timestamp": "2:48",
+      "end_timestamp": "4:00",
+      "duration_sec": 72,
+      "talking_points": [
+        "An analogy forces you to meet the student at their level by connecting the new concept to something they intuitively understand.",
+        "Mapping a story's rising action, climax, and falling action to the shape of a pyramid simplifies complex structural concepts instantly."
+      ],
+      "evidence_used": [
+        "E.F. Schumacher quote: 'Any intelligent fool can make things bigger, more complex, and more violent. It takes a touch of genius... to move in the opposite direction.'"
+      ],
+      "visual_intent": [
+        "An animated pyramid is drawn over a circle, with points labeled 'Rising Action', 'Climax', and 'Falling Action' to explicitly demonstrate the mapping of a complex idea to a simple shape."
+      ]
+    },
+    {
+      "section_number": 5,
+      "section_title": "Application and Conclusion",
+      "purpose": "To instruct the viewer on when it is worth investing the time to use this technique, and provide a concluding motivational note.",
+      "entry_assumption": "The viewer understands the technique but may feel it is too time-consuming to use for everything.",
+      "exit_state": "The viewer knows to reserve this high-effort technique for life-changing decisions or core professional crafts.",
+      "misconception_to_preempt": "You must use the Feynman Technique for every single piece of information you encounter.",
+      "start_timestamp": "4:00",
+      "end_timestamp": "5:03",
+      "duration_sec": 63,
+      "talking_points": [
+        "Apply the Feynman Technique specifically when making life-changing decisions or when trying to improve at your core craft.",
+        "The upfront investment of time yields massive returns in problem-solving and critical thinking."
+      ],
+      "evidence_used": [
+        "James Gleick's biography note that Richard Feynman kept a journal titled 'Things I do not know.'"
+      ],
+      "visual_intent": [
+        "A bulleted list of advantages appears on screen to summarize the logical benefits of adopting the technique."
+      ]
+    }
+  ],
+  "storyboard": [
+    {
+      "screen_number": 1,
+      "section_number": 1,
+      "screen_type": "slides",
+      "voiceover_text": "This video is sponsored by brilliant.org, a math and science problem solving website that helps you think more like a scientist.",
+      "visual_direction": [
+        "The Brilliant.org logo appears in the center of the screen with a clean white background."
+      ],
+      "action_notes": "A quick, up-front sponsor disclosure to get it out of the way before the narrative hook begins."
+    },
+    {
+      "screen_number": 2,
+      "section_number": 1,
+      "screen_type": "slides",
+      "voiceover_text": "In a 2007 graduation speech, Charlie Munger told an interesting, but fictional, story about two people: the great scientist Max Planck and his chauffeur. Max was, undoubtedly, a wise scientist. The people of Germany longed to hear him speak. He toured the country with his chauffeur, giving talks about his work. Day after day, the chauffeur grew tired of hearing the same speech over and over again. Finally he asked, 'Max, can I try giving the speech this time? I've listened to it so many times, I have it memorized.' Max agreed to let the chauffeur give the speech. He took a seat at the front and put on the chauffeur's hat. The chauffeur pretended to be Max and played the part perfectly. The speech was a success. At the end, a small man rose and asked the chauffeur a question. His response? 'That's such a simple question, I'm surprised that you would ask it. I'll let my chauffeur answer it.'",
+      "visual_direction": [
+        "Animated minimalist graphics showing an older man with glasses (Max) holding a pointer next to a blackboard that says 'Planck's Constant'.",
+        "The scene transitions to show a younger man in a chauffeur hat. They swap hats, and the chauffeur gives the presentation flawlessly until a question bubble appears."
+      ],
+      "action_notes": "Uses a narrative hook and simple character animations to ground the abstract concept of 'faking knowledge' in an entertaining parable."
+    },
+    {
+      "screen_number": 3,
+      "section_number": 2,
+      "screen_type": "slides",
+      "voiceover_text": "Charlie Munger told this story to highlight the difference between two kinds of knowledge. The deep knowledge that Max had, and the shallow knowledge that the chauffeur had. The world is overflowing with information. It's impossible to learn deeply about everything. In fact, there are benefits to having a shallow understanding of ideas. For starters, it allows us to connect with other people in their area of expertise and have conversations with a wide variety of people. It also allows us to understand important things on the surface, which may be better than not understanding at all. In the essence of time, sometimes we have to outsource our understanding to experts. But in my opinion, it's always best not to act on information we haven't reviewed ourselves, if possible, because even experts can be wrong or misinformed. There are dangers associated with obtaining shallow information as well. The biggest is that, like the chauffeur, we risk fooling ourselves into thinking we actually understand or know something when we don't. Even worse, we risk taking action on misinformation or misunderstanding. As Richard Feynman famously said, 'The first principle is that you must not fool yourself and you are the easiest person to fool.'",
+      "visual_direction": [
+        "A graphic of a container appears. It fills up high to represent 'Deep Knowledge' (Max), and then drops to a low level to represent 'Shallow Knowledge' (Chauffeur).",
+        "Icons appear around a central character showing different professions, followed by warning signs indicating the danger of taking action on fake news or misunderstanding."
+      ],
+      "action_notes": "Visually defines the abstract terms 'deep' and 'shallow' so the user has a mental image to anchor the definitions to."
+    },
+    {
+      "screen_number": 4,
+      "section_number": 3,
+      "screen_type": "slides",
+      "voiceover_text": "The best way to not be a fool is to think critically and learn deeply. One of the best ways to grasp a deeper understanding of an idea is to utilize the Feynman Technique. There are four simple steps. Step one: Explain the topic out loud to a peer who is unfamiliar with the topic. Meet them at their level of understanding and use the simplest language you can. Step two: Identify any gaps in your own understanding or points where you feel that you can't explain an idea simply. Step three: Go back to the source material and study up on your weak points until you can use simple language to explain it. And then the final step is to repeat the three steps above until you've mastered the topic.",
+      "visual_direction": [
+        "A sequence of icons builds horizontally: a talking face (step 1), a line of dots with one highlighted dot representing a gap (step 2), a book representing source material (step 3), and a looping arrow representing repetition (step 4)."
+      ],
+      "action_notes": "Lays out the core framework of the video in a clear, linear, step-by-step visual sequence so viewers can easily take notes or screenshot."
+    },
+    {
+      "screen_number": 5,
+      "section_number": 4,
+      "screen_type": "slides",
+      "voiceover_text": "There are two main goals to strive for when using the Feynman Technique. Be simple and concise. See if you can explain the concept to a five-year-old. If you can, try to come up with an original analogy to help you explain the topic. Creating an analogy is a fantastic way to gain mastery over an idea and learn empathy. It forces you to meet the person at their level of understanding and teach them something new by relating it to an idea they are already familiar with. Here's an example of an analogy. The basic structure of a story can be thought of as a pyramid. Tension builds up to a maximum and then drops. Of course, there are many different ways to write a story and not all of them can be reduced to such a simple structure. But the image of a pyramid conveys a lot of complex information to the student in a simple manner. They can relate the structure of a story to a shape they are familiar with and have an intuitive understanding of, the pyramid. It shows them that there must be tension in a good story. This is commonly referred to as the rising action. The tension must rise to a maximum point, which is called the climax. At this point, the tension must fall or be diffused. We refer to this as the falling action. Creating an analogy like this forces me to have a deep enough understanding of the topic to relate it to an idea the student is already familiar with. 'Any intelligent fool can make things bigger, more complex, and more violent. It takes a touch of genius - and a lot of courage - to move in the opposite direction.' - E.F. Schumacher.",
+      "visual_direction": [
+        "A golden pyramid appears. Animated lines draw up the left side labeled 'RISING ACTION', hit the top labeled 'CLIMAX', and go down the right side labeled 'FALLING ACTION'.",
+        "The Schumacher quote appears on screen in bold typography over the dark blue background."
+      ],
+      "action_notes": "Models the exact behavior it is teaching. By providing a clear visual analogy, it proves that complex things can be simplified into familiar shapes."
+    },
+    {
+      "screen_number": 6,
+      "section_number": 5,
+      "screen_type": "slides",
+      "voiceover_text": "So when should we apply the Feynman technique to learn more deeply? I'd argue that the two most important places to apply it is when we're making a life-changing decision or when we're working on our craft. If you want to be an artist, you should apply it whenever you're making art so that you can deliberately improve. If you're an engineer, you might apply it when you're studying or working on a technical project. The massive advantages of using the Feynman Technique are that it helps you develop a true understanding of whatever you're learning, allows you to make informed and intelligent decisions, applying your knowledge to real-world problems becomes much easier, your teaching skills improve, and your capacity to think critically about a topic is increased. The only trade-off is time and effort. Even then, the time you invest upfront is more than returned later on. This technique was named after Richard Feynman, a Nobel Prize-winning physicist. In his biography on Richard Feynman, James Gleick said that Richard would create a journal for the 'things I do not know.' His discipline in challenging his own understanding made him a genius and a brilliant scientist. Now that you know his secret, I'm excited for you to step into your own greatness.",
+      "visual_direction": [
+        "Icons representing big decisions (a question mark), and crafts (a pencil and a hammer) appear.",
+        "A text list of 'Advantages' scrolls onto the screen. Finally, an animated face of Richard Feynman appears next to a blue book titled 'THINGS I DO NOT KNOW'."
+      ],
+      "action_notes": "Transitions the viewer from theory into practical boundaries (when to actually do this), and provides historical validation (Feynman's journal) to end the lesson on a high note."
+    }
+  ],
+  "meta": {
+    "duration_bucket": "short",
+    "structure": "linear",
+    "narrative_opening": "story_hook"
+  }
+}
