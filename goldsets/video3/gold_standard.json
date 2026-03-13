@@ -1,0 +1,507 @@
+{
+  "brief": {
+    "video_url": "",
+    "video_title": "The Interview Secret to Getting Hired",
+    "viewer_outcome": "Viewers will understand how to shift their interview mindset from passively answering questions to actively acting like a consultant solving a business problem.",
+    "target_audience": "Job seekers aiming for top-tier companies, mid-level to senior professionals",
+    "audience_level": "intermediate",
+    "total_duration_sec": 353,
+    "platform": "youtube",
+    "delivery_tone": "authoritative, direct, and conversational",
+    "on_camera_presence": "full",
+    "broll_type": [
+      "text_overlays",
+      "whiteboard",
+      "stock_footage",
+      "animation"
+    ],
+    "core_talking_points": [
+      "The Top 1% Mindset Shift",
+      "Rule 1: Study the Business Problem",
+      "Rule 2: Focus on Delivered Outcomes",
+      "Rule 3: Structure Every Answer",
+      "Rule 4: Look Intentional",
+      "Rule 5: Be Logistically Early",
+      "Rule 6: Ask Strategic Questions",
+      "Rule 7: Manage Energy, Not Ego",
+      "Rule 8: End Like a Consultant"
+    ],
+    "selected_angle": "Direct-to-camera expert advice, cutting through typical fluff to provide actionable, psychological interview frameworks.",
+    "misconceptions": [
+      "Interviewing is about memorizing answers",
+      "Hiring managers care mostly about company culture fit and personality",
+      "Confidence means acting like you don't need the job"
+    ],
+    "must_avoid": [
+      "Generic advice like 'be yourself' or 'dress to impress'",
+      "Long-winded storytelling without quantifiable metrics"
+    ]
+  },
+  "outline": [
+    {
+      "section_number": 1,
+      "section_title": "The Top 1% Mindset Shift",
+      "purpose": "Hook the viewer by invalidating standard interview advice and introducing the core premise of the video.",
+      "entry_assumption": "The viewer believes getting a job offer requires luck or memorizing scripted answers.",
+      "exit_state": "The viewer understands that interviewing is a transactional skill focused on solving company problems.",
+      "misconception_to_preempt": "Getting an offer means you are the smartest candidate.",
+      "start_timestamp": "0:00",
+      "end_timestamp": "0:49",
+      "duration_sec": 49,
+      "talking_points": [
+        "Standard interview advice is useless and a distraction.",
+        "Success isn't about memorizing scripted answers, it's a skill.",
+        "Top candidates treat the interview as a transaction where they sell a solution to a business problem."
+      ],
+      "evidence_needed": [
+        "Motion graphics of a candidate entering the top 1%",
+        "Logos of top-tier companies (Google, Uber, TikTok) to establish authority",
+        "Animated text emphasizing the shift from 'smartest' to 'hiring manager mindset'"
+      ]
+    },
+    {
+      "section_number": 2,
+      "section_title": "Rule 1: Study the Business Problem",
+      "purpose": "Teach viewers to research the root financial and operational reasons a role is open.",
+      "entry_assumption": "The viewer believes they should study fun company facts or trivia.",
+      "exit_state": "The viewer knows to research earnings reports and connect past work to the company's financial goals.",
+      "misconception_to_preempt": "Hiring managers hire for personality.",
+      "start_timestamp": "0:49",
+      "end_timestamp": "1:27",
+      "duration_sec": 38,
+      "talking_points": [
+        "Stop memorizing trivia and fun facts.",
+        "Figure out why the role exists and what the business is losing money/time on.",
+        "Managers buy outcomes, so read earnings reports and link your past work to their financial goals."
+      ],
+      "evidence_needed": [
+        "Title card for Rule No. 1",
+        "Text slide detailing 'The Fundamental Truth'"
+      ]
+    },
+    {
+      "section_number": 3,
+      "section_title": "Rule 2: Focus on Delivered Outcomes",
+      "purpose": "Introduce a concrete framework for proving value instead of listing responsibilities.",
+      "entry_assumption": "The viewer believes they just need to describe their past daily tasks.",
+      "exit_state": "The viewer will use the Google XYZ formula to quantify all past work.",
+      "misconception_to_preempt": "Managers care about how much time you spent working.",
+      "start_timestamp": "1:27",
+      "end_timestamp": "1:56",
+      "duration_sec": 29,
+      "talking_points": [
+        "Stop describing what you did and start talking about what you delivered.",
+        "Never use fluff; managers buy outcomes, not time.",
+        "Use the Google XYZ formula: Accomplished X as measured by Y, by doing Z."
+      ],
+      "evidence_needed": [
+        "Title card for Rule No. 2",
+        "On-screen text breakdown of the Google XYZ Formula"
+      ]
+    },
+    {
+      "section_number": 4,
+      "section_title": "Rule 3: Structure Every Answer",
+      "purpose": "Explain the psychological importance of clear, structured communication during interviews.",
+      "entry_assumption": "The viewer believes more detail is always better, even if it rambles.",
+      "exit_state": "The viewer understands that rambling signals confusion, and structured answers signal depth.",
+      "misconception_to_preempt": "Rambling shows you know a lot about a topic.",
+      "start_timestamp": "1:57",
+      "end_timestamp": "2:39",
+      "duration_sec": 42,
+      "talking_points": [
+        "Clarity is power; rambling sounds like confusion.",
+        "Use structured answers like STAR, CAR, or HERO.",
+        "Make it effortless for the interviewer to follow your logic and evaluate your impact."
+      ],
+      "evidence_needed": [
+        "Title card for Rule No. 3",
+        "Quote slide from Albert Einstein",
+        "Text graphic highlighting 'STAR CAR HERO'"
+      ]
+    },
+    {
+      "section_number": 5,
+      "section_title": "Rule 4: Look Intentional",
+      "purpose": "Outline the non-negotiable physical and technical setups required for a modern interview.",
+      "entry_assumption": "The viewer thinks looking prepared just means wearing a suit.",
+      "exit_state": "The viewer will prioritize clean audio, good lighting, and a distraction-free background.",
+      "misconception_to_preempt": "Bluetooth headphones are perfectly fine for important virtual interviews.",
+      "start_timestamp": "2:40",
+      "end_timestamp": "3:26",
+      "duration_sec": 46,
+      "talking_points": [
+        "Look prepared, which means looking intentional, not pretentious.",
+        "Ensure a clean background, good lighting, and wired headphones for reliable audio.",
+        "Keep the camera at eye level; failing basic setup implies inability to manage projects."
+      ],
+      "evidence_needed": [
+        "Title card for Rule No. 4",
+        "Checklist graphic showing appropriate dress, clean background, clean audio, and good camera"
+      ]
+    },
+    {
+      "section_number": 6,
+      "section_title": "Rule 5: Be Logistically Early",
+      "purpose": "Highlight the mental benefits of being technically prepared well before the start time.",
+      "entry_assumption": "The viewer thinks joining exactly on time is sufficient.",
+      "exit_state": "The viewer will join virtual interviews 5 minutes early to test tech and stay calm.",
+      "misconception_to_preempt": null,
+      "start_timestamp": "3:26",
+      "end_timestamp": "3:51",
+      "duration_sec": 25,
+      "talking_points": [
+        "Logistical readiness equals mental readiness.",
+        "Join virtual links 5 minutes early, arrive 10 minutes early in person.",
+        "You cannot project calm confidence if you start the interview flustered from tech issues."
+      ],
+      "evidence_needed": [
+        "Title card for Rule No. 5",
+        "Icons for Camera, Microphone, and WiFi popping onto the screen"
+      ]
+    },
+    {
+      "section_number": 7,
+      "section_title": "Rule 6: Ask Strategic Questions",
+      "purpose": "Provide a high-impact question candidate can use to reverse-engineer the hiring manager's exact needs.",
+      "entry_assumption": "The viewer plans to ask generic questions about company culture.",
+      "exit_state": "The viewer will ask about measurable 6-month performance expectations.",
+      "misconception_to_preempt": "Asking about company culture is a good way to stand out.",
+      "start_timestamp": "3:51",
+      "end_timestamp": "4:23",
+      "duration_sec": 32,
+      "talking_points": [
+        "Do not ask about company culture (yields canned answers).",
+        "Ask what would make someone exceed expectations in the first six months.",
+        "Gathering intelligence during the interview is what smart candidates do."
+      ],
+      "evidence_needed": [
+        "Title card for Rule No. 6",
+        "Full screen text graphic of the exact question script to use"
+      ]
+    },
+    {
+      "section_number": 8,
+      "section_title": "Rule 7: Manage Energy, Not Ego",
+      "purpose": "Differentiate between true confidence (understanding value) and fake confidence (arrogance).",
+      "entry_assumption": "The viewer thinks confidence means acting aloof or overly aggressive.",
+      "exit_state": "The viewer will focus on poise and calmly communicating their results.",
+      "misconception_to_preempt": "Confidence is pretending you don't need the job.",
+      "start_timestamp": "4:24",
+      "end_timestamp": "4:47",
+      "duration_sec": 23,
+      "talking_points": [
+        "Confidence is demonstrating you understand your own value, not pretending you don't need the job.",
+        "Speak calmly about results to project authority.",
+        "You need poise, not bravado."
+      ],
+      "evidence_needed": [
+        "Title card for Rule No. 7",
+        "Side-by-side graphic showing Bravado vs. Poise"
+      ]
+    },
+    {
+      "section_number": 9,
+      "section_title": "Rule 8: End Like a Consultant",
+      "purpose": "Give viewers a closing script that positions them as a strategic partner rather than a subordinate applicant.",
+      "entry_assumption": "The viewer thinks they should just say thank you and wait for a decision.",
+      "exit_state": "The viewer will use a fill-in-the-blank closing statement to summarize alignment.",
+      "misconception_to_preempt": "Getting the offer is about giving perfect answers.",
+      "start_timestamp": "4:48",
+      "end_timestamp": "5:53",
+      "duration_sec": 65,
+      "talking_points": [
+        "End the interview like a problem solver, not someone waiting for approval.",
+        "Use the summary framework: 'It sounds like [problem] and [goal] are top of mind...'",
+        "Getting an offer is about managing perception: showing you are low-risk, high-impact, and easy to trust."
+      ],
+      "evidence_needed": [
+        "Title card for Rule No. 8",
+        "Full screen text slide of the closing script with highlighted variables",
+        "On-screen bullet points for 'Low-risk, High-impact, Easy to trust'"
+      ]
+    }
+  ],
+  "storyboard": [
+    {
+      "screen_number": 1,
+      "section_number": 1,
+      "screen_type": "talking_head",
+      "voiceover_text": "If you've got a job interview coming up and you want to interview like the top 1% candidate, the standard advice you've been given is useless. It's a distraction. This isn't about luck and it's certainly not about memorizing scripted answers. It's about skill. Interviewing is its own elite discipline and the honest truth is that the vast majority of candidates never learn the secret to success. After 10 years of sitting in the room at companies like Google, Uber, and TikTok, I can promise you this:",
+      "visual_direction": [
+        "Speaker in a bright office setting facing camera directly."
+      ],
+      "action_notes": "0:01 - Animated graphic slides in from right: a CV document with a clock icon. 0:02 - Graphic changes to a blue silhouette person with '1%' on the chest. 0:10 - Large white text overlay appears: 'And it's certainly not about memorizing scripted answers.' 0:13 - Text disappears. 0:14 - Huge white text overlay 'SKILL' pops up and scales slightly. 0:25 - Logos pop up sequentially next to the speaker: Google, Uber, TikTok."
+    },
+    {
+      "screen_number": 2,
+      "section_number": 1,
+      "screen_type": "slides",
+      "voiceover_text": "The people who get the offers aren't always the smartest. They are the ones who know how to think like hiring managers. They treat the interview as a transaction where they are selling the solution to the company's biggest problems.",
+      "visual_direction": [
+        "White graphical background with subtle geometric patterns."
+      ],
+      "action_notes": "0:28 - Hard cut to white background. 0:30 - Blue text types on screen 'The people who get the offers aren't always the smartest.' 0:32 - Subsequent sentences fade in below in black text."
+    },
+    {
+      "screen_number": 3,
+      "section_number": 1,
+      "screen_type": "talking_head",
+      "voiceover_text": "So if you want to stop wasting your time and finally interview like a top tier candidate,",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "0:43 - Cut back to speaker briefly."
+    },
+    {
+      "screen_number": 4,
+      "section_number": 1,
+      "screen_type": "slides",
+      "voiceover_text": "here are the 8 rules that you must follow.",
+      "visual_direction": [
+        "White background transitions."
+      ],
+      "action_notes": "0:46 - Cut to white slide showing an open book icon and text '8 Rules You Must Follow'."
+    },
+    {
+      "screen_number": 5,
+      "section_number": 2,
+      "screen_type": "slides",
+      "voiceover_text": "Rule No. 1: Stop Memorizing Trivia. Start Studying the Business Problem.",
+      "visual_direction": [
+        "White slide with title and split-screen stock imagery."
+      ],
+      "action_notes": "0:49 - Title card appears with stock photos showing an overwhelmed person vs a focused team."
+    },
+    {
+      "screen_number": 6,
+      "section_number": 2,
+      "screen_type": "talking_head",
+      "voiceover_text": "Before you walk into the interview, don't study fun facts about the company. That's amateur behavior.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "0:56 - Cut back to speaker."
+    },
+    {
+      "screen_number": 7,
+      "section_number": 2,
+      "screen_type": "talking_head_left_with_notes",
+      "voiceover_text": "Instead, figure out this fundamental truth: Why does the role exist? What is the business losing money or time on that your work is meant to fix?",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "1:02 - 'The Fundamental Truth:' text panel with sub-bullets popping in as spoken."
+    },
+    {
+      "screen_number": 8,
+      "section_number": 2,
+      "screen_type": "talking_head",
+      "voiceover_text": "Hiring managers aren't hiring for your personality despite what TikTok says. They are buying outcomes. So read their earnings reports. Look up their LinkedIn page. Walk in prepared to connect your past work directly to their financial goals.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "1:13 - Text overlay 'They are buying outcomes.' appears. 1:19 - White slide overlay appears summarizing 'Read their earnings reports', 'Look at their LinkedIn page', etc."
+    },
+    {
+      "screen_number": 9,
+      "section_number": 3,
+      "screen_type": "slides",
+      "voiceover_text": "Rule No. 2: Stop Describing What You Did, and Start Talking About What You Delivered.",
+      "visual_direction": [
+        "White slide with title and stock imagery of rejecting a process book for a trophy."
+      ],
+      "action_notes": "1:28 - Title card for Rule No. 2 appears."
+    },
+    {
+      "screen_number": 10,
+      "section_number": 3,
+      "screen_type": "talking_head",
+      "voiceover_text": "You should never, ever use fluff. Managers are buying outcomes, not time. Every story you tell should follow the Google XYZ formula, which is: Accomplished X as measured by Y, by doing Z. This single formula instantly replaces 90% of your current interview prep. And if you can't quantify any part of your work, they're not going to hire you.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "1:41 - Text overlay 'Google XYZ Formula' pops in. 1:44 - Subtext 'Accomplished X as measured by Y, by doing Z.' fades in below it."
+    },
+    {
+      "screen_number": 11,
+      "section_number": 4,
+      "screen_type": "slides",
+      "voiceover_text": "Rule No. 3: Structure Every Answer (Because Clarity is Power).",
+      "visual_direction": [
+        "White slide with title and stock imagery of hand stacking transparent blocks."
+      ],
+      "action_notes": "1:57 - Title card for Rule No. 3 appears."
+    },
+    {
+      "screen_number": 12,
+      "section_number": 4,
+      "screen_type": "talking_head",
+      "voiceover_text": "When you ramble, interviewers don't hear depth, they hear confusion.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "None"
+    },
+    {
+      "screen_number": 13,
+      "section_number": 4,
+      "screen_type": "slides",
+      "voiceover_text": "To quote Einstein, 'If you can't explain it simply, you don't understand it well enough.'",
+      "visual_direction": [
+        "White slide with Einstein photo."
+      ],
+      "action_notes": "2:06 - Hard cut to white slide with a photo of Einstein and the quote in text."
+    },
+    {
+      "screen_number": 14,
+      "section_number": 4,
+      "screen_type": "talking_head",
+      "voiceover_text": "So you must use clean, structured answers like STAR, CAR, or HERO. The goal is to make it effortless for the person across the table to follow your logic and evaluate your impact. Hiring managers love patterns, so give them one. Now if you're not familiar with those structures, wait until the end of the video where I'll direct you to another video that'll break it down even further. Do you have any tips that have helped you in your interviews? Share them in the comments so we as a community can help each other.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "2:13 - Cut back to speaker. 2:16 - Text overlay 'STAR CAR HERO' pops up next to the speaker. 2:24 - Text overlay 'Hiring managers love patterns.' appears."
+    },
+    {
+      "screen_number": 15,
+      "section_number": 5,
+      "screen_type": "slides",
+      "voiceover_text": "Rule No. 4: Look Intentional (Not Pretentious).",
+      "visual_direction": [
+        "White slide with title and stock imagery of person in suit taking notes."
+      ],
+      "action_notes": "2:40 - Title card for Rule No. 4 appears."
+    },
+    {
+      "screen_number": 16,
+      "section_number": 5,
+      "screen_type": "talking_head_left_with_notes",
+      "voiceover_text": "I've interviewed thousands of people and here's what stands out: People who look prepared. This doesn't mean overdressing. This means: look appropriate, no messy backgrounds, make sure your face is well lit and have clean audio, like using wired headphones instead of Bluetooth ones, because you don't want your audio to drop in the middle of your interview. And try to have your camera at eye level so you look your best. And if you can't manage a simple webcam setup, they're going to assume that you can't manage a project. This is not negotiable. Bonus tip: a lot of people have asked me about what to wear to an interview. So I might make a separate video about it, but when in doubt, ask your recruiter for help.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "2:47 - Text overlay 'People who look prepared.' pops up. 2:52 - Graphical side-panel slides in showing 'Interview Tips:' with blue icons for 'Look Appropriate', 'Clean Background', and 'Clean Audio' appearing sequentially. 3:05 - 'Good Camera' icon added to the list. 3:09 - Graphics disappear."
+    },
+    {
+      "screen_number": 17,
+      "section_number": 6,
+      "screen_type": "slides",
+      "voiceover_text": "Rule No. 5: Be Early. Logistical Readiness is Mental Readiness.",
+      "visual_direction": [
+        "White slide with title and stock imagery of woman looking at laptop."
+      ],
+      "action_notes": "3:26 - Title card for Rule No. 5 appears."
+    },
+    {
+      "screen_number": 18,
+      "section_number": 6,
+      "screen_type": "talking_head",
+      "voiceover_text": "For an in-person interview, be there 10 minutes early. For virtual, join the link 5 minutes early. Be sure to check your microphone, camera. You would be shocked at how many people start their biggest career opportunity flustered and apologizing. You can't project calm confidence if you're catching your breath.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "3:38 - Three blue circular icons pop up sequentially: Video camera, Microphone, Wifi signal. 3:47 - Text overlay 'You can't project calm confidence if you're catching your breath.' pops up on screen."
+    },
+    {
+      "screen_number": 19,
+      "section_number": 7,
+      "screen_type": "slides",
+      "voiceover_text": "Rule No. 6: Ask Questions that Reveal Performance Expectations.",
+      "visual_direction": [
+        "White slide with title and stock imagery of presentation meeting."
+      ],
+      "action_notes": "3:51 - Title card for Rule No. 6 appears."
+    },
+    {
+      "screen_number": 20,
+      "section_number": 7,
+      "screen_type": "talking_head",
+      "voiceover_text": "When they ask, 'Do you have any questions for us?' do not ask about company culture because they're just going to give you a canned answer.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "None"
+    },
+    {
+      "screen_number": 21,
+      "section_number": 7,
+      "screen_type": "slides",
+      "voiceover_text": "Instead, you can ask this: 'What would make someone exceed expectations in this role within the first six months? What measurable outcomes define success here?'",
+      "visual_direction": [
+        "White slide with full screen text."
+      ],
+      "action_notes": "4:04 - Hard cut to white slide showing the exact script as text."
+    },
+    {
+      "screen_number": 22,
+      "section_number": 7,
+      "screen_type": "talking_head",
+      "voiceover_text": "Now, they're going to tell you exactly what matters to them and you are gathering intelligence during the interview itself. And that's what smart candidates do.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "4:14 - Cut back to speaker. 4:18 - Text overlay 'Gathering intelligence.' pops in."
+    },
+    {
+      "screen_number": 23,
+      "section_number": 8,
+      "screen_type": "slides",
+      "voiceover_text": "Rule No. 7: Manage Energy, Not Ego",
+      "visual_direction": [
+        "White slide with title and stock imagery of men talking."
+      ],
+      "action_notes": "4:24 - Title card for Rule No. 7 appears."
+    },
+    {
+      "screen_number": 24,
+      "section_number": 8,
+      "screen_type": "talking_head",
+      "voiceover_text": "Confidence is not pretending that you don't need the job. Confidence is demonstrating that you understand your own value. When you speak calmly and clearly about your results, you automatically project authority. Hiring managers pick up on your composure faster than your words. You don't need bravado, you need poise.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "4:32 - Text overlay 'You understand your own value.' appears. 4:44 - Split graphic overlay appears: 'Bravado' with a red X, and 'Poise' with a blue checkmark."
+    },
+    {
+      "screen_number": 25,
+      "section_number": 9,
+      "screen_type": "slides",
+      "voiceover_text": "Rule No. 8: End Like a Consultant",
+      "visual_direction": [
+        "White slide with title and stock imagery of business handshake across a desk."
+      ],
+      "action_notes": "4:48 - Title card for Rule No. 8 appears."
+    },
+    {
+      "screen_number": 26,
+      "section_number": 9,
+      "screen_type": "talking_head",
+      "voiceover_text": "Most people finish interviews waiting for approval. Top candidates finish like problem solvers. They show they've already started thinking like someone in the role. You can end the interview with the hiring manager by saying this:",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera."
+      ],
+      "action_notes": "None"
+    },
+    {
+      "screen_number": 27,
+      "section_number": 9,
+      "screen_type": "slides",
+      "voiceover_text": "'It sounds like [problem] and [goal] are top of mind for your team. If I were starting next week, I'd focus on [specific priority]. Does that align with what you're envisioning for this role?'",
+      "visual_direction": [
+        "White slide background."
+      ],
+      "action_notes": "5:04 - Cut to white slide where the script types out, highlighting the variables [problem], [goal], and [specific priority] in blue."
+    },
+    {
+      "screen_number": 28,
+      "section_number": 9,
+      "screen_type": "talking_head",
+      "voiceover_text": "This signals strategic thinking and partnership. You're not asking for permission, you're showing alignment. The truth is, getting the offer isn't about being perfect. It's about managing perception. You're signaling one thing to the hiring manager: that you're low risk, high impact, and easy to trust. You're not selling your past, you're selling your future value. That's how it's done. And if you're struggling with how to structure your answers, you need to upgrade your framework. So check out this video where I outline the interview framework I give to my senior clients to help them secure offers.",
+      "visual_direction": [
+        "Speaker in bright office setting facing camera pointing down slightly."
+      ],
+      "action_notes": "5:18 - Cut back to speaker. 5:28 - Text overlay 'Managing Perception.' pops in. 5:32 - Bulleted text overlays appear sequentially: 'Low-risk', 'High-impact', 'Easy to trust'. 5:47 - Speaker points toward an area on screen to direct viewers to the next video end-card."
+    }
+  ]
+}
