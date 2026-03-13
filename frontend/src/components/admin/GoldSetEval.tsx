@@ -33,6 +33,7 @@ export default function GoldSetEval() {
   const [isCached, setIsCached] = useState(false);
   const [availableRuns, setAvailableRuns] = useState<{model: string; timestamp: string}[]>([]);
   const [viewIndex, setViewIndex] = useState(0);
+  const [runElapsed, setRunElapsed] = useState(0);
 
   // Update hash on tab change
   useEffect(() => {
@@ -115,9 +116,19 @@ export default function GoldSetEval() {
     }
   }, [viewIndex, availableRuns, fetchModelResult]);
 
+  // Elapsed timer while running
+  useEffect(() => {
+    if (!running) { setRunElapsed(0); return; }
+    const t = setInterval(() => setRunElapsed(e => e + 1), 1000);
+    return () => clearInterval(t);
+  }, [running]);
+
   const runEval = useCallback(async () => {
     setRunning(true);
     setError(null);
+    setRunElapsed(0);
+    // Immediately clear old AI content — keep gold brief visible
+    setData(prev => prev ? { ...prev, director_output: undefined, writer_output_path_b: undefined, writer_output_path_a: undefined, analysis: undefined } as EvalData : prev);
     try {
       // Kick off background eval with selected model
       const res = await fetch(`/api/eval/gold-set/${goldSetName}`, {
@@ -140,7 +151,7 @@ export default function GoldSetEval() {
             clearInterval(poll);
             setRunning(false);
             // Reload and navigate to the just-run model
-            const reloadRes = await fetch(`/api/eval/gold-set/${goldSetName}`);
+            const reloadRes = await fetch(`/api/eval/gold-set/${goldSetName}?model=${selectedModel}`);
             const reloadJson = await reloadRes.json();
             if (reloadJson.success) {
               setData(reloadJson.data);
@@ -255,7 +266,7 @@ export default function GoldSetEval() {
               )}
               <Button onClick={runEval} disabled={running} size="sm">
                 <RefreshCw className={`h-4 w-4 mr-1.5 ${running ? "animate-spin" : ""}`} />
-                {running ? "Running (~90s)..." : "Run Eval"}
+                {running ? `Running (${runElapsed}s)...` : "Run Eval"}
               </Button>
             </div>
           </div>
@@ -269,10 +280,18 @@ export default function GoldSetEval() {
             </Card>
           )}
 
-      {!loading && !error && !hasResults && (
+      {!loading && !error && !hasResults && !running && (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground mb-4">No eval results yet. Click "Run Eval" to run Director + Writer against the gold set.</p>
           <p className="text-xs text-muted-foreground">This will make LLM API calls and take ~60-90 seconds.</p>
+        </Card>
+      )}
+
+      {running && (
+        <Card className="p-8 text-center">
+          <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-3 text-muted-foreground" />
+          <p className="text-muted-foreground mb-1">Running evaluation with <span className="font-medium">{formatModelLabel(selectedModel)}</span>... <span className="font-mono">{runElapsed}s</span></p>
+          <p className="text-xs text-muted-foreground">Director + Writer pipeline. Typically 2–5 minutes depending on section count and model.</p>
         </Card>
       )}
 
