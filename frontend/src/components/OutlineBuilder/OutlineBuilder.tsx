@@ -73,15 +73,41 @@ export default function OutlineBuilder({
     [propagate]
   );
 
+  // Handle inserting a new section at a given index
+  const handleInsertSection = useCallback(
+    (atIndex: number) => {
+      const newSection: OutlineSection = {
+        id: crypto.randomUUID(),
+        sectionNumber: atIndex + 1,
+        title: "New Section",
+        purpose: "",
+        entryAssumption: "",
+        exitState: "",
+        duration: "1:00–2:00",
+        talkingPoints: [],
+        evidenceNeeded: [],
+      };
+      const updated = [...sections];
+      updated.splice(atIndex, 0, newSection);
+      // Renumber all sections
+      const renumbered = updated.map((s, i) => ({
+        ...s,
+        sectionNumber: i + 1,
+      }));
+      propagate(renumbered);
+    },
+    [sections, propagate]
+  );
+
   const hasResearch =
     researchResults && researchResults.sections && researchResults.sections.length > 0;
 
   return (
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
-      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border shrink-0">
-        <h2 className="text-lg sm:text-xl font-semibold">Video Outline</h2>
-        <p className="text-xs sm:text-sm text-muted-foreground">
+      <div className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border shrink-0">
+        <h2 className="text-xl font-semibold">Video Outline</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
           {hasResearch
             ? "Review the evidence research results, then continue."
             : "Edit sections inline. Drag to reorder. Then run the research plan."}
@@ -90,10 +116,10 @@ export default function OutlineBuilder({
 
       {/* Content Area */}
       <div
-        className="flex-1 overflow-y-auto p-4 sm:p-6"
+        className="flex-1 overflow-y-auto px-6 sm:px-10 py-6"
         style={{ minHeight: 0 }}
       >
-        <div className="max-w-5xl mx-auto space-y-6">
+        <div className="w-full max-w-5xl space-y-6">
           {/* Section: Video Outline */}
           <div id="outline">
             {sections.length > 0 ? (
@@ -101,6 +127,7 @@ export default function OutlineBuilder({
                 sections={sections}
                 onReorder={handleReorder}
                 onUpdateSection={handleUpdateSection}
+                onInsertSection={handleInsertSection}
                 disabled={!!hasResearch}
               />
             ) : (
@@ -124,9 +151,9 @@ export default function OutlineBuilder({
           {/* Section: Evidence Research Results (3-layer) */}
           {hasResearch && (
             <div id="evidence" className="pt-6 border-t-2 border-border">
-              <div className="px-4 sm:px-6 py-3 mb-4">
-                <h2 className="text-lg sm:text-xl font-semibold">Evidence Research Results</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">
+              <div className="py-3 mb-4">
+                <h2 className="text-xl font-semibold">Evidence Research Results</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
                   Structured evidence gathered per section. Review usable lines, then continue.
                 </p>
               </div>
@@ -141,8 +168,8 @@ export default function OutlineBuilder({
       </div>
 
       {/* Action Footer */}
-      <div className="px-4 sm:px-6 py-3 sm:py-4 border-t border-border bg-muted/20 shrink-0">
-        <div className="max-w-5xl mx-auto flex justify-end">
+      <div className="px-6 sm:px-10 py-3 sm:py-4 border-t border-border bg-muted/20 shrink-0">
+        <div className="w-full flex justify-end">
           {hasResearch ? (
             <Button onClick={onContinue}>
               <Check className="w-4 h-4 mr-2" />

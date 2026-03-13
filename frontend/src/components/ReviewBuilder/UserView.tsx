@@ -296,11 +296,10 @@ export default function UserView({
   return (
     <div className="h-full flex flex-col bg-muted/10">
       {/* Header */}
-      <header className="px-6 py-4 border-b border-border bg-background">
+      <header className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border bg-background">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-foreground mb-1 flex items-center gap-2">
-              <Film className="w-5 h-5 text-primary" />
+            <h2 className="text-xl font-semibold text-foreground mb-1">
               Review & Share
             </h2>
             <p className="text-sm text-muted-foreground">
@@ -355,25 +354,25 @@ export default function UserView({
         </div>
 
         {/* Stats Row */}
-        <div className="flex items-center gap-6 mt-4">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Layers className="w-4 h-4" />
-            <span>{screens.length} panels</span>
+        <div className="flex items-center gap-4 mt-4">
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
+            <Clock className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">{formatDuration(totalDuration)}</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Clock className="w-4 h-4" />
-            <span>{formatDuration(totalDuration)}</span>
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
+            <Layers className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">{screens.length} panels</span>
           </div>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <FileText className="w-4 h-4" />
-            <span>{totalWords} words</span>
+          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
+            <FileText className="w-4 h-4 text-muted-foreground" />
+            <span className="text-sm font-medium">{totalWords} words</span>
           </div>
         </div>
       </header>
 
       {/* Cards Grid */}
-      <div ref={contentRef} className="flex-1 overflow-auto p-6">
-        <div className="max-w-5xl mx-auto space-y-6">
+      <div ref={contentRef} className="flex-1 overflow-auto px-6 sm:px-10 py-6">
+        <div className="w-full max-w-5xl space-y-6">
           {screens.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
               <Film className="w-16 h-16 mx-auto mb-4 opacity-30" />
@@ -394,8 +393,8 @@ export default function UserView({
       </div>
 
       {/* Footer */}
-      <footer className="px-6 py-4 border-t border-border bg-background flex items-center justify-between">
-        <div className="text-sm text-muted-foreground">
+      <footer className="px-6 sm:px-10 py-4 border-t border-border bg-background flex items-center justify-between">
+        <div className="text-base text-muted-foreground">
           {screens.length} panel{screens.length !== 1 ? "s" : ""} &middot;{" "}
           {formatDuration(totalDuration)} total &middot;{" "}
           {totalWords} words

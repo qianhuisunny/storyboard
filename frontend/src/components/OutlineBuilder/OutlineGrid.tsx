@@ -1,8 +1,10 @@
 /**
  * OutlineGrid — Sortable container for SectionRow components.
+ * Scandinavian minimal design: no column headers, insert zones between rows.
  * Wraps @dnd-kit SortableContext for drag-and-drop reordering.
  */
 
+import { Fragment } from "react";
 import {
   DndContext,
   closestCenter,
@@ -21,6 +23,7 @@ import {
   restrictToVerticalAxis,
   restrictToParentElement,
 } from "@dnd-kit/modifiers";
+import { Plus } from "lucide-react";
 import SectionRow from "./SectionRow";
 import type { OutlineSection } from "./types";
 
@@ -28,13 +31,36 @@ interface OutlineGridProps {
   sections: OutlineSection[];
   onReorder: (sections: OutlineSection[]) => void;
   onUpdateSection: (id: string, updates: Partial<OutlineSection>) => void;
+  onInsertSection?: (atIndex: number) => void;
   disabled?: boolean;
+}
+
+/** Insert zone between rows — green line + circular + button on hover */
+function InsertZone({ onInsert }: { onInsert: () => void }) {
+  return (
+    <div
+      className="group/insert relative h-3 flex items-center justify-center cursor-pointer"
+      onClick={onInsert}
+    >
+      <div className="absolute inset-x-0 h-0.5 bg-transparent group-hover/insert:bg-primary/50 transition-colors rounded-full" />
+      <button
+        className="relative z-10 w-6 h-6 rounded-full bg-background border-2 border-transparent text-transparent group-hover/insert:border-primary group-hover/insert:text-primary group-hover/insert:bg-primary/5 group-hover/insert:shadow-sm flex items-center justify-center transition-all"
+        onClick={(e) => {
+          e.stopPropagation();
+          onInsert();
+        }}
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
+    </div>
+  );
 }
 
 export default function OutlineGrid({
   sections,
   onReorder,
   onUpdateSection,
+  onInsertSection,
   disabled = false,
 }: OutlineGridProps) {
   const sensors = useSensors(
@@ -79,23 +105,23 @@ export default function OutlineGrid({
         items={sections.map((s) => s.id)}
         strategy={verticalListSortingStrategy}
       >
-        {/* Column headers */}
-        <div className="grid grid-cols-[80px_1fr_35%] text-xs font-medium text-muted-foreground uppercase tracking-wider px-1 pb-1">
-          <span className="text-center">Time</span>
-          <span className="pl-4">Title and Description</span>
-          <span className="pl-4">Evidence & Visuals</span>
-        </div>
-
-        <div className="space-y-2">
+        <div>
           {sections.map((section, index) => (
-            <SectionRow
-              key={section.id}
-              section={section}
-              index={index}
-              totalSections={sections.length}
-              onUpdate={onUpdateSection}
-              disabled={disabled}
-            />
+            <Fragment key={section.id}>
+              <SectionRow
+                section={section}
+                index={index}
+                totalSections={sections.length}
+                onUpdate={onUpdateSection}
+                disabled={disabled}
+                isLast={index === sections.length - 1}
+              />
+              {!disabled && onInsertSection && index < sections.length - 1 && (
+                <InsertZone
+                  onInsert={() => onInsertSection(index + 1)}
+                />
+              )}
+            </Fragment>
           ))}
         </div>
       </SortableContext>

@@ -380,8 +380,8 @@ export default function KnowledgeShareBriefBuilder({
   return (
     <div className="h-full flex flex-col relative">
       {/* Progress Bar — mockup-style rounded card with step segments */}
-      <div className="flex-shrink-0" style={{ padding: "0 38px" }}>
-        <div className="flex items-stretch bg-white border border-[#D9DDD2] overflow-hidden" style={{ borderRadius: "10px", marginBottom: "28px" }}>
+      <div className="flex-shrink-0" style={{ padding: "20px 38px 0" }}>
+        <div className="max-w-5xl flex items-stretch bg-white border border-[#D9DDD2] overflow-hidden" style={{ borderRadius: "10px", marginBottom: "28px" }}>
           {([1, 2, 3, "angle_selection", "review"] as const).map((round, index) => {
             const isActive = currentRound === round;
             const stepOrder = [1, 2, 3, "angle_selection", "review"];
@@ -439,7 +439,7 @@ export default function KnowledgeShareBriefBuilder({
 
       {/* Main Content */}
       <div className="flex-1 overflow-auto relative" style={{ padding: "30px 38px" }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: "11px" }}>
+        <div className="max-w-5xl" style={{ display: "flex", flexDirection: "column", gap: "11px" }}>
         {/* Completed Sections */}
         {renderCompletedSections()}
 

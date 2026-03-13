@@ -123,7 +123,7 @@ export default function ReviewCard({
             onChange={(e) => handleFieldChange(field, e.target.value)}
             onBlur={handleBlur}
             className={cn(
-              "w-full p-2 text-sm border border-primary rounded bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/20",
+              "w-full p-2 text-base border border-primary rounded bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/20",
               className
             )}
             rows={3}
@@ -139,7 +139,7 @@ export default function ReviewCard({
           onChange={(e) => handleFieldChange(field, e.target.value)}
           onBlur={handleBlur}
           className={cn(
-            "w-full p-2 text-sm border border-primary rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary/20",
+            "w-full p-2 text-base border border-primary rounded bg-background focus:outline-none focus:ring-2 focus:ring-primary/20",
             className
           )}
           placeholder={placeholder}
@@ -151,14 +151,14 @@ export default function ReviewCard({
       <div
         onClick={() => isHovering && setEditingField(field)}
         className={cn(
-          "text-sm text-foreground transition-colors rounded p-1 -m-1",
+          "text-base text-foreground transition-colors rounded p-1 -m-1 leading-relaxed",
           isHovering && "cursor-text hover:bg-muted/50",
           !value && "text-muted-foreground italic"
         )}
       >
         {value || placeholder || "(empty)"}
         {isHovering && (
-          <Pencil className="w-3 h-3 inline-block ml-2 text-muted-foreground" />
+          <Pencil className="w-3.5 h-3.5 inline-block ml-2 text-muted-foreground" />
         )}
       </div>
     );
@@ -179,16 +179,16 @@ export default function ReviewCard({
       }}
     >
       {/* Card Header */}
-      <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-muted/20">
+      <div className="flex items-center gap-4 px-6 py-5 border-b border-border bg-muted/20">
         {/* Screen Number */}
-        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-lg font-bold text-primary">
+        <div className="flex-shrink-0 w-11 h-11 rounded-full bg-primary/10 flex items-center justify-center text-xl font-bold text-primary">
           {screen.screen_number}
         </div>
 
         {/* Screen Type Badge */}
         <div
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border",
+            "flex items-center gap-2 px-3.5 py-1.5 rounded-full text-sm font-medium border",
             config.color
           )}
         >
@@ -197,17 +197,17 @@ export default function ReviewCard({
         </div>
 
         {/* Duration */}
-        <div className="ml-auto flex items-center gap-1.5 text-sm text-muted-foreground">
+        <div className="ml-auto flex items-center gap-2 text-base text-muted-foreground">
           <Clock className="w-4 h-4" />
           <span className="font-medium">{screen.duration}s</span>
         </div>
       </div>
 
       {/* Card Body - All fields visible */}
-      <div className="p-5 space-y-5">
+      <div className="p-6 space-y-6">
         {/* Voiceover Script */}
         <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <MessageSquare className="w-4 h-4" />
             <span className="font-medium uppercase tracking-wide">Voiceover Script</span>
           </div>
@@ -223,7 +223,7 @@ export default function ReviewCard({
 
         {/* Visual Direction */}
         <div>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <Eye className="w-4 h-4" />
             <span className="font-medium uppercase tracking-wide">Visual Direction</span>
           </div>
@@ -238,7 +238,7 @@ export default function ReviewCard({
                 }
                 onChange={(e) => handleFieldChange("visual_direction", e.target.value)}
                 onBlur={handleBlur}
-                className="w-full p-2 text-sm border border-primary rounded bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
+                className="w-full p-2 text-base border border-primary rounded bg-background resize-none focus:outline-none focus:ring-2 focus:ring-primary/20"
                 rows={3}
                 placeholder="Describe visual elements..."
               />
@@ -252,13 +252,13 @@ export default function ReviewCard({
               >
                 {visualDirections.length > 0 ? (
                   visualDirections.map((dir, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-sm text-foreground">
+                    <div key={idx} className="flex items-start gap-2 text-base text-foreground leading-relaxed">
                       <span className="text-primary mt-0.5">•</span>
                       <span>{dir}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">
+                  <p className="text-base text-muted-foreground italic">
                     {typeof screen.visual_direction === "string" && screen.visual_direction
                       ? screen.visual_direction
                       : "(No visual direction)"}
@@ -276,7 +276,7 @@ export default function ReviewCard({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* Text Overlay */}
           <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <Type className="w-4 h-4" />
               <span className="font-medium uppercase tracking-wide">Text Overlay</span>
             </div>
@@ -291,7 +291,7 @@ export default function ReviewCard({
 
           {/* On-Screen Visual */}
           <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <Image className="w-4 h-4" />
               <span className="font-medium uppercase tracking-wide">Visual Asset</span>
             </div>
@@ -306,7 +306,7 @@ export default function ReviewCard({
                       (e.target as HTMLImageElement).style.display = "none";
                     }}
                   />
-                  <span className="text-xs text-muted-foreground truncate flex-1">
+                  <span className="text-sm text-muted-foreground truncate flex-1">
                     {screen.on_screen_visual}
                   </span>
                 </div>
@@ -324,12 +324,12 @@ export default function ReviewCard({
         {/* Action Notes (if present) */}
         {screen.action_notes && (
           <div>
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <FileText className="w-4 h-4" />
               <span className="font-medium uppercase tracking-wide">Notes</span>
             </div>
-            <div className="bg-[#F7F0E0] border border-[#7A5C1E]/30 rounded-lg p-3">
-              <p className="text-sm text-[#7A5C1E]">
+            <div className="bg-[#F7F0E0] border border-[#7A5C1E]/30 rounded-lg p-4">
+              <p className="text-base text-[#7A5C1E] leading-relaxed">
                 {screen.action_notes}
               </p>
             </div>

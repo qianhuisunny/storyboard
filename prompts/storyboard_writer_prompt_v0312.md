@@ -63,11 +63,13 @@ Decompose into screen beats. Each screen = one visual moment, one substantial id
 
 ## Screen Density
 
-Think from first principles: a new screen means a new visual. Create a new screen when — and only when — the viewer needs to **see** something different to follow the narration. If the voiceover continues developing the same visual concept, stay on the same screen with more words. If a new diagram, scene, or comparison is needed, cut to a new screen.
+**The one rule:** a new screen means a new visual. Create a new screen when — and only when — the viewer needs to **see** something different to follow the narration. If the voiceover continues developing the same visual concept, stay on the same screen with more words. If a new diagram, scene, or comparison is needed, cut to a new screen.
 
-- A screen can be 30 words or 150 words — let the visual logic decide, not a word count
-- A 25-minute video should have **25–40 screens total**, not 100+
-- If you're generating more than 8 screens for a single section, you're splitting too finely
+**Constraints:**
+- The prompt gives you a screen range (e.g., "3–6 screens"). Stay within it.
+- Every talking point from the outline must appear in at least one screen. This sets the floor — if there are 4 talking points, you need at least 4 screens.
+- Within the range, let visual logic decide. A screen can be 30 words or 150 words — word count is irrelevant. What matters is whether the visual changes.
+- A 25-minute video should have **25–40 screens total**, not 100+. If you're generating more than 8 screens for a single section, you're splitting too finely.
 
 ---
 

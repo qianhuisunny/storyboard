@@ -1,13 +1,14 @@
 /**
- * SectionRow — Single row in the structured outline grid.
- * Document-feel editing: contentEditable blocks, no per-item widgets.
- * Three columns: Handle+Duration | Title+Purpose+Talking Points | Evidence+Visual Intent
+ * SectionRow — Minimal row in the structured outline grid.
+ * Scandinavian design: large light numbers, clean dividers, drag handle on hover.
+ * ContentEditable blocks for document-feel editing.
  */
 
 import { useRef, useCallback } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { OutlineSection } from "./types";
 
 interface SectionRowProps {
@@ -16,13 +17,7 @@ interface SectionRowProps {
   totalSections: number;
   onUpdate: (id: string, updates: Partial<OutlineSection>) => void;
   disabled?: boolean;
-}
-
-/** Color accent based on position */
-function getAccentColor(index: number, total: number): string {
-  if (index === 0) return "border-l-[#7A5C1E]";
-  if (index === total - 1) return "border-l-[#3A6B47]";
-  return "border-l-[#5A6352]";
+  isLast?: boolean;
 }
 
 /**
@@ -52,9 +47,7 @@ function EditableBlock({
     }
   }, [value, onChange]);
 
-  // Sync DOM when value changes externally
   const handleFocus = useCallback(() => {
-    // On focus, ensure DOM matches current value
     if (ref.current && ref.current.innerText.trim() !== value) {
       ref.current.innerText = value;
     }
@@ -67,9 +60,12 @@ function EditableBlock({
       suppressContentEditableWarning
       onBlur={handleBlur}
       onFocus={handleFocus}
-      className={`outline-none whitespace-pre-wrap break-words ${className} ${
-        !value && placeholder ? "empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 empty:before:pointer-events-none" : ""
-      }`}
+      className={cn(
+        "outline-none whitespace-pre-wrap break-words",
+        !value && placeholder &&
+          "empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 empty:before:pointer-events-none",
+        className
+      )}
       data-placeholder={placeholder}
     >
       {value}
@@ -109,7 +105,7 @@ function BulletBlock({
     <EditableBlock
       value={displayText}
       onChange={handleChange}
-      className="text-sm"
+      className="text-sm text-muted-foreground leading-relaxed"
       placeholder={placeholder}
       disabled={disabled}
     />
@@ -122,6 +118,7 @@ export default function SectionRow({
   totalSections,
   onUpdate,
   disabled = false,
+  isLast = false,
 }: SectionRowProps) {
   const {
     attributes,
@@ -137,69 +134,82 @@ export default function SectionRow({
     transition,
   };
 
-  const accentColor = getAccentColor(index, totalSections);
-
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`grid grid-cols-[80px_1fr_35%] border rounded-lg overflow-hidden bg-background ${accentColor} border-l-4 ${
-        isDragging ? "opacity-50 shadow-lg z-10" : "shadow-sm"
-      }`}
+      className={cn(
+        "group grid grid-cols-[32px_56px_1fr_36%] items-start py-8 transition-colors rounded-lg",
+        !isLast && "border-b border-border/50",
+        index === 0 && "pt-2",
+        isDragging
+          ? "opacity-50 shadow-lg z-10 bg-muted/20"
+          : "hover:bg-muted/10"
+      )}
     >
-      {/* Column 1: Handle + Duration */}
-      <div className="flex flex-col items-center gap-1 py-3 px-2 bg-muted/20 border-r border-border">
+      {/* Drag handle — hidden by default, visible on row hover */}
+      <div className="flex items-start justify-center pt-1">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground touch-none"
+          className={cn(
+            "cursor-grab active:cursor-grabbing touch-none transition-opacity",
+            "opacity-0 group-hover:opacity-60 hover:!opacity-100 text-muted-foreground"
+          )}
           tabIndex={-1}
         >
           <GripVertical className="w-4 h-4" />
         </button>
-        <span className="text-xs font-medium text-muted-foreground">
-          {index + 1}
-        </span>
-        <EditableBlock
-          value={section.duration}
-          onChange={(v) => onUpdate(section.id, { duration: v })}
-          className="text-xs text-center font-mono text-muted-foreground"
-          placeholder="0:00"
-          disabled={disabled}
-        />
       </div>
 
-      {/* Column 2: Title + Purpose + Talking Points — flowing text */}
-      <div className="py-3 px-4 border-r border-border min-w-0 space-y-1">
+      {/* Section number — large, light */}
+      <div className="text-3xl font-light text-muted-foreground/30 tabular-nums text-right pr-4 pt-0.5 select-none">
+        {index + 1}
+      </div>
+
+      {/* Main content: title, duration, purpose, talking points */}
+      <div className="pr-10 space-y-1.5 min-w-0">
         <EditableBlock
           value={section.title}
           onChange={(v) => onUpdate(section.id, { title: v })}
-          className="font-semibold text-sm"
+          className="font-semibold text-[17px] text-foreground"
           placeholder="Section title"
+          disabled={disabled}
+        />
+
+        <EditableBlock
+          value={section.duration}
+          onChange={(v) => onUpdate(section.id, { duration: v })}
+          className="text-sm text-muted-foreground font-mono"
+          placeholder="0:00 – 0:00"
           disabled={disabled}
         />
 
         <EditableBlock
           value={section.purpose}
           onChange={(v) => onUpdate(section.id, { purpose: v })}
-          className="text-sm text-muted-foreground"
+          className="text-[15px] text-muted-foreground leading-relaxed"
           placeholder="Purpose of this section..."
           disabled={disabled}
         />
 
         <BulletBlock
           items={section.talkingPoints}
-          onChange={(items) => onUpdate(section.id, { talkingPoints: items })}
+          onChange={(items) =>
+            onUpdate(section.id, { talkingPoints: items })
+          }
           placeholder="Talking points..."
           disabled={disabled}
         />
       </div>
 
-      {/* Column 3: Evidence — flowing text */}
-      <div className="py-3 px-4 min-w-0 space-y-3">
+      {/* Evidence column */}
+      <div className="min-w-0 pt-1">
         <BulletBlock
           items={section.evidenceNeeded}
-          onChange={(items) => onUpdate(section.id, { evidenceNeeded: items })}
+          onChange={(items) =>
+            onUpdate(section.id, { evidenceNeeded: items })
+          }
           placeholder="Evidence needed..."
           disabled={disabled}
         />

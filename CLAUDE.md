@@ -485,15 +485,18 @@ if (currentStatus?.status === "approved") {
 
 ---
 
-### 2026-03-08: Don't let LLMs compute what can be computed deterministically
+### 2026-03-08: Deterministic vs generative — know which is which, combine when needed
 
-**Problem:** The Director LLM was asked to output `target_duration_sec` for each screen, but duration is deterministic: word_count / speaking_rate + complexity_buffer. LLMs are unreliable at arithmetic.
+**Problem 1 (code doing LLM's job):** The Writer code calculated a fixed screen count (`duration / 45 = 6`) and told the LLM "generate approximately 6 screens." But screen count is a judgment call — it depends on whether content needs a visual change, which only the LLM can assess. Result: 140 screens for a 7-section video because the formula overrode the LLM's own "max 8 per section" rule.
 
-**Lesson:**
-- If a value can be computed from other fields (word count → duration), compute it server-side
-- Remove computation instructions from LLM prompts — fewer fields = fewer errors
-- Use utility classes like `DurationCalculator` for deterministic post-processing
-- LLM outputs only what requires judgment (narrative structure, voiceover text, screen type)
+**Problem 2 (LLM doing code's job):** The Director LLM was asked to output `target_duration_sec` for each screen, but duration is deterministic: word_count / speaking_rate + complexity_buffer. LLMs are unreliable at arithmetic.
+
+**Lesson — the boundary between code and LLM:**
+- **Deterministic** (fixed formula, arithmetic, validation) → code/functions. Examples: duration from word count, renumbering screens, enforcing min/max bounds.
+- **Generative** (judgment, creativity, contextual reasoning) → LLM. Examples: when to start a new screen, voiceover tone, which screen type fits the content.
+- **Best results come from combining both:** code sets the guardrails (range, constraints, hard caps), LLM operates freely within them. Example: code says "3–6 screens, each talking point needs ≥1 screen"; LLM decides exactly how many based on "does this need a new visual?"
+- Don't let code make a single fixed decision (`estimated_count = 6`) when the LLM should have a range to exercise judgment within.
+- Don't let LLMs do arithmetic or validation that code can enforce deterministically.
 
 ---
 
@@ -541,3 +544,38 @@ if (currentStatus?.status === "approved") {
 - Users often want to tweak an AI suggestion rather than accept verbatim or start over
 - Pattern: editable textarea pre-filled with AI text + "Use this" button per option
 - Don't force binary accept/reject on AI output — let users refine in-place
+
+---
+
+### 2026-03-12: UI redesign — check data schema before rewriting components
+
+**Problem:** Rewrote SectionRow for a Scandinavian minimal design and dropped the `visualIntent` field entirely. The user caught it immediately. Turned out the field was already removed from the Director prompt (v0312), but the correct approach was to verify that *before* rewriting, not after being called out.
+
+**Lesson:**
+- Before rewriting any UI component, audit all fields in the data schema (TypeScript types + parser output)
+- Check the current prompt/backend spec to confirm which fields are active vs deprecated
+- Any UI redesign is a data presentation change — start from "what data exists and how should it appear in the new layout", not "what does the new layout look like"
+
+---
+
+### 2026-03-13: Layout hierarchy — separate chrome width from content width
+
+**Problem:** Stage headers (secondary nav), action footers, and body content were all constrained by a single `max-w-5xl` on the parent container. Headers and footers should be full-width "chrome"; only the body content should be width-capped.
+
+**Lesson:**
+- **Chrome vs content**: Headers, footers, nav bars, and action bars are "chrome" — they span full width. Only the scrollable body content gets `max-w-5xl`.
+- **Don't put max-width on shared parents** — put it on the content wrapper inside, so chrome elements above and below are not affected.
+- **Left-align content with its header** — if the header is left-aligned (no `mx-auto`), content below should also be left-aligned. Using `mx-auto` on content when the header doesn't use it creates a visible misalignment.
+- **Breathing room** — never set padding-top to 0 on a nav/progress bar. Every UI element needs spacing from its container edges.
+
+---
+
+### 2026-03-13: Visual consistency across sibling components
+
+**Problem:** Stage headers across different stages had inconsistent typography (`text-lg` vs `text-xl`), description sizes (`text-base` vs `text-sm`), icon usage (Film icon on one header, none on others), and stats format (badges in one place, inline text in another).
+
+**Lesson:**
+- **Audit all siblings when styling one** — components at the same hierarchy level (e.g., all stage headers) must use identical font sizes, weights, spacing, and visual patterns.
+- **Stats/metadata badges** — if the same data type (panels, duration, words) appears on multiple pages, use the same visual format everywhere. Don't use `bg-muted/50 rounded-lg` badges on one page and plain inline text on another.
+- **Icons in titles** — either all stage headers have icons or none do. One header with an icon and four without looks like a bug.
+- **Quick check**: when finishing a component, grep for the same visual pattern across sibling components and verify consistency.

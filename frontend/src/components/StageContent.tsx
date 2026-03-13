@@ -166,14 +166,30 @@ export default function StageContent({
   const hasInitializedLogs = useRef(false);
 
   // Check if this is a Knowledge Share project
+  // Priority: session storage onboarding data → saved brief content (for existing projects)
   const isKnowledgeShare = useMemo(() => {
-    if (!onboardingData) return false;
-    return onboardingData.videoType === "Knowledge Share";
-  }, [onboardingData]);
+    if (onboardingData) {
+      return onboardingData.videoType === "Knowledge Share";
+    }
+    // Fallback: check saved stage-1 content for video_type field
+    const content = humanContent || aiContent;
+    if (content && stage.id === 1) {
+      try {
+        const parsed = JSON.parse(content);
+        const videoType = parsed?.fields?.video_type?.value;
+        if (videoType) {
+          return videoType === "knowledge_share" || videoType === "Knowledge Share";
+        }
+      } catch {
+        // Not JSON or doesn't have expected structure
+      }
+    }
+    return false;
+  }, [onboardingData, humanContent, aiContent, stage.id]);
 
   // Initialize Knowledge Share flow
   useEffect(() => {
-    if (isKnowledgeShare && projectId && USE_KNOWLEDGE_SHARE_FLOW && stage.id === 1 && !knowledgeShareInitialized && !aiContent) {
+    if (isKnowledgeShare && projectId && USE_KNOWLEDGE_SHARE_FLOW && stage.id === 1 && !knowledgeShareInitialized) {
       // Start the Knowledge Share flow by submitting intake
       const initializeKnowledgeShare = async () => {
         const startTime = performance.now();
@@ -774,7 +790,7 @@ export default function StageContent({
   }
 
   // For Stage 1 (Brief), use KnowledgeShareBriefBuilder for Knowledge Share videos
-  if (stage.id === 1 && USE_KNOWLEDGE_SHARE_FLOW && isKnowledgeShare && projectId && !aiContent) {
+  if (stage.id === 1 && USE_KNOWLEDGE_SHARE_FLOW && isKnowledgeShare && projectId) {
     return (
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
         {/* RESEARCH DISABLED: Single-panel layout (was split 60/40 with TabbedResearchPanel) */}
@@ -903,7 +919,7 @@ export default function StageContent({
   return (
     <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
       {/* Stage Header */}
-      <div className="px-4 sm:px-6 py-3 sm:py-4 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between shrink-0">
+      <div className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border flex flex-col sm:flex-row sm:items-center sm:justify-between shrink-0">
         <div className="mb-2 sm:mb-0">
           <h2 className="text-lg sm:text-xl font-semibold">{stage.name}</h2>
           <p className="text-xs sm:text-sm text-muted-foreground">{stage.description}</p>
@@ -924,8 +940,8 @@ export default function StageContent({
       </div>
 
       {/* Content Area - Scrollable */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-6" style={{ minHeight: 0 }}>
-        <div className="max-w-5xl mx-auto">
+      <div className="flex-1 overflow-y-auto px-6 sm:px-10 py-6" style={{ minHeight: 0 }}>
+        <div className="w-full max-w-5xl">
           {isEditing ? (
             <Textarea
               value={currentContent}

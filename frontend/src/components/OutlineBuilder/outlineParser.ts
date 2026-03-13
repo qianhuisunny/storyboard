@@ -112,7 +112,7 @@ function parseBlock(block: string): {
     { key: "duration" as const, pattern: /^Duration\s*$/im },
     { key: "talkingPoints" as const, pattern: /^Talking\s+points?\s*$/im },
     { key: "evidenceNeeded" as const, pattern: /^Evidence\s+needed\s*$/im },
-    { key: "_visualIntent" as const, pattern: /^Visual\s+intent\s*$/im },  // recognized but discarded (legacy)
+    { key: "_visualIntent" as const, pattern: /^Visual\s+(?:intent|direction)\s*$/im },  // recognized but discarded (legacy)
   ];
 
   // Find positions of each header in the block

@@ -504,7 +504,7 @@ export default function StageLayout() {
   };
 
   return (
-    <div className="h-full flex flex-col md:flex-row relative" style={{ minHeight: 0, maxWidth: "70vw" }}>
+    <div className="h-full flex flex-col md:flex-row relative" style={{ minHeight: 0 }}>
       {/* Mobile Header */}
       <div className="md:hidden flex items-center justify-between px-4 py-2 border-b border-border bg-background">
         <Button
@@ -556,8 +556,8 @@ export default function StageLayout() {
         />
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-hidden">
+      {/* Main Content — scroll container, full width (headers/footers span full; content areas self-constrain) */}
+      <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-y-auto">
         {isLoadingStages ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />

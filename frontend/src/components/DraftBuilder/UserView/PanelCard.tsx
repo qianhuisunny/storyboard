@@ -97,35 +97,35 @@ export default function PanelCard({
     >
       {/* Card Header - Always visible */}
       <div
-        className="flex items-center gap-3 p-4 cursor-pointer"
+        className="flex items-center gap-4 px-5 py-4 cursor-pointer"
         onClick={onToggleExpand}
       >
         {/* Screen Number */}
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-semibold text-muted-foreground">
+        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center text-base font-semibold text-muted-foreground">
           {screen.screen_number}
         </div>
 
         {/* Screen Type Badge */}
         <div
           className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border",
+            "flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium border",
             config.color
           )}
         >
-          <IconComponent className="w-3.5 h-3.5" />
+          <IconComponent className="w-4 h-4" />
           <span>{config.label}</span>
         </div>
 
         {/* Voiceover Preview */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm text-foreground truncate">
+          <p className="text-base text-foreground truncate">
             {screen.voiceover_text || "(No voiceover)"}
           </p>
         </div>
 
         {/* Duration */}
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Clock className="w-3.5 h-3.5" />
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <Clock className="w-4 h-4" />
           <span>{screen.duration || 0}s</span>
         </div>
 
@@ -150,7 +150,7 @@ export default function PanelCard({
         <div className="border-t border-border">
           {/* Visual Direction Section */}
           <div className="px-4 py-3 bg-gradient-to-r from-muted/50 to-muted/20">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
               <Eye className="w-3.5 h-3.5" />
               <span className="font-medium">Visual Direction</span>
             </div>
@@ -160,7 +160,7 @@ export default function PanelCard({
                   ? screen.visual_direction
                   : screen.visual_direction.join(", ")}
                 onChange={(e) => handleFieldChange("visual_direction", e.target.value)}
-                className="w-full p-2 text-sm border border-border rounded bg-background resize-none"
+                className="w-full p-2 text-base border border-border rounded bg-background resize-none"
                 rows={3}
                 placeholder="Describe the visual elements..."
               />
@@ -168,13 +168,13 @@ export default function PanelCard({
               <div className="space-y-1">
                 {visualDirections.length > 0 ? (
                   visualDirections.map((dir, idx) => (
-                    <div key={idx} className="flex items-start gap-2 text-sm text-foreground">
+                    <div key={idx} className="flex items-start gap-2 text-base text-foreground">
                       <span className="text-muted-foreground">•</span>
                       <span>{dir}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-sm text-muted-foreground italic">
+                  <p className="text-base text-muted-foreground italic">
                     {typeof screen.visual_direction === 'string' && screen.visual_direction
                       ? screen.visual_direction
                       : "(No visual direction)"}
@@ -187,7 +187,7 @@ export default function PanelCard({
           {/* On-Screen Visual Preview */}
           {(isEditing || screen.on_screen_visual) && (
             <div className="px-4 py-3 border-t border-border/50">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                 <Image className="w-3.5 h-3.5" />
                 <span className="font-medium">On-Screen Visual</span>
               </div>
@@ -196,7 +196,7 @@ export default function PanelCard({
                   type="text"
                   value={screen.on_screen_visual || ""}
                   onChange={(e) => handleFieldChange("on_screen_visual", e.target.value)}
-                  className="w-full p-2 text-sm border border-border rounded bg-background"
+                  className="w-full p-2 text-base border border-border rounded bg-background"
                   placeholder="Image URL or asset reference..."
                 />
               ) : (
@@ -215,7 +215,7 @@ export default function PanelCard({
                       <Image className="w-6 h-6 text-muted-foreground/50" />
                     </div>
                   )}
-                  <p className="text-sm text-foreground flex-1 truncate">
+                  <p className="text-base text-foreground flex-1 truncate">
                     {screen.on_screen_visual}
                   </p>
                 </div>
@@ -227,7 +227,7 @@ export default function PanelCard({
           <div className="p-4 space-y-4">
             {/* Voiceover */}
             <div>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                 <MessageSquare className="w-3.5 h-3.5" />
                 <span className="font-medium">Voiceover Script</span>
               </div>
@@ -235,12 +235,12 @@ export default function PanelCard({
                 <textarea
                   value={screen.voiceover_text}
                   onChange={(e) => handleFieldChange("voiceover_text", e.target.value)}
-                  className="w-full p-2 text-sm border border-border rounded bg-background resize-none"
+                  className="w-full p-2 text-base border border-border rounded bg-background resize-none"
                   rows={3}
                   placeholder="Enter voiceover text..."
                 />
               ) : (
-                <p className="text-sm text-foreground bg-muted/30 p-2 rounded">
+                <p className="text-base text-foreground bg-muted/30 p-2 rounded">
                   "{screen.voiceover_text || "..."}"
                 </p>
               )}
@@ -249,7 +249,7 @@ export default function PanelCard({
             {/* Text Overlay */}
             {(isEditing || screen.text_overlay) && (
               <div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                   <Type className="w-3.5 h-3.5" />
                   <span className="font-medium">Text Overlay</span>
                 </div>
@@ -258,11 +258,11 @@ export default function PanelCard({
                     type="text"
                     value={screen.text_overlay || ""}
                     onChange={(e) => handleFieldChange("text_overlay", e.target.value)}
-                    className="w-full p-2 text-sm border border-border rounded bg-background"
+                    className="w-full p-2 text-base border border-border rounded bg-background"
                     placeholder="On-screen text (optional)"
                   />
                 ) : (
-                  <p className="text-sm text-foreground">{screen.text_overlay}</p>
+                  <p className="text-base text-foreground">{screen.text_overlay}</p>
                 )}
               </div>
             )}
@@ -270,11 +270,11 @@ export default function PanelCard({
             {/* Action Notes (read-only) */}
             {screen.action_notes && (
               <div>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                   <FileText className="w-3.5 h-3.5" />
                   <span className="font-medium">Action Notes</span>
                 </div>
-                <p className="text-sm text-muted-foreground bg-muted/20 p-2 rounded italic">
+                <p className="text-base text-muted-foreground bg-muted/20 p-2 rounded italic">
                   {screen.action_notes}
                 </p>
               </div>
@@ -284,7 +284,7 @@ export default function PanelCard({
             <div className="flex gap-4">
               {/* Duration */}
               <div className="flex-1">
-                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                   <Clock className="w-3.5 h-3.5" />
                   <span className="font-medium">Duration</span>
                 </div>
@@ -298,12 +298,12 @@ export default function PanelCard({
                       onChange={(e) =>
                         handleFieldChange("duration", parseInt(e.target.value) || 5)
                       }
-                      className="w-20 p-2 text-sm border border-border rounded bg-background"
+                      className="w-20 p-2 text-base border border-border rounded bg-background"
                     />
                     <span className="text-sm text-muted-foreground">seconds</span>
                   </div>
                 ) : (
-                  <p className="text-sm text-foreground">
+                  <p className="text-base text-foreground">
                     {screen.duration || 5} seconds
                   </p>
                 )}
@@ -312,14 +312,14 @@ export default function PanelCard({
               {/* Screen Type (edit mode only) */}
               {isEditing && (
                 <div className="flex-1">
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
                     <Film className="w-3.5 h-3.5" />
                     <span className="font-medium">Screen Type</span>
                   </div>
                   <select
                     value={screen.screen_type}
                     onChange={(e) => handleFieldChange("screen_type", e.target.value)}
-                    className="w-full p-2 text-sm border border-border rounded bg-background"
+                    className="w-full p-2 text-base border border-border rounded bg-background"
                   >
                     {Object.entries(SCREEN_TYPE_CONFIG).map(([key, val]) => (
                       <option key={key} value={key}>

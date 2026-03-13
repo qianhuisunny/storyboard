@@ -76,11 +76,11 @@ export default function UserView({
   return (
     <div className="user-view h-full flex flex-col">
       {/* Header with Summary */}
-      <header className="px-6 py-4 border-b border-border bg-background">
-        <div className="max-w-5xl mx-auto">
+      <header className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border bg-background">
+        <div className="w-full">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <h2 className="text-lg font-semibold text-foreground mb-1">
+              <h2 className="text-xl font-semibold text-foreground mb-1">
                 Storyboard Draft
               </h2>
               <p className="text-sm text-muted-foreground">
@@ -132,8 +132,8 @@ export default function UserView({
       </header>
 
       {/* Panel Cards */}
-      <div className="flex-1 overflow-auto p-6">
-        <div className="max-w-5xl mx-auto space-y-3">
+      <div className="flex-1 overflow-auto px-6 sm:px-10 py-6">
+        <div className="w-full max-w-5xl space-y-3">
           {screens.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Film className="w-12 h-12 mx-auto mb-3 opacity-30" />
@@ -165,7 +165,7 @@ export default function UserView({
             onClick={handleAddScreen}
             className={cn(
               "w-full py-3 px-4 border-2 border-dashed border-muted-foreground/30 rounded-lg",
-              "flex items-center justify-center gap-2 text-sm text-muted-foreground",
+              "flex items-center justify-center gap-2 text-base text-muted-foreground",
               "hover:border-primary/50 hover:text-primary hover:bg-primary/5 transition-colors"
             )}
           >
@@ -176,9 +176,9 @@ export default function UserView({
       </div>
 
       {/* Footer Actions */}
-      <footer className="px-6 py-4 border-t border-border bg-muted/20">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
+      <footer className="px-6 sm:px-10 py-4 border-t border-border bg-muted/20">
+        <div className="w-full flex items-center justify-between">
+          <div className="text-base text-muted-foreground">
             {screens.length} panel{screens.length !== 1 ? "s" : ""} &middot;{" "}
             {formatDuration(totalDuration)} total &middot;{" "}
             {totalWords} words
