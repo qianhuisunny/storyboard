@@ -127,10 +127,6 @@ def gold_outline_to_director_text(outline: list) -> str:
         else:
             lines.append("- None")
         lines.append("")
-        lines.append("Visual intent")
-        for vi in section["visual_intent"]:
-            lines.append(f"- {vi}")
-        lines.append("")
         lines.append("")
     return "\n".join(lines)
 
@@ -205,7 +201,6 @@ def _parse_ai_sections(director_text: str) -> list[dict]:
             "duration_str": _extract_text_field(block, "Duration") or _extract_text_field(block, "Approx. duration"),
             "talking_points": _extract_text_bullets(block, "Talking points"),
             "evidence_needed": _extract_text_bullets(block, "Evidence needed") or _extract_text_bullets(block, "Evidence"),
-            "visual_intent": _extract_text_bullets(block, "Visual intent") or _extract_text_bullets(block, "Visual"),
         })
     return sections
 
@@ -216,7 +211,7 @@ def _extract_text_field(block: str, field_name: str) -> str:
         "Purpose", "Entry assumption", "Exit state",
         "Duration", "Approx. duration",
         "Talking points", "Evidence needed", "Evidence",
-        "Visual intent", "Visual", "Research queries",
+        "Research queries",
     ]
     positions = []
     for f in all_fields:

@@ -195,7 +195,7 @@ export default function SectionRow({
         />
       </div>
 
-      {/* Column 3: Evidence + Visual Intent — flowing text */}
+      {/* Column 3: Evidence — flowing text */}
       <div className="py-3 px-4 min-w-0 space-y-3">
         <BulletBlock
           items={section.evidenceNeeded}
@@ -203,15 +203,6 @@ export default function SectionRow({
           placeholder="Evidence needed..."
           disabled={disabled}
         />
-
-        <div className="border-t border-border/50 pt-2">
-          <BulletBlock
-            items={section.visualIntent}
-            onChange={(items) => onUpdate(section.id, { visualIntent: items })}
-            placeholder="Visual intent..."
-            disabled={disabled}
-          />
-        </div>
       </div>
     </div>
   );

@@ -27,7 +27,6 @@ export interface GoldSection {
   duration_sec: number;
   talking_points: string[];
   evidence_used: string[] | null;
-  visual_intent: string[];
 }
 
 export interface WriterAnalysis {
@@ -51,7 +50,6 @@ export interface Analysis {
       duration_str: string;
       talking_points: string[];
       evidence_needed: string[];
-      visual_intent: string[];
     }[];
     ai_duration_estimate: string;
     gold_duration_sec: number;
@@ -205,14 +203,6 @@ export function SectionDiff({ gold, aiSections }: { gold: GoldSection[]; aiSecti
                     <b>Evidence needed:</b>
                     <ul className="list-disc list-inside">
                       {aiSections[i].evidence_needed.map((ev: string, j: number) => <li key={j}>{ev}</li>)}
-                    </ul>
-                  </div>
-                )}
-                {aiSections[i].visual_intent.length > 0 && (
-                  <div className="text-base text-muted-foreground mt-1">
-                    <b>Visual intent:</b>
-                    <ul className="list-disc list-inside">
-                      {aiSections[i].visual_intent.map((vi: string, j: number) => <li key={j}>{vi}</li>)}
                     </ul>
                   </div>
                 )}

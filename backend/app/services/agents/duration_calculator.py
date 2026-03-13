@@ -38,10 +38,13 @@ class DurationCalculator:
         "screen_recording": 1.0,  # Viewers need time to see UI
         "code_editor": 1.0,       # Viewers need time to read code
         "slides": 0.8,            # Viewers need time to read
-        "whiteboard": 0.8,        # Viewers need time to follow drawing
+        "whiteboard_animation": 0.8,  # Viewers need time to follow drawing/animation
+        "whiteboard": 0.8,        # Legacy fallback
         "stock_footage": 0.5,
         "real_world": 0.5,
         "talking_head": 0.5,
+        "talking_head_with_split_screens": 0.5,
+        "talking_head_left_with_notes": 0.5,  # gold set variant
     }
 
     # Duration constraints

@@ -17,10 +17,10 @@ class StoryboardDirector(BaseAgent):
 
     Input: story_brief with fields (viewer_outcome, core_talking_points, etc.)
     Output: plain text outline with sections (purpose, duration, talking points,
-            evidence needed, research queries, visual intent)
+            evidence needed, visual intent)
     """
 
-    prompt_file = "storyboard_director_prompt_v0309.md"
+    prompt_file = "storyboard_director_prompt_v0312.md"
 
     def _extract_brief_field(self, story_brief: dict, field_name: str, default=None):
         """

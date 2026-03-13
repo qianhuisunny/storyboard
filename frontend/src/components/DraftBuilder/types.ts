@@ -10,11 +10,12 @@ export type TabKey = "user" | "input" | "processing" | "output";
 export type ProductionScreenType =
   | "screen_recording"
   | "slides"
-  | "whiteboard"
+  | "whiteboard_animation"
   | "code_editor"
   | "stock_footage"
   | "real_world"
-  | "talking_head";
+  | "talking_head"
+  | "talking_head_with_split_screens";
 
 // Visual style for screen type badges
 export const SCREEN_TYPE_CONFIG: Record<
@@ -24,11 +25,14 @@ export const SCREEN_TYPE_CONFIG: Record<
   // Primary production screen types
   screen_recording: { label: "Screen Recording", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "monitor" },
   slides: { label: "Slides", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "presentation" },
-  whiteboard: { label: "Whiteboard", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "edit-3" },
+  whiteboard_animation: { label: "Whiteboard / Animation", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "edit-3" },
+  whiteboard: { label: "Whiteboard", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "edit-3" },  // legacy
   code_editor: { label: "Code Editor", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "code" },
   stock_footage: { label: "Stock Footage", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "video" },
   real_world: { label: "Real-World", color: "bg-[#E8F0E9] text-[#5A6352] border-[#D9DDD2]", icon: "camera" },
   talking_head: { label: "Talking Head", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "user" },
+  talking_head_with_split_screens: { label: "Talking Head + Split", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "layout" },
+  talking_head_left_with_notes: { label: "Talking Head + Notes", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "layout" },
   // Legacy fallbacks for existing project data
   stock_video: { label: "Stock Video", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "video" },
   screencast: { label: "Screencast", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "monitor" },

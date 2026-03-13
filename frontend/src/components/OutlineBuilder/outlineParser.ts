@@ -19,6 +19,12 @@ function generateId(): string {
  *   Purpose
  *   One or two sentences...
  *
+ *   Entry assumption
+ *   What the viewer already knows...
+ *
+ *   Exit state
+ *   What the viewer knows after...
+ *
  *   Duration
  *   1:00–2:00
  *
@@ -29,8 +35,6 @@ function generateId(): string {
  *   Evidence needed
  *   - Evidence 1
  *
- *   Visual intent
- *   - Visual 1
  */
 export function parseOutline(text: string): OutlineSection[] {
   if (!text || !text.trim()) return [];
@@ -56,10 +60,11 @@ export function parseOutline(text: string): OutlineSection[] {
         sectionNumber: 1,
         title: "Outline",
         purpose: text.trim(),
+        entryAssumption: "",
+        exitState: "",
         duration: "",
         talkingPoints: [],
         evidenceNeeded: [],
-        visualIntent: [],
       },
     ];
   }
@@ -84,26 +89,30 @@ export function parseOutline(text: string): OutlineSection[] {
  */
 function parseBlock(block: string): {
   purpose: string;
+  entryAssumption: string;
+  exitState: string;
   duration: string;
   talkingPoints: string[];
   evidenceNeeded: string[];
-  visualIntent: string[];
 } {
   const result = {
     purpose: "",
+    entryAssumption: "",
+    exitState: "",
     duration: "",
     talkingPoints: [] as string[],
     evidenceNeeded: [] as string[],
-    visualIntent: [] as string[],
   };
 
   // Known sub-field headers (case-insensitive)
   const fieldHeaders = [
     { key: "purpose" as const, pattern: /^Purpose\s*$/im },
+    { key: "entryAssumption" as const, pattern: /^Entry\s+assumption\s*$/im },
+    { key: "exitState" as const, pattern: /^Exit\s+state\s*$/im },
     { key: "duration" as const, pattern: /^Duration\s*$/im },
     { key: "talkingPoints" as const, pattern: /^Talking\s+points?\s*$/im },
     { key: "evidenceNeeded" as const, pattern: /^Evidence\s+needed\s*$/im },
-    { key: "visualIntent" as const, pattern: /^Visual\s+intent\s*$/im },
+    { key: "_visualIntent" as const, pattern: /^Visual\s+intent\s*$/im },  // recognized but discarded (legacy)
   ];
 
   // Find positions of each header in the block
@@ -131,15 +140,18 @@ function parseBlock(block: string): {
 
     if (pos.key === "purpose") {
       result.purpose = content;
+    } else if (pos.key === "entryAssumption") {
+      result.entryAssumption = content;
+    } else if (pos.key === "exitState") {
+      result.exitState = content;
     } else if (pos.key === "duration") {
       result.duration = content;
     } else if (pos.key === "talkingPoints") {
       result.talkingPoints = parseBullets(content);
     } else if (pos.key === "evidenceNeeded") {
       result.evidenceNeeded = parseBullets(content);
-    } else if (pos.key === "visualIntent") {
-      result.visualIntent = parseBullets(content);
     }
+    // _visualIntent is recognized but discarded (legacy outlines)
   }
 
   return result;
@@ -172,6 +184,18 @@ export function serializeOutline(sections: OutlineSection[]): string {
       lines.push(s.purpose);
       lines.push("");
 
+      if (s.entryAssumption) {
+        lines.push("Entry assumption");
+        lines.push(s.entryAssumption);
+        lines.push("");
+      }
+
+      if (s.exitState) {
+        lines.push("Exit state");
+        lines.push(s.exitState);
+        lines.push("");
+      }
+
       lines.push("Duration");
       lines.push(s.duration || "0:00–0:00");
       lines.push("");
@@ -185,12 +209,6 @@ export function serializeOutline(sections: OutlineSection[]): string {
       lines.push("Evidence needed");
       for (const ev of s.evidenceNeeded) {
         lines.push(`- ${ev}`);
-      }
-      lines.push("");
-
-      lines.push("Visual intent");
-      for (const vi of s.visualIntent) {
-        lines.push(`- ${vi}`);
       }
 
       return lines.join("\n");

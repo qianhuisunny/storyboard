@@ -18,11 +18,14 @@ from ..processing_log import log_llm_request, log_llm_response
 PLACEHOLDER_IMAGES = {
     "screen_recording": "/placeholders/screen_recording.png",
     "slides": "/placeholders/slides_and_diagrams.png",
-    "whiteboard": "/placeholders/whiteboard.png",
+    "whiteboard_animation": "/placeholders/whiteboard.png",
+    "whiteboard": "/placeholders/whiteboard.png",  # legacy fallback
     "code_editor": "/placeholders/code_editor.png",
     "stock_footage": "/placeholders/stock_footage.png",
     "real_world": "/placeholders/real_world.png",
     "talking_head": "/placeholders/talking_head.png",
+    "talking_head_with_split_screens": "/placeholders/talking_head.png",
+    "talking_head_left_with_notes": "/placeholders/talking_head.png",  # gold set variant
 }
 
 
@@ -34,7 +37,7 @@ class StoryboardWriter(BaseAgent):
     Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_v0309.md"
+    prompt_file = "storyboard_writer_prompt_v0312.md"
 
     def __init__(self):
         super().__init__()
@@ -135,11 +138,9 @@ class StoryboardWriter(BaseAgent):
                 "purpose": self._extract_field(block, "Purpose"),
                 "entry_assumption": self._extract_field(block, "Entry assumption"),
                 "exit_state": self._extract_field(block, "Exit state"),
-                "misconception_to_preempt": self._extract_field(block, "Misconception to preempt"),
                 "duration_range": self._extract_field(block, "Duration"),
                 "talking_points": self._extract_bullets(block, "Talking points"),
                 "evidence_needed": self._extract_bullets(block, "Evidence needed"),
-                "visual_intent": self._extract_bullets(block, "Visual intent"),
             })
 
         return sections
@@ -155,11 +156,9 @@ class StoryboardWriter(BaseAgent):
             ["Purpose"],
             ["Entry assumption"],
             ["Exit state"],
-            ["Misconception to preempt", "Misconception"],
             ["Duration", "Approx. duration", "Approx duration"],
             ["Talking points", "Talking point"],
             ["Evidence needed", "Evidence"],
-            ["Visual intent", "Visual"],
             ["Research queries", "Research query"],
         ]
 
@@ -264,8 +263,8 @@ class StoryboardWriter(BaseAgent):
         # Map brief broll_type values to valid screen types
         type_map = {
             "slides": "slides",
-            "whiteboard": "whiteboard",
-            "diagrams": "whiteboard",
+            "whiteboard": "whiteboard_animation",
+            "diagrams": "whiteboard_animation",
             "screen_recording": "screen_recording",
             "code_editor": "code_editor",
             "stock_footage": "stock_footage",
@@ -286,7 +285,7 @@ class StoryboardWriter(BaseAgent):
 
         # Fallback if empty
         if not allowed:
-            allowed = ["slides", "whiteboard"]
+            allowed = ["slides", "whiteboard_animation"]
 
         return allowed
 
@@ -447,8 +446,6 @@ class StoryboardWriter(BaseAgent):
         # Format talking points
         tp_text = "\n".join(f"- {tp}" for tp in section.get("talking_points", [])) or "- (none)"
         ev_text = "\n".join(f"- {ev}" for ev in section.get("evidence_needed", [])) or "- (none)"
-        vi_text = "\n".join(f"- {vi}" for vi in section.get("visual_intent", [])) or "- (none)"
-
         # Format evidence research
         # Find the research_brief for this section from evidence_research
         evidence_text = self._format_evidence_for_prompt(evidence)
@@ -486,7 +483,6 @@ Section {section.get('section_number', '?')} — {section.get('title', '')}
 Purpose: {section.get('purpose', '')}
 Entry assumption: {section.get('entry_assumption', 'None')}
 Exit state: {section.get('exit_state', '')}
-Misconception to preempt: {section.get('misconception_to_preempt', 'None')}
 Target duration: {min_sec}-{max_sec} seconds (~{estimated_count} screens)
 
 Talking points:
@@ -494,9 +490,6 @@ Talking points:
 
 Evidence needed:
 {ev_text}
-
-Visual intent:
-{vi_text}
 
 === INSTRUCTIONS ===
 Starting screen number: {start_number}

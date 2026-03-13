@@ -2,16 +2,17 @@
  * TypeScript types for the Outline Builder component.
  */
 
-// Structured outline section (parsed from Director's plain text)
+// Structured outline section (parsed from Director's JSON output)
 export interface OutlineSection {
   id: string;
   sectionNumber: number;
   title: string;
   purpose: string;
+  entryAssumption: string;
+  exitState: string;
   duration: string;
   talkingPoints: string[];
   evidenceNeeded: string[];
-  visualIntent: string[];
 }
 
 // 3-Layer Evidence Research types
