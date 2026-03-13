@@ -28,7 +28,7 @@ export default function GoldSetEval() {
   const [selectedModel, setSelectedModel] = useState("gpt-4o");
   const [data, setData] = useState<EvalData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [running, setRunning] = useState(false);
+  const [runningModel, setRunningModel] = useState<string | null>(null); // which model is currently being evaluated
   const [error, setError] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
   const [availableRuns, setAvailableRuns] = useState<{model: string; timestamp: string}[]>([]);
@@ -63,35 +63,30 @@ export default function GoldSetEval() {
     return modelId.replace(/-\d{8}$/, "");
   }, [models]);
 
-  const fetchCached = useCallback(async () => {
+  const fetchForModel = useCallback(async (model?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/eval/gold-set/${goldSetName}`);
+      const url = model
+        ? `/api/eval/gold-set/${goldSetName}?model=${model}`
+        : `/api/eval/gold-set/${goldSetName}`;
+      const res = await fetch(url);
       const json = await res.json();
       if (json.success) {
         setData(json.data);
         setIsCached(json.cached);
-        if (json.available_models) setAvailableRuns(json.available_models);
-        setViewIndex(0);
+        if (json.available_models) {
+          setAvailableRuns(json.available_models);
+          // Update viewIndex to match the loaded model
+          if (model) {
+            const idx = json.available_models.findIndex((r: {model: string}) => r.model === model);
+            if (idx >= 0) setViewIndex(idx);
+          } else {
+            setViewIndex(0);
+          }
+        }
       } else {
         setError(json.detail || "Failed to load");
-      }
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [goldSetName]);
-
-  const fetchModelResult = useCallback(async (model: string) => {
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/eval/gold-set/${goldSetName}?model=${model}`);
-      const json = await res.json();
-      if (json.success) {
-        setData(json.data);
-        setIsCached(json.cached);
       }
     } catch (e) {
       setError(String(e));
@@ -104,69 +99,57 @@ export default function GoldSetEval() {
     if (viewIndex > 0) {
       const newIdx = viewIndex - 1;
       setViewIndex(newIdx);
-      fetchModelResult(availableRuns[newIdx].model);
+      fetchForModel(availableRuns[newIdx].model);
     }
-  }, [viewIndex, availableRuns, fetchModelResult]);
+  }, [viewIndex, availableRuns, fetchForModel]);
 
   const goToNext = useCallback(() => {
     if (viewIndex < availableRuns.length - 1) {
       const newIdx = viewIndex + 1;
       setViewIndex(newIdx);
-      fetchModelResult(availableRuns[newIdx].model);
+      fetchForModel(availableRuns[newIdx].model);
     }
-  }, [viewIndex, availableRuns, fetchModelResult]);
+  }, [viewIndex, availableRuns, fetchForModel]);
 
   // Elapsed timer while running
   useEffect(() => {
-    if (!running) { setRunElapsed(0); return; }
+    if (!runningModel) { setRunElapsed(0); return; }
     const t = setInterval(() => setRunElapsed(e => e + 1), 1000);
     return () => clearInterval(t);
-  }, [running]);
+  }, [runningModel]);
 
   const runEval = useCallback(async () => {
-    setRunning(true);
+    const modelToRun = selectedModel;
+    setRunningModel(modelToRun);
     setError(null);
     setRunElapsed(0);
     // Immediately clear old AI content — keep gold brief visible
     setData(prev => prev ? { ...prev, director_output: undefined, writer_output_path_b: undefined, writer_output_path_a: undefined, analysis: undefined } as EvalData : prev);
     try {
-      // Kick off background eval with selected model
       const res = await fetch(`/api/eval/gold-set/${goldSetName}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: selectedModel }),
+        body: JSON.stringify({ model: modelToRun }),
       });
       const json = await res.json();
       if (!json.success) {
         setError(json.detail || "Eval failed to start");
-        setRunning(false);
+        setRunningModel(null);
         return;
       }
       // Poll for completion
       const poll = setInterval(async () => {
         try {
-          const statusRes = await fetch(`/api/eval/gold-set/${goldSetName}/status?model=${selectedModel}`);
+          const statusRes = await fetch(`/api/eval/gold-set/${goldSetName}/status?model=${modelToRun}`);
           const statusJson = await statusRes.json();
           if (statusJson.status === "done") {
             clearInterval(poll);
-            setRunning(false);
-            // Reload and navigate to the just-run model
-            const reloadRes = await fetch(`/api/eval/gold-set/${goldSetName}?model=${selectedModel}`);
-            const reloadJson = await reloadRes.json();
-            if (reloadJson.success) {
-              setData(reloadJson.data);
-              setIsCached(reloadJson.cached);
-              if (reloadJson.available_models) {
-                setAvailableRuns(reloadJson.available_models);
-                const idx = reloadJson.available_models.findIndex(
-                  (r: {model: string}) => r.model === selectedModel
-                );
-                setViewIndex(idx >= 0 ? idx : 0);
-              }
-            }
+            setRunningModel(null);
+            // Only load results if user is still viewing this model
+            fetchForModel(modelToRun);
           } else if (statusJson.status === "error") {
             clearInterval(poll);
-            setRunning(false);
+            setRunningModel(null);
             setError(statusJson.error || "Eval failed");
           }
         } catch {
@@ -175,11 +158,17 @@ export default function GoldSetEval() {
       }, 3000);
     } catch (e) {
       setError(String(e));
-      setRunning(false);
+      setRunningModel(null);
     }
-  }, [goldSetName, selectedModel]);
+  }, [goldSetName, selectedModel, fetchForModel]);
 
-  useEffect(() => { fetchCached(); }, [fetchCached]);
+  // Load data when gold set changes
+  useEffect(() => { fetchForModel(); }, [fetchForModel]);
+
+  // Load data when model dropdown changes (even while another model runs)
+  useEffect(() => {
+    fetchForModel(selectedModel);
+  }, [selectedModel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasResults = data ? !!data.director_output : false;
   const analysis = data?.analysis;
@@ -264,9 +253,9 @@ export default function GoldSetEval() {
                   </button>
                 </div>
               )}
-              <Button onClick={runEval} disabled={running} size="sm">
-                <RefreshCw className={`h-4 w-4 mr-1.5 ${running ? "animate-spin" : ""}`} />
-                {running ? `Running (${runElapsed}s)...` : "Run Eval"}
+              <Button onClick={runEval} disabled={runningModel === selectedModel} size="sm">
+                <RefreshCw className={`h-4 w-4 mr-1.5 ${runningModel === selectedModel ? "animate-spin" : ""}`} />
+                {runningModel === selectedModel ? `Running (${runElapsed}s)...` : runningModel ? `${formatModelLabel(runningModel)} running...` : "Run Eval"}
               </Button>
             </div>
           </div>
@@ -276,21 +265,21 @@ export default function GoldSetEval() {
           {error && (
             <Card className="p-4 border-destructive">
               <p className="text-destructive">{error}</p>
-              <Button variant="outline" size="sm" className="mt-2" onClick={fetchCached}>Retry</Button>
+              <Button variant="outline" size="sm" className="mt-2" onClick={() => fetchForModel(selectedModel)}>Retry</Button>
             </Card>
           )}
 
-      {!loading && !error && !hasResults && !running && (
+      {!loading && !error && !hasResults && runningModel !== selectedModel && (
         <Card className="p-8 text-center">
           <p className="text-muted-foreground mb-4">No eval results yet. Click "Run Eval" to run Director + Writer against the gold set.</p>
           <p className="text-xs text-muted-foreground">This will make LLM API calls and take ~60-90 seconds.</p>
         </Card>
       )}
 
-      {running && (
+      {runningModel === selectedModel && (
         <Card className="p-8 text-center">
           <RefreshCw className="h-6 w-6 animate-spin mx-auto mb-3 text-muted-foreground" />
-          <p className="text-muted-foreground mb-1">Running evaluation with <span className="font-medium">{formatModelLabel(selectedModel)}</span>... <span className="font-mono">{runElapsed}s</span></p>
+          <p className="text-muted-foreground mb-1">Running evaluation with <span className="font-medium">{formatModelLabel(runningModel)}</span>... <span className="font-mono">{runElapsed}s</span></p>
           <p className="text-xs text-muted-foreground">Director + Writer pipeline. Typically 2–5 minutes depending on section count and model.</p>
         </Card>
       )}

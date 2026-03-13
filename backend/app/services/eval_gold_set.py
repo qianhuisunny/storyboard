@@ -531,7 +531,12 @@ def run_eval(name: str, force: bool = False, model: str = None) -> dict:
 
     If force=False, returns cached result if cache exists and prompt
     versions match current prompts. Otherwise re-runs.
+
+    Path B (gold outline → Writer) runs in parallel with Director,
+    then Path A (AI outline → Writer) runs after Director completes.
     """
+    from concurrent.futures import ThreadPoolExecutor
+
     prompt_versions = get_current_prompt_versions()
 
     # Check cache validity (skip if model differs from cached)
@@ -545,13 +550,15 @@ def run_eval(name: str, force: bool = False, model: str = None) -> dict:
     story_brief = brief_to_story_brief(gold["brief"])
     gold_outline_text = gold_outline_to_director_text(gold["outline"])
 
-    # Path A: Brief → Director
-    director_output = _run_director(story_brief, model=model)
+    # Run Director and Path B (gold outline → Writer) in parallel
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        director_future = pool.submit(_run_director, story_brief, model)
+        writer_b_future = pool.submit(_run_writer, gold_outline_text, story_brief, model)
 
-    # Path B: Gold outline → Writer
-    writer_output_b = _run_writer(gold_outline_text, story_brief, model=model)
+        director_output = director_future.result()
+        writer_output_b = writer_b_future.result()
 
-    # Path A+: AI outline → Writer
+    # Path A: AI outline → Writer (must wait for Director output)
     writer_output_a = _run_writer(director_output, story_brief, model=model)
 
     # Analysis
