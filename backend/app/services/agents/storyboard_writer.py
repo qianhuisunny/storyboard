@@ -370,10 +370,12 @@ class StoryboardWriter(BaseAgent):
         project_id: Optional[str] = None,
     ) -> list:
         """Process one section: build prompt, call LLM, parse response."""
-        # Estimate screen count from duration range
+        # Estimate screen count from duration range, ensuring talking point coverage
         min_sec, max_sec = self._parse_duration_range(section.get("duration_range", ""))
         midpoint = (min_sec + max_sec) / 2
-        estimated_count = max(2, round(midpoint / 45))
+        duration_based = max(2, round(midpoint / 45))
+        tp_count = len(section.get("talking_points", []))
+        estimated_count = max(duration_based, tp_count) if tp_count > 0 else duration_based
 
         # Build user prompt
         user_prompt = self._build_section_prompt(
@@ -497,9 +499,11 @@ Generate approximately {estimated_count} screens for this section.
 Return a JSON array. Each element has exactly 5 fields:
 - screen_number (integer, starting from {start_number})
 - screen_type (one of: {', '.join(allowed_types)})
-- voiceover_text (30-80 words per screen — enough to develop one complete teaching thought)
+- voiceover_text (let the visual logic decide length — new screen = new visual needed)
 - visual_direction (array of 2-4 specific visual elements that EXPLAIN the voiceover content)
 - action_notes (1-2 sentences: cognitive function + execution guidance)
+
+CRITICAL: Every talking point listed above MUST be covered in at least one screen's voiceover. Do not skip or vaguely paraphrase any talking point.
 
 Follow your system prompt rules strictly. Every sentence of voiceover must teach — no filler, no announcements, no motivation."""
 

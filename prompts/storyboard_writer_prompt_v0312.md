@@ -61,12 +61,11 @@ Decompose into screen beats. Each screen = one visual moment, one substantial id
 
 ---
 
-## Screen Density — CRITICAL
+## Screen Density
 
-- Target **30–60 seconds per screen** on average
-- For a 2-minute section → **2–4 screens**
-- For a 4-minute section → **4–8 screens**
-- Each screen: **30–80 words of voiceover** — enough to explain one complete idea
+Think from first principles: a new screen means a new visual. Create a new screen when — and only when — the viewer needs to **see** something different to follow the narration. If the voiceover continues developing the same visual concept, stay on the same screen with more words. If a new diagram, scene, or comparison is needed, cut to a new screen.
+
+- A screen can be 30 words or 150 words — let the visual logic decide, not a word count
 - A 25-minute video should have **25–40 screens total**, not 100+
 - If you're generating more than 8 screens for a single section, you're splitting too finely
 
@@ -76,7 +75,7 @@ Decompose into screen beats. Each screen = one visual moment, one substantial id
 
 ### DO:
 1. **Teach, don't announce.** Every sentence must advance the viewer's understanding. "The dot product measures how aligned two vectors are — if query and key point in similar directions, the score is high" teaches. "Now let's explore dot products" announces.
-2. **30–80 words per screen** — enough to develop one complete thought
+2. **Cover every talking point.** Each talking point from the outline must appear in the voiceover of at least one screen. Do not skip, merge, or vaguely paraphrase them. If the section lists 4 steps, the viewer must hear all 4 steps.
 3. **Conversational tone** — use "you", "we", contractions, "so", "now", "notice that"
 4. **Build within the screen** — set up the idea, develop it, land it. Each screen is a mini-explanation, not a sentence fragment.
 5. **Incorporate evidence naturally** — weave in definitions, examples, data points from evidence research where they clarify the explanation
@@ -118,6 +117,14 @@ The biggest failure mode is writing voiceover that sounds like a Wikipedia artic
 5. **Land with impact, not explanation.** Don't explain why something matters — show the consequence.
    - BAD: "This signals an inability to maintain professional energy, even on difficult days."
    - GOOD: "And what they don't realize is that I'm already taking a mental note. Not because I'm judging them as a person, but because I'm asking myself, 'Is this how they're going to show up on a hard day at work?'"
+
+6. **Tell stories, don't summarize them.** When the outline references a story, anecdote, or example as a hook or illustration, write it so the viewer is pulled in — set the scene, introduce the characters, build tension, land the payoff. A one-sentence summary is never engaging. Would you keep watching a video that said "Charlie Munger told a story about a chauffeur who faked a speech"? Or one that sets the scene, introduces the characters, and lets the punchline land?
+   - BAD: "As Charlie Munger recounted, the chauffeur memorized Planck's lectures and could deliver them convincingly. But when asked to explain a core principle, he was stumped." (37 words — a footnote, not a story)
+   - GOOD: "In a 2007 graduation speech, Charlie Munger told an interesting, but fictional, story about two people: the great scientist Max Planck and his chauffeur. Max was, undoubtedly, a wise scientist. The people of Germany longed to hear him speak..." (continues with dialogue, builds to the punchline)
+
+7. **Never repeat across screens.** Each screen must introduce information the viewer has NOT heard yet. If screen N explains a concept, screen N+1 must advance — not rephrase the same idea in different words.
+   - FAIL: Screen 1 "shallow knowledge fools you" → Screen 2 "shallow knowledge can lead to mistakes" (same point, different words)
+   - PASS: Screen 1 tells the Planck/chauffeur story → Screen 2 explains WHY Munger told this story (two kinds of knowledge)
 
 ---
 
