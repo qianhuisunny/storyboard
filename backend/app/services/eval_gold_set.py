@@ -241,8 +241,11 @@ def _extract_text_bullets(block: str, field_name: str) -> list[str]:
     ]
 
 
-def _estimate_ai_duration_range(sections: list[dict]) -> str:
-    """Estimate total duration from AI section duration strings."""
+def _estimate_ai_duration_range(sections: list[dict]) -> dict:
+    """Estimate total duration from AI section duration strings.
+
+    Returns {"min_sec": int, "max_sec": int, "midpoint_sec": int}.
+    """
     total_min = 0
     total_max = 0
     for s in sections:
@@ -273,7 +276,8 @@ def _estimate_ai_duration_range(sections: list[dict]) -> str:
                 total_max += secs
     if total_max == 0:
         total_max = total_min
-    return f"{total_min // 60}:{total_min % 60:02d}–{total_max // 60}:{total_max % 60:02d}"
+    midpoint = (total_min + total_max) // 2
+    return {"min_sec": total_min, "max_sec": total_max, "midpoint_sec": midpoint}
 
 
 def compute_analysis(gold: dict, director_output: str,
@@ -311,7 +315,7 @@ def compute_analysis(gold: dict, director_output: str,
     sec_diff = len(ai_sections) - len(gold_outline)
     if sec_diff != 0:
         summary.append(f"Director: {len(ai_sections)} sections vs {len(gold_outline)} gold ({'+' if sec_diff > 0 else ''}{sec_diff})")
-    summary.append(f"Director: estimated duration {ai_duration_estimate} vs {gold_total_sec}s gold")
+    summary.append(f"Director: estimated duration {ai_duration_estimate['min_sec']}–{ai_duration_estimate['max_sec']}s (midpoint {ai_duration_estimate['midpoint_sec']}s) vs {gold_total_sec}s gold")
 
     # Check if first section looks like a narrative hook
     if ai_sections:

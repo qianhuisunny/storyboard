@@ -341,11 +341,21 @@ export default function GoldSetEval() {
                   gold={analysis.director.section_count.gold}
                   ai={analysis.director.section_count.ai}
                 />
-                <MetricCard
-                  label="Total Duration"
-                  gold={`${analysis.director.gold_duration_sec}s`}
-                  ai={analysis.director.ai_duration_estimate}
-                />
+                {(() => {
+                  const est = analysis.director.ai_duration_estimate;
+                  const isObj = typeof est === "object" && est !== null;
+                  const midpoint = isObj ? est.midpoint_sec : (typeof est === "string" ? parseInt(est) || 0 : est);
+                  const rangeLabel = isObj ? `${est.min_sec}–${est.max_sec}` : String(est);
+                  return (
+                    <MetricCard
+                      label="Total Duration"
+                      gold={analysis.director.gold_duration_sec}
+                      ai={midpoint}
+                      aiDisplay={rangeLabel}
+                      unit="s"
+                    />
+                  );
+                })()}
                 <MetricCard
                   label="Talking Points (total)"
                   gold={data.gold.outline.reduce((sum, s) => sum + s.talking_points.length, 0)}

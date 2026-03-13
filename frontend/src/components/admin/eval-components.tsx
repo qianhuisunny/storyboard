@@ -83,7 +83,7 @@ export interface EvalData {
 // Subcomponents
 // ============================================================================
 
-export function MetricCard({ label, gold, ai, unit = "" }: { label: string; gold: number | string; ai: number | string; unit?: string }) {
+export function MetricCard({ label, gold, ai, unit = "", aiDisplay }: { label: string; gold: number | string; ai: number | string; unit?: string; aiDisplay?: string }) {
   const goldNum = typeof gold === "number" ? gold : parseFloat(String(gold));
   const aiNum = typeof ai === "number" ? ai : parseFloat(String(ai));
   const diff = !isNaN(goldNum) && !isNaN(aiNum) ? aiNum - goldNum : null;
@@ -99,7 +99,7 @@ export function MetricCard({ label, gold, ai, unit = "" }: { label: string; gold
         </span>
         <span className="text-base">
           <span className="text-muted-foreground">AI:</span>{" "}
-          <span className="font-mono font-medium">{ai}{unit}</span>
+          <span className="font-mono font-medium">{aiDisplay ?? ai}{unit}</span>
         </span>
         {pct !== null && (
           <Badge variant={Math.abs(pct) > 30 ? "destructive" : "secondary"} className="text-xs">
