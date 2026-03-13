@@ -24,7 +24,6 @@ export interface GoldSection {
   purpose: string;
   entry_assumption: string;
   exit_state: string;
-  misconception_to_preempt: string | null;
   duration_sec: number;
   talking_points: string[];
   evidence_used: string[] | null;
@@ -49,7 +48,6 @@ export interface Analysis {
       purpose: string;
       entry_assumption: string;
       exit_state: string;
-      misconception_to_preempt: string;
       duration_str: string;
       talking_points: string[];
       evidence_needed: string[];
@@ -67,6 +65,7 @@ export interface EvalData {
   gold_set_name: string;
   timestamp?: string;
   prompt_versions?: { director: string; writer: string };
+  model_used?: string;
   gold: {
     brief: Record<string, unknown>;
     outline: GoldSection[];
@@ -96,11 +95,11 @@ export function MetricCard({ label, gold, ai, unit = "" }: { label: string; gold
     <div className="border rounded-lg p-3 bg-muted/30">
       <div className="text-xs text-muted-foreground mb-1">{label}</div>
       <div className="flex items-baseline gap-3">
-        <span className="text-sm">
+        <span className="text-base">
           <span className="text-muted-foreground">Gold:</span>{" "}
           <span className="font-mono font-medium">{gold}{unit}</span>
         </span>
-        <span className="text-sm">
+        <span className="text-base">
           <span className="text-muted-foreground">AI:</span>{" "}
           <span className="font-mono font-medium">{ai}{unit}</span>
         </span>
@@ -126,9 +125,9 @@ export function ScreenCard({ screen, label }: { screen: GoldScreen | AIScreen; l
         <span className="text-xs text-muted-foreground">{words} words</span>
         {duration && <span className="text-xs text-muted-foreground">{duration}s</span>}
       </div>
-      <p className="text-sm mb-2 leading-relaxed">{screen.voiceover_text}</p>
+      <p className="text-base mb-2 leading-relaxed">{screen.voiceover_text}</p>
       {screen.visual_direction?.length > 0 && (
-        <div className="text-xs text-muted-foreground mt-1">
+        <div className="text-base text-muted-foreground mt-1">
           <span className="font-medium">Visual:</span>
           <ul className="list-disc list-inside mt-0.5">
             {screen.visual_direction.map((v: string, i: number) => <li key={i}>{v}</li>)}
@@ -136,7 +135,7 @@ export function ScreenCard({ screen, label }: { screen: GoldScreen | AIScreen; l
         </div>
       )}
       {screen.action_notes && (
-        <div className="text-xs text-muted-foreground mt-1">
+        <div className="text-base text-muted-foreground mt-1">
           <span className="font-medium">Notes:</span> {screen.action_notes}
         </div>
       )}
@@ -156,20 +155,20 @@ export function SectionDiff({ gold, aiSections }: { gold: GoldSection[]; aiSecti
               <>
                 <div className="flex items-center gap-2 mb-1">
                   <Badge variant="outline" className="text-xs">GOLD</Badge>
-                  <span className="font-medium text-sm">Section {gold[i].section_number} — {gold[i].section_title}</span>
+                  <span className="font-medium text-xl">Section {gold[i].section_number} — {gold[i].section_title}</span>
                 </div>
-                <p className="text-xs text-muted-foreground mb-1"><b>Purpose:</b> {gold[i].purpose}</p>
-                <p className="text-xs text-muted-foreground mb-1"><b>Duration:</b> {gold[i].duration_sec}s</p>
-                <p className="text-xs text-muted-foreground mb-1"><b>Entry:</b> {gold[i].entry_assumption}</p>
-                <p className="text-xs text-muted-foreground mb-1"><b>Exit:</b> {gold[i].exit_state}</p>
-                <div className="text-xs text-muted-foreground">
+                <p className="text-base text-muted-foreground mb-1"><b>Purpose:</b> {gold[i].purpose}</p>
+                <p className="text-base text-muted-foreground mb-1"><b>Duration:</b> {gold[i].duration_sec}s</p>
+                <p className="text-base text-muted-foreground mb-1"><b>Entry:</b> {gold[i].entry_assumption}</p>
+                <p className="text-base text-muted-foreground mb-1"><b>Exit:</b> {gold[i].exit_state}</p>
+                <div className="text-base text-muted-foreground">
                   <b>Talking points:</b>
                   <ul className="list-disc list-inside">
                     {gold[i].talking_points.map((tp: string, j: number) => <li key={j}>{tp}</li>)}
                   </ul>
                 </div>
                 {gold[i].evidence_used && (
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-base text-muted-foreground mt-1">
                     <b>Evidence:</b>
                     <ul className="list-disc list-inside">
                       {gold[i].evidence_used!.map((ev: string, j: number) => <li key={j}>{ev}</li>)}
@@ -187,17 +186,14 @@ export function SectionDiff({ gold, aiSections }: { gold: GoldSection[]; aiSecti
               <>
                 <div className="flex items-center gap-2 mb-1">
                   <Badge variant="outline" className="text-xs">AI</Badge>
-                  <span className="font-medium text-sm">Section {aiSections[i].section_number} — {aiSections[i].title}</span>
+                  <span className="font-medium text-xl">Section {aiSections[i].section_number} — {aiSections[i].title}</span>
                 </div>
-                {aiSections[i].purpose && <p className="text-xs text-muted-foreground mb-1"><b>Purpose:</b> {aiSections[i].purpose}</p>}
-                <p className="text-xs text-muted-foreground mb-1"><b>Duration:</b> {aiSections[i].duration_str}</p>
-                {aiSections[i].entry_assumption && <p className="text-xs text-muted-foreground mb-1"><b>Entry:</b> {aiSections[i].entry_assumption}</p>}
-                {aiSections[i].exit_state && <p className="text-xs text-muted-foreground mb-1"><b>Exit:</b> {aiSections[i].exit_state}</p>}
-                {aiSections[i].misconception_to_preempt && aiSections[i].misconception_to_preempt.toLowerCase() !== "none" && (
-                  <p className="text-xs text-muted-foreground mb-1"><b>Misconception:</b> {aiSections[i].misconception_to_preempt}</p>
-                )}
+                {aiSections[i].purpose && <p className="text-base text-muted-foreground mb-1"><b>Purpose:</b> {aiSections[i].purpose}</p>}
+                <p className="text-base text-muted-foreground mb-1"><b>Duration:</b> {aiSections[i].duration_str}</p>
+                {aiSections[i].entry_assumption && <p className="text-base text-muted-foreground mb-1"><b>Entry:</b> {aiSections[i].entry_assumption}</p>}
+                {aiSections[i].exit_state && <p className="text-base text-muted-foreground mb-1"><b>Exit:</b> {aiSections[i].exit_state}</p>}
                 {aiSections[i].talking_points.length > 0 && (
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-base text-muted-foreground">
                     <b>Talking points:</b>
                     <ul className="list-disc list-inside">
                       {aiSections[i].talking_points.map((tp: string, j: number) => <li key={j}>{tp}</li>)}
@@ -205,7 +201,7 @@ export function SectionDiff({ gold, aiSections }: { gold: GoldSection[]; aiSecti
                   </div>
                 )}
                 {aiSections[i].evidence_needed.length > 0 && (
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-base text-muted-foreground mt-1">
                     <b>Evidence needed:</b>
                     <ul className="list-disc list-inside">
                       {aiSections[i].evidence_needed.map((ev: string, j: number) => <li key={j}>{ev}</li>)}
@@ -213,7 +209,7 @@ export function SectionDiff({ gold, aiSections }: { gold: GoldSection[]; aiSecti
                   </div>
                 )}
                 {aiSections[i].visual_intent.length > 0 && (
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-base text-muted-foreground mt-1">
                     <b>Visual intent:</b>
                     <ul className="list-disc list-inside">
                       {aiSections[i].visual_intent.map((vi: string, j: number) => <li key={j}>{vi}</li>)}
@@ -235,7 +231,7 @@ export function StoryboardDiff({ gold, ai, pathLabel }: { gold: GoldScreen[]; ai
   const maxLen = Math.max(gold.length, ai.length);
   return (
     <div className="space-y-3">
-      <h4 className="text-sm font-medium text-muted-foreground">{pathLabel}</h4>
+      <h4 className="text-base font-medium text-muted-foreground">{pathLabel}</h4>
       {Array.from({ length: maxLen }, (_, i) => (
         <div key={i} className="grid grid-cols-2 gap-3">
           <div>

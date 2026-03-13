@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Optional, Any, Tuple, Dict
 from openai import OpenAI
 from dotenv import load_dotenv
+import anthropic
 
 load_dotenv()
 
@@ -35,9 +36,11 @@ class BaseAgent:
     """
 
     prompt_file: str = None  # Override in subclass
+    default_model: str = "gpt-4o"  # Can be overridden per-instance
 
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        self.anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY") or "dummy")
         self.system_prompt = self._load_prompt()
 
     def _load_prompt(self) -> str:
@@ -60,7 +63,7 @@ class BaseAgent:
     def call_llm(
         self,
         user_prompt: str,
-        model: str = "gpt-4o",
+        model: str = None,
         temperature: float = 0.7,
         max_tokens: int = 4000,
         system_prompt_override: str = "",
@@ -79,17 +82,29 @@ class BaseAgent:
             The assistant's response text
         """
         try:
+            model = model or self.default_model
             sys_prompt = system_prompt_override if system_prompt_override else self.system_prompt
-            response = self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": sys_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                temperature=temperature,
-                max_tokens=max_tokens,
-            )
-            return response.choices[0].message.content or ""
+
+            if model.startswith("claude"):
+                response = self.anthropic_client.messages.create(
+                    model=model,
+                    system=sys_prompt,
+                    messages=[{"role": "user", "content": user_prompt}],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                return response.content[0].text
+            else:
+                response = self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": sys_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                return response.choices[0].message.content or ""
         except Exception as e:
             raise RuntimeError(f"LLM call failed in {self.__class__.__name__}: {str(e)}")
 

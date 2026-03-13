@@ -24,18 +24,22 @@ export default function GoldSetEval() {
   // Single tab state
   const [goldSets, setGoldSets] = useState<string[]>([]);
   const [goldSetName, setGoldSetName] = useState("feynman_technique");
+  const [models, setModels] = useState<{id: string; label: string}[]>([{id: "gpt-4o", label: "GPT-4o"}]);
+  const [selectedModel, setSelectedModel] = useState("gpt-4o");
   const [data, setData] = useState<EvalData | null>(null);
   const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCached, setIsCached] = useState(false);
+  const [availableRuns, setAvailableRuns] = useState<{model: string; timestamp: string}[]>([]);
+  const [viewIndex, setViewIndex] = useState(0);
 
   // Update hash on tab change
   useEffect(() => {
     window.location.hash = activeTab;
   }, [activeTab]);
 
-  // Fetch gold set list
+  // Fetch gold set list + available models
   useEffect(() => {
     fetch("/api/eval/gold-sets")
       .then(r => r.json())
@@ -43,7 +47,20 @@ export default function GoldSetEval() {
         if (j.gold_sets) setGoldSets(j.gold_sets);
       })
       .catch(() => {});
+    fetch("/api/eval/models")
+      .then(r => r.json())
+      .then(j => {
+        if (j.models) setModels(j.models);
+      })
+      .catch(() => {});
   }, []);
+
+  const formatModelLabel = useCallback((modelId: string) => {
+    if (!modelId) return "";
+    const found = models.find(m => m.id === modelId);
+    if (found) return found.label;
+    return modelId.replace(/-\d{8}$/, "");
+  }, [models]);
 
   const fetchCached = useCallback(async () => {
     setLoading(true);
@@ -54,6 +71,8 @@ export default function GoldSetEval() {
       if (json.success) {
         setData(json.data);
         setIsCached(json.cached);
+        if (json.available_models) setAvailableRuns(json.available_models);
+        setViewIndex(0);
       } else {
         setError(json.detail || "Failed to load");
       }
@@ -64,12 +83,48 @@ export default function GoldSetEval() {
     }
   }, [goldSetName]);
 
+  const fetchModelResult = useCallback(async (model: string) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/eval/gold-set/${goldSetName}?model=${model}`);
+      const json = await res.json();
+      if (json.success) {
+        setData(json.data);
+        setIsCached(json.cached);
+      }
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }, [goldSetName]);
+
+  const goToPrev = useCallback(() => {
+    if (viewIndex > 0) {
+      const newIdx = viewIndex - 1;
+      setViewIndex(newIdx);
+      fetchModelResult(availableRuns[newIdx].model);
+    }
+  }, [viewIndex, availableRuns, fetchModelResult]);
+
+  const goToNext = useCallback(() => {
+    if (viewIndex < availableRuns.length - 1) {
+      const newIdx = viewIndex + 1;
+      setViewIndex(newIdx);
+      fetchModelResult(availableRuns[newIdx].model);
+    }
+  }, [viewIndex, availableRuns, fetchModelResult]);
+
   const runEval = useCallback(async () => {
     setRunning(true);
     setError(null);
     try {
-      // Kick off background eval
-      const res = await fetch(`/api/eval/gold-set/${goldSetName}`, { method: "POST" });
+      // Kick off background eval with selected model
+      const res = await fetch(`/api/eval/gold-set/${goldSetName}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model: selectedModel }),
+      });
       const json = await res.json();
       if (!json.success) {
         setError(json.detail || "Eval failed to start");
@@ -79,12 +134,25 @@ export default function GoldSetEval() {
       // Poll for completion
       const poll = setInterval(async () => {
         try {
-          const statusRes = await fetch(`/api/eval/gold-set/${goldSetName}/status`);
+          const statusRes = await fetch(`/api/eval/gold-set/${goldSetName}/status?model=${selectedModel}`);
           const statusJson = await statusRes.json();
           if (statusJson.status === "done") {
             clearInterval(poll);
             setRunning(false);
-            fetchCached(); // Reload the cached result
+            // Reload and navigate to the just-run model
+            const reloadRes = await fetch(`/api/eval/gold-set/${goldSetName}`);
+            const reloadJson = await reloadRes.json();
+            if (reloadJson.success) {
+              setData(reloadJson.data);
+              setIsCached(reloadJson.cached);
+              if (reloadJson.available_models) {
+                setAvailableRuns(reloadJson.available_models);
+                const idx = reloadJson.available_models.findIndex(
+                  (r: {model: string}) => r.model === selectedModel
+                );
+                setViewIndex(idx >= 0 ? idx : 0);
+              }
+            }
           } else if (statusJson.status === "error") {
             clearInterval(poll);
             setRunning(false);
@@ -98,7 +166,7 @@ export default function GoldSetEval() {
       setError(String(e));
       setRunning(false);
     }
-  }, [goldSetName, fetchCached]);
+  }, [goldSetName, selectedModel]);
 
   useEffect(() => { fetchCached(); }, [fetchCached]);
 
@@ -133,7 +201,7 @@ export default function GoldSetEval() {
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold">Gold Set Evaluation</h1>
-              <div className="flex items-center gap-2 mt-1">
+              <div className="flex items-center gap-3 mt-1">
                 <select
                   value={goldSetName}
                   onChange={e => setGoldSetName(e.target.value)}
@@ -143,6 +211,15 @@ export default function GoldSetEval() {
                     <option key={name} value={name}>{name}</option>
                   ))}
                 </select>
+                <select
+                  value={selectedModel}
+                  onChange={e => setSelectedModel(e.target.value)}
+                  className="text-sm border rounded px-2 py-1 bg-background"
+                >
+                  {models.map(m => (
+                    <option key={m.id} value={m.id}>{m.label}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="flex items-center gap-3">
@@ -150,8 +227,31 @@ export default function GoldSetEval() {
                 <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <Clock className="h-3 w-3" />
                   {new Date(data.timestamp).toLocaleString()}
+                  {data.model_used && <Badge variant="outline" className="text-xs ml-1">{data.model_used}</Badge>}
                   {isCached && <Badge variant="secondary" className="text-xs ml-1">cached</Badge>}
                 </span>
+              )}
+              {availableRuns.length > 0 && (
+                <div className="flex items-center gap-1.5 bg-muted/50 rounded-md px-2.5 py-1">
+                  <button
+                    onClick={goToPrev}
+                    disabled={viewIndex === 0}
+                    className={`text-lg leading-none px-1 ${viewIndex === 0 ? "text-muted-foreground/30 cursor-default" : "text-foreground hover:text-foreground/80 cursor-pointer"}`}
+                  >
+                    ‹
+                  </button>
+                  <span className="text-xs font-medium min-w-[80px] text-center">
+                    {formatModelLabel(availableRuns[viewIndex]?.model)}
+                    {" "}<span className="text-muted-foreground">{viewIndex + 1}/{availableRuns.length}</span>
+                  </span>
+                  <button
+                    onClick={goToNext}
+                    disabled={viewIndex === availableRuns.length - 1}
+                    className={`text-lg leading-none px-1 ${viewIndex === availableRuns.length - 1 ? "text-muted-foreground/30 cursor-default" : "text-foreground hover:text-foreground/80 cursor-pointer"}`}
+                  >
+                    ›
+                  </button>
+                </div>
               )}
               <Button onClick={runEval} disabled={running} size="sm">
                 <RefreshCw className={`h-4 w-4 mr-1.5 ${running ? "animate-spin" : ""}`} />
@@ -181,12 +281,12 @@ export default function GoldSetEval() {
         const b = data.gold.brief as Record<string, unknown>;
         return (
           <section>
-            <h2 className="text-lg font-medium flex items-center gap-2 mb-3">
+            <h2 className="text-xl font-medium flex items-center gap-2 mb-3">
               <BarChart3 className="h-5 w-5" />
               Gold Brief (Intake)
             </h2>
             <Card className="p-4">
-              <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-base">
                 <div><span className="text-muted-foreground">Viewer Outcome:</span> <span>{String(b.viewer_outcome)}</span></div>
                 <div><span className="text-muted-foreground">Target Audience:</span> <span>{String(b.target_audience)}</span></div>
                 <div><span className="text-muted-foreground">Audience Level:</span> <span>{String(b.audience_level)}</span></div>
@@ -198,14 +298,14 @@ export default function GoldSetEval() {
                 <div className="col-span-2"><span className="text-muted-foreground">Angle:</span> <span>{String(b.selected_angle)}</span></div>
                 <div className="col-span-2">
                   <span className="text-muted-foreground">Core Talking Points:</span>
-                  <ul className="list-disc list-inside mt-1 text-xs">
+                  <ul className="list-disc list-inside mt-1 text-base">
                     {Array.isArray(b.core_talking_points) && (b.core_talking_points as string[]).map((tp, i) => <li key={i}>{tp}</li>)}
                   </ul>
                 </div>
                 {Array.isArray(b.misconceptions) && (b.misconceptions as string[]).length > 0 && (
                   <div className="col-span-2">
                     <span className="text-muted-foreground">Misconceptions:</span>
-                    <ul className="list-disc list-inside mt-1 text-xs">
+                    <ul className="list-disc list-inside mt-1 text-base">
                       {(b.misconceptions as string[]).map((m, i) => <li key={i}>{m}</li>)}
                     </ul>
                   </div>
@@ -223,7 +323,7 @@ export default function GoldSetEval() {
           {/* ============================================================ */}
           {analysis && (
             <section>
-              <h2 className="text-lg font-medium flex items-center gap-2 mb-3">
+              <h2 className="text-xl font-medium flex items-center gap-2 mb-3">
                 <BarChart3 className="h-5 w-5" />
                 Outline Diff — Gold vs AI Director
               </h2>
@@ -253,7 +353,7 @@ export default function GoldSetEval() {
           {/* ============================================================ */}
           {data?.writer_output_path_b && (
             <section>
-              <h2 className="text-lg font-medium flex items-center gap-2 mb-3">
+              <h2 className="text-xl font-medium flex items-center gap-2 mb-3">
                 <Film className="h-5 w-5" />
                 Storyboard Diff — Gold vs AI
               </h2>
@@ -292,17 +392,17 @@ export default function GoldSetEval() {
           {/* ============================================================ */}
           {analysis && (
             <section>
-              <h2 className="text-lg font-medium flex items-center gap-2 mb-3">
+              <h2 className="text-xl font-medium flex items-center gap-2 mb-3">
                 <AlertTriangle className="h-5 w-5" />
                 Analysis
               </h2>
               <Card className="p-4 space-y-3">
                 {/* Summary bullets */}
                 <div>
-                  <h3 className="text-sm font-medium mb-2">Key Findings</h3>
+                  <h3 className="text-base font-medium mb-2">Key Findings</h3>
                   <ul className="space-y-1">
                     {analysis.summary.map((line, i) => (
-                      <li key={i} className="text-sm flex items-start gap-2">
+                      <li key={i} className="text-base flex items-start gap-2">
                         <span className="text-destructive mt-0.5">•</span>
                         <span>{line}</span>
                       </li>
@@ -313,13 +413,13 @@ export default function GoldSetEval() {
                 {/* Filler phrases */}
                 {(analysis.writer_path_b.filler_phrases.length > 0 || analysis.writer_path_a.filler_phrases.length > 0) && (
                   <div>
-                    <h3 className="text-sm font-medium mb-2">Filler Phrases Detected</h3>
+                    <h3 className="text-base font-medium mb-2">Filler Phrases Detected</h3>
                     {analysis.writer_path_b.filler_phrases.length > 0 && (
                       <div className="mb-2">
                         <span className="text-xs text-muted-foreground">Path B:</span>
                         <ul className="ml-4">
                           {analysis.writer_path_b.filler_phrases.map((f, i) => (
-                            <li key={i} className="text-xs text-destructive">{f}</li>
+                            <li key={i} className="text-base text-destructive">{f}</li>
                           ))}
                         </ul>
                       </div>
@@ -329,7 +429,7 @@ export default function GoldSetEval() {
                         <span className="text-xs text-muted-foreground">Path A:</span>
                         <ul className="ml-4">
                           {analysis.writer_path_a.filler_phrases.map((f, i) => (
-                            <li key={i} className="text-xs text-destructive">{f}</li>
+                            <li key={i} className="text-base text-destructive">{f}</li>
                           ))}
                         </ul>
                       </div>

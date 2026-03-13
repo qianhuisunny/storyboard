@@ -112,9 +112,6 @@ def gold_outline_to_director_text(outline: list) -> str:
         lines.append("Exit state")
         lines.append(section["exit_state"])
         lines.append("")
-        lines.append("Misconception to preempt")
-        lines.append(section["misconception_to_preempt"] or "None")
-        lines.append("")
         lines.append("Duration")
         lines.append(f"{section['duration_sec']} seconds")
         lines.append("")
@@ -142,16 +139,20 @@ def gold_outline_to_director_text(outline: list) -> str:
 # Agent runners
 # ---------------------------------------------------------------------------
 
-def _run_director(story_brief: dict) -> str:
+def _run_director(story_brief: dict, model: str = None) -> str:
     from app.services.agents.storyboard_director import StoryboardDirector
     director = StoryboardDirector()
+    if model:
+        director.default_model = model
     state = _MockState(story_brief=story_brief, project_id="gold_eval")
     return director.run(state)
 
 
-def _run_writer(outline_text: str, story_brief: dict) -> list:
+def _run_writer(outline_text: str, story_brief: dict, model: str = None) -> list:
     from app.services.agents.storyboard_writer import StoryboardWriter
     writer = StoryboardWriter()
+    if model:
+        writer.default_model = model
     state = _MockState(
         story_brief=story_brief,
         screen_outline=outline_text,
@@ -183,17 +184,40 @@ def _find_filler(screens: list) -> list[str]:
     return found
 
 
-def _extract_section_field(block: str, field_name: str) -> str:
-    """Extract a single-line field value from a Director section block."""
-    # Known field headers in order they appear in Director output
+def _parse_ai_sections(director_text: str) -> list[dict]:
+    """Parse AI Director plain text output into section dicts for comparison."""
+    pattern = r"^Section\s+(\d+)\s*[—–\-]\s*(.+)$"
+    headers = [
+        (m.start(), int(m.group(1)), m.group(2).strip())
+        for m in re.finditer(pattern, director_text, re.MULTILINE)
+    ]
+    sections = []
+    for i, (start, num, title) in enumerate(headers):
+        end = headers[i + 1][0] if i < len(headers) - 1 else len(director_text)
+        block = director_text[start:end]
+
+        sections.append({
+            "section_number": num,
+            "title": title,
+            "purpose": _extract_text_field(block, "Purpose"),
+            "entry_assumption": _extract_text_field(block, "Entry assumption"),
+            "exit_state": _extract_text_field(block, "Exit state"),
+            "duration_str": _extract_text_field(block, "Duration") or _extract_text_field(block, "Approx. duration"),
+            "talking_points": _extract_text_bullets(block, "Talking points"),
+            "evidence_needed": _extract_text_bullets(block, "Evidence needed") or _extract_text_bullets(block, "Evidence"),
+            "visual_intent": _extract_text_bullets(block, "Visual intent") or _extract_text_bullets(block, "Visual"),
+        })
+    return sections
+
+
+def _extract_text_field(block: str, field_name: str) -> str:
+    """Extract a single-line field value from a plain text section block."""
     all_fields = [
         "Purpose", "Entry assumption", "Exit state",
-        "Misconception to preempt", "Misconception",
         "Duration", "Approx. duration",
         "Talking points", "Evidence needed", "Evidence",
         "Visual intent", "Visual", "Research queries",
     ]
-    # Find all field positions in the block
     positions = []
     for f in all_fields:
         pattern = rf"^(?:\*\*)?{re.escape(f)}(?:\*\*)?\s*$"
@@ -210,9 +234,9 @@ def _extract_section_field(block: str, field_name: str) -> str:
     return ""
 
 
-def _extract_section_bullets(block: str, field_name: str) -> list[str]:
-    """Extract bullet list from a Director section block."""
-    content = _extract_section_field(block, field_name)
+def _extract_text_bullets(block: str, field_name: str) -> list[str]:
+    """Extract bullet list from a plain text section block."""
+    content = _extract_text_field(block, field_name)
     if not content:
         return []
     return [
@@ -220,33 +244,6 @@ def _extract_section_bullets(block: str, field_name: str) -> list[str]:
         for line in content.split("\n")
         if line.strip().startswith("-") or line.strip().startswith("*")
     ]
-
-
-def _parse_ai_sections(director_text: str) -> list[dict]:
-    """Parse AI Director output into full section dicts for comparison."""
-    pattern = r"^Section\s+(\d+)\s*[—–\-]\s*(.+)$"
-    headers = [
-        (m.start(), int(m.group(1)), m.group(2).strip())
-        for m in re.finditer(pattern, director_text, re.MULTILINE)
-    ]
-    sections = []
-    for i, (start, num, title) in enumerate(headers):
-        end = headers[i + 1][0] if i < len(headers) - 1 else len(director_text)
-        block = director_text[start:end]
-
-        sections.append({
-            "section_number": num,
-            "title": title,
-            "purpose": _extract_section_field(block, "Purpose"),
-            "entry_assumption": _extract_section_field(block, "Entry assumption"),
-            "exit_state": _extract_section_field(block, "Exit state"),
-            "misconception_to_preempt": _extract_section_field(block, "Misconception to preempt") or _extract_section_field(block, "Misconception"),
-            "duration_str": _extract_section_field(block, "Duration") or _extract_section_field(block, "Approx. duration"),
-            "talking_points": _extract_section_bullets(block, "Talking points"),
-            "evidence_needed": _extract_section_bullets(block, "Evidence needed") or _extract_section_bullets(block, "Evidence"),
-            "visual_intent": _extract_section_bullets(block, "Visual intent") or _extract_section_bullets(block, "Visual"),
-        })
-    return sections
 
 
 def _estimate_ai_duration_range(sections: list[dict]) -> str:
@@ -479,27 +476,62 @@ def ingest_gold_set(raw_json: dict) -> dict:
 # Cache
 # ---------------------------------------------------------------------------
 
-def _cache_path(name: str) -> Path:
-    return GOLD_SETS_DIR / name / "cached_eval.json"
+def _cache_path(name: str, model: str = "gpt-4o") -> Path:
+    safe_model = model.replace("/", "_")
+    return GOLD_SETS_DIR / name / f"cached_eval_{safe_model}.json"
 
 
-def get_cached_eval(name: str) -> Optional[dict]:
-    path = _cache_path(name)
+def _migrate_legacy_cache(name: str):
+    """One-time migration: rename cached_eval.json → cached_eval_gpt-4o.json."""
+    legacy = GOLD_SETS_DIR / name / "cached_eval.json"
+    if not legacy.exists():
+        return
+    target = _cache_path(name, "gpt-4o")
+    if not target.exists():
+        legacy.rename(target)
+    else:
+        legacy.unlink()
+
+
+def get_cached_eval(name: str, model: str = "gpt-4o") -> Optional[dict]:
+    _migrate_legacy_cache(name)
+    path = _cache_path(name, model)
     if path.exists():
         return json.loads(path.read_text())
     return None
 
 
 def _save_cache(name: str, result: dict):
-    path = _cache_path(name)
+    model = result.get("model_used", "gpt-4o")
+    path = _cache_path(name, model)
     path.write_text(json.dumps(result, indent=2, ensure_ascii=False))
+
+
+def list_cached_models(name: str) -> list[dict]:
+    """List all cached model runs for a gold set, sorted by timestamp descending."""
+    _migrate_legacy_cache(name)
+    gs_dir = GOLD_SETS_DIR / name
+    if not gs_dir.exists():
+        return []
+    results = []
+    for f in gs_dir.glob("cached_eval_*.json"):
+        model_id = f.stem.replace("cached_eval_", "")
+        try:
+            data = json.loads(f.read_text())
+            results.append({
+                "model": model_id,
+                "timestamp": data.get("timestamp"),
+            })
+        except (json.JSONDecodeError, OSError):
+            continue
+    return sorted(results, key=lambda x: x["timestamp"] or "", reverse=True)
 
 
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def run_eval(name: str, force: bool = False) -> dict:
+def run_eval(name: str, force: bool = False, model: str = None) -> dict:
     """Run full gold set evaluation: Director + Writer (both paths).
 
     If force=False, returns cached result if cache exists and prompt
@@ -507,9 +539,10 @@ def run_eval(name: str, force: bool = False) -> dict:
     """
     prompt_versions = get_current_prompt_versions()
 
-    # Check cache validity
+    # Check cache validity (skip if model differs from cached)
+    effective_model = model or "gpt-4o"
     if not force:
-        cached = get_cached_eval(name)
+        cached = get_cached_eval(name, effective_model)
         if cached and cached.get("prompt_versions") == prompt_versions:
             return cached
 
@@ -518,13 +551,13 @@ def run_eval(name: str, force: bool = False) -> dict:
     gold_outline_text = gold_outline_to_director_text(gold["outline"])
 
     # Path A: Brief → Director
-    director_output = _run_director(story_brief)
+    director_output = _run_director(story_brief, model=model)
 
     # Path B: Gold outline → Writer
-    writer_output_b = _run_writer(gold_outline_text, story_brief)
+    writer_output_b = _run_writer(gold_outline_text, story_brief, model=model)
 
     # Path A+: AI outline → Writer
-    writer_output_a = _run_writer(director_output, story_brief)
+    writer_output_a = _run_writer(director_output, story_brief, model=model)
 
     # Analysis
     analysis = compute_analysis(gold, director_output, writer_output_b, writer_output_a)
@@ -533,6 +566,7 @@ def run_eval(name: str, force: bool = False) -> dict:
         "gold_set_name": name,
         "timestamp": datetime.now().isoformat(),
         "prompt_versions": prompt_versions,
+        "model_used": model or "gpt-4o",
         "gold": gold,
         "director_output": director_output,
         "writer_output_path_b": writer_output_b,

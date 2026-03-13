@@ -2102,32 +2102,53 @@ async def list_gold_sets():
     return {"gold_sets": _list()}
 
 
+@app.get("/api/eval/models")
+async def list_eval_models():
+    """List available models for eval. Only shows models with configured API keys."""
+    import os
+    models = [{"id": "gpt-4o", "label": "GPT-4o"}]
+    if os.getenv("ANTHROPIC_API_KEY"):
+        models.append({"id": "claude-sonnet-4-20250514", "label": "Claude Sonnet 4"})
+        models.append({"id": "claude-opus-4-20250514", "label": "Claude Opus 4"})
+    return {"models": models}
+
+
 @app.get("/api/eval/gold-set/{name}")
-async def get_gold_set_eval(name: str):
+async def get_gold_set_eval(name: str, model: str = None):
     """Get cached gold set evaluation result."""
-    from app.services.eval_gold_set import get_cached_eval, load_gold_set
-    cached = get_cached_eval(name)
+    from app.services.eval_gold_set import get_cached_eval, load_gold_set, list_cached_models
+
+    available = list_cached_models(name)
+
+    if model:
+        cached = get_cached_eval(name, model)
+    elif available:
+        cached = get_cached_eval(name, available[0]["model"])
+    else:
+        cached = None
+
     if cached:
-        return {"success": True, "cached": True, "data": cached}
-    # Return gold standard data without eval results
+        return {"success": True, "cached": True, "data": cached, "available_models": available}
+
     try:
         gold = load_gold_set(name)
-        return {"success": True, "cached": False, "data": {"gold": gold, "gold_set_name": name}}
+        return {"success": True, "cached": False, "data": {"gold": gold, "gold_set_name": name}, "available_models": available}
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Gold set '{name}' not found")
 
 
 @app.get("/api/eval/gold-set/{name}/status")
-async def get_eval_status(name: str):
+async def get_eval_status(name: str, model: str = None):
     """Poll eval job status."""
-    job = _eval_jobs.get(name)
+    job_key = f"{name}:{model or 'gpt-4o'}"
+    job = _eval_jobs.get(job_key)
     if not job:
         return {"status": "idle"}
     return job
 
 
 @app.post("/api/eval/gold-set/{name}")
-async def run_gold_set_eval(name: str):
+async def run_gold_set_eval(name: str, request: Request):
     """Start gold set evaluation in background thread. Poll /status for progress."""
     import asyncio
     from app.services.eval_gold_set import run_eval, load_gold_set
@@ -2136,18 +2157,27 @@ async def run_gold_set_eval(name: str):
     except FileNotFoundError:
         raise HTTPException(status_code=404, detail=f"Gold set '{name}' not found")
 
-    # Don't start if already running
-    if _eval_jobs.get(name, {}).get("status") == "running":
+    # Parse optional model from request body
+    model = None
+    try:
+        body = await request.json()
+        model = body.get("model")
+    except Exception:
+        pass
+
+    # Key by name:model so different models can run concurrently
+    job_key = f"{name}:{model or 'gpt-4o'}"
+    if _eval_jobs.get(job_key, {}).get("status") == "running":
         return {"success": True, "message": "Already running"}
 
-    _eval_jobs[name] = {"status": "running", "error": None}
+    _eval_jobs[job_key] = {"status": "running", "error": None}
 
     def _run():
         try:
-            run_eval(name, force=True)
-            _eval_jobs[name] = {"status": "done", "error": None}
+            run_eval(name, force=True, model=model)
+            _eval_jobs[job_key] = {"status": "done", "error": None}
         except Exception as e:
-            _eval_jobs[name] = {"status": "error", "error": str(e)}
+            _eval_jobs[job_key] = {"status": "error", "error": str(e)}
 
     loop = asyncio.get_event_loop()
     loop.run_in_executor(None, _run)
