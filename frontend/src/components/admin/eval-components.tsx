@@ -59,10 +59,59 @@ export interface Analysis {
   summary: string[];
 }
 
+// Evidence research types (from EvidenceResearcher agent)
+export interface EvidenceAnswer {
+  summary: string;
+  usable_line: string;
+  source_description: string;
+  confidence: "high" | "medium" | "low";
+}
+
+export interface EvidenceTask {
+  evidence_needed: string;
+  research_question: string;
+  answer: EvidenceAnswer | null;
+}
+
+export interface EvidenceSection {
+  section_title: string;
+  evidence_tasks: EvidenceTask[];
+}
+
+export interface EvidenceResearch {
+  sections: EvidenceSection[];
+}
+
+// Citation analysis types
+export interface CitationTask {
+  evidence_needed: string;
+  research_question: string;
+  cited: boolean;
+  matched_anchors: string[];
+  confidence: string;
+}
+
+export interface CitationSection {
+  section_title: string;
+  tasks: CitationTask[];
+}
+
+export interface CitationAnalysis {
+  total_tasks: number;
+  cited_tasks: number;
+  citation_rate: number;
+  per_section: CitationSection[];
+}
+
+export interface TokenUsage {
+  input_tokens: number;
+  output_tokens: number;
+}
+
 export interface EvalData {
   gold_set_name: string;
   timestamp?: string;
-  prompt_versions?: { director: string; writer: string };
+  prompt_versions?: { director: string; writer: string; evidence_researcher?: string };
   model_used?: string;
   gold: {
     brief: Record<string, unknown>;
@@ -70,9 +119,12 @@ export interface EvalData {
     storyboard: GoldScreen[];
   };
   director_output?: string;
+  evidence_research?: EvidenceResearch;
+  citation_analysis?: CitationAnalysis;
   writer_output_path_b?: AIScreen[];
   writer_output_path_a?: AIScreen[];
   analysis?: Analysis;
+  token_usage?: Record<string, TokenUsage>;
   judge?: {
     outline_quality?: Record<string, { tags: string[]; notes: string }>;
     storyboard_quality?: Record<string, { tags: string[]; notes: string }>;

@@ -206,17 +206,22 @@ StoryboardWriter   → writes detailed screen-by-screen content (includes durati
 
 Note: Duration calculation (word_count / 130 * 60s) is now a utility function, not a separate agent.
 
-Note: Evidence Research is a method on TopicResearcher, not a separate agent. It runs after the outline is approved (gate2 → run_research), using `system_prompt_override` to load `EVIDENCE_RESEARCH_PROMPT.md` instead of the researcher's default prompt.
+Note: Evidence Research has two implementations:
+- **Production pipeline**: `TopicResearcher.research_evidence_claims()` (web search-based, uses `EVIDENCE_RESEARCH_PROMPT.md`)
+- **Eval pipeline**: `EvidenceResearcher` agent (LLM knowledge-based, uses `evidence_researcher_prompt_v0313.md`, supports RAG from user docs)
+
+RAG pipeline: `backend/app/services/rag/` — handles PDF/URL upload, chunking, OpenAI embeddings, and similarity-based retrieval. The EvidenceResearcher queries RAG automatically when a project has uploaded documents.
 
 **Prompt ↔ Agent mapping:**
 
 | Agent File | Prompt File |
 |-----------|------------|
 | `agents/topic_researcher.py` | `prompts/TOPIC_RESEARCHER_SYSTEM_PROMPT.md` |
-| `agents/topic_researcher.py` (evidence) | `prompts/EVIDENCE_RESEARCH_PROMPT.md` |
+| `agents/topic_researcher.py` (evidence, legacy) | `prompts/EVIDENCE_RESEARCH_PROMPT.md` |
+| `agents/evidence_researcher.py` | `prompts/evidence_researcher_prompt_v0313.md` |
 | `agents/brief_builder.py` | `prompts/BRIEF_BUILDER_SYSTEM_PROMPT.md` |
 | `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0312.md` |
-| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0309.md` |
+| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0312.md` |
 
 ### Agent Structure Pattern
 

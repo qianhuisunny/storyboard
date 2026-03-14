@@ -2066,7 +2066,6 @@ async def list_eval_models():
     models = [{"id": "gpt-4o", "label": "GPT-4o"}]
     if os.getenv("ANTHROPIC_API_KEY"):
         models.append({"id": "claude-sonnet-4-20250514", "label": "Claude Sonnet 4"})
-        models.append({"id": "claude-opus-4-20250514", "label": "Claude Opus 4"})
     return {"models": models}
 
 
@@ -2096,7 +2095,7 @@ async def get_gold_set_eval(name: str, model: str = None):
 
 @app.get("/api/eval/gold-set/{name}/status")
 async def get_eval_status(name: str, model: str = None):
-    """Poll eval job status."""
+    """Poll eval job status. Returns completed stages for progressive loading."""
     job_key = f"{name}:{model or 'gpt-4o'}"
     job = _eval_jobs.get(job_key)
     if not job:
@@ -2127,14 +2126,33 @@ async def run_gold_set_eval(name: str, request: Request):
     if _eval_jobs.get(job_key, {}).get("status") == "running":
         return {"success": True, "message": "Already running"}
 
-    _eval_jobs[job_key] = {"status": "running", "error": None}
+    _eval_jobs[job_key] = {"status": "running", "error": None,
+                           "completed_stages": [], "current_stage": "director_and_path_b"}
+
+    def _on_stage_done(stage_name, _partial_result):
+        """Callback from run_eval — updates job status with completed stage."""
+        job = _eval_jobs.get(job_key)
+        if job:
+            stages = job.get("completed_stages", [])
+            stages.append(stage_name)
+            next_stages = {
+                "director_and_path_b": "research",
+                "research": "path_a",
+                "path_a": None,
+            }
+            job["completed_stages"] = stages
+            job["current_stage"] = next_stages.get(stage_name)
 
     def _run():
         try:
-            run_eval(name, force=True, model=model)
-            _eval_jobs[job_key] = {"status": "done", "error": None}
+            run_eval(name, force=True, model=model, on_stage_done=_on_stage_done)
+            _eval_jobs[job_key] = {"status": "done", "error": None,
+                                   "completed_stages": ["director_and_path_b", "research", "path_a"],
+                                   "current_stage": None}
         except Exception as e:
-            _eval_jobs[job_key] = {"status": "error", "error": str(e)}
+            _eval_jobs[job_key] = {"status": "error", "error": str(e),
+                                   "completed_stages": _eval_jobs.get(job_key, {}).get("completed_stages", []),
+                                   "current_stage": None}
 
     loop = asyncio.get_event_loop()
     loop.run_in_executor(None, _run)
@@ -2208,3 +2226,86 @@ async def batch_eval_report():
     if report is None:
         return {"success": False, "detail": "No batch report available"}
     return {"success": True, "report": report}
+
+
+# ---------------------------------------------------------------------------
+# RAG — Document Upload & Management
+# ---------------------------------------------------------------------------
+
+@app.post("/api/project/{project_id}/documents/upload")
+async def upload_document(project_id: str, file: UploadFile = FastAPIFile(...)):
+    """Upload a PDF document for RAG retrieval."""
+    from app.services.rag.store import RAGStore
+    import tempfile
+
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="Only PDF files are supported")
+
+    # Save to temp file, then process
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        content = await file.read()
+        tmp.write(content)
+        tmp_path = tmp.name
+
+    try:
+        store = RAGStore(project_id)
+        result = store.add_pdf(tmp_path)
+        return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        os.unlink(tmp_path)
+
+
+@app.post("/api/project/{project_id}/documents/url")
+async def add_document_url(project_id: str, request: Request):
+    """Fetch and ingest a web URL for RAG retrieval."""
+    from app.services.rag.store import RAGStore
+
+    body = await request.json()
+    url = body.get("url")
+    if not url:
+        raise HTTPException(status_code=400, detail="url is required")
+
+    try:
+        store = RAGStore(project_id)
+        result = store.add_url(url)
+        return {"success": True, **result}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/project/{project_id}/documents")
+async def list_documents(project_id: str):
+    """List all ingested documents for a project."""
+    from app.services.rag.store import RAGStore
+
+    store = RAGStore(project_id)
+    return {"success": True, "documents": store.list_documents(),
+            "total_chunks": store.chunk_count}
+
+
+@app.delete("/api/project/{project_id}/documents")
+async def clear_documents(project_id: str):
+    """Clear all documents and embeddings for a project."""
+    from app.services.rag.store import RAGStore
+
+    store = RAGStore(project_id)
+    store.clear()
+    return {"success": True, "message": "All documents cleared"}
+
+
+@app.post("/api/project/{project_id}/documents/query")
+async def query_documents(project_id: str, request: Request):
+    """Query documents using RAG retrieval (for testing/debugging)."""
+    from app.services.rag.store import RAGStore
+
+    body = await request.json()
+    question = body.get("question")
+    top_k = body.get("top_k", 5)
+    if not question:
+        raise HTTPException(status_code=400, detail="question is required")
+
+    store = RAGStore(project_id)
+    results = store.query(question, top_k=top_k)
+    return {"success": True, "results": results}

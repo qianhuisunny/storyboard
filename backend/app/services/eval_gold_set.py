@@ -37,12 +37,14 @@ FILLER_PHRASES = [
 
 
 def get_current_prompt_versions() -> dict:
-    """Return current prompt filenames used by Director and Writer."""
+    """Return current prompt filenames used by Director, Writer, and EvidenceResearcher."""
     from app.services.agents.storyboard_director import StoryboardDirector
     from app.services.agents.storyboard_writer import StoryboardWriter
+    from app.services.agents.evidence_researcher import EvidenceResearcher
     return {
         "director": StoryboardDirector.prompt_file,
         "writer": StoryboardWriter.prompt_file,
+        "evidence_researcher": EvidenceResearcher.prompt_file,
     }
 
 
@@ -135,16 +137,18 @@ def gold_outline_to_director_text(outline: list) -> str:
 # Agent runners
 # ---------------------------------------------------------------------------
 
-def _run_director(story_brief: dict, model: str = None) -> str:
+def _run_director(story_brief: dict, model: str = None) -> tuple[str, dict]:
     from app.services.agents.storyboard_director import StoryboardDirector
     director = StoryboardDirector()
     if model:
         director.default_model = model
     state = _MockState(story_brief=story_brief, project_id="gold_eval")
-    return director.run(state)
+    result = director.run(state)
+    return result, dict(director.total_usage)
 
 
-def _run_writer(outline_text: str, story_brief: dict, model: str = None) -> list:
+def _run_writer(outline_text: str, story_brief: dict, model: str = None,
+                evidence_research: dict = None) -> tuple[list, dict]:
     from app.services.agents.storyboard_writer import StoryboardWriter
     writer = StoryboardWriter()
     if model:
@@ -152,10 +156,152 @@ def _run_writer(outline_text: str, story_brief: dict, model: str = None) -> list
     state = _MockState(
         story_brief=story_brief,
         screen_outline=outline_text,
-        evidence_research={},
+        evidence_research=evidence_research or {},
         project_id="gold_eval",
     )
-    return writer.run(state)
+    result = writer.run(state)
+    return result, dict(writer.total_usage)
+
+
+def _run_evidence_research(outline_text: str, story_brief: dict,
+                           model: str = None) -> tuple[dict, dict]:
+    """Run EvidenceResearcher on an outline to generate LLM-based evidence."""
+    from app.services.agents.evidence_researcher import EvidenceResearcher
+    researcher = EvidenceResearcher()
+    if model:
+        researcher.default_model = model
+    result = researcher.research(outline_text, story_brief, model=model)
+    return result, dict(researcher.total_usage)
+
+
+# ---------------------------------------------------------------------------
+# Citation rate computation (keyword overlap)
+# ---------------------------------------------------------------------------
+
+def _normalize(text: str) -> str:
+    """Lowercase and strip punctuation for matching."""
+    return re.sub(r"[^\w\s]", "", text.lower())
+
+
+def _extract_anchors(text: str) -> set[str]:
+    """Extract distinctive anchor terms from evidence text.
+
+    Anchors are: numbers, capitalized proper nouns, acronyms, and quoted phrases.
+    All anchors are returned normalized (lowercase, no punctuation) so they can
+    be matched against normalized voiceover text.
+    """
+    anchors = set()
+    if not text:
+        return anchors
+
+    # Numbers (e.g., "40", "2019", "30") — strip trailing punctuation
+    for m in re.finditer(r"\d[\d,.]*", text):
+        num = m.group().replace(",", "").rstrip(".")
+        if len(num) >= 2:  # Skip single digits — too common
+            anchors.add(num)
+
+    # All-caps acronyms (e.g., "MIT", "NASA", "ADHD") — 2+ letters
+    for m in re.finditer(r"\b[A-Z]{2,}\b", text):
+        anchors.add(m.group().lower())
+
+    # Capitalized multi-word proper nouns (e.g., "Richard Feynman", "MIT Sloan")
+    for m in re.finditer(r"[A-Z][a-z]+(?:\s+[A-Z][a-z]+)+", text):
+        anchors.add(m.group().lower())
+
+    # Single capitalized words (not at sentence start) — names, institutions
+    for m in re.finditer(r"(?<=\s)[A-Z][a-z]{2,}", text):
+        anchors.add(m.group().lower())
+
+    # Quoted text
+    for m in re.finditer(r'"([^"]+)"', text):
+        anchors.add(_normalize(m.group(1)))
+
+    return anchors
+
+
+def compute_citation_rate(evidence_research: dict, screens: list) -> dict:
+    """Compute how much evidence research was cited in the storyboard.
+
+    Returns:
+        {
+            "total_tasks": int,
+            "cited_tasks": int,
+            "citation_rate": float (0-1),
+            "per_section": [
+                {
+                    "section_title": str,
+                    "tasks": [
+                        {
+                            "evidence_needed": str,
+                            "research_question": str,
+                            "cited": bool,
+                            "matched_anchors": [str],
+                            "confidence": str,
+                        }
+                    ]
+                }
+            ]
+        }
+    """
+    if not evidence_research or not evidence_research.get("sections"):
+        return {"total_tasks": 0, "cited_tasks": 0, "citation_rate": 0,
+                "per_section": []}
+
+    # Combine all voiceover text from screens
+    all_voiceover = _normalize(
+        " ".join(s.get("voiceover_text", "") for s in screens)
+    )
+
+    total = 0
+    cited = 0
+    per_section = []
+
+    for section in evidence_research["sections"]:
+        section_tasks = []
+        for task in section.get("evidence_tasks", []):
+            total += 1
+            answer = task.get("answer", {})
+            if not answer:
+                section_tasks.append({
+                    "evidence_needed": task.get("evidence_needed", ""),
+                    "research_question": task.get("research_question", ""),
+                    "cited": False,
+                    "matched_anchors": [],
+                    "confidence": "low",
+                })
+                continue
+
+            # Collect anchors from usable_line and summary
+            usable = answer.get("usable_line", "")
+            summary = answer.get("summary", "")
+            anchors = _extract_anchors(usable) | _extract_anchors(summary)
+
+            # Check which anchors appear in voiceover
+            matched = [a for a in anchors if a.lower() in all_voiceover]
+            is_cited = len(matched) >= 2  # Need ≥2 anchor matches
+
+            if is_cited:
+                cited += 1
+
+            section_tasks.append({
+                "evidence_needed": task.get("evidence_needed", ""),
+                "research_question": task.get("research_question", ""),
+                "cited": is_cited,
+                "matched_anchors": matched,
+                "confidence": answer.get("confidence", "low"),
+            })
+
+        per_section.append({
+            "section_title": section.get("section_title", ""),
+            "tasks": section_tasks,
+        })
+
+    return {
+        "total_tasks": total,
+        "cited_tasks": cited,
+        "citation_rate": round(cited / total, 2) if total > 0 else 0,
+        "per_section": per_section,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -530,14 +676,19 @@ def list_cached_models(name: str) -> list[dict]:
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def run_eval(name: str, force: bool = False, model: str = None) -> dict:
-    """Run full gold set evaluation: Director + Writer (both paths).
+def run_eval(name: str, force: bool = False, model: str = None,
+             on_stage_done=None) -> dict:
+    """Run full gold set evaluation: Director + Evidence Research + Writer (both paths).
 
-    If force=False, returns cached result if cache exists and prompt
-    versions match current prompts. Otherwise re-runs.
+    Pipeline:
+        Director || Path B (parallel)
+        → Evidence Research (on AI outline)
+        → Path A: AI outline + evidence → Writer (end-to-end)
 
-    Path B (gold outline → Writer) runs in parallel with Director,
-    then Path A (AI outline → Writer) runs after Director completes.
+    Args:
+        on_stage_done: Optional callback(stage_name, partial_result) called after each
+            stage completes. Enables progressive UI updates. Stage names:
+            "director_and_path_b", "research", "path_a"
     """
     from concurrent.futures import ThreadPoolExecutor
 
@@ -554,31 +705,69 @@ def run_eval(name: str, force: bool = False, model: str = None) -> dict:
     story_brief = brief_to_story_brief(gold["brief"])
     gold_outline_text = gold_outline_to_director_text(gold["outline"])
 
-    # Run Director and Path B (gold outline → Writer) in parallel
-    with ThreadPoolExecutor(max_workers=2) as pool:
-        director_future = pool.submit(_run_director, story_brief, model)
-        writer_b_future = pool.submit(_run_writer, gold_outline_text, story_brief, model)
-
-        director_output = director_future.result()
-        writer_output_b = writer_b_future.result()
-
-    # Path A: AI outline → Writer (must wait for Director output)
-    writer_output_a = _run_writer(director_output, story_brief, model=model)
-
-    # Analysis
-    analysis = compute_analysis(gold, director_output, writer_output_b, writer_output_a)
-
+    # Base result — populated progressively
     result = {
         "gold_set_name": name,
         "timestamp": datetime.now().isoformat(),
         "prompt_versions": prompt_versions,
         "model_used": model or "gpt-4o",
         "gold": gold,
-        "director_output": director_output,
-        "writer_output_path_b": writer_output_b,
-        "writer_output_path_a": writer_output_a,
-        "analysis": analysis,
     }
 
+    # Token usage tracking per stage
+    token_usage = {}
+
+    # ── Stage 1: Director || Path B (parallel) ──
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        director_future = pool.submit(_run_director, story_brief, model)
+        writer_b_future = pool.submit(_run_writer, gold_outline_text, story_brief, model)
+
+        director_output, director_usage = director_future.result()
+        writer_output_b, writer_b_usage = writer_b_future.result()
+
+    token_usage["director"] = director_usage
+    token_usage["writer_path_b"] = writer_b_usage
+    result["token_usage"] = token_usage
+    result["director_output"] = director_output
+    result["writer_output_path_b"] = writer_output_b
+    # Partial analysis with just director + path B
+    result["analysis"] = compute_analysis(
+        gold, director_output, writer_output_b, []
+    )
     _save_cache(name, result)
+    if on_stage_done:
+        on_stage_done("director_and_path_b", result)
+
+    # ── Stage 2: Evidence Research (on AI outline) ──
+    evidence_research, research_usage = _run_evidence_research(
+        director_output, story_brief, model=model
+    )
+    token_usage["evidence_research"] = research_usage
+    result["token_usage"] = token_usage
+    result["evidence_research"] = evidence_research
+    _save_cache(name, result)
+    if on_stage_done:
+        on_stage_done("research", result)
+
+    # ── Stage 3: Path A — AI outline + evidence → Writer ──
+    writer_output_a, writer_a_usage = _run_writer(
+        director_output, story_brief, model=model,
+        evidence_research=evidence_research,
+    )
+    token_usage["writer_path_a"] = writer_a_usage
+    result["token_usage"] = token_usage
+    result["writer_output_path_a"] = writer_output_a
+
+    # Final analysis with all paths
+    result["analysis"] = compute_analysis(
+        gold, director_output, writer_output_b, writer_output_a
+    )
+    result["citation_analysis"] = compute_citation_rate(
+        evidence_research, writer_output_a
+    )
+
+    _save_cache(name, result)
+    if on_stage_done:
+        on_stage_done("path_a", result)
+
     return result

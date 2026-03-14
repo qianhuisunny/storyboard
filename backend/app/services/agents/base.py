@@ -36,12 +36,14 @@ class BaseAgent:
     """
 
     prompt_file: str = None  # Override in subclass
-    default_model: str = "gpt-4o"  # Can be overridden per-instance
+    default_model: str = "claude-sonnet-4-20250514"  # Can be overridden per-instance
 
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY") or "dummy")
         self.system_prompt = self._load_prompt()
+        # Accumulated token usage across all call_llm() invocations
+        self.total_usage = {"input_tokens": 0, "output_tokens": 0}
 
     def _load_prompt(self) -> str:
         """Load system prompt from the prompts folder."""
@@ -93,6 +95,9 @@ class BaseAgent:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
+                if hasattr(response, "usage") and response.usage:
+                    self.total_usage["input_tokens"] += response.usage.input_tokens
+                    self.total_usage["output_tokens"] += response.usage.output_tokens
                 return response.content[0].text
             else:
                 response = self.client.chat.completions.create(
@@ -104,6 +109,9 @@ class BaseAgent:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 )
+                if hasattr(response, "usage") and response.usage:
+                    self.total_usage["input_tokens"] += response.usage.prompt_tokens
+                    self.total_usage["output_tokens"] += response.usage.completion_tokens
                 return response.choices[0].message.content or ""
         except Exception as e:
             raise RuntimeError(f"LLM call failed in {self.__class__.__name__}: {str(e)}")

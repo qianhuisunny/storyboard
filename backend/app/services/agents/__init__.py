@@ -18,6 +18,7 @@ from .brief_builder import BriefBuilder
 from .storyboard_director import StoryboardDirector
 from .storyboard_writer import StoryboardWriter
 from .duration_calculator import DurationCalculator
+from .evidence_researcher import EvidenceResearcher
 
 __all__ = [
     "BaseAgent",
@@ -26,4 +27,5 @@ __all__ = [
     "StoryboardDirector",
     "StoryboardWriter",
     "DurationCalculator",
+    "EvidenceResearcher",
 ]
