@@ -1,13 +1,15 @@
-from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File as FastAPIFile
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File as FastAPIFile, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from app.services.chatbot import StoryboardChatbot, ChatRequest, ChatResponse
 from app.services.orchestrator import orchestrator
 from app.services.edit_tracker import edit_tracker
 from app.services.analytics import analytics_tracker
 from app.services.processing_log import get_store as get_processing_log_store
 from app.utils.image_search import GoogleImageSearch
 from app.utils.json_extractor import extract_json_from_text, convert_to_story_format
+from app.db import get_db, init_db, ProjectRepository
+from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import List, Optional
 import json
@@ -21,13 +23,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI()
 
-# Initialize chatbot service
-chatbot_service = StoryboardChatbot()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Initialize DB tables on startup."""
+    await init_db()
+    yield
 
-# RESEARCH DISABLED: In-memory cache for research status per project
-# research_status_cache: dict = {}
+
+app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -66,33 +70,26 @@ class ProjectRequest(BaseModel):
 
 
 @app.post("/api/create-project")
-async def create_project(request: ProjectRequest):
-    """Create a new project folder and JSON file"""
+async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get_db)):
+    """Create a new project in SQLite."""
     try:
-        # Create project directory
+        repo = ProjectRepository(db)
+        project = await repo.create_project(
+            project_id=request.projectId,
+            user_id=request.userId or "",
+            title=request.userInput[:100] if request.userInput else "",
+            type_id=request.typeId,
+            type_name=request.typeName,
+            user_input=request.userInput,
+        )
+
+        # Also create project directory for uploads/links (still on filesystem)
         project_dir = (
             Path(__file__).parent.parent.parent
             / "data"
             / f"project_{request.projectId}"
         )
         project_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create project metadata
-        project_data = {
-            "id": request.projectId,
-            "userId": request.userId,  # Clerk user ID for ownership
-            "type": request.typeId,
-            "typeName": request.typeName,
-            "userInput": request.userInput,
-            "createdAt": datetime.now().isoformat(),
-            "lastUpdated": datetime.now().isoformat(),
-            "storyboard": None,
-        }
-
-        # Save project file
-        project_file = project_dir / f"project_type{request.typeId}.json"
-        with open(project_file, "w") as f:
-            json.dump(project_data, f, indent=2)
 
         return {
             "success": True,
@@ -105,172 +102,58 @@ async def create_project(request: ProjectRequest):
 
 
 @app.get("/api/project/{project_id}")
-async def get_project(project_id: str):
-    """Get project data by ID"""
+async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
+    """Get project data by ID — tries DB first, falls back to JSON for legacy projects."""
     try:
-        # Find project directory
+        repo = ProjectRepository(db)
+        project = await repo.get_project(project_id)
+
+        if project:
+            # DB project
+            project_data = {
+                "id": project.id,
+                "userId": project.user_id,
+                "type": project.type_id,
+                "typeName": project.type_name,
+                "userInput": project.user_input,
+                "createdAt": project.created_at.isoformat() if project.created_at else None,
+                "lastUpdated": project.updated_at.isoformat() if project.updated_at else None,
+                "storyboard": None,
+            }
+            return {"success": True, "project": project_data, "stories": []}
+
+        # Fallback: legacy JSON project
         project_dir = (
             Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
         )
         if not project_dir.exists():
             raise HTTPException(status_code=404, detail="Project not found")
 
-        # Find project file
         project_files = list(project_dir.glob("project_type*.json"))
         if not project_files:
             raise HTTPException(status_code=404, detail="Project file not found")
 
-        # Read project data
         with open(project_files[0], "r") as f:
             project_data = json.load(f)
 
-        # Read story files if they exist
         stories = []
         if "stories" in project_data and project_data["stories"]:
             for story_name in project_data["stories"]:
                 story_file = project_dir / f"{story_name}.json"
                 if story_file.exists():
                     with open(story_file, "r") as f:
-                        story_data = json.load(f)
-                        stories.append(story_data)
+                        stories.append(json.load(f))
 
-        # Return project data with stories
         return {"success": True, "project": project_data, "stories": stories}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading project: {str(e)}")
 
 
-class ChatMessage(BaseModel):
-    id: str
-    role: str
-    content: str
-    createdAt: str
-    projectId: Optional[str] = None
 
-
-class SaveChatRequest(BaseModel):
-    projectId: str
-    messages: List[ChatMessage]
-
-
-class ChatRequestWithProject(BaseModel):
-    message: str
-    conversation_history: Optional[List[dict]] = []
-    project_id: Optional[str] = None
-
-
-@app.post("/api/chat", response_model=ChatResponse)
-async def chat_with_ai(request: ChatRequestWithProject):
-    """Send a message to the AI chatbot for storyboard assistance"""
-    try:
-        if not request.message.strip():
-            raise HTTPException(status_code=400, detail="Message cannot be empty")
-
-        # Convert dict conversation history to ChatMessage objects for chatbot service
-        from app.services.chatbot import ChatMessage as ServiceChatMessage
-
-        chat_history = []
-        if request.conversation_history:
-            for msg in request.conversation_history:
-                chat_history.append(
-                    ServiceChatMessage(
-                        role=msg.get("role", "user"), content=msg.get("content", "")
-                    )
-                )
-
-        ai_response = chatbot_service.generate_response(
-            user_message=request.message,
-            conversation_history=chat_history,
-            project_id=request.project_id,
-        )
-
-        return ChatResponse(message=ai_response, success=True)
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error generating response: {str(e)}"
-        )
-
-
-@app.post("/api/chat/save")
-async def save_chat_messages(request: SaveChatRequest):
-    """Save chat messages for a project"""
-    try:
-        # Find project directory
-        project_dir = (
-            Path(__file__).parent.parent.parent
-            / "data"
-            / f"project_{request.projectId}"
-        )
-        if not project_dir.exists():
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        # Save chat history to file
-        chat_file = project_dir / "chat_history.json"
-
-        # Convert messages to dict format
-        messages_data = []
-        for msg in request.messages:
-            messages_data.append(
-                {
-                    "id": msg.id,
-                    "role": msg.role,
-                    "content": msg.content,
-                    "createdAt": msg.createdAt,
-                }
-            )
-
-        # Save to file
-        with open(chat_file, "w") as f:
-            json.dump(
-                {
-                    "projectId": request.projectId,
-                    "messages": messages_data,
-                    "lastUpdated": datetime.now().isoformat(),
-                },
-                f,
-                indent=2,
-            )
-
-        return {"success": True, "message": "Chat history saved"}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error saving chat history: {str(e)}"
-        )
-
-
-@app.get("/api/chat/history/{project_id}")
-async def get_chat_history(project_id: str):
-    """Get chat history for a project"""
-    try:
-        # Find project directory
-        project_dir = (
-            Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        )
-        if not project_dir.exists():
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        # Read chat history file
-        chat_file = project_dir / "chat_history.json"
-
-        if chat_file.exists():
-            with open(chat_file, "r") as f:
-                data = json.load(f)
-                return {
-                    "success": True,
-                    "messages": data.get("messages", []),
-                    "lastUpdated": data.get("lastUpdated"),
-                }
-        else:
-            # Return empty history if file doesn't exist
-            return {"success": True, "messages": [], "lastUpdated": None}
-
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error loading chat history: {str(e)}"
-        )
+# Chat endpoints removed — dead code (no UI entry point)
 
 
 class ImageSearchRequest(BaseModel):
@@ -997,17 +880,45 @@ class SaveStagesRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/stages")
-async def save_stages(project_id: str, request: SaveStagesRequest):
+async def save_stages(project_id: str, request: SaveStagesRequest, db: AsyncSession = Depends(get_db)):
     """Save all stage data for a project (auto-save endpoint)."""
     try:
-        # Find or create project directory
+        repo = ProjectRepository(db)
+        project = await repo.get_project(project_id)
+
+        if project:
+            # DB path: save each stage as a snapshot
+            for stage_id_str, stage_data in request.stages.items():
+                stage_id = int(stage_id_str)
+                ai_ver = stage_data.get("aiVersion") if isinstance(stage_data, dict) else None
+                human_ver = stage_data.get("humanVersion") if isinstance(stage_data, dict) else None
+                if ai_ver or human_ver:
+                    await repo.save_stage_snapshot(
+                        project_id=project_id,
+                        stage_id=stage_id,
+                        ai_version=ai_ver,
+                        human_version=human_ver,
+                    )
+
+            # Save currentStageId and stageStatuses in pipeline_state's state_data
+            ps = await repo.get_pipeline_state(project_id)
+            if ps:
+                state_data = repo.parse_state_data(ps)
+                state_data["currentStageId"] = request.currentStageId
+                state_data["stageStatuses"] = [s.model_dump() for s in request.stageStatuses]
+                await repo.update_pipeline_state(project_id, ps.phase, ps.status, state_data)
+
+            await repo.update_project_timestamp(project_id)
+            now = datetime.now().isoformat()
+            return {"success": True, "message": "Stages saved successfully", "lastSaved": now}
+
+        # Fallback: legacy JSON
         project_dir = (
             Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
         )
         if not project_dir.exists():
             project_dir.mkdir(parents=True, exist_ok=True)
 
-        # Prepare stages data
         stages_data = {
             "stages": request.stages,
             "currentStageId": request.currentStageId,
@@ -1015,7 +926,6 @@ async def save_stages(project_id: str, request: SaveStagesRequest):
             "lastSaved": datetime.now().isoformat(),
         }
 
-        # Save to stages.json
         stages_file = project_dir / "stages.json"
         with open(stages_file, "w") as f:
             json.dump(stages_data, f, indent=2)
@@ -1031,18 +941,40 @@ async def save_stages(project_id: str, request: SaveStagesRequest):
 
 
 @app.get("/api/project/{project_id}/stages")
-async def load_stages(project_id: str):
+async def load_stages(project_id: str, db: AsyncSession = Depends(get_db)):
     """Load all stage data for a project."""
     try:
-        # Find project directory
+        repo = ProjectRepository(db)
+        project = await repo.get_project(project_id)
+
+        if project:
+            # DB path
+            snapshots = await repo.get_all_snapshots(project_id)
+            ps = await repo.get_pipeline_state(project_id)
+            state_data = repo.parse_state_data(ps) if ps else {}
+
+            stages = {}
+            for snap in snapshots:
+                stages[str(snap.stage_id)] = {
+                    "aiVersion": snap.ai_version,
+                    "humanVersion": snap.human_version,
+                }
+
+            return {
+                "success": True,
+                "stages": stages if stages else None,
+                "currentStageId": state_data.get("currentStageId", 1),
+                "stageStatuses": state_data.get("stageStatuses"),
+                "lastSaved": project.updated_at.isoformat() if project.updated_at else None,
+            }
+
+        # Fallback: legacy JSON
         project_dir = (
             Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
         )
-
         stages_file = project_dir / "stages.json"
 
         if not stages_file.exists():
-            # Return empty data if no stages saved yet
             return {
                 "success": True,
                 "stages": None,
@@ -1051,7 +983,6 @@ async def load_stages(project_id: str):
                 "lastSaved": None,
             }
 
-        # Load stages data
         with open(stages_file, "r") as f:
             stages_data = json.load(f)
 
@@ -1068,69 +999,85 @@ async def load_stages(project_id: str):
 
 
 @app.get("/api/projects")
-async def list_user_projects(user_id: str):
+async def list_user_projects(user_id: str, db: AsyncSession = Depends(get_db)):
     """List all projects for a specific user."""
     try:
-        data_dir = Path(__file__).parent.parent.parent / "data"
-
-        if not data_dir.exists():
-            return {"success": True, "projects": []}
+        repo = ProjectRepository(db)
+        db_projects = await repo.list_projects(user_id)
 
         projects = []
 
-        # Scan all project directories
-        for project_dir in data_dir.iterdir():
-            if not project_dir.is_dir() or not project_dir.name.startswith("project_"):
-                continue
+        # DB projects
+        for p in db_projects:
+            ps = await repo.get_pipeline_state(p.id)
+            state_data = repo.parse_state_data(ps) if ps else {}
+            stage_statuses = state_data.get("stageStatuses", [])
+            approved_count = sum(1 for s in stage_statuses if s.get("status") == "approved")
+            progress = int((approved_count / 4) * 100) if stage_statuses else 0
 
-            # Find project metadata file
-            project_files = list(project_dir.glob("project_type*.json"))
-            if not project_files:
-                continue
+            projects.append({
+                "id": p.id,
+                "typeName": p.type_name,
+                "userInput": (p.user_input or "")[:100],
+                "createdAt": p.created_at.isoformat() if p.created_at else None,
+                "lastUpdated": p.updated_at.isoformat() if p.updated_at else None,
+                "currentStage": state_data.get("currentStageId", 1),
+                "progress": progress,
+            })
 
-            try:
-                with open(project_files[0], "r") as f:
-                    project_data = json.load(f)
+        # Also scan legacy JSON projects
+        data_dir = Path(__file__).parent.parent.parent / "data"
+        db_project_ids = {p.id for p in db_projects}
 
-                # Filter by userId
-                if project_data.get("userId") != user_id:
+        if data_dir.exists():
+            for project_dir in data_dir.iterdir():
+                if not project_dir.is_dir() or not project_dir.name.startswith("project_"):
                     continue
 
-                # Get stage progress from stages.json
-                stages_file = project_dir / "stages.json"
-                current_stage = 1
-                progress = 0
-                last_updated = project_data.get("lastUpdated") or project_data.get("createdAt")
+                project_id = project_dir.name.replace("project_", "")
+                if project_id in db_project_ids:
+                    continue  # Already in DB
 
-                if stages_file.exists():
-                    with open(stages_file, "r") as f:
-                        stages_data = json.load(f)
-                        current_stage = stages_data.get("currentStageId", 1)
-                        last_updated = stages_data.get("lastSaved") or last_updated
+                project_files = list(project_dir.glob("project_type*.json"))
+                if not project_files:
+                    continue
 
-                        # Calculate progress (4 stages total)
-                        stage_statuses = stages_data.get("stageStatuses", [])
-                        approved_count = sum(
-                            1 for s in stage_statuses if s.get("status") == "approved"
-                        )
-                        progress = int((approved_count / 4) * 100)
+                try:
+                    with open(project_files[0], "r") as f:
+                        project_data = json.load(f)
 
-                projects.append({
-                    "id": project_data.get("id"),
-                    "typeName": project_data.get("typeName"),
-                    "userInput": project_data.get("userInput", "")[:100],  # Truncate
-                    "createdAt": project_data.get("createdAt"),
-                    "lastUpdated": last_updated,
-                    "currentStage": current_stage,
-                    "progress": progress,
-                })
+                    if project_data.get("userId") != user_id:
+                        continue
 
-            except (json.JSONDecodeError, KeyError):
-                continue
+                    stages_file = project_dir / "stages.json"
+                    current_stage = 1
+                    progress = 0
+                    last_updated = project_data.get("lastUpdated") or project_data.get("createdAt")
 
-        # Sort by lastUpdated, most recent first
+                    if stages_file.exists():
+                        with open(stages_file, "r") as f:
+                            stages_data = json.load(f)
+                            current_stage = stages_data.get("currentStageId", 1)
+                            last_updated = stages_data.get("lastSaved") or last_updated
+                            stage_statuses = stages_data.get("stageStatuses", [])
+                            approved_count = sum(
+                                1 for s in stage_statuses if s.get("status") == "approved"
+                            )
+                            progress = int((approved_count / 4) * 100)
+
+                    projects.append({
+                        "id": project_data.get("id"),
+                        "typeName": project_data.get("typeName"),
+                        "userInput": project_data.get("userInput", "")[:100],
+                        "createdAt": project_data.get("createdAt"),
+                        "lastUpdated": last_updated,
+                        "currentStage": current_stage,
+                        "progress": progress,
+                    })
+                except (json.JSONDecodeError, KeyError):
+                    continue
+
         projects.sort(key=lambda p: p.get("lastUpdated") or "", reverse=True)
-
         return {"success": True, "projects": projects}
 
     except Exception as e:
@@ -1138,27 +1085,37 @@ async def list_user_projects(user_id: str):
 
 
 @app.delete("/api/project/{project_id}")
-async def delete_project(project_id: str, user_id: str):
+async def delete_project(project_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
     """Delete a project (only if owned by user)."""
     try:
+        import shutil
+        repo = ProjectRepository(db)
+        project = await repo.get_project(project_id)
+
+        if project:
+            if project.user_id != user_id:
+                raise HTTPException(status_code=403, detail="Not authorized to delete this project")
+            await repo.delete_project(project_id)
+        else:
+            # Fallback: legacy JSON
+            project_dir = (
+                Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
+            )
+            if not project_dir.exists():
+                raise HTTPException(status_code=404, detail="Project not found")
+            project_files = list(project_dir.glob("project_type*.json"))
+            if project_files:
+                with open(project_files[0], "r") as f:
+                    project_data = json.load(f)
+                    if project_data.get("userId") != user_id:
+                        raise HTTPException(status_code=403, detail="Not authorized to delete this project")
+
+        # Also delete filesystem directory (uploads, links)
         project_dir = (
             Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
         )
-
-        if not project_dir.exists():
-            raise HTTPException(status_code=404, detail="Project not found")
-
-        # Verify ownership
-        project_files = list(project_dir.glob("project_type*.json"))
-        if project_files:
-            with open(project_files[0], "r") as f:
-                project_data = json.load(f)
-                if project_data.get("userId") != user_id:
-                    raise HTTPException(status_code=403, detail="Not authorized to delete this project")
-
-        # Delete all files in project directory
-        import shutil
-        shutil.rmtree(project_dir)
+        if project_dir.exists():
+            shutil.rmtree(project_dir)
 
         return {"success": True, "message": "Project deleted successfully"}
 

@@ -579,3 +579,16 @@ if (currentStatus?.status === "approved") {
 - **Stats/metadata badges** — if the same data type (panels, duration, words) appears on multiple pages, use the same visual format everywhere. Don't use `bg-muted/50 rounded-lg` badges on one page and plain inline text on another.
 - **Icons in titles** — either all stage headers have icons or none do. One header with an icon and four without looks like a bug.
 - **Quick check**: when finishing a component, grep for the same visual pattern across sibling components and verify consistency.
+
+---
+
+### 2026-03-13: Always run `npm run build`, not just dev server
+
+**Problem:** Multiple pre-existing type errors accumulated across `ReviewBuilder/InputView`, `StageContent`, `AdminDashboard`, and `GoldSetEval`. Nobody noticed because `npm run dev` (Vite + esbuild) skips type checking — pages render fine, no errors visible. Only `npm run build` (which runs `tsc`) catches `noUnusedLocals`, `unknown` not assignable to `ReactNode`, etc.
+
+**Root Cause:** Vite dev server transpiles with esbuild for speed, deliberately skipping full TypeScript type checking. Errors silently accumulate across commits until someone finally runs `build`.
+
+**Lesson:**
+- After any frontend change, run `npm run build` — not just `npm run dev`. Dev server passing means nothing for type safety.
+- When you see build errors, fix them all — even "pre-existing" ones. Don't say "not my problem" and move on. If you can see it, you own it.
+- Especially watch for: disabled features leaving orphaned state variables, `Record<string, unknown>` values rendered in JSX, type definitions changed without updating consumers.

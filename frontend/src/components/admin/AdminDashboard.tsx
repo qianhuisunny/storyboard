@@ -462,7 +462,9 @@ export function AdminDashboard() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 {Object.entries(data.behavior_summary || {})
                   .filter(([key]) => key !== "total_go_backs")
-                  .map(([stage, metrics]) => (
+                  .map(([stage, metrics]) => {
+                    const m = metrics as { avg_time_seconds?: number | null; avg_regenerations?: number; avg_edits?: number };
+                    return (
                     <div key={stage} className="text-center p-4 bg-muted/50 rounded-lg">
                       <h4 className="text-sm font-medium capitalize mb-2">
                         {stage.replace("_", " ")}
@@ -470,27 +472,28 @@ export function AdminDashboard() {
                       <div className="grid grid-cols-3 gap-2 text-xs">
                         <div>
                           <div className="text-lg font-bold">
-                            {metrics.avg_time_seconds
-                              ? Math.round(metrics.avg_time_seconds)
+                            {m.avg_time_seconds
+                              ? Math.round(m.avg_time_seconds)
                               : "-"}
                           </div>
                           <div className="text-muted-foreground">sec</div>
                         </div>
                         <div>
                           <div className="text-lg font-bold">
-                            {metrics.avg_regenerations?.toFixed(1) || "0"}
+                            {m.avg_regenerations?.toFixed(1) || "0"}
                           </div>
                           <div className="text-muted-foreground">regen</div>
                         </div>
                         <div>
                           <div className="text-lg font-bold">
-                            {metrics.avg_edits?.toFixed(1) || "0"}
+                            {m.avg_edits?.toFixed(1) || "0"}
                           </div>
                           <div className="text-muted-foreground">edits</div>
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 <div className="text-center p-4 bg-muted/50 rounded-lg">
                   <h4 className="text-sm font-medium mb-2">Go-backs</h4>
                   <div className="text-3xl font-bold">

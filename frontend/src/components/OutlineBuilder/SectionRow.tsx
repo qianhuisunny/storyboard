@@ -115,7 +115,7 @@ function BulletBlock({
 export default function SectionRow({
   section,
   index,
-  totalSections,
+  totalSections: _totalSections,
   onUpdate,
   disabled = false,
   isLast = false,

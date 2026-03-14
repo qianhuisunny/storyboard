@@ -11,3 +11,6 @@ PyPDF2==3.0.1
 python-docx==1.2.0
 svix==1.84.1
 lxml==6.0.2
+sqlalchemy[asyncio]>=2.0
+aiosqlite>=0.20
+alembic>=1.13

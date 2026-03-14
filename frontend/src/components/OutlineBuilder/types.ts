@@ -50,6 +50,7 @@ export interface EvidenceResearch {
 // Main component props
 export interface OutlineBuilderProps {
   content: string;
+  aiContent?: string | null;  // AI original version for drawer comparison
   onChange: (content: string) => void;
   onRunResearch: () => void;
   onContinue: () => void;

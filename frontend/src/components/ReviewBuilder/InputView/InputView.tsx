@@ -95,7 +95,8 @@ export default function InputView({ previousStageOutput }: InputViewProps) {
 
             {expandedSections.screens && hasScreens && (
               <div className="p-4 space-y-3">
-                {screens.map((screen: Record<string, unknown>, index: number) => (
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {screens.map((screen: Record<string, any>, index: number) => (
                   <div
                     key={index}
                     className="p-3 bg-muted/20 rounded-md border border-border/50"

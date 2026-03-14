@@ -19,21 +19,7 @@ const USE_SPLIT_BRIEF_BUILDER = true;
 // Feature flag for new Knowledge Share 3-round flow
 const USE_KNOWLEDGE_SHARE_FLOW = true;
 
-// Types for research stream events
-interface SearchEvent {
-  id: string;
-  query: string;
-  status: "running" | "complete" | "error";
-  resultsCount?: number;
-  timestamp: number;
-}
-
-interface ResearchFindings {
-  summary?: string;
-  keyPoints?: string[];
-  sources?: { url: string; title: string }[];
-}
-
+// RESEARCH DISABLED: types kept for residual state references
 type ResearchStatus = "idle" | "running" | "complete" | "error";
 
 interface ApproveOptions {
@@ -117,7 +103,7 @@ export default function StageContent({
   aiContent,
   humanContent,
   previousStageOutput,
-  researchDetails,
+  researchDetails: _researchDetails,
   isGenerating,
   onApprove,
   onRegenerate,
@@ -146,20 +132,14 @@ export default function StageContent({
 
   // RESEARCH DISABLED: research state variables
   const [researchStatus, setResearchStatus] = useState<ResearchStatus>("complete");
-  const [_researchFindings, setResearchFindings] = useState<ResearchFindings | null>(null);
-  const [_researchEvents, setResearchEvents] = useState<SearchEvent[]>([]);
-  const [_researchError, setResearchError] = useState<string | null>(null);
-  void _researchFindings;
-  void _researchEvents;
-  void _researchError;
+  const [, setResearchError] = useState<string | null>(null);
 
-  // RESEARCH DISABLED: Research chat state commented out
-  // const [researchChatState, setResearchChatState] = useState<ResearchChatState>({...});
-  const [isResearchChatLoading, setIsResearchChatLoading] = useState(false);
+  // RESEARCH DISABLED
+  const isResearchChatLoading = false;
 
   // Processing logs state for the Processing tab
-  const [processingLogs, setProcessingLogs] = useState<ProcessingLogEntry[]>([]);
-  const [isPollingLogs, setIsPollingLogs] = useState(false);
+  const [, setProcessingLogs] = useState<ProcessingLogEntry[]>([]);
+  const [, setIsPollingLogs] = useState(false);
   // Use ref for lastLogId to avoid triggering re-renders/re-polls
   const lastLogIdRef = useRef<string | null>(null);
   // Track if we've cleared logs for this session
@@ -875,6 +855,7 @@ export default function StageContent({
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
         <OutlineBuilder
           content={currentOutlineText}
+          aiContent={aiContent}
           onChange={handleOutlineTextChange}
           onRunResearch={handleRunResearch}
           onContinue={handleResearchContinue}

@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Version Compare — A / B / C</title>
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --text: #1a1a1a;
+    --text-muted: #626B58;
+    --border: #e5e5e5;
+    --border-light: #f0f0ee;
+    --surface: #FAFAF8;
+    --primary: #2563eb;
+    --primary-light: #dbeafe;
+    --green: #3A6B47;
+    --green-light: #ecfdf5;
+    --red: #A63228;
+    --red-light: #fef2f2;
+    --yellow-light: #fefce8;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f3; color: var(--text); }
+
+  /* Top nav for switching options */
+  .option-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--text); color: white;
+    display: flex; align-items: center; gap: 0;
+    padding: 0 32px; height: 52px;
+    font-size: 14px; font-weight: 500;
+  }
+  .option-nav .label { opacity: 0.5; margin-right: 16px; font-size: 13px; }
+  .option-tab {
+    padding: 14px 20px; cursor: pointer; border-bottom: 2px solid transparent;
+    opacity: 0.6; transition: all 0.2s;
+  }
+  .option-tab:hover { opacity: 0.9; }
+  .option-tab.active { opacity: 1; border-bottom-color: white; }
+
+  /* Panels */
+  .panel { display: none; min-height: calc(100vh - 52px); }
+  .panel.active { display: block; }
+  .panel-inner { max-width: 1100px; margin: 0 auto; padding: 40px 32px; }
+  .panel-title { font-size: 22px; font-weight: 600; margin-bottom: 4px; }
+  .panel-desc { font-size: 14px; color: var(--text-muted); margin-bottom: 32px; }
+  .panel-tag {
+    display: inline-block; font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+    padding: 3px 10px; border-radius: 4px; margin-bottom: 16px; text-transform: uppercase;
+  }
+  .tag-a { background: var(--primary-light); color: var(--primary); }
+  .tag-b { background: var(--green-light); color: var(--green); }
+  .tag-c { background: var(--yellow-light); color: #92400e; }
+
+  /* Shared: Stage header */
+  .stage-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 24px; border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+  .stage-header h2 { font-size: 18px; font-weight: 600; }
+  .stage-header .subtitle { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+
+  /* ===== OPTION A: Toggle ===== */
+  .toggle-group {
+    display: flex; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 8px; overflow: hidden;
+  }
+  .toggle-btn {
+    padding: 7px 18px; font-size: 13px; font-weight: 500; cursor: pointer;
+    border: none; background: transparent; color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .toggle-btn.active {
+    background: var(--bg); color: var(--text); box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-radius: 7px; margin: 1px;
+  }
+  .toggle-btn:not(.active):hover { color: var(--text); }
+  .version-badge {
+    display: inline-block; font-size: 10px; font-weight: 600; letter-spacing: 0.3px;
+    padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle;
+  }
+  .badge-ai { background: var(--primary-light); color: var(--primary); }
+  .badge-human { background: var(--green-light); color: var(--green); }
+
+  /* Section row — Scandinavian style */
+  .section-row {
+    display: grid; grid-template-columns: 56px 1fr 36%;
+    padding: 28px 24px; border-bottom: 1px solid var(--border-light);
+    background: var(--bg);
+  }
+  .section-num {
+    font-size: 28px; font-weight: 300; color: rgba(98,107,88,0.25);
+    text-align: right; padding-right: 20px; padding-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .section-main { padding-right: 32px; }
+  .section-title { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+  .section-field-label { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; margin: 12px 0 4px; }
+  .section-field-value { font-size: 14px; line-height: 1.6; color: var(--text); }
+  .section-evidence { padding-left: 24px; border-left: 1px solid var(--border-light); }
+  .evidence-label { font-size: 11px; font-weight: 600; color: var(--text-muted); letter-spacing: 0.3px; text-transform: uppercase; margin-bottom: 8px; }
+  .evidence-item { font-size: 13px; color: var(--text); padding: 4px 0; padding-left: 12px; border-left: 2px solid var(--border-light); margin-bottom: 6px; }
+
+  /* ===== OPTION B: Drawer ===== */
+  .stage-container-b {
+    background: var(--bg); border-radius: 12px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06); position: relative;
+  }
+  .drawer-trigger {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); cursor: pointer; font-size: 13px; color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .drawer-trigger:hover { border-color: var(--primary); color: var(--primary); }
+  .drawer-trigger.active { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+  .content-with-drawer { display: flex; transition: all 0.3s ease; }
+  .main-content { flex: 1; min-width: 0; }
+  .ai-drawer {
+    width: 0; overflow: hidden; border-left: none;
+    background: var(--surface); transition: all 0.3s ease; flex-shrink: 0;
+  }
+  .ai-drawer.open { width: 420px; border-left: 1px solid var(--border); }
+  .drawer-header {
+    padding: 14px 20px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface); position: sticky; top: 0;
+  }
+  .drawer-header h3 { font-size: 14px; font-weight: 600; color: var(--text-muted); }
+  .drawer-close {
+    width: 28px; height: 28px; border-radius: 6px; border: none;
+    background: transparent; cursor: pointer; font-size: 16px; color: var(--text-muted);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .drawer-close:hover { background: var(--border-light); }
+  .drawer-section {
+    padding: 20px; border-bottom: 1px solid var(--border-light);
+  }
+  .drawer-section-num { font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+  .drawer-section-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+  .drawer-field { font-size: 13px; line-height: 1.55; color: var(--text-muted); margin-top: 6px; }
+  .drawer-readonly-badge {
+    font-size: 10px; font-weight: 500; color: var(--text-muted);
+    background: var(--border-light); padding: 2px 8px; border-radius: 4px;
+  }
+
+  /* ===== OPTION C: Inline Diff ===== */
+  .diff-controls {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .diff-toggle {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg); cursor: pointer; font-size: 13px; color: var(--text-muted);
+    transition: all 0.15s;
+  }
+  .diff-toggle.active { border-color: #92400e; color: #92400e; background: var(--yellow-light); }
+  .diff-legend {
+    display: flex; gap: 14px; font-size: 12px; color: var(--text-muted);
+  }
+  .legend-item { display: flex; align-items: center; gap: 4px; }
+  .legend-dot { width: 8px; height: 8px; border-radius: 2px; }
+  .legend-dot.added { background: #bbf7d0; }
+  .legend-dot.removed { background: #fecaca; }
+  .legend-dot.unchanged { background: var(--border-light); }
+
+  .diff-added {
+    background: #ecfdf5; border-left: 3px solid var(--green);
+    padding: 2px 8px; border-radius: 2px; margin: 1px 0;
+  }
+  .diff-removed {
+    background: var(--red-light); text-decoration: line-through;
+    color: var(--red); opacity: 0.7; padding: 2px 8px;
+    border-left: 3px solid var(--red); border-radius: 2px; margin: 1px 0;
+    font-size: 13px;
+  }
+  .diff-unchanged { padding: 2px 0; }
+
+  /* Screen cards (for storyboard view) */
+  .screen-card {
+    background: var(--bg); border: 1px solid var(--border); border-radius: 10px;
+    overflow: hidden; margin-bottom: 16px;
+  }
+  .screen-card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 16px; border-bottom: 1px solid var(--border-light);
+    background: var(--surface);
+  }
+  .screen-card-header .num { font-size: 13px; font-weight: 600; }
+  .screen-card-header .type { font-size: 11px; color: var(--text-muted); background: var(--border-light); padding: 2px 8px; border-radius: 4px; }
+  .screen-card-body { padding: 16px; }
+  .screen-card-body .vo { font-size: 14px; line-height: 1.65; margin-bottom: 12px; }
+  .screen-card-body .visual-dir { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+  .screen-card-body .visual-item { padding: 3px 0; padding-left: 12px; border-left: 2px solid var(--border-light); margin-bottom: 4px; }
+
+  /* Storyboard tabs */
+  .sb-tabs { display: flex; gap: 0; border-bottom: 1px solid var(--border); background: var(--bg); }
+  .sb-tab {
+    padding: 12px 20px; font-size: 13px; font-weight: 500; cursor: pointer;
+    border-bottom: 2px solid transparent; color: var(--text-muted); transition: all 0.15s;
+  }
+  .sb-tab:hover { color: var(--text); }
+  .sb-tab.active { color: var(--text); border-bottom-color: var(--text); }
+
+  .content-area { background: var(--bg); padding: 24px; }
+  .section-divider { height: 1px; background: var(--border); margin: 8px 0; }
+</style>
+</head>
+<body>
+
+<!-- Top navigation -->
+<div class="option-nav">
+  <span class="label">Compare:</span>
+  <div class="option-tab active" onclick="showPanel('a')">A &mdash; Toggle</div>
+  <div class="option-tab" onclick="showPanel('b')">B &mdash; Drawer</div>
+  <div class="option-tab" onclick="showPanel('c')">C &mdash; Inline Diff</div>
+</div>
+
+<!-- ============================================================ -->
+<!-- OPTION A: Version Toggle -->
+<!-- ============================================================ -->
+<div class="panel active" id="panel-a">
+  <div class="panel-inner">
+    <span class="panel-tag tag-a">Option A</span>
+    <h1 class="panel-title">Version Toggle</h1>
+    <p class="panel-desc">Switch between AI Draft and Your Edit with a simple toggle. One view at a time. Minimal UI footprint.</p>
+
+    <!-- Stage container -->
+    <div style="background: var(--bg); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+      <!-- Stage header with toggle -->
+      <div class="stage-header">
+        <div>
+          <h2>Video Outline</h2>
+          <div class="subtitle">Edit sections inline. Drag to reorder.</div>
+        </div>
+        <div class="toggle-group">
+          <button class="toggle-btn active" id="toggle-ai" onclick="toggleVersion('a', 'ai')">
+            AI Draft <span class="version-badge badge-ai">V1</span>
+          </button>
+          <button class="toggle-btn" id="toggle-human" onclick="toggleVersion('a', 'human')">
+            Your Edit <span class="version-badge badge-human">V2</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- AI version -->
+      <div id="a-ai-content">
+        <div class="section-row">
+          <div class="section-num">1</div>
+          <div class="section-main">
+            <div class="section-title">The Chauffeur Problem</div>
+            <div class="section-field-label">Purpose</div>
+            <div class="section-field-value">Introduce the distinction between real knowledge and performed knowledge through Munger's chauffeur parable.</div>
+            <div class="section-field-label">Talking Points</div>
+            <div class="section-field-value">
+              &bull; Charlie Munger's 2007 USC graduation speech<br>
+              &bull; Max Planck tours Germany giving lectures on quantum mechanics<br>
+              &bull; The chauffeur memorizes the lecture word-for-word<br>
+              &bull; One day, they switch places &mdash; chauffeur delivers perfectly
+            </div>
+          </div>
+          <div class="section-evidence">
+            <div class="evidence-label">Evidence Needed</div>
+            <div class="evidence-item">Original Munger speech transcript or recording</div>
+            <div class="evidence-item">Historical context on Planck's lecture tours</div>
+          </div>
+        </div>
+
+        <div class="section-row">
+          <div class="section-num">2</div>
+          <div class="section-main">
+            <div class="section-title">Two Kinds of Knowledge</div>
+            <div class="section-field-label">Purpose</div>
+            <div class="section-field-value">Define Feynman's framework: understanding from first principles vs. memorized surface patterns.</div>
+            <div class="section-field-label">Talking Points</div>
+            <div class="section-field-value">
+              &bull; Feynman's distinction: "knowing the name of something" vs. "knowing something"<br>
+              &bull; Real knowledge = ability to explain, predict, and apply<br>
+              &bull; Surface knowledge = ability to recall and recite
+            </div>
+          </div>
+          <div class="section-evidence">
+            <div class="evidence-label">Evidence Needed</div>
+            <div class="evidence-item">Feynman quote on names vs. understanding</div>
+          </div>
+        </div>
+
+        <div class="section-row" style="border-bottom: none;">
+          <div class="section-num">3</div>
+          <div class="section-main">
+            <div class="section-title">The Feynman Technique</div>
+            <div class="section-field-label">Purpose</div>
+            <div class="section-field-value">Walk through the 4-step technique as a practical tool.</div>
+            <div class="section-field-label">Talking Points</div>
+            <div class="section-field-value">
+              &bull; Step 1: Choose a concept<br>
+              &bull; Step 2: Teach it to a child<br>
+              &bull; Step 3: Identify gaps and go back to source<br>
+              &bull; Step 4: Simplify and use analogies
+            </div>
+          </div>
+          <div class="section-evidence">
+            <div class="evidence-label">Evidence Needed</div>
+            <div class="evidence-item">Original Feynman source describing this method</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Human version (hidden by default) -->
+      <div id="a-human-content" style="display: none;">
+        <div class="section-row">
+          <div class="section-num">1</div>
+          <div class="section-main">
+            <div class="section-title">The Chauffeur Who Fooled a Room Full of Physicists</div>
+            <div class="section-field-label">Purpose</div>
+            <div class="section-field-value">Hook the viewer with a story that dramatizes the difference between sounding smart and being smart.</div>
+            <div class="section-field-label">Talking Points</div>
+            <div class="section-field-value">
+              &bull; Set the scene: Germany, 1950s, Max Planck on a lecture tour<br>
+              &bull; The chauffeur's bet: "I've heard this talk so many times, I could give it myself"<br>
+              &bull; They switch places &mdash; chauffeur nails it<br>
+              &bull; A physicist asks a question. The chauffeur's brilliant deflection.
+            </div>
+          </div>
+          <div class="section-evidence">
+            <div class="evidence-label">Evidence Needed</div>
+            <div class="evidence-item">Original Munger speech transcript or recording</div>
+            <div class="evidence-item">Historical context on Planck's lecture tours</div>
+          </div>
+        </div>
+
+        <div class="section-row">
+          <div class="section-num">2</div>
+          <div class="section-main">
+            <div class="section-title">Two Kinds of Knowledge</div>
+            <div class="section-field-label">Purpose</div>
+            <div class="section-field-value">Define the core framework: first-principles understanding vs. memorized patterns. This is the "aha" moment.</div>
+            <div class="section-field-label">Talking Points</div>
+            <div class="section-field-value">
+              &bull; Feynman: "knowing the name of something" vs. "knowing something"<br>
+              &bull; Real knowledge = explain it, predict with it, apply it in new contexts<br>
+              &bull; Surface knowledge = recall facts, pass tests, sound credible<br>
+              &bull; Why most education produces chauffeur knowledge
+            </div>
+          </div>
+          <div class="section-evidence">
+            <div class="evidence-label">Evidence Needed</div>
+            <div class="evidence-item">Feynman quote on names vs. understanding</div>
+            <div class="evidence-item">Study on retention rates for rote vs. deep learning</div>
+          </div>
+        </div>
+
+        <div class="section-row" style="border-bottom: none;">
+          <div class="section-num">3</div>
+          <div class="section-main">
+            <div class="section-title">The Feynman Technique &mdash; 4 Steps</div>
+            <div class="section-field-label">Purpose</div>
+            <div class="section-field-value">Walk through each step with a concrete worked example, not just listing them.</div>
+            <div class="section-field-label">Talking Points</div>
+            <div class="section-field-value">
+              &bull; Step 1: Pick something you think you understand (e.g., "inflation")<br>
+              &bull; Step 2: Explain it as if to a 12-year-old &mdash; no jargon<br>
+              &bull; Step 3: Where you get stuck = where you don't really understand<br>
+              &bull; Step 4: Simplify with an analogy ("inflation is like watering down juice")
+            </div>
+          </div>
+          <div class="section-evidence">
+            <div class="evidence-label">Evidence Needed</div>
+            <div class="evidence-item">Original Feynman source describing this method</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- OPTION B: Side-by-side Drawer -->
+<!-- ============================================================ -->
+<div class="panel" id="panel-b">
+  <div class="panel-inner">
+    <span class="panel-tag tag-b">Option B</span>
+    <h1 class="panel-title">Side-by-side Drawer</h1>
+    <p class="panel-desc">Your edit is always visible. Click "AI Original" to slide open a read-only reference panel. Compare side-by-side while editing.</p>
+
+    <div class="stage-container-b">
+      <div class="stage-header">
+        <div>
+          <h2>Video Outline</h2>
+          <div class="subtitle">Edit sections inline. Drag to reorder.</div>
+        </div>
+        <button class="drawer-trigger" id="drawer-btn" onclick="toggleDrawer()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v18h-6M9 3H3v18h6M9 3v18M15 3v18"/></svg>
+          View AI Original
+        </button>
+      </div>
+
+      <div class="content-with-drawer">
+        <!-- Main editable content -->
+        <div class="main-content">
+          <div class="section-row">
+            <div class="section-num">1</div>
+            <div class="section-main">
+              <div class="section-title">The Chauffeur Who Fooled a Room Full of Physicists</div>
+              <div class="section-field-label">Purpose</div>
+              <div class="section-field-value">Hook the viewer with a story that dramatizes the difference between sounding smart and being smart.</div>
+              <div class="section-field-label">Talking Points</div>
+              <div class="section-field-value">
+                &bull; Set the scene: Germany, 1950s, Max Planck on a lecture tour<br>
+                &bull; The chauffeur's bet: "I've heard this talk so many times, I could give it myself"<br>
+                &bull; They switch places &mdash; chauffeur nails it<br>
+                &bull; A physicist asks a question. The chauffeur's brilliant deflection.
+              </div>
+            </div>
+            <div class="section-evidence">
+              <div class="evidence-label">Evidence Needed</div>
+              <div class="evidence-item">Original Munger speech transcript or recording</div>
+              <div class="evidence-item">Historical context on Planck's lecture tours</div>
+            </div>
+          </div>
+
+          <div class="section-row">
+            <div class="section-num">2</div>
+            <div class="section-main">
+              <div class="section-title">Two Kinds of Knowledge</div>
+              <div class="section-field-label">Purpose</div>
+              <div class="section-field-value">Define the core framework: first-principles understanding vs. memorized patterns. This is the "aha" moment.</div>
+              <div class="section-field-label">Talking Points</div>
+              <div class="section-field-value">
+                &bull; Feynman: "knowing the name of something" vs. "knowing something"<br>
+                &bull; Real knowledge = explain it, predict with it, apply it in new contexts<br>
+                &bull; Surface knowledge = recall facts, pass tests, sound credible<br>
+                &bull; Why most education produces chauffeur knowledge
+              </div>
+            </div>
+            <div class="section-evidence">
+              <div class="evidence-label">Evidence Needed</div>
+              <div class="evidence-item">Feynman quote on names vs. understanding</div>
+              <div class="evidence-item">Study on retention rates for rote vs. deep learning</div>
+            </div>
+          </div>
+
+          <div class="section-row" style="border-bottom: none;">
+            <div class="section-num">3</div>
+            <div class="section-main">
+              <div class="section-title">The Feynman Technique &mdash; 4 Steps</div>
+              <div class="section-field-label">Purpose</div>
+              <div class="section-field-value">Walk through each step with a concrete worked example, not just listing them.</div>
+              <div class="section-field-label">Talking Points</div>
+              <div class="section-field-value">
+                &bull; Step 1: Pick something you think you understand (e.g., "inflation")<br>
+                &bull; Step 2: Explain it as if to a 12-year-old &mdash; no jargon<br>
+                &bull; Step 3: Where you get stuck = where you don't really understand<br>
+                &bull; Step 4: Simplify with an analogy ("inflation is like watering down juice")
+              </div>
+            </div>
+            <div class="section-evidence">
+              <div class="evidence-label">Evidence Needed</div>
+              <div class="evidence-item">Original Feynman source describing this method</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- AI Original Drawer -->
+        <div class="ai-drawer" id="ai-drawer">
+          <div class="drawer-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <h3>AI Original</h3>
+              <span class="drawer-readonly-badge">Read-only</span>
+            </div>
+            <button class="drawer-close" onclick="toggleDrawer()">&times;</button>
+          </div>
+          <div class="drawer-section">
+            <div class="drawer-section-num">Section 1</div>
+            <div class="drawer-section-title">The Chauffeur Problem</div>
+            <div class="drawer-field"><strong>Purpose:</strong> Introduce the distinction between real knowledge and performed knowledge through Munger's chauffeur parable.</div>
+            <div class="drawer-field" style="margin-top: 10px;"><strong>Talking Points:</strong></div>
+            <div class="drawer-field">&bull; Charlie Munger's 2007 USC graduation speech</div>
+            <div class="drawer-field">&bull; Max Planck tours Germany giving lectures on quantum mechanics</div>
+            <div class="drawer-field">&bull; The chauffeur memorizes the lecture word-for-word</div>
+            <div class="drawer-field">&bull; One day, they switch places &mdash; chauffeur delivers perfectly</div>
+          </div>
+          <div class="drawer-section">
+            <div class="drawer-section-num">Section 2</div>
+            <div class="drawer-section-title">Two Kinds of Knowledge</div>
+            <div class="drawer-field"><strong>Purpose:</strong> Define Feynman's framework: understanding from first principles vs. memorized surface patterns.</div>
+            <div class="drawer-field" style="margin-top: 10px;"><strong>Talking Points:</strong></div>
+            <div class="drawer-field">&bull; Feynman's distinction: "knowing the name" vs. "knowing something"</div>
+            <div class="drawer-field">&bull; Real knowledge = ability to explain, predict, and apply</div>
+            <div class="drawer-field">&bull; Surface knowledge = ability to recall and recite</div>
+          </div>
+          <div class="drawer-section" style="border-bottom: none;">
+            <div class="drawer-section-num">Section 3</div>
+            <div class="drawer-section-title">The Feynman Technique</div>
+            <div class="drawer-field"><strong>Purpose:</strong> Walk through the 4-step technique as a practical tool.</div>
+            <div class="drawer-field" style="margin-top: 10px;"><strong>Talking Points:</strong></div>
+            <div class="drawer-field">&bull; Step 1: Choose a concept</div>
+            <div class="drawer-field">&bull; Step 2: Teach it to a child</div>
+            <div class="drawer-field">&bull; Step 3: Identify gaps and go back to source</div>
+            <div class="drawer-field">&bull; Step 4: Simplify and use analogies</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- OPTION C: Inline Diff -->
+<!-- ============================================================ -->
+<div class="panel" id="panel-c">
+  <div class="panel-inner">
+    <span class="panel-tag tag-c">Option C</span>
+    <h1 class="panel-title">Inline Diff Markers</h1>
+    <p class="panel-desc">Your edit is shown by default. Toggle "Show Changes" to see what was added, removed, or kept from the AI draft &mdash; like Track Changes in Word.</p>
+
+    <div style="background: var(--bg); border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06);">
+      <div class="stage-header">
+        <div>
+          <h2>Video Outline</h2>
+          <div class="subtitle">Edit sections inline. Drag to reorder.</div>
+        </div>
+        <div class="diff-controls">
+          <button class="diff-toggle active" id="diff-btn" onclick="toggleDiff()">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20V4M4 12l8-8 8 8"/></svg>
+            Show Changes
+          </button>
+          <div class="diff-legend" id="diff-legend">
+            <div class="legend-item"><div class="legend-dot added"></div> Added</div>
+            <div class="legend-item"><div class="legend-dot removed"></div> Removed</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 1 with diff markers -->
+      <div class="section-row">
+        <div class="section-num">1</div>
+        <div class="section-main">
+          <div id="c-diff-on">
+            <div class="section-field-label">Title</div>
+            <div class="diff-removed">The Chauffeur Problem</div>
+            <div class="diff-added">The Chauffeur Who Fooled a Room Full of Physicists</div>
+
+            <div class="section-field-label">Purpose</div>
+            <div class="diff-removed">Introduce the distinction between real knowledge and performed knowledge through Munger's chauffeur parable.</div>
+            <div class="diff-added">Hook the viewer with a story that dramatizes the difference between sounding smart and being smart.</div>
+
+            <div class="section-field-label">Talking Points</div>
+            <div class="diff-removed">&bull; Charlie Munger's 2007 USC graduation speech</div>
+            <div class="diff-added">&bull; Set the scene: Germany, 1950s, Max Planck on a lecture tour</div>
+            <div class="diff-removed">&bull; Max Planck tours Germany giving lectures on quantum mechanics</div>
+            <div class="diff-removed">&bull; The chauffeur memorizes the lecture word-for-word</div>
+            <div class="diff-added">&bull; The chauffeur's bet: "I've heard this talk so many times, I could give it myself"</div>
+            <div class="diff-unchanged">&bull; They switch places &mdash; chauffeur nails it</div>
+            <div class="diff-removed">&bull; One day, they switch places &mdash; chauffeur delivers perfectly</div>
+            <div class="diff-added">&bull; A physicist asks a question. The chauffeur's brilliant deflection.</div>
+          </div>
+          <div id="c-diff-off" style="display: none;">
+            <div class="section-title">The Chauffeur Who Fooled a Room Full of Physicists</div>
+            <div class="section-field-label">Purpose</div>
+            <div class="section-field-value">Hook the viewer with a story that dramatizes the difference between sounding smart and being smart.</div>
+            <div class="section-field-label">Talking Points</div>
+            <div class="section-field-value">
+              &bull; Set the scene: Germany, 1950s, Max Planck on a lecture tour<br>
+              &bull; The chauffeur's bet: "I've heard this talk so many times, I could give it myself"<br>
+              &bull; They switch places &mdash; chauffeur nails it<br>
+              &bull; A physicist asks a question. The chauffeur's brilliant deflection.
+            </div>
+          </div>
+        </div>
+        <div class="section-evidence">
+          <div class="evidence-label">Evidence Needed</div>
+          <div class="evidence-item">Original Munger speech transcript or recording</div>
+          <div class="evidence-item">Historical context on Planck's lecture tours</div>
+        </div>
+      </div>
+
+      <!-- Section 2 with diff (fewer changes) -->
+      <div class="section-row">
+        <div class="section-num">2</div>
+        <div class="section-main">
+          <div class="section-title">Two Kinds of Knowledge</div>
+          <div class="section-field-label">Purpose</div>
+          <div class="section-field-value" id="c-s2-diff-on">
+            <span class="diff-unchanged">Define </span><span class="diff-removed" style="display:inline; padding: 1px 4px;">Feynman's framework: understanding from first principles vs. memorized surface patterns.</span><span class="diff-added" style="display:inline; padding: 1px 4px;">the core framework: first-principles understanding vs. memorized patterns. This is the "aha" moment.</span>
+          </div>
+          <div class="section-field-label">Talking Points</div>
+          <div class="section-field-value">
+            &bull; Feynman: "knowing the name of something" vs. "knowing something"<br>
+            &bull; Real knowledge = explain it, predict with it, apply it in new contexts<br>
+            &bull; Surface knowledge = recall facts, pass tests, sound credible<br>
+            <span class="diff-added" style="display: inline-block; margin-top: 2px;">&bull; Why most education produces chauffeur knowledge</span>
+          </div>
+        </div>
+        <div class="section-evidence">
+          <div class="evidence-label">Evidence Needed</div>
+          <div class="evidence-item">Feynman quote on names vs. understanding</div>
+          <div class="evidence-item diff-added" style="border-left-color: var(--green);">Study on retention rates for rote vs. deep learning</div>
+        </div>
+      </div>
+
+      <!-- Section 3 with diff -->
+      <div class="section-row" style="border-bottom: none;">
+        <div class="section-num">3</div>
+        <div class="section-main">
+          <div class="section-field-label" style="margin-top: 0;">Title</div>
+          <div class="diff-unchanged" style="font-size: 16px; font-weight: 600;">The Feynman Technique<span class="diff-added" style="display:inline; font-size: 16px; font-weight: 600; padding: 1px 4px;"> &mdash; 4 Steps</span></div>
+          <div class="section-field-label">Purpose</div>
+          <div class="diff-removed">Walk through the 4-step technique as a practical tool.</div>
+          <div class="diff-added">Walk through each step with a concrete worked example, not just listing them.</div>
+          <div class="section-field-label">Talking Points</div>
+          <div class="section-field-value">
+            <span class="diff-removed" style="display: block; padding: 2px 8px; border-left: 3px solid var(--red); background: var(--red-light); text-decoration: line-through; color: var(--red); opacity: 0.7; font-size: 13px; margin: 1px 0;">&bull; Step 1: Choose a concept</span>
+            <span class="diff-added" style="display: block;">&bull; Step 1: Pick something you think you understand (e.g., "inflation")</span>
+            <span class="diff-removed" style="display: block; padding: 2px 8px; border-left: 3px solid var(--red); background: var(--red-light); text-decoration: line-through; color: var(--red); opacity: 0.7; font-size: 13px; margin: 1px 0;">&bull; Step 2: Teach it to a child</span>
+            <span class="diff-added" style="display: block;">&bull; Step 2: Explain it as if to a 12-year-old &mdash; no jargon</span>
+            <span class="diff-removed" style="display: block; padding: 2px 8px; border-left: 3px solid var(--red); background: var(--red-light); text-decoration: line-through; color: var(--red); opacity: 0.7; font-size: 13px; margin: 1px 0;">&bull; Step 3: Identify gaps and go back to source</span>
+            <span class="diff-added" style="display: block;">&bull; Step 3: Where you get stuck = where you don't really understand</span>
+            <span class="diff-removed" style="display: block; padding: 2px 8px; border-left: 3px solid var(--red); background: var(--red-light); text-decoration: line-through; color: var(--red); opacity: 0.7; font-size: 13px; margin: 1px 0;">&bull; Step 4: Simplify and use analogies</span>
+            <span class="diff-added" style="display: block;">&bull; Step 4: Simplify with an analogy ("inflation is like watering down juice")</span>
+          </div>
+        </div>
+        <div class="section-evidence">
+          <div class="evidence-label">Evidence Needed</div>
+          <div class="evidence-item">Original Feynman source describing this method</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showPanel(id) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.option-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('panel-' + id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+function toggleVersion(panel, version) {
+  if (version === 'ai') {
+    document.getElementById('a-ai-content').style.display = 'block';
+    document.getElementById('a-human-content').style.display = 'none';
+    document.getElementById('toggle-ai').classList.add('active');
+    document.getElementById('toggle-human').classList.remove('active');
+  } else {
+    document.getElementById('a-ai-content').style.display = 'none';
+    document.getElementById('a-human-content').style.display = 'block';
+    document.getElementById('toggle-ai').classList.remove('active');
+    document.getElementById('toggle-human').classList.add('active');
+  }
+}
+
+function toggleDrawer() {
+  const drawer = document.getElementById('ai-drawer');
+  const btn = document.getElementById('drawer-btn');
+  drawer.classList.toggle('open');
+  btn.classList.toggle('active');
+}
+
+function toggleDiff() {
+  const btn = document.getElementById('diff-btn');
+  const legend = document.getElementById('diff-legend');
+  const isActive = btn.classList.toggle('active');
+  legend.style.display = isActive ? 'flex' : 'none';
+
+  // Toggle diff view for section 1
+  document.getElementById('c-diff-on').style.display = isActive ? 'block' : 'none';
+  document.getElementById('c-diff-off').style.display = isActive ? 'none' : 'block';
+
+  // Toggle all diff markers visibility
+  document.querySelectorAll('#panel-c .diff-removed').forEach(el => {
+    el.style.display = isActive ? '' : 'none';
+  });
+}
+</script>
+
+</body>
+</html>

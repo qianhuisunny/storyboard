@@ -9,9 +9,10 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, Search, Loader2, ExternalLink, ChevronDown, ChevronRight } from "lucide-react";
+import { Check, Search, Loader2, ExternalLink, ChevronDown, ChevronRight, PanelRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OutlineGrid from "./OutlineGrid";
+import AiOriginalDrawer from "./AiOriginalDrawer";
 import { parseOutline, serializeOutline } from "./outlineParser";
 import type {
   OutlineBuilderProps,
@@ -22,6 +23,7 @@ import type {
 
 export default function OutlineBuilder({
   content,
+  aiContent,
   onChange,
   onRunResearch,
   onContinue,
@@ -99,6 +101,11 @@ export default function OutlineBuilder({
     [sections, propagate]
   );
 
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
+  // Show drawer trigger only when both AI and human versions exist (user has edited)
+  const hasAiOriginal = Boolean(aiContent && content && aiContent !== content);
+
   const hasResearch =
     researchResults && researchResults.sections && researchResults.sections.length > 0;
 
@@ -106,20 +113,39 @@ export default function OutlineBuilder({
     <div className="flex flex-col h-full bg-background">
       {/* Header */}
       <div className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border shrink-0">
-        <h2 className="text-xl font-semibold">Video Outline</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">
-          {hasResearch
-            ? "Review the evidence research results, then continue."
-            : "Edit sections inline. Drag to reorder. Then run the research plan."}
-        </p>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-xl font-semibold">Video Outline</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              {hasResearch
+                ? "Review the evidence research results, then continue."
+                : "Edit sections inline. Drag to reorder. Then run the research plan."}
+            </p>
+          </div>
+          {hasAiOriginal && (
+            <button
+              onClick={() => setIsDrawerOpen(!isDrawerOpen)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors",
+                isDrawerOpen
+                  ? "border-primary text-primary bg-primary/5"
+                  : "border-border text-muted-foreground hover:border-primary hover:text-primary"
+              )}
+            >
+              <PanelRight className="w-4 h-4" />
+              View AI Original
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Content Area */}
-      <div
-        className="flex-1 overflow-y-auto px-6 sm:px-10 py-6"
-        style={{ minHeight: 0 }}
-      >
-        <div className="w-full max-w-5xl space-y-6">
+      {/* Content Area + Drawer */}
+      <div className="flex-1 flex min-h-0">
+        {/* Main scrollable content */}
+        <div
+          className="flex-1 overflow-y-auto px-6 sm:px-10 py-6 min-w-0"
+        >
+          <div className="w-full max-w-5xl space-y-6">
           {/* Section: Video Outline */}
           <div id="outline">
             {sections.length > 0 ? (
@@ -165,6 +191,16 @@ export default function OutlineBuilder({
             </div>
           )}
         </div>
+        </div>
+
+        {/* AI Original Drawer */}
+        {hasAiOriginal && aiContent && (
+          <AiOriginalDrawer
+            aiContent={aiContent}
+            isOpen={isDrawerOpen}
+            onClose={() => setIsDrawerOpen(false)}
+          />
+        )}
       </div>
 
       {/* Action Footer */}
