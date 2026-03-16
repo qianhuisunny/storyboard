@@ -3,6 +3,7 @@
  * Displays a brief field with edit/confirm actions and visual status indicator.
  */
 
+import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { BriefField, FieldColor } from "../types";
 import { getFieldColor, KNOWLEDGE_SHARE_FIELD_LABELS, KNOWLEDGE_SHARE_OPTIONS, KNOWLEDGE_SHARE_FIELD_TYPES } from "../types";
@@ -45,6 +46,118 @@ const inputStyle: React.CSSProperties = {
 };
 
 const inputClassName = "focus:border-[#3A6B47] focus:shadow-[0_0_0_3px_rgba(58,107,71,0.1)] outline-none";
+
+/** Multiselect option with optional hover tooltip showing description + image */
+function MultiselectOption({
+  opt,
+  selected,
+  disabled,
+  onChange,
+}: {
+  opt: { value: string; label: string; description?: string; image?: string | string[] };
+  selected: boolean;
+  disabled: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const [showTooltip, setShowTooltip] = useState(false);
+  const hasTooltip = opt.description || opt.image;
+  const images = opt.image ? (Array.isArray(opt.image) ? opt.image : [opt.image]) : [];
+
+  return (
+    <label
+      className={cn(
+        "flex items-center gap-2 cursor-pointer relative",
+        disabled && "opacity-50 cursor-not-allowed"
+      )}
+      style={{
+        ...inputStyle,
+        display: "flex",
+        alignItems: "center",
+        gap: "8px",
+        borderColor: selected ? "#3A6B47" : "#D9DDD2",
+        background: selected ? "#E8F0E9" : "#FFFFFF",
+      }}
+      onMouseEnter={() => hasTooltip && setShowTooltip(true)}
+      onMouseLeave={() => setShowTooltip(false)}
+    >
+      <input
+        type="checkbox"
+        checked={selected}
+        onChange={(e) => onChange(e.target.checked)}
+        disabled={disabled}
+        className="rounded"
+      />
+      <span className="flex-1">{opt.label}</span>
+      {hasTooltip && (
+        <>
+          <span
+            style={{
+              fontSize: "12px",
+              color: "#8D9885",
+              cursor: "help",
+              flexShrink: 0,
+            }}
+          >
+            ⓘ
+          </span>
+          {showTooltip && (
+            <div
+              style={{
+                position: "absolute",
+                bottom: "calc(100% + 8px)",
+                left: "24px",
+                width: "280px",
+                background: "#1C2118",
+                color: "#F0F2EC",
+                fontSize: "12px",
+                lineHeight: "1.45",
+                borderRadius: "8px",
+                zIndex: 50,
+                pointerEvents: "none",
+                boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                overflow: "hidden",
+              }}
+            >
+              {images.length > 0 && (
+                <div style={{ display: "flex" }}>
+                  {images.map((src, i) => (
+                    <img
+                      key={i}
+                      src={src}
+                      alt={opt.label}
+                      style={{
+                        width: images.length > 1 ? "50%" : "100%",
+                        height: "140px",
+                        objectFit: "cover",
+                        display: "block",
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+              {opt.description && (
+                <div style={{ padding: "8px 12px" }}>
+                  {opt.description}
+                </div>
+              )}
+              <div
+                style={{
+                  position: "absolute",
+                  bottom: "-4px",
+                  left: "20px",
+                  width: "8px",
+                  height: "8px",
+                  background: "#1C2118",
+                  transform: "rotate(45deg)",
+                }}
+              />
+            </div>
+          )}
+        </>
+      )}
+    </label>
+  );
+}
 
 export default function FieldCard({
   fieldKey,
@@ -140,36 +253,19 @@ export default function FieldCard({
       return (
         <div className="space-y-2">
           {options.map((opt) => (
-            <label
+            <MultiselectOption
               key={opt.value}
-              className={cn(
-                "flex items-center gap-2 cursor-pointer",
-                (disabled || field.confirmed) && "opacity-50 cursor-not-allowed"
-              )}
-              style={{
-                ...inputStyle,
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-                borderColor: selectedValues.includes(opt.value) ? "#3A6B47" : "#D9DDD2",
-                background: selectedValues.includes(opt.value) ? "#E8F0E9" : "#FFFFFF",
+              opt={opt}
+              selected={selectedValues.includes(opt.value)}
+              disabled={disabled || field.confirmed}
+              onChange={(checked) => {
+                if (checked) {
+                  handleValueChange([...selectedValues, opt.value]);
+                } else {
+                  handleValueChange(selectedValues.filter((v) => v !== opt.value));
+                }
               }}
-            >
-              <input
-                type="checkbox"
-                checked={selectedValues.includes(opt.value)}
-                onChange={(e) => {
-                  if (e.target.checked) {
-                    handleValueChange([...selectedValues, opt.value]);
-                  } else {
-                    handleValueChange(selectedValues.filter((v) => v !== opt.value));
-                  }
-                }}
-                disabled={disabled || field.confirmed}
-                className="rounded"
-              />
-              {opt.label}
-            </label>
+            />
           ))}
         </div>
       );

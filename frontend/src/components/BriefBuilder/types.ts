@@ -74,7 +74,7 @@ export function getFieldColor(field: BriefField, isRequired: boolean = false): F
 /**
  * Current round in the briefing flow.
  */
-export type BriefRound = 1 | 2 | 3 | "angle_selection" | "review";
+export type BriefRound = 1 | 2 | 3 | "review";
 
 /**
  * Knowledge Share Brief - the new brief structure for Knowledge Share videos.
@@ -106,6 +106,7 @@ export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
     "freshness_expectation",
   ],
   3: [
+    "point_of_view",
     "core_talking_points",
     "misconceptions",
   ],
@@ -129,10 +130,10 @@ export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   delivery_tone: "How should this feel to the viewer?",
   freshness_expectation: "How time-sensitive is this video?",
   // Section 3: Content Spine
-  must_avoid: "Anything we should absolutely avoid?",
-  core_talking_points: "Proposed framework/method/key talking points",
-  misconceptions: "Common misconceptions to address",
-  additional_notes: "Anything to highlight that's not included in this form?",
+  point_of_view: "Your point of view",
+  core_talking_points: "Argument beats",
+  misconceptions: "Counter-assumptions",
+  must_avoid: "What would weaken this POV?",
 };
 
 /**
@@ -150,16 +151,16 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   broll_type: "multiselect",
   delivery_tone: "select",
   freshness_expectation: "select",
-  must_avoid: "list",
+  point_of_view: "textarea",
   core_talking_points: "editable-list",
   misconceptions: "editable-list",
-  additional_notes: "textarea",
+  must_avoid: "list",
 };
 
 /**
  * Select options for Knowledge Share fields.
  */
-export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: string }[]> = {
+export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: string; description?: string; image?: string | string[] }[]> = {
   audience_level: [
     { value: "beginner", label: "Beginner" },
     { value: "intermediate", label: "Intermediate" },
@@ -176,13 +177,12 @@ export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: str
     { value: "yes_intro_outro", label: "Yes — intro/outro/transition" },
   ],
   broll_type: [
-    { value: "screen_recording", label: "Screen recording (product/demo/document)" },
-    { value: "slides", label: "Slides / key points" },
-    { value: "diagrams", label: "Diagrams / frameworks" },
-    { value: "whiteboard", label: "Whiteboard drawing" },
-    { value: "code_editor", label: "Code editor / notebook" },
-    { value: "stock_footage", label: "Stock footage" },
-    { value: "real_world", label: "Real-world footage / camera shots" },
+    { value: "screen_recording", label: "Screen recording (product/demo/document)", description: "Viewer watches your screen as you navigate — product walkthroughs, software demos, document reviews", image: "/tooltips/screen_recording.jpg" },
+    { value: "slides", label: "Slides / key points", description: "Presentation-style screens with bullet points, titles, and key takeaways — like a deck the viewer reads along with", image: "/tooltips/slides.jpg" },
+    { value: "whiteboard_animation", label: "Whiteboard / animation", description: "Animated diagrams, hand-drawn explanations, or motion graphics that illustrate concepts visually", image: ["/tooltips/whiteboard.jpg", "/tooltips/whiteboard2.webp"] },
+    { value: "code_editor", label: "Code editor / notebook", description: "IDE, terminal, or Jupyter notebook — the viewer watches you write and run code in real time", image: "/tooltips/code_editor.jpg" },
+    { value: "stock_footage", label: "Stock footage", description: "Licensed video clips (cityscapes, people, nature) used as visual metaphors or to set the scene while you narrate", image: "/tooltips/stock_footage.jpg" },
+    { value: "real_world", label: "Real-world footage / camera shots", description: "Physical-world video — interviews, office tours, product unboxings, on-location filming", image: "/tooltips/real_world.jpg" },
   ],
   delivery_tone: [
     { value: "clear_practical", label: "Clear & practical" },
@@ -228,7 +228,7 @@ export function createInitialKnowledgeShareFields(): Record<string, BriefField> 
 
   // Section 3 fields
   const section3Fields = [
-    "must_avoid", "core_talking_points", "misconceptions", "additional_notes"
+    "point_of_view", "core_talking_points", "misconceptions", "must_avoid"
   ];
 
   [...section1Fields, ...section2Fields, ...section3Fields].forEach(key => {

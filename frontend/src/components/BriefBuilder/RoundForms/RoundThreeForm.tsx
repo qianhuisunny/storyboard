@@ -1,11 +1,21 @@
 /**
- * RoundThreeForm - Section 3: Content Spine (5 fields)
- * Third round of the 3-round briefing flow, after research completes.
+ * RoundThreeForm - Section 3: Content Spine (Two-Phase)
+ * Phase 1: User writes their Point of View (the claim the video will defend)
+ * Phase 2: AI generates argument structure → user reviews/edits
  */
 
+import { useState } from "react";
 import FieldCard from "./FieldCard";
 import type { BriefField } from "../types";
 import { KNOWLEDGE_SHARE_REQUIRED_FIELDS, areRequiredFieldsFilled } from "../types";
+import { cn } from "@/lib/utils";
+import { Info, Loader2 } from "lucide-react";
+
+interface BriefContext {
+  audience: string;
+  topic: string;
+  goal: string;
+}
 
 interface RoundThreeFormProps {
   fields: Record<string, BriefField>;
@@ -13,17 +23,68 @@ interface RoundThreeFormProps {
   onFieldConfirm: (key: string) => void;
   onFieldUnconfirm?: (key: string) => void;
   onSectionConfirm: () => void;
+  onGenerateContentSpine?: (pov: string) => Promise<void>;
+  briefContext?: BriefContext;
   disabled?: boolean;
   researchComplete?: boolean;
   showConfirmButton?: boolean;
 }
 
-const SECTION_3_FIELDS = [
-  "source_assets",
-  "must_avoid",
+const GENERATED_FIELDS = [
   "core_talking_points",
   "misconceptions",
+  "must_avoid",
 ];
+
+function PovTooltip() {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative inline-block">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        className="text-muted-foreground hover:text-foreground transition-colors"
+        aria-label="What is a point of view?"
+      >
+        <Info className="w-4 h-4" />
+      </button>
+      {open && (
+        <div className="absolute left-0 top-6 z-50 w-[380px] bg-white border border-border rounded-lg shadow-lg p-4 text-sm space-y-3">
+          <div>
+            <p className="font-medium text-foreground mb-1">What this is</p>
+            <p className="text-muted-foreground">
+              A point of view is the core claim your video is trying to make convincing.
+              It gives the video direction and makes it feel different from generic content on the same topic.
+            </p>
+          </div>
+          <div>
+            <p className="font-medium text-foreground mb-1">A useful way to frame it</p>
+            <p className="text-muted-foreground italic">
+              &quot;For [audience], [topic] isn&apos;t about [common assumption]; it&apos;s about [your insight].&quot;
+            </p>
+            <p className="text-muted-foreground text-xs mt-1">You don&apos;t need to follow this exactly.</p>
+          </div>
+          <div>
+            <p className="font-medium text-foreground mb-1">Weak vs. stronger</p>
+            <div className="space-y-2 text-muted-foreground">
+              <div>
+                <p><span className="text-[#A63228] font-medium">Weak:</span> &quot;AI can help marketers work faster.&quot;</p>
+                <p><span className="text-[#3A6B47] font-medium">Stronger:</span> &quot;For product marketers, AI is not most valuable for writing copy faster; it is most valuable for turning scattered inputs into sharper strategic angles.&quot;</p>
+              </div>
+              <div>
+                <p><span className="text-[#A63228] font-medium">Weak:</span> &quot;Startup exits are hard.&quot;</p>
+                <p><span className="text-[#3A6B47] font-medium">Stronger:</span> &quot;For first-time founders, startup exits are not mainly about finding a buyer; they are about surviving the 18-month dead zone when neither growth nor M&A interest is strong enough.&quot;</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function RoundThreeForm({
   fields,
@@ -31,85 +92,184 @@ export default function RoundThreeForm({
   onFieldConfirm,
   onFieldUnconfirm,
   onSectionConfirm,
+  onGenerateContentSpine,
+  briefContext,
   disabled = false,
-  researchComplete = true,
+  researchComplete: _researchComplete = true,
   showConfirmButton = true,
 }: RoundThreeFormProps) {
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState<string | null>(null);
+
+  // Determine phase: if generated fields have values, we're in Phase 2
+  const hasGeneratedFields = GENERATED_FIELDS.some(
+    (key) => {
+      const val = fields[key]?.value;
+      return Array.isArray(val) ? val.length > 0 : Boolean(val);
+    }
+  );
+  const phase: "pov" | "spine" = hasGeneratedFields ? "spine" : "pov";
+
+  const povValue = typeof fields.point_of_view?.value === "string" ? fields.point_of_view.value : "";
+
+  const handleGenerate = async () => {
+    if (!onGenerateContentSpine || !povValue.trim()) return;
+    setIsGenerating(true);
+    setGenerateError(null);
+    try {
+      await onGenerateContentSpine(povValue.trim());
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : "Failed to generate content spine");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   const requiredFields = KNOWLEDGE_SHARE_REQUIRED_FIELDS[3];
-  const canConfirm = areRequiredFieldsFilled(fields, 3);
+  const canConfirm = phase === "spine" && areRequiredFieldsFilled(fields, 3);
 
   return (
     <div className="space-y-6">
       {/* Section Header */}
       <div style={{ marginBottom: "22px" }}>
-        <h2 style={{ fontFamily: "'Fraunces', serif", fontSize: "28px", fontWeight: 400, color: "#1C2118", letterSpacing: "-0.6px", lineHeight: "1.15", marginBottom: "5px" }}>
+        <h2
+          style={{
+            fontFamily: "'Fraunces', serif",
+            fontSize: "28px",
+            fontWeight: 400,
+            color: "#1C2118",
+            letterSpacing: "-0.6px",
+            lineHeight: "1.15",
+            marginBottom: "5px",
+          }}
+        >
           Section 3: Content Spine
         </h2>
         <p style={{ fontSize: "13.5px", fontWeight: 300, color: "#5A6352" }}>
-          Define the structure and key points for your video content.
+          Start with your point of view — the one claim this video will build and defend.
         </p>
-        {!researchComplete && (
-          <div className="mt-2 flex items-center gap-2 text-sm text-[#7A5C1E] bg-[#F7F0E0] px-3 py-2 rounded">
-            <svg className="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-            Research is still running. Content suggestions will update when complete.
+      </div>
+
+      {/* Context Reminder */}
+      {briefContext && phase === "pov" && (
+        <div className="flex gap-4 text-xs text-muted-foreground bg-muted/30 rounded-md px-3 py-2">
+          {briefContext.audience && (
+            <span><span className="font-medium text-foreground">For:</span> {briefContext.audience}</span>
+          )}
+          {briefContext.topic && (
+            <span><span className="font-medium text-foreground">Topic:</span> {briefContext.topic}</span>
+          )}
+          {briefContext.goal && (
+            <span><span className="font-medium text-foreground">Goal:</span> {briefContext.goal}</span>
+          )}
+        </div>
+      )}
+
+      {/* POV Input — always visible */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-2">
+          <label
+            className="text-sm font-medium text-foreground"
+            htmlFor="pov-input"
+          >
+            Your point of view <span className="text-[#A63228]">*</span>
+          </label>
+          <PovTooltip />
+        </div>
+        <textarea
+          id="pov-input"
+          value={povValue}
+          onChange={(e) => onFieldChange("point_of_view", e.target.value)}
+          disabled={disabled || isGenerating || (phase === "spine" && !generateError)}
+          placeholder="e.g. For product marketers, AI is not most valuable for writing copy faster; it is most valuable for turning scattered inputs into sharper strategic angles."
+          className={cn(
+            "w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm min-h-[80px] resize-y",
+            "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary",
+            "disabled:opacity-60 disabled:cursor-not-allowed",
+            "placeholder:text-muted-foreground/50"
+          )}
+          rows={3}
+        />
+      </div>
+
+      {/* Generate Error */}
+      {generateError && (
+        <div className="flex items-center gap-2 bg-[#FBEAE8] border border-[#E8C0BC] text-[#A63228] rounded-lg px-3 py-2 text-xs">
+          {generateError}
+        </div>
+      )}
+
+      {/* Phase 1: Generate button */}
+      {phase === "pov" && showConfirmButton && (
+        <div className="border-t pt-4">
+          <button
+            onClick={handleGenerate}
+            disabled={!povValue.trim() || disabled || isGenerating}
+            className={cn(
+              "w-full py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2",
+              povValue.trim() && !disabled && !isGenerating
+                ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                : "bg-muted text-muted-foreground cursor-not-allowed"
+            )}
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating content spine...
+              </>
+            ) : (
+              "Generate Content Spine \u2192"
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Phase 2: Generated field cards */}
+      {phase === "spine" && (
+        <div className="space-y-4">
+          <div className="border-t pt-4">
+            <p className="text-xs text-muted-foreground mb-3">
+              Generated from your point of view. Edit any field before confirming.
+            </p>
           </div>
-        )}
-      </div>
+          {GENERATED_FIELDS.map((key) => {
+            const field = fields[key];
+            if (!field) return null;
+            return (
+              <FieldCard
+                key={key}
+                fieldKey={key}
+                field={field}
+                isRequired={requiredFields.includes(key)}
+                onChange={(value) => onFieldChange(key, value)}
+                onConfirm={() => onFieldConfirm(key)}
+                onUnconfirm={
+                  onFieldUnconfirm ? () => onFieldUnconfirm(key) : undefined
+                }
+                disabled={disabled}
+              />
+            );
+          })}
+        </div>
+      )}
 
-      {/* Field Cards */}
-      <div className="space-y-4">
-        {SECTION_3_FIELDS.map((key) => {
-          const field = fields[key];
-          if (!field) return null;
-
-          return (
-            <FieldCard
-              key={key}
-              fieldKey={key}
-              field={field}
-              isRequired={requiredFields.includes(key)}
-              onChange={(value) => onFieldChange(key, value)}
-              onConfirm={() => onFieldConfirm(key)}
-              onUnconfirm={onFieldUnconfirm ? () => onFieldUnconfirm(key) : undefined}
-              disabled={disabled}
-            />
-          );
-        })}
-      </div>
-
-      {/* Section Confirm Button */}
-      {showConfirmButton && (
+      {/* Phase 2: Confirm button */}
+      {phase === "spine" && showConfirmButton && (
         <div className="border-t pt-4">
           <button
             onClick={onSectionConfirm}
             disabled={!canConfirm || disabled}
-            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
+            className={cn(
+              "w-full py-3 px-4 rounded-lg font-medium transition-colors",
               canConfirm && !disabled
                 ? "bg-primary text-primary-foreground hover:bg-primary/90"
                 : "bg-muted text-muted-foreground cursor-not-allowed"
-            }`}
+            )}
           >
-            {canConfirm ? "Confirm Section 3 →" : "Fill all required fields to continue"}
+            {canConfirm
+              ? "Confirm Section 3 \u2192"
+              : "Fill all required fields to continue"}
           </button>
-          {!canConfirm && (
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              Fields marked with * are required
-            </p>
-          )}
         </div>
       )}
     </div>

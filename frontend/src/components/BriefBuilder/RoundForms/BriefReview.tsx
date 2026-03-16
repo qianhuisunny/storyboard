@@ -32,10 +32,10 @@ const SECTION_2_FIELDS = [
 ];
 
 const SECTION_3_FIELDS = [
-  "source_assets",
-  "must_avoid",
+  "point_of_view",
   "core_talking_points",
   "misconceptions",
+  "must_avoid",
 ];
 
 function getDisplayValue(field: BriefField, fieldKey: string): string {
