@@ -183,16 +183,14 @@ class BriefBuilder(BaseAgent):
         research_results: dict
     ) -> dict:
         """
-        Generate Section 3: Content Spine fields.
+        Generate Section 3: Content Spine fields from user's Point of View.
 
-        Uses LLM to infer core_talking_points, misconceptions, and must_avoid
-        based on confirmed fields from Rounds 1-2.
+        Uses chained generation order:
+        1. core_talking_points <- POV + audience + brief context (argument beats)
+        2. misconceptions <- POV + talking_points + audience (counter-assumptions)
+        3. must_avoid <- POV + talking_points + misconceptions (claim guardrails)
 
-        Field source mapping:
-        - core_talking_points: inferred (AI-suggested from confirmed fields)
-        - misconceptions: inferred (AI-suggested)
-        - must_avoid: inferred (AI-suggested)
-        - additional_notes: empty (optional, user fills in)
+        POV is the source of truth. All fields are downstream derivations.
         """
         # Extract confirmed field values for context
         def get_val(key: str, default: str = "") -> str:
@@ -202,6 +200,7 @@ class BriefBuilder(BaseAgent):
                 return ", ".join(v) if isinstance(v, list) else str(v)
             return str(field) if field else default
 
+        point_of_view = get_val("point_of_view")
         viewer_outcome = get_val("viewer_outcome")
         target_audience = get_val("target_audience")
         audience_level = get_val("audience_level", "intermediate")
@@ -211,34 +210,64 @@ class BriefBuilder(BaseAgent):
         delivery_tone = get_val("delivery_tone")
         freshness = get_val("freshness_expectation")
 
-        prompt = f"""## TASK: Generate Round 3 fields
+        prompt = f"""## TASK: Generate Content Spine from Point of View
 
-Follow the Round 3 generation guidelines in your system prompt.
+The user has provided a central claim (Point of View) that this video will build and defend.
+Your job is to generate the argument structure that supports this claim.
 
-## CONFIRMED FIELDS FROM ROUNDS 1-2
-- Viewer Outcome: {viewer_outcome}
+## POINT OF VIEW (source of truth)
+{point_of_view}
+
+## BRIEF CONTEXT
 - Target Audience: {target_audience}
 - Audience Level: {audience_level}
+- Viewer Outcome: {viewer_outcome}
 - Duration: {duration} seconds
 - Platform: {platform}
 - Viewer Next Action: {viewer_next_action}
 - Delivery Tone: {delivery_tone}
 - Freshness: {freshness}
 
+## GENERATION INSTRUCTIONS
+
+Generate three fields in this exact dependency order:
+
+### 1. core_talking_points (3-5 items)
+These are the major ARGUMENT BEATS required to make the POV convincing.
+- Each point is a reasoning step that builds the case for the claim
+- They should create progression: point N builds on point N-1
+- Do NOT list subtopics or generic bullet points — list the steps of the argument
+
+### 2. misconceptions (2-3 items)
+These are the ASSUMPTIONS or DEFAULT FRAMINGS this POV pushes against.
+- What does the audience typically get wrong or oversimplify about this topic?
+- These create tension against the POV — they are what make the claim non-obvious
+- Do NOT restate talking points in negative form
+
+### 3. must_avoid (1-3 items)
+These are what would make THIS SPECIFIC POV weaker, blurrier, or less credible.
+- Identify traps specific to this argument that would dilute the thesis
+- Be specific to this POV, not generic writing advice
+- Example format: "Don't retreat to [safe framing] — this POV claims [specific insight]"
+
+## QUALITY CHECK
+Before returning, verify:
+1. Each talking point directly advances the case for the POV
+2. Each misconception identifies a genuine counter-assumption, not a mirror-phrased talking point
+3. Each must_avoid is specific to this POV, not generic advice like "don't be vague"
+4. The three fields are functionally distinct — no paraphrases of one another
+
 ## OUTPUT FORMAT
 Return a JSON object with exactly these 3 keys:
 {{
-  "core_talking_points": ["point 1", "point 2", "point 3"],
-  "misconceptions": ["misconception 1", "misconception 2"],
-  "must_avoid": ["avoid item 1"]
-}}
+  "core_talking_points": ["argument beat 1", "argument beat 2", "argument beat 3"],
+  "misconceptions": ["counter-assumption 1", "counter-assumption 2"],
+  "must_avoid": ["POV-specific guardrail 1"]
+}}"""
 
-Generate 3-5 talking points, 2-3 misconceptions, and 0-3 must-avoid items.
-Be specific to the topic, not generic."""
-
-        # Call LLM to generate suggestions
+        # Call LLM to generate content spine
         try:
-            response = self.call_llm(prompt, max_tokens=1500, temperature=0.7)
+            response = self.call_llm(prompt, max_tokens=2000, temperature=0.7)
             parsed = self._extract_json(response)
         except Exception as e:
             print(f"[BriefBuilder] Round 3 LLM call failed: {e}")
@@ -294,13 +323,6 @@ Be specific to the topic, not generic."""
                     "confirmed": False,
                 },
             }
-
-        # additional_notes - always empty (optional, user fills in)
-        fields["additional_notes"] = {
-            "value": "",
-            "source": "empty",
-            "confirmed": False,
-        }
 
         return {"round": 3, "fields": fields}
 

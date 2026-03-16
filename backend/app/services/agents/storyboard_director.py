@@ -102,7 +102,7 @@ class StoryboardDirector(BaseAgent):
         duration = self._extract_brief_field(story_brief, "duration") or "60"
         platform = self._extract_brief_field(story_brief, "platform") or ""
         delivery_tone = self._extract_brief_field(story_brief, "delivery_tone") or ""
-        selected_angle = self._extract_brief_field(story_brief, "selected_angle") or ""
+        point_of_view = self._extract_brief_field(story_brief, "point_of_view") or ""
 
         talking_points = self._extract_brief_field(story_brief, "core_talking_points") or []
         if isinstance(talking_points, str):
@@ -138,8 +138,8 @@ PLATFORM
 DELIVERY TONE
 {delivery_tone}
 
-SELECTED ANGLE
-{selected_angle}
+POINT OF VIEW
+{point_of_view}
 
 CORE TALKING POINTS
 {tp_text}

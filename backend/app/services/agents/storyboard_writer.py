@@ -1,7 +1,7 @@
 """
 Storyboard Writer Agent - Expands section-level outlines into screen-by-screen storyboards.
 
-Takes Director's text outline + evidence research → calls LLM per section →
+Takes Director's text outline + evidence research → single LLM call for entire storyboard →
 post-processes with DurationCalculator → returns production-ready screen list.
 """
 
@@ -47,7 +47,7 @@ class StoryboardWriter(BaseAgent):
         """
         Process outline into production storyboard.
 
-        For text outlines: parse sections, call LLM per section, post-process.
+        For text outlines: parse sections, single LLM call for full storyboard, post-process.
         For legacy screen-lists: add duration + placeholder images.
         """
         if not state.screen_outline:
@@ -72,41 +72,91 @@ class StoryboardWriter(BaseAgent):
         allowed_types = self._get_allowed_screen_types(story_brief)
         target_duration = self._get_target_duration(story_brief)
 
-        # 3. Process each section
-        all_screens = []
+        # 3. Gather all evidence across sections
+        all_evidence = {}
         for section in sections:
-            prev_screens = all_screens[-2:] if all_screens else []
-            start_number = len(all_screens) + 1
-
-            # Get evidence for this section
+            title = section.get("title", "")
             section_evidence = self._get_evidence_for_section(
-                evidence_research, section.get("title", "")
+                evidence_research, title
             )
+            if section_evidence:
+                all_evidence[title] = section_evidence
 
-            section_screens = self._process_section(
-                section=section,
-                evidence=section_evidence,
-                full_outline=outline_text,
-                brief_context=brief_context,
-                allowed_types=allowed_types,
-                prev_screens=prev_screens,
-                start_number=start_number,
+        # 4. Compute screen budget
+        total_tp = sum(len(s.get("talking_points", [])) for s in sections)
+        # Floor: at least 1 screen per talking point (min 2 per section)
+        min_screens = max(len(sections) * 2, total_tp)
+        # Ceiling: from target duration (~30s per screen), capped at 8 per section
+        max_screens = min(max(min_screens, round(target_duration / 30)), len(sections) * 8)
+        if min_screens > max_screens:
+            max_screens = min_screens
+
+        # 5. Build full storyboard prompt and call LLM once
+        user_prompt = self._build_full_storyboard_prompt(
+            sections=sections,
+            all_evidence=all_evidence,
+            full_outline=outline_text,
+            brief_context=brief_context,
+            allowed_types=allowed_types,
+            min_screens=min_screens,
+            max_screens=max_screens,
+            target_duration=target_duration,
+        )
+
+        # Log request
+        if project_id:
+            log_llm_request(
                 project_id=project_id,
+                phase="storyboard_writer_full",
+                input_fields={
+                    "sections": len(sections),
+                    "target_screens": f"{min_screens}-{max_screens}",
+                },
+                system_prompt=self.system_prompt[:200] if self.system_prompt else "",
+                user_prompt=user_prompt[:200],
+                max_tokens=16000,
             )
-            all_screens.extend(section_screens)
 
-        # 4. Post-process: add duration + on_screen_visual
+        # Call LLM
+        all_screens = self._call_storyboard_llm(user_prompt, project_id)
+
+        # 6. Post-process: add duration + on_screen_visual
         all_screens = self._post_process_screens(all_screens, allowed_types)
 
-        # 5. Validate and adjust total duration
+        # 7. Validate and adjust total duration
         if target_duration > 0:
             all_screens = self._adjust_total_duration(all_screens, target_duration)
 
-        # 6. Ensure sequential numbering
+        # 8. Ensure sequential numbering
         for i, screen in enumerate(all_screens):
             screen["screen_number"] = i + 1
 
         return all_screens
+
+    def _call_storyboard_llm(self, user_prompt: str, project_id: Optional[str] = None) -> list:
+        """Single LLM call for full storyboard, with one retry on failure."""
+        response = self.call_llm(user_prompt, max_tokens=16000, temperature=0.7)
+        parsed = self._extract_json(response)
+
+        # Log response
+        if project_id:
+            log_llm_response(
+                project_id=project_id,
+                phase="storyboard_writer_full",
+                raw_response=response[:500] if response else "",
+                parsed_result={
+                    "screens_generated": len(parsed) if isinstance(parsed, list) else 0,
+                },
+            )
+
+        if not parsed or not isinstance(parsed, list):
+            # Retry once with lower temperature
+            response = self.call_llm(user_prompt, max_tokens=16000, temperature=0.4)
+            parsed = self._extract_json(response)
+            if not parsed or not isinstance(parsed, list):
+                return []
+
+        return parsed
 
     # =========================================================================
     # Outline Parsing (mirrors frontend/src/components/OutlineBuilder/outlineParser.ts)
@@ -249,7 +299,7 @@ class StoryboardWriter(BaseAgent):
             "target_audience": self._extract_brief_field(story_brief, "target_audience", ""),
             "audience_level": self._extract_brief_field(story_brief, "audience_level", "intermediate"),
             "delivery_tone": self._extract_brief_field(story_brief, "delivery_tone", ""),
-            "selected_angle": self._extract_brief_field(story_brief, "selected_angle", ""),
+            "point_of_view": self._extract_brief_field(story_brief, "point_of_view", ""),
             "duration": self._extract_brief_field(story_brief, "duration", "60"),
             "viewer_outcome": self._extract_brief_field(story_brief, "viewer_outcome", ""),
         }
@@ -263,8 +313,9 @@ class StoryboardWriter(BaseAgent):
         # Map brief broll_type values to valid screen types
         type_map = {
             "slides": "slides",
-            "whiteboard": "whiteboard_animation",
-            "diagrams": "whiteboard_animation",
+            "whiteboard_animation": "whiteboard_animation",
+            "whiteboard": "whiteboard_animation",  # legacy
+            "diagrams": "whiteboard_animation",     # legacy
             "screen_recording": "screen_recording",
             "code_editor": "code_editor",
             "stock_footage": "stock_footage",
@@ -355,143 +406,41 @@ class StoryboardWriter(BaseAgent):
         return "\n".join(lines)
 
     # =========================================================================
-    # Section Processing (LLM call per section)
+    # Full Storyboard Prompt (single LLM call)
     # =========================================================================
 
-    def _process_section(
+    def _build_full_storyboard_prompt(
         self,
-        section: dict,
-        evidence: list,
+        sections: list,
+        all_evidence: dict,
         full_outline: str,
         brief_context: dict,
         allowed_types: list,
-        prev_screens: list,
-        start_number: int,
-        project_id: Optional[str] = None,
-    ) -> list:
-        """Process one section: build prompt, call LLM, parse response."""
-        # Screen count range: min = talking points (each needs ≥1 screen), max = from duration
-        # Writer decides freely within range — new screen = new visual change needed
-        min_sec, max_sec = self._parse_duration_range(section.get("duration_range", ""))
-        tp_count = len(section.get("talking_points", []))
-        min_screens = max(2, tp_count)  # at least 1 screen per talking point, floor of 2
-        max_screens = min(max(2, round(max_sec / 30)), 8)  # from max duration, capped at 8
-        # Ensure min doesn't exceed max
-        if min_screens > max_screens:
-            max_screens = min_screens
-
-        # Build user prompt
-        user_prompt = self._build_section_prompt(
-            section=section,
-            evidence=evidence,
-            full_outline=full_outline,
-            brief_context=brief_context,
-            allowed_types=allowed_types,
-            prev_screens=prev_screens,
-            start_number=start_number,
-            min_screens=min_screens,
-            max_screens=max_screens,
-            min_sec=min_sec,
-            max_sec=max_sec,
-        )
-
-        # Log request
-        if project_id:
-            log_llm_request(
-                project_id=project_id,
-                phase=f"storyboard_writer_section_{section.get('section_number', '?')}",
-                input_fields={
-                    "section": section.get("title", ""),
-                    "target_screens": f"{min_screens}-{max_screens}",
-                },
-                system_prompt=self.system_prompt[:200] if self.system_prompt else "",
-                user_prompt=user_prompt[:200],
-                max_tokens=8000,
-            )
-
-        # Call LLM
-        response = self.call_llm(user_prompt, max_tokens=8000, temperature=0.7)
-
-        # Parse JSON
-        parsed = self._extract_json(response)
-
-        # Log response
-        if project_id:
-            log_llm_response(
-                project_id=project_id,
-                phase=f"storyboard_writer_section_{section.get('section_number', '?')}",
-                raw_response=response[:500] if response else "",
-                parsed_result={
-                    "screens_generated": len(parsed) if isinstance(parsed, list) else 0,
-                },
-            )
-
-        if not parsed or not isinstance(parsed, list):
-            # Retry once with lower temperature
-            response = self.call_llm(user_prompt, max_tokens=8000, temperature=0.4)
-            parsed = self._extract_json(response)
-            if not parsed or not isinstance(parsed, list):
-                return []
-
-        return parsed
-
-    def _build_section_prompt(
-        self,
-        section: dict,
-        evidence: list,
-        full_outline: str,
-        brief_context: dict,
-        allowed_types: list,
-        prev_screens: list,
-        start_number: int,
         min_screens: int,
         max_screens: int,
-        min_sec: int,
-        max_sec: int,
+        target_duration: float,
     ) -> str:
-        """Construct the user prompt for one section's LLM call."""
-        # Format talking points
-        tp_text = "\n".join(f"- {tp}" for tp in section.get("talking_points", [])) or "- (none)"
-        ev_text = "\n".join(f"- {ev}" for ev in section.get("evidence_needed", [])) or "- (none)"
-        # Format evidence research
-        # Find the research_brief for this section from evidence_research
-        evidence_text = self._format_evidence_for_prompt(evidence)
+        """Construct the user prompt for the full storyboard in one LLM call."""
 
-        # Format previous screens
-        if prev_screens:
-            prev_text = json.dumps(prev_screens, indent=2, ensure_ascii=False)
-        else:
-            prev_text = "This is the first section — no previous screens."
+        # Build per-section detail blocks
+        section_blocks = []
+        for section in sections:
+            title = section.get("title", "")
+            tp_text = "\n".join(f"  - {tp}" for tp in section.get("talking_points", [])) or "  - (none)"
+            ev_text = "\n".join(f"  - {ev}" for ev in section.get("evidence_needed", [])) or "  - (none)"
 
-        return f"""Generate screens for this section.
+            # Evidence research for this section
+            evidence = all_evidence.get(title, [])
+            evidence_text = self._format_evidence_for_prompt(evidence)
 
-=== FULL OUTLINE (context only — do not generate screens for other sections) ===
-{full_outline}
+            # Duration range for this section
+            min_sec, max_sec = self._parse_duration_range(section.get("duration_range", ""))
 
-=== STORY BRIEF ===
-Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
-Tone: {brief_context['delivery_tone']}
-Angle: {brief_context['selected_angle']}
-Viewer outcome: {brief_context['viewer_outcome']}
-Total video duration: {brief_context['duration']}s
-
-=== ALLOWED SCREEN TYPES ===
-{', '.join(allowed_types)}
-
-=== EVIDENCE RESEARCH FOR THIS SECTION ===
-{evidence_text}
-
-=== PREVIOUS SECTION'S LAST SCREENS (for visual continuity) ===
-{prev_text}
-
-=== SECTION TO EXPAND ===
-Section {section.get('section_number', '?')} — {section.get('title', '')}
-
+            block = f"""### Section {section.get('section_number', '?')} — {title}
 Purpose: {section.get('purpose', '')}
 Entry assumption: {section.get('entry_assumption', 'None')}
 Exit state: {section.get('exit_state', '')}
-Target duration: {min_sec}-{max_sec} seconds
-Screen range: {min_screens}-{max_screens} screens
+Duration range: {min_sec}–{max_sec} seconds
 
 Talking points:
 {tp_text}
@@ -499,20 +448,48 @@ Talking points:
 Evidence needed:
 {ev_text}
 
+Evidence research:
+{evidence_text}"""
+            section_blocks.append(block)
+
+        sections_text = "\n\n".join(section_blocks)
+
+        return f"""Generate the COMPLETE storyboard for this video — all sections, all screens, in one pass.
+
+=== STORY BRIEF ===
+Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
+Tone: {brief_context['delivery_tone']}
+Point of View: {brief_context['point_of_view']}
+Viewer outcome: {brief_context['viewer_outcome']}
+Total video duration: {target_duration}s
+
+=== ALLOWED SCREEN TYPES (palette — use what fits, not all of them) ===
+{', '.join(allowed_types)}
+
+=== FULL OUTLINE ===
+{full_outline}
+
+=== SECTIONS WITH EVIDENCE ===
+{sections_text}
+
 === INSTRUCTIONS ===
-Starting screen number: {start_number}
-Generate {min_screens}-{max_screens} screens for this section.
+Generate {min_screens}–{max_screens} screens total for the ENTIRE video.
 
 **Constraints:**
-- Every talking point listed above MUST appear in at least one screen's voiceover. Do not skip or vaguely paraphrase any talking point.
+- Every talking point from every section MUST appear in at least one screen's voiceover. Do not skip or vaguely paraphrase any talking point.
 - The ONE principle for when to start a new screen: does the content need a different visual? If the visual stays the same, keep it in the current screen. If the viewer needs to see something new, start a new screen.
+- Visuals must build progressively across the entire video — no resets between sections.
+- The first screen of each section should transition naturally from the previous section's ending.
+- Treat the video as one continuous narrative, not isolated section chunks.
 
-Return a JSON array. Each element has exactly 5 fields:
-- screen_number (integer, starting from {start_number})
+Return a JSON array. Each element has exactly 7 fields:
+- screen_number (integer, sequential from 1)
+- section_number (integer, which section this screen belongs to)
+- section_title (string, title of the section)
 - screen_type (one of: {', '.join(allowed_types)})
 - voiceover_text (as long as the visual stays the same — new screen only when the visual changes)
-- visual_direction (array of 2-4 specific visual elements that EXPLAIN the voiceover content)
-- action_notes (1-2 sentences: cognitive function + execution guidance)
+- visual_direction (array of 2–4 specific visual elements that EXPLAIN the voiceover content)
+- action_notes (1–2 sentences: cognitive function + execution guidance)
 
 Follow your system prompt rules strictly. Every sentence of voiceover must teach — no filler, no announcements, no motivation."""
 

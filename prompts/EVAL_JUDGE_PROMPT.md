@@ -19,7 +19,7 @@ You will evaluate one of two content types per call:
 3. **evidence_relevance** — Are the suggested evidence areas and research queries actually relevant to the claims being made? Would they strengthen the argument?
    - Example tags: `irrelevant_evidence`, `missing_key_evidence`
 
-4. **brief_alignment** — Does the outline serve the brief's `viewer_outcome` and `selected_angle`? Has the AI drifted to a related but different topic?
+4. **brief_alignment** — Does the outline serve the brief's `viewer_outcome` and `point_of_view`? Has the AI drifted to a related but different topic?
    - Example tags: `drifted_from_angle`, `outcome_not_served`
 
 5. **section_necessity** — Does every section earn its place? Could any sections be merged without losing value? Are there filler sections that don't advance the viewer toward the outcome?

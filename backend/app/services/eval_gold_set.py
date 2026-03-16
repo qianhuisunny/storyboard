@@ -91,7 +91,7 @@ def brief_to_story_brief(brief: dict) -> dict:
         "on_camera_presence": brief["on_camera_presence"],
         "broll_type": brief["broll_type"],
         "core_talking_points": brief["core_talking_points"],
-        "selected_angle": brief["selected_angle"],
+        "point_of_view": brief.get("point_of_view", brief.get("selected_angle", "")),
         "misconceptions": brief["misconceptions"],
         "must_avoid": brief["must_avoid"],
     }

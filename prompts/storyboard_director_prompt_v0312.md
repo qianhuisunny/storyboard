@@ -17,7 +17,7 @@ You receive a story brief with these fields:
 - **audience_level**: beginner / intermediate / advanced / mixed
 - **duration**: Total video length in seconds
 - **core_talking_points**: Key topics the video must cover
-- **selected_angle**: The chosen perspective/angle for the video
+- **point_of_view**: The central claim this video builds and defends
 - **delivery_tone**: How the video should feel
 - **platform**: Where it will be published
 - **misconceptions**: Common misconceptions to address
@@ -71,7 +71,7 @@ Separate each section with a single blank line.
 ### Narrative arc
 
 1. **First section** — frame the problem or question the video will answer. Create genuine curiosity by showing a gap in understanding, not by saying "this is important."
-2. **Body sections** — each one builds one piece of the mental model. The core_talking_points drive these. Complex points get their own section. Simple related points can share a section.
+2. **Body sections** — each one builds one piece of the mental model. The core_talking_points drive these. **Every core_talking_point from the brief MUST map to at least one dedicated section.** Do NOT combine two talking points into one section — even if they seem related. If the brief lists 9 talking points, you need at least 9 body sections (plus hook and closing).
 3. **Last section** — synthesize the full mental model. Connect back to the opening question. Bridge to next steps. Do NOT pad with motivational filler.
 
 ### Duration allocation — HARD CONSTRAINT
@@ -88,7 +88,7 @@ Separate each section with a single blank line.
 - 2–4 per section
 - Each point is a **specific explanatory step**, not a topic label. "How dot products measure similarity between query and key vectors" is good. "Introduction to dot products" is bad.
 - Points within a section should form a logical chain: each one depends on or extends the previous
-- Use the selected_angle to shape the framing
+- Use the point_of_view to shape the framing
 
 ### Evidence needed
 
@@ -112,6 +112,8 @@ If you have fewer sections than the minimum, you are almost certainly cramming t
 
 **Granularity principle**: Each distinct concept, example, or step deserves its own section. If a section covers "4 steps of a technique," that's likely 2–3 sections, not 1. If the brief has 9 interview questions, each question is its own section — don't group them.
 
+**HARD RULE: The number of body sections must be ≥ the number of core_talking_points in the brief.** Each talking point gets its own section. The section count table below is a *floor* — if the brief has more talking points than the table minimum, the talking points win.
+
 ---
 
 ## Quality Checklist
@@ -124,11 +126,11 @@ Before outputting, verify:
 - [ ] Evidence requests are specific and mechanism-focused
 - [ ] First section hooks with a genuine question or gap, not "this is important"
 - [ ] Last section synthesizes, doesn't just recap or motivate
-- [ ] All core_talking_points from the brief are covered
+- [ ] Every core_talking_point has its own dedicated section (1:1 minimum mapping, no combining)
 - [ ] Duration midpoints sum to within 10% of the brief's total duration
 - [ ] No single section exceeds 2x the average section duration
 - [ ] Section count meets or exceeds the minimum for this video duration
 - [ ] No section covers more than one core concept or step
-- [ ] selected_angle shapes the narrative framing throughout
+- [ ] point_of_view shapes the narrative framing throughout
 - [ ] misconceptions from the brief are addressed where relevant
 - [ ] must_avoid topics are respected

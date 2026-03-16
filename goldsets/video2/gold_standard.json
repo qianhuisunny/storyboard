@@ -1,0 +1,699 @@
+{
+  "brief": {
+    "video_url": "Ex-Google Recruiter.mp4",
+    "video_title": "9 Job Interview Questions and the 'Lies' You Should Tell",
+    "viewer_outcome": "Strategically answer nine common job interview questions by filtering the truth to avoid presenting yourself as a professional risk.",
+    "target_audience": "Job seekers and professionals preparing for corporate interviews",
+    "audience_level": "intermediate",
+    "total_duration_sec": 714,
+    "platform": "youtube",
+    "delivery_tone": "authoritative but conversational",
+    "on_camera_presence": "full",
+    "broll_type": [
+      "animation",
+      "text_overlays"
+    ],
+    "core_talking_points": [
+      "Hook: Hiring managers expect a filtered, strategic version of the truth; raw honesty can hurt you.",
+      "1. 'How are you?': Small talk evaluates emotional regulation; answer positively.",
+      "2. 'Why do you want to work here?': Frame your answer around what you will do for them, not the company mission.",
+      "3. 'Where do you see yourself in 5 years?': Align goals with the role; don't signal you will leave or get bored.",
+      "4. 'Why are looking for a new opportunity?': Keep it clean; trashing a past employer makes you a future risk.",
+      "5. 'How do you feel about your current manager?': Never speak negatively; reframe friction as learning structure.",
+      "6. 'Your hobbies': Share specific, active hobbies that signal curiosity, patience, and problem-solving.",
+      "7. 'Your job title and description': Claim the actual senior-level work you did, regardless of your official title.",
+      "8. 'Resume gaps': State the gap factually and confidently without apologizing or over-explaining.",
+      "9. 'Do you have questions for us?': Ask strategic, forward-thinking questions about the role; never say no."
+    ],
+    "point_of_view": "Reframing interview questions as strategic risk-assessment tests rather than literal requests for personal honesty.",
+    "misconceptions": [
+      "Total transparency and honesty is the best policy during a job interview.",
+      "Small talk is just polite filler before the real evaluation begins.",
+      "A resume gap is a dealbreaker that you have to heavily apologize for or over-explain."
+    ],
+    "must_avoid": [
+      "Venting about toxic work environments, bad bosses, or unfair treatment at previous jobs."
+    ]
+  },
+  "outline": [
+    {
+      "section_number": 1,
+      "section_title": "The Hook: 'Lying' in Interviews",
+      "purpose": "To grab attention with a counter-intuitive premise and establish the speaker's authority to deliver hard truths.",
+      "entry_assumption": "The viewer expects standard, generic interview tips.",
+      "exit_state": "The viewer is intrigued by the concept of 'strategic truth' and trusts the speaker's credentials.",
+      "start_timestamp": "0:00",
+      "end_timestamp": "0:41",
+      "duration_sec": 41,
+      "talking_points": [
+        "Your honest answer in an interview can actually hurt you.",
+        "Giving the filtered, expected version of the truth is not fake; it is what hiring managers require."
+      ],
+      "evidence_used": [
+        "A list of high-profile company credentials (Google, TikTok, Uber, etc.) to validate the controversial claim."
+      ],
+      "visual_intent": [
+        "Speaker direct to camera with text animation highlighting the counter-intuitive hook."
+      ]
+    },
+    {
+      "section_number": 2,
+      "section_title": "Question 1: The Hidden Audition (How are you?)",
+      "purpose": "To show that evaluation begins immediately and small talk is a test of emotional regulation.",
+      "entry_assumption": "The viewer believes small talk is un-evaluated friendly chatter.",
+      "exit_state": "The viewer understands maintaining professional energy during small talk is a required skill.",
+      "start_timestamp": "0:42",
+      "end_timestamp": "1:29",
+      "duration_sec": 47,
+      "talking_points": [
+        "Answering 'How are you?' with complaints about traffic or a cold shows an inability to regulate your energy on a hard day."
+      ],
+      "evidence_used": [
+        "Relatable 'bad' examples of small talk (complaining about traffic/health).",
+        "A clear, concise script for the 'correct' positive answer."
+      ],
+      "visual_intent": [
+        "Animated interview scene with speech bubbles showing wrong vs right answers."
+      ]
+    },
+    {
+      "section_number": 3,
+      "section_title": "Question 2: Flipping the Value (Why work here?)",
+      "purpose": "To shift the candidate's mindset from 'what the company offers me' to 'what I can solve for the company.'",
+      "entry_assumption": "The viewer thinks expressing love for the company's mission is a strong answer.",
+      "exit_state": "The viewer treats the interview as a mutual business meeting, not an audition.",
+      "start_timestamp": "1:30",
+      "end_timestamp": "2:23",
+      "duration_sec": 53,
+      "talking_points": [
+        "Praising the company's website mission tells the interviewer nothing about your actual capability.",
+        "Stop treating interviews like auditions; treat them like a meeting between two parties offering mutual value."
+      ],
+      "evidence_used": [
+        "The standard cliché answer as a negative example.",
+        "A script template that frames the answer around solving the company's specific problems."
+      ],
+      "visual_intent": [
+        "Text overlay showing 'Flip the Question' mindset shift."
+      ]
+    },
+    {
+      "section_number": 4,
+      "section_title": "Question 3: The Retention Check (5-year plan)",
+      "purpose": "To explain the true intent of the 5-year question as a check for retention and alignment.",
+      "entry_assumption": "The viewer thinks the employer genuinely cares about their personal career roadmap.",
+      "exit_state": "The viewer knows to align their future goals strictly with becoming an expert in the current role.",
+      "start_timestamp": "2:24",
+      "end_timestamp": "3:35",
+      "duration_sec": 71,
+      "talking_points": [
+        "The '5-year plan' question is solely to determine if you will quit in six months or get bored in the role.",
+        "Mentioning grad school or entrepreneurship immediately signals you will not stay long-term."
+      ],
+      "evidence_used": [
+        "Specific examples of honest but 'wrong' answers (grad school, starting a business)."
+      ],
+      "visual_intent": [
+        "Strike-through animations on wrong answers, green checkmark on correct script."
+      ]
+    },
+    {
+      "section_number": 5,
+      "section_title": "Question 4: The Risk of Negativity (Why leave?)",
+      "purpose": "To explicitly warn against complaining about past employers, even if justified.",
+      "entry_assumption": "The viewer believes a genuinely toxic past boss is a valid, sympathetic excuse for wanting a new job.",
+      "exit_state": "The viewer strictly avoids negative talk, understanding it reflects poorly on their own risk profile.",
+      "start_timestamp": "3:36",
+      "end_timestamp": "4:26",
+      "duration_sec": 50,
+      "talking_points": [
+        "Trashing a current employer makes the interviewer assume you will speak poorly of them in the future."
+      ],
+      "evidence_used": [
+        "A brief explanation of the hiring manager's internal psychology (assessing future risk)."
+      ],
+      "visual_intent": [
+        "Full-screen text overlay for maximum emphasis: 'What is she going to say about us in two years?'"
+      ]
+    },
+    {
+      "section_number": 6,
+      "section_title": "Question 5: The Management Match (Current manager)",
+      "purpose": "To show how criticizing a manager's style can instantly disqualify a candidate.",
+      "entry_assumption": "The viewer thinks explaining their preferred management style through past grievances is safe.",
+      "exit_state": "The viewer has a script to spin negative management experiences into positive learning outcomes.",
+      "start_timestamp": "4:27",
+      "end_timestamp": "5:52",
+      "duration_sec": 85,
+      "talking_points": [
+        "Criticizing a past manager's style can instantly cost you the job if the hiring manager shares that same style.",
+        "Reframe micromanagement as 'providing structure' to show adaptability."
+      ],
+      "evidence_used": [
+        "A highly specific, real-world anecdote where a candidate lost an offer due to style mismatch.",
+        "A pivot script to turn a negative trait into a positive learning experience."
+      ],
+      "visual_intent": [
+        "Animated anecdote showing the candidate-interviewer style mismatch moment."
+      ]
+    },
+    {
+      "section_number": 7,
+      "section_title": "Question 6: Signaling Character (Hobbies)",
+      "purpose": "To reframe the 'hobbies' question as a strategic tool to prove engagement and problem-solving skills.",
+      "entry_assumption": "The viewer thinks hobbies are irrelevant personal trivia.",
+      "exit_state": "The viewer knows to highlight a specific, active hobby.",
+      "start_timestamp": "5:53",
+      "end_timestamp": "7:21",
+      "duration_sec": 88,
+      "talking_points": [
+        "Listing passive activities like watching TV makes you forgettable in a stack of candidates.",
+        "Specific, active hobbies signal to the employer that you possess curiosity and the patience to troubleshoot."
+      ],
+      "evidence_used": [
+        "Examples of generic, forgettable hobbies.",
+        "Concrete examples of memorable hobbies that signal soft skills (e.g., restoring a vintage motorcycle, mastering sourdough)."
+      ],
+      "visual_intent": [
+        "Image graphic of vintage motorcycle; rapid text pop-ups of good hobby examples."
+      ]
+    },
+    {
+      "section_number": 8,
+      "section_title": "Question 7: Owning Your Value (Job title)",
+      "purpose": "To empower candidates to accurately claim their un-titled achievements.",
+      "entry_assumption": "The viewer feels they can only claim official titles granted by HR.",
+      "exit_state": "The viewer is prepared to confidently state the actual senior-level work they performed.",
+      "start_timestamp": "7:22",
+      "end_timestamp": "8:52",
+      "duration_sec": 90,
+      "talking_points": [
+        "Waiting for official title changes to claim your senior-level work allows less experienced candidates to take the jobs you deserve."
+      ],
+      "evidence_used": [
+        "A role-play script showing how to acknowledge an official junior title while detailing senior-level execution."
+      ],
+      "visual_intent": [
+        "Text graphic: 'Title = HR. Work = Reality'."
+      ]
+    },
+    {
+      "section_number": 9,
+      "section_title": "Question 8: Handling the Gap (Resume gaps)",
+      "purpose": "To teach candidates to treat resume gaps as non-issues driven by confident delivery.",
+      "entry_assumption": "The viewer feels deeply insecure about time off and feels the need to over-explain.",
+      "exit_state": "The viewer can state their gap factually without apologizing.",
+      "start_timestamp": "8:53",
+      "end_timestamp": "10:18",
+      "duration_sec": 85,
+      "talking_points": [
+        "If you are in the interview, the hiring team already saw your resume gap and decided it was not a dealbreaker.",
+        "Defensive energy when answering makes the gap weird; confident energy diffuses it."
+      ],
+      "evidence_used": [
+        "A short, punchy script for general gaps.",
+        "A longer script demonstrating how to frame caregiving/personal time off professionally."
+      ],
+      "visual_intent": [
+        "Text graphic: 'Defensive = Weird. Confident = Moving on.'"
+      ]
+    },
+    {
+      "section_number": 10,
+      "section_title": "Question 9: Strategic Closing (Questions for us?)",
+      "purpose": "To provide specific closing questions that demonstrate forward-thinking.",
+      "entry_assumption": "The viewer feels the interview is over when the employer stops asking questions.",
+      "exit_state": "The viewer knows which high-leverage questions to ask to leave a strong final impression.",
+      "start_timestamp": "10:19",
+      "end_timestamp": "11:54",
+      "duration_sec": 95,
+      "talking_points": [
+        "Having no questions communicates disinterest and a lack of forward thinking about the role.",
+        "The best candidates ask questions that force the interviewer to think critically about the role's challenges."
+      ],
+      "evidence_used": [
+        "Specific, high-leverage questions the candidate can memorize and use (e.g., 'What does success look like in 90 days?')."
+      ],
+      "visual_intent": [
+        "Text slides cycling through recommended closing questions."
+      ]
+    }
+  ],
+  "storyboard": [
+    {
+      "screen_number": 1,
+      "section_number": 1,
+      "screen_type": "talking_head",
+      "voiceover_text": "These are lies you can say in a job interview. At least that's what it feels like when you're the one saying them. Because what I'm going to share are the moments where your honest answer could hurt you. Even though it shouldn't. And the version you give instead? It's not fake. It's what everyone in hiring expects you to say. But if no one's ever told you that, it can feel like you're being dishonest. I've spent over a decade on the other side of the hiring table at Google, TikTok, Uber, Lyft, and the New York Times, and I'm going to walk you through all nine of the answers that we expect you to give, and why. So let's get into it.",
+      "visual_direction": [
+        "Speaker looking directly into the camera in a bright home office setting."
+      ],
+      "action_notes": "0:11 - Highlighted text animation: 'Your honest answer could hurt you'. 0:24 - Logos of Google, TikTok, Uber, Lyft, and NYT pop up sequentially to match voiceover. 0:32 - Text bubbles appear on screen displaying all 9 questions."
+    },
+    {
+      "screen_number": 2,
+      "section_number": 2,
+      "screen_type": "animation",
+      "voiceover_text": "Number one. How are you? This feels like small talk, but it's not. It's an audition that starts before you think it does. I've watched candidates lose momentum in the first 10 seconds of an interview. They'll say something like, 'I'm just getting over a cold' or 'Honestly, it's been a rough week' or 'Traffic was a nightmare getting here!'",
+      "visual_direction": [
+        "Animated graphic of two simple silhouette figures sitting in chairs across from each other in an office with a city view."
+      ],
+      "action_notes": "0:42 - Hard cut to animation. 0:50 - Three separate speech bubbles pop up one by one, synced with the negative examples in the audio ('cold', 'rough week', 'traffic')."
+    },
+    {
+      "screen_number": 3,
+      "section_number": 2,
+      "screen_type": "talking_head",
+      "voiceover_text": "And what they don't realize is that I'm already taking a mental note. Not because I'm judging them as a person, but because I'm asking myself, 'Is this how they're going to show up on a hard day at work?'",
+      "visual_direction": [
+        "Speaker on screen."
+      ],
+      "action_notes": "1:03 - Jump cut back to speaker. Slight digital zoom in on speaker's face to emphasize the serious tone."
+    },
+    {
+      "screen_number": 4,
+      "section_number": 2,
+      "screen_type": "animation",
+      "voiceover_text": "You are always great. Always. So say, 'I'm great, thank you. How are you?'",
+      "visual_direction": [
+        "The same animated office scene."
+      ],
+      "action_notes": "1:14 - Cut back to animation. A green checkmark appears over the candidate figure. 1:16 - Single speech bubble pops up with the text 'I'm great, thank you. How are you?'"
+    },
+    {
+      "screen_number": 5,
+      "section_number": 2,
+      "screen_type": "talking_head",
+      "voiceover_text": "That's it. You're not being fake, you're showing me that you can regulate your energy when it matters. That's a skill. And the interview starts the second you walk into the room. Not when the first real question gets asked.",
+      "visual_direction": [
+        "Speaker looking directly at the camera."
+      ],
+      "action_notes": "1:20 - Hard cut back to speaker. No graphics."
+    },
+    {
+      "screen_number": 6,
+      "section_number": 3,
+      "screen_type": "animation",
+      "voiceover_text": "Number two. Why do you want to work here? Here's what most people say. 'I went to your website and I really love your mission and values.'",
+      "visual_direction": [
+        "Animated office scene returns."
+      ],
+      "action_notes": "1:30 - Cut to animation. 1:35 - Speech bubble pops up with generic answer text. Red 'X' graphic flashes."
+    },
+    {
+      "screen_number": 7,
+      "section_number": 3,
+      "screen_type": "talking_head",
+      "voiceover_text": "That's what everybody says. And I'll tell you what I'm thinking when I hear that. Nothing really. It tells me nothing about you. It tells me that you spent five minutes on our about page. So what you want to do is flip the question entirely. Stop making it about what you want from them, and make it about what you're going to do for them. Something like, 'I've outgrown my current role and I'm looking for a new challenge. And based on what I've seen about this team's goals, I know I can help you solve [insert the problem].'",
+      "visual_direction": [
+        "Speaker on screen looking earnest."
+      ],
+      "action_notes": "1:40 - Cut to speaker. 1:55 - Bold text overlay pops up: 'Flip the Question'. 2:05 - Text highlights the script template on screen."
+    },
+    {
+      "screen_number": 8,
+      "section_number": 3,
+      "screen_type": "animation",
+      "voiceover_text": "You're not there to take, you are there to contribute.",
+      "visual_direction": [
+        "Animated interview setup."
+      ],
+      "action_notes": "2:10 - Quick B-roll cut to animated figures exchanging a document."
+    },
+    {
+      "screen_number": 9,
+      "section_number": 3,
+      "screen_type": "talking_head",
+      "voiceover_text": "And here's the mindset shift. Stop treating interviews like auditions where you're hoping to be chosen. Treat them like a meeting between two parties who both have something to offer. That energy shift? Hiring managers can feel it immediately.",
+      "visual_direction": [
+        "Speaker looking directly at camera."
+      ],
+      "action_notes": "2:13 - Cut to speaker. 2:15 - Text overlay slides in: 'Mindset Shift: Meeting vs. Audition'."
+    },
+    {
+      "screen_number": 10,
+      "section_number": 4,
+      "screen_type": "animation",
+      "voiceover_text": "Number three. Where do you see yourself in five years?",
+      "visual_direction": [
+        "Animated office scene."
+      ],
+      "action_notes": "2:24 - Cut to animation. Title card style text pops up: 'Q3: 5 Year Plan'."
+    },
+    {
+      "screen_number": 11,
+      "section_number": 4,
+      "screen_type": "talking_head",
+      "voiceover_text": "Let me tell you what we're actually asking. Because it's not about your five-year plan. We don't actually care about your five-year plan. What we want to know are two things. One, are you going to leave in six months? And two, are your goals aligned with this role, or are you going to get bored and become a problem? Which is why you never say, 'I'm going to grad school.' Never say, 'Starting my own business.' Never say, 'Hopefully in a leadership role somewhere.' Because 'somewhere' tells me, probably not here. Even if those things are true, and they might be, that's not what we want to hear in this moment. What we need to hear is:",
+      "visual_direction": [
+        "Speaker addressing the camera."
+      ],
+      "action_notes": "2:28 - Cut to speaker. 2:35 - Text list appears on left side: '1. Leaving soon? 2. Getting bored?'. 2:45 - Rapid text pop-ups matching audio: 'Grad School', 'Own Business', 'Somewhere else' with strike-through animations."
+    },
+    {
+      "screen_number": 12,
+      "section_number": 4,
+      "screen_type": "animation",
+      "voiceover_text": "'I see myself here. I see myself becoming an expert in this area and a valuable part of this team. This role aligns with where I want to go because...' and then you connect it to something specific about the job.",
+      "visual_direction": [
+        "Animated interview graphics."
+      ],
+      "action_notes": "3:10 - Cut to animation. Speech bubble with a green checkmark appears displaying the script."
+    },
+    {
+      "screen_number": 13,
+      "section_number": 4,
+      "screen_type": "talking_head",
+      "voiceover_text": "You're not lying about who you are. You're telling the version of the truth that serves this conversation. There's a difference.",
+      "visual_direction": [
+        "Speaker direct to camera."
+      ],
+      "action_notes": "3:25 - Cut to speaker. Subtle zoom in."
+    },
+    {
+      "screen_number": 14,
+      "section_number": 5,
+      "screen_type": "animation",
+      "voiceover_text": "Number four. Why are you looking for a new opportunity?",
+      "visual_direction": [
+        "Animated office setup."
+      ],
+      "action_notes": "3:36 - Cut to animation. Title card pop up: 'Q4: Why look for a new job?'"
+    },
+    {
+      "screen_number": 15,
+      "section_number": 5,
+      "screen_type": "talking_head",
+      "voiceover_text": "This is for when you're employed. We don't want to hear that you hate your boss or that your company is toxic. That you're being micromanaged or underpaid or undervalued. Even if every word of it's true, especially if it's true, that's not what you say. And here's why. When you trash your current employer, I'm not thinking, 'Oh, that sounds terrible.' Instead, I'm thinking,",
+      "visual_direction": [
+        "Speaker speaking directly to the viewer."
+      ],
+      "action_notes": "3:40 - Cut to speaker. 3:55 - Thought bubble animation appears over speaker's head."
+    },
+    {
+      "screen_number": 16,
+      "section_number": 5,
+      "screen_type": "text_overlay",
+      "voiceover_text": "'What is she going to say about us in two years?'",
+      "visual_direction": [
+        "Solid color background with bold text."
+      ],
+      "action_notes": "4:05 - Hard cut to full screen text graphic matching the voiceover audio for heavy emphasis."
+    },
+    {
+      "screen_number": 17,
+      "section_number": 5,
+      "screen_type": "talking_head",
+      "voiceover_text": "You become a risk. And in a stack of qualified candidates, risks get cut. So keep it clean. Say,",
+      "visual_direction": [
+        "Speaker back on camera."
+      ],
+      "action_notes": "4:08 - Jump cut back to speaker."
+    },
+    {
+      "screen_number": 18,
+      "section_number": 5,
+      "screen_type": "animation",
+      "voiceover_text": "'I've learned a lot in my current role, and now I'm ready for a new challenge.'",
+      "visual_direction": [
+        "Animated interview graphics."
+      ],
+      "action_notes": "4:15 - Cut to animation. Speech bubble appears with the text."
+    },
+    {
+      "screen_number": 19,
+      "section_number": 5,
+      "screen_type": "talking_head",
+      "voiceover_text": "Done. You said nothing negative, you've shown growth, and you're moving the conversation forward. One sentence, move on.",
+      "visual_direction": [
+        "Speaker on screen."
+      ],
+      "action_notes": "4:20 - Cut to speaker."
+    },
+    {
+      "screen_number": 20,
+      "section_number": 6,
+      "screen_type": "animation",
+      "voiceover_text": "Number five. How do you feel about your current manager?",
+      "visual_direction": [
+        "Animated office scene."
+      ],
+      "action_notes": "4:27 - Cut to animation. Title card pop up: 'Q5: Your current manager'."
+    },
+    {
+      "screen_number": 21,
+      "section_number": 6,
+      "screen_type": "talking_head",
+      "voiceover_text": "Now this is different from the last one and here's why. Because it needs to be its own point. Because sometimes the person interviewing you is about to become your next boss. And that changes everything. I've watched this happen in real time.",
+      "visual_direction": [
+        "Speaker leaning in."
+      ],
+      "action_notes": "4:32 - Cut to speaker."
+    },
+    {
+      "screen_number": 22,
+      "section_number": 6,
+      "screen_type": "animation",
+      "voiceover_text": "A candidate was interviewing for a role on a team that I was recruiting for. And she mentioned that her current manager was a, quote, 'micromanager and too hands-on', and that she was looking for more autonomy. The hiring manager nodded politely, said nothing, but that hiring manager was known internally for being heavily involved in her team's work. Some people loved it, some people didn't. But the candidate had just told her, without realizing it, that her management style was a problem. She didn't get the offer. And she never really knew why.",
+      "visual_direction": [
+        "Animated graphic showing candidate and interviewer."
+      ],
+      "action_notes": "4:45 - Cut to animation. 4:55 - A thought bubble appears over the interviewer's head showing a gear sticking/red alarm graphic to represent the style mismatch."
+    },
+    {
+      "screen_number": 23,
+      "section_number": 6,
+      "screen_type": "talking_head",
+      "voiceover_text": "Say nothing negative about your current boss, nothing about your coworkers, nothing about leadership, ever. Because you don't know who you're talking to and you don't know who they know. This isn't about being fake. It's about not handing someone a reason to say no. So instead of saying, 'He's a micromanager,' you could say,",
+      "visual_direction": [
+        "Speaker back on screen."
+      ],
+      "action_notes": "5:20 - Cut to speaker. Text overlay appears: 'Rule: Say Nothing Negative'."
+    },
+    {
+      "screen_number": 24,
+      "section_number": 6,
+      "screen_type": "animation",
+      "voiceover_text": "'My manager has been great at providing structure for our team's goals. I've learned a lot about process from him. And as I've grown, I've become more proactive in anticipating next steps, and I'm excited about the possibility of bringing that proactive energy to a new team.'",
+      "visual_direction": [
+        "Animated interview scene."
+      ],
+      "action_notes": "5:40 - Cut to animation. Speech bubble displays the pivot script."
+    },
+    {
+      "screen_number": 25,
+      "section_number": 7,
+      "screen_type": "animation",
+      "voiceover_text": "Number six. Your hobbies.",
+      "visual_direction": [
+        "Animated office setup."
+      ],
+      "action_notes": "5:53 - Cut to animation. Title card pop up: 'Q6: Hobbies'."
+    },
+    {
+      "screen_number": 26,
+      "section_number": 7,
+      "screen_type": "talking_head",
+      "voiceover_text": "Now this one's going to surprise you because most people just treat this as a throwaway. But it's not. I once had a candidate mention that she was restoring a vintage motorcycle in her garage. She wasn't interviewing for anything mechanical, it was a marketing role. But that detail made her memorable. It signaled curiosity, patience, willingness to figure things out. And the hiring manager brought it up three times in the debrief. On the other end, I've had candidates tell me their main hobby is watching TV or hanging out with friends. And there's nothing wrong with that, we all do it. But it doesn't give me anything to work with. So instead, you become forgettable. You're not listing activities. Instead, you're painting a picture of who you are when you're not at work. And the picture should make someone think, 'Huh, that's interesting. I'd want to get coffee with that person.' Reading, hiking, learning a new language, building something, mentoring, playing in a sports league—those are examples of things that you can say. And these tell me that you're curious, engaged, and you have a life outside of work. Pick the version of yourself that's true and memorable. So instead of saying, 'I like Netflix and going out,' you could say,",
+      "visual_direction": [
+        "Speaker talking directly to camera."
+      ],
+      "action_notes": "5:58 - Cut to speaker. 6:05 - An image graphic of a vintage motorcycle slides onto the screen next to her. 6:20 - Text lists 'Watching TV / Hanging Out' with a red 'X'. 6:40 - Rapid text pop-ups matching audio: 'Reading', 'Hiking', 'Building', 'Mentoring'."
+    },
+    {
+      "screen_number": 27,
+      "section_number": 7,
+      "screen_type": "animation",
+      "voiceover_text": "'Outside of work, I'm an avid home baker. I actually run a small Instagram page where I document my attempts at mastering sourdough. It's taught me a lot about patience, process, and troubleshooting when things don't rise as expected.'",
+      "visual_direction": [
+        "Animated scene."
+      ],
+      "action_notes": "7:00 - Cut to animation. A small pop-up graphic of an Instagram profile featuring sourdough bread appears."
+    },
+    {
+      "screen_number": 28,
+      "section_number": 8,
+      "screen_type": "animation",
+      "voiceover_text": "Number seven. Your job title and description.",
+      "visual_direction": [
+        "Animated office scene."
+      ],
+      "action_notes": "7:22 - Cut to animation. Title card pop up: 'Q7: Title vs Description'."
+    },
+    {
+      "screen_number": 29,
+      "section_number": 8,
+      "screen_type": "talking_head",
+      "voiceover_text": "This is the one that trips up high performers the most and I need you to hear me on this. If you've been doing the work above your pay grade, you need to claim it. If you've been leading projects without the official title, you can say that you led them. If you've been doing the job of a senior person while being paid as a junior one, own the job. I've reviewed hundreds of thousands of resumes, and one of the most common mistakes I see is people underselling what they've actually done because they're waiting for permission. They're waiting for the promotion, the title change, the official recognition. And in the meantime, they're letting other candidates take credit for the level of work they're already doing. The title on your badge is what HR decided. The work you've done is what actually matters. And if you don't articulate that clearly, someone with less experience but more confidence is going to walk in and take the job that you were qualified for. That's not lying. That's accurately representing the value that you created. So for example, if your title is Marketing Coordinator, but you led the campaign, you could say,",
+      "visual_direction": [
+        "Speaker leaning in."
+      ],
+      "action_notes": "7:27 - Cut to speaker. 7:45 - Bold text overlay pops up: 'Own the job'. 8:20 - Text graphic: 'Title = HR. Work = Reality'."
+    },
+    {
+      "screen_number": 30,
+      "section_number": 8,
+      "screen_type": "animation",
+      "voiceover_text": "'While my title was Marketing Coordinator, I was responsible for leading the Q3 email campaign from concept to execution. This involved setting the strategy, coordinating the design and copy, analyzing the A/B test results, and presenting the 15% lift in engagement to leadership.'",
+      "visual_direction": [
+        "Animated role-play graphic."
+      ],
+      "action_notes": "8:35 - Cut to animation. Speech bubble displays the specific script."
+    },
+    {
+      "screen_number": 31,
+      "section_number": 9,
+      "screen_type": "animation",
+      "voiceover_text": "Number eight. Resume gaps.",
+      "visual_direction": [
+        "Animated office scene."
+      ],
+      "action_notes": "8:53 - Cut to animation. Title card pop up: 'Q8: Resume Gaps'."
+    },
+    {
+      "screen_number": 32,
+      "section_number": 9,
+      "screen_type": "talking_head",
+      "voiceover_text": "This one stresses people out way more than it should. And here's what I want you to understand. That gap on your resume already got you the interview. We saw it, we still called you. Which means we've already decided that it's not a dealbreaker. You just need to not make it weird. If you went back to school, got a certification, or did volunteer work, talk about what you learned and how it applies to the job you're interviewing for. If you were laid off, say it. There were layoffs. I've been laid off, it happens. We understand. If it was something personal, like health, family, caregiving, you can simply say,",
+      "visual_direction": [
+        "Speaker delivering advice."
+      ],
+      "action_notes": "8:58 - Cut to speaker. 9:05 - Text pop-up: 'They already saw the gap.' 9:20 - List text pop-ups: 'School/Cert', 'Layoffs', 'Personal/Caregiving'."
+    },
+    {
+      "screen_number": 33,
+      "section_number": 9,
+      "screen_type": "animation",
+      "voiceover_text": "'I took time off for personal reasons, and now I'm ready to return to work.'",
+      "visual_direction": [
+        "Animated interview graphics."
+      ],
+      "action_notes": "9:35 - Cut to animation. Small speech bubble appears with brief text."
+    },
+    {
+      "screen_number": 34,
+      "section_number": 9,
+      "screen_type": "talking_head",
+      "voiceover_text": "In the US, employers legally can't ask you about your family status, and won't push. Here's what actually matters. The energy that you bring when you talk about it. If you're defensive or apologetic, I'm going to sense that something's wrong. If you're matter-of-fact and confident, I'm going to move on. The gap isn't the problem, how you handle it is. For example, let's say you had a nine-month gap for caregiving. You could say,",
+      "visual_direction": [
+        "Speaker on screen."
+      ],
+      "action_notes": "9:40 - Jump cut to speaker. 9:50 - Text graphic: 'Defensive = Weird. Confident = Moving on.'"
+    },
+    {
+      "screen_number": 35,
+      "section_number": 9,
+      "screen_type": "animation",
+      "voiceover_text": "'I took a planned period away from my career to focus on a family commitment. During that time, I kept my skills sharp by completing a Google Analytics certification and doing some freelance content work. I'm now fully ready and eager to return to a full-time role where I can contribute deeply.'",
+      "visual_direction": [
+        "Animated interview graphic."
+      ],
+      "action_notes": "10:00 - Cut to animation. Large speech bubble displays the longer script."
+    },
+    {
+      "screen_number": 36,
+      "section_number": 9,
+      "screen_type": "talking_head",
+      "voiceover_text": "And say this with a calm, confident energy.",
+      "visual_direction": [
+        "Quick shot of the speaker."
+      ],
+      "action_notes": "10:15 - Quick cut back to speaker."
+    },
+    {
+      "screen_number": 37,
+      "section_number": 10,
+      "screen_type": "animation",
+      "voiceover_text": "Number nine. Do you have any questions for us? Do not say, 'No, I think you covered everything.'",
+      "visual_direction": [
+        "Animated office scene showing the wrong response."
+      ],
+      "action_notes": "10:19 - Cut to animation. Title card pop up: 'Q9: Questions for us?' 10:25 - Speech bubble with 'No, you covered it all' appears with a red strike-through."
+    },
+    {
+      "screen_number": 38,
+      "section_number": 10,
+      "screen_type": "talking_head",
+      "voiceover_text": "That's the fastest way to end an interview on a flat note. And here's what it actually communicates to me.",
+      "visual_direction": [
+        "Speaker looking directly into the camera."
+      ],
+      "action_notes": "10:28 - Cut to speaker."
+    },
+    {
+      "screen_number": 39,
+      "section_number": 10,
+      "screen_type": "text_overlay",
+      "voiceover_text": "You're not that interested, you haven't thought beyond today, and you're just trying to get through this.",
+      "visual_direction": [
+        "White background with bold text."
+      ],
+      "action_notes": "10:32 - Hard cut to full screen text overlay syncing with the audio points."
+    },
+    {
+      "screen_number": 40,
+      "section_number": 10,
+      "screen_type": "talking_head",
+      "voiceover_text": "The questions you ask tell me how you think. They tell me whether you're already picturing yourself in this role, or just hoping to survive the conversation. Have at least two questions ready.",
+      "visual_direction": [
+        "Speaker on screen."
+      ],
+      "action_notes": "10:40 - Cut to speaker."
+    },
+    {
+      "screen_number": 41,
+      "section_number": 10,
+      "screen_type": "text_overlay",
+      "voiceover_text": "'Why is this position open?' is a good one, and it tells you if someone got promoted, quit, or was fired. And that's useful information for you.",
+      "visual_direction": [
+        "Text slide."
+      ],
+      "action_notes": "10:50 - Cut to text slide showing the first question."
+    },
+    {
+      "screen_number": 42,
+      "section_number": 10,
+      "screen_type": "text_overlay",
+      "voiceover_text": "'What does success look like in the first 90 days?' This question shows that you're already thinking about how to deliver.",
+      "visual_direction": [
+        "Text slide."
+      ],
+      "action_notes": "11:00 - Cut to text slide showing the second question."
+    },
+    {
+      "screen_number": 43,
+      "section_number": 10,
+      "screen_type": "talking_head",
+      "voiceover_text": "Don't ask about vacation days or remote work flexibility in the first interview. That's a negotiation conversation, not an interview conversation. The best candidates ask questions that make the interviewer think. That's what you're aiming for. For example, don't say no. Instead ask,",
+      "visual_direction": [
+        "Speaker on screen."
+      ],
+      "action_notes": "11:10 - Cut to speaker. Text pop up: 'Don't ask: Vacation/Remote work'."
+    },
+    {
+      "screen_number": 44,
+      "section_number": 10,
+      "screen_type": "animation",
+      "voiceover_text": "'You mentioned the team is growing. Could you describe the dynamic between this role and the team it collaborates with most closely?' Or you could ask, 'Based on our conversation today, what would you say is the most immediate challenge the person in this role would need to tackle in their first month?'",
+      "visual_direction": [
+        "Animated role-play graphics."
+      ],
+      "action_notes": "11:25 - Cut to animation. Speech bubbles cycle through the advanced script questions."
+    },
+    {
+      "screen_number": 45,
+      "section_number": 10,
+      "screen_type": "talking_head",
+      "voiceover_text": "Interviews aren't about being the most honest person in the room, they're about being the most strategic. Same person, same skills, different answers. Now if you've been laid off, check out this video where I lay out a 10-day plan to get you back on your feet.",
+      "visual_direction": [
+        "Speaker back on camera."
+      ],
+      "action_notes": "11:45 - Final cut to speaker. Outro card pops up on screen with a link to another video."
+    }
+  ],
+  "meta": {
+    "duration_bucket": "medium",
+    "structure": "linear",
+    "narrative_opening": "direct_framework"
+  }
+}
