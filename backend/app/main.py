@@ -816,8 +816,7 @@ async def get_pipeline_state(project_id: str):
             "intake": ["submit", "submit_knowledge_share"],
             "brief_round1": ["round1_confirm"],
             "brief_round2": ["round2_confirm"],
-            "brief_round3": ["round3_confirm"],
-            "angle_selection": ["approve_angle"],
+            "brief_round3": ["generate_content_spine", "round3_confirm"],
             "brief_review": ["brief_approve", "edit_brief"],
             "gate1": ["approve", "reject"],
             "gate2": ["approve", "run_research", "reject", "go_back_gate1"],
@@ -842,7 +841,7 @@ async def get_pipeline_state(project_id: str):
                 "has_screen_outline": state.screen_outline is not None,
                 "has_storyboard": state.storyboard is not None,
             },
-            "pending_perspectives": state.pending_perspectives,
+            "pending_perspectives": None,  # Removed: angle_selection phase no longer exists
             "data": {
                 "intake_form": state.intake_form,
                 "story_brief": state.story_brief,

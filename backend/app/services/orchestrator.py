@@ -122,8 +122,8 @@ class StoryboardOrchestrator:
             # ("brief_round1", "select_perspective"): self._handle_select_perspective,
             # ("brief_round1", "confirm_talking_points"): self._handle_confirm_talking_points,
             ("brief_round2", "round2_confirm"): self._handle_round2_confirm,
+            ("brief_round3", "generate_content_spine"): self._handle_generate_content_spine,
             ("brief_round3", "round3_confirm"): self._handle_round3_confirm,
-            ("angle_selection", "approve_angle"): self._handle_approve_angle,
             ("brief_review", "brief_approve"): self._handle_brief_approve,
             ("brief_review", "edit"): self._handle_edit_brief,
         }
@@ -461,8 +461,6 @@ class StoryboardOrchestrator:
             "brief_round": state.brief_round,
             "confirmed_fields": state.confirmed_fields,
             "research_complete": getattr(state, 'research_complete', False),
-            "pending_perspectives": state.pending_perspectives,
-            "selected_perspective": state.selected_perspective,
             "has_evidence_research": state.evidence_research is not None,
         }
 
@@ -604,59 +602,6 @@ class StoryboardOrchestrator:
     #     # All research calls via self.agents["researcher"] are disabled.
     #     pass
 
-    async def _handle_approve_angle(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """
-        Handle angle/perspective approval.
-        Stores the selected angle in the brief and transitions to brief_review.
-        """
-        print(f"[approve_angle] phase={state.phase}, payload={payload}")
-        selected_angle = payload.get("selected_angle", "")
-        if not selected_angle:
-            raise ValueError("selected_angle is required in payload")
-
-        # Store selected perspective
-        state.selected_perspective = selected_angle
-
-        # Store the angle in confirmed_fields so it flows into the brief
-        state.confirmed_fields["selected_angle"] = {
-            "value": selected_angle,
-            "source": "extracted",
-            "confirmed": True,
-        }
-
-        # Transition to brief_review
-        state = manager.transition(state, "approve_angle")
-        state.brief_round = 4  # Review phase
-        state.pending_perspectives = None  # Clear pending perspectives
-
-        # Update story_brief with angle and mark all fields as confirmed
-        if state.story_brief:
-            state.story_brief["round"] = "review"
-            # Add selected_angle to story_brief fields
-            state.story_brief.setdefault("fields", {})["selected_angle"] = {
-                "value": selected_angle,
-                "source": "extracted",
-                "confirmed": True,
-            }
-            # Mark all fields as confirmed
-            for key, field in state.story_brief.get("fields", {}).items():
-                if key in state.confirmed_fields:
-                    field["confirmed"] = True
-                    field["value"] = state.confirmed_fields[key].get("value", field.get("value"))
-
-        result["message"] = "Angle selected. Review complete brief before proceeding."
-        result["full_brief"] = state.story_brief
-        result["confirmed_fields"] = state.confirmed_fields
-        result["round"] = "review"
-
-        return state, result
-
     async def _handle_round2_confirm(
         self,
         state: StoryboardState,
@@ -666,7 +611,7 @@ class StoryboardOrchestrator:
     ) -> tuple:
         """
         Handle Round 2 confirmation (Section 2: Delivery & Format).
-        Waits for research if needed, then generates Round 3 fields.
+        Transitions to brief_round3. Round 3 fields generated after user provides POV.
         """
         confirmed_fields = payload.get("confirmed_fields", {})
 
@@ -676,31 +621,73 @@ class StoryboardOrchestrator:
             **confirmed_fields
         }
 
-        # Transition to brief_round3
+        # Transition to brief_round3 — Round 3 fields generated after user provides POV
         state = manager.transition(state, "round2_confirm")
         state.brief_round = 3
 
-        # Generate Round 3 fields (uses research results)
+        result["message"] = "Section 2 confirmed. Moving to Section 3: Content Spine."
+        result["brief_fields"] = {}
+        result["round"] = 3
+        result["research_status"] = "complete" if state.research_complete else "failed"
+
+        return state, result
+
+    async def _handle_generate_content_spine(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle POV submission: store POV, generate content spine fields via BriefBuilder.
+        Does NOT transition state — stays in brief_round3.
+        """
+        point_of_view = payload.get("point_of_view", "")
+        if not point_of_view:
+            raise ValueError("point_of_view is required in payload")
+
+        # Store POV in confirmed fields
+        state.confirmed_fields["point_of_view"] = {
+            "value": point_of_view,
+            "source": "extracted",
+            "confirmed": True,
+        }
+
+        # Self-loop transition (stays in brief_round3)
+        state = manager.transition(state, "generate_content_spine")
+
+        # Generate content spine from POV
         round3_result = self.agents["brief_builder"].run(
             state,
             round=3,
             confirmed_fields=state.confirmed_fields
         )
 
-        # Update story_brief with round 3 fields
+        # Update story_brief with generated fields
         if state.story_brief:
             state.story_brief["round"] = 3
             state.story_brief["fields"] = {
                 **state.story_brief.get("fields", {}),
-                **round3_result.get("fields", {})
+                **round3_result.get("fields", {}),
+                "point_of_view": {
+                    "value": point_of_view,
+                    "source": "extracted",
+                    "confirmed": True,
+                },
             }
         else:
-            state.story_brief = round3_result
+            fields = round3_result.get("fields", {})
+            fields["point_of_view"] = {
+                "value": point_of_view,
+                "source": "extracted",
+                "confirmed": True,
+            }
+            state.story_brief = {"round": 3, "fields": fields}
 
-        result["message"] = "Section 2 confirmed. Review Section 3: Content Spine."
+        result["message"] = "Content spine generated. Review and edit before confirming."
         result["brief_fields"] = round3_result.get("fields", {})
         result["round"] = 3
-        result["research_status"] = "complete" if state.research_complete else "failed"
 
         return state, result
 
@@ -712,8 +699,7 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """
-        Handle Round 3 confirmation (Section 3: Content Spine).
-        Generates angle/perspective options for user to select, then transitions to angle_selection.
+        Handle Round 3 confirmation. Stores all Content Spine fields and transitions to brief_review.
         """
         confirmed_fields = payload.get("confirmed_fields", {})
 
@@ -723,28 +709,22 @@ class StoryboardOrchestrator:
             **confirmed_fields
         }
 
-        # Generate perspectives using TopicResearcher
-        perspectives_result = self.agents["researcher"].generate_perspectives(
-            confirmed_fields=state.confirmed_fields,
-            project_id=state.project_id,
-        )
-        perspectives = perspectives_result.get("perspectives", [])
-        state.pending_perspectives = perspectives
-
-        # Transition to angle_selection
+        # Transition to brief_review (direct, no angle_selection)
         state = manager.transition(state, "round3_confirm")
+        state.brief_round = 4  # Review phase
 
         # Update story_brief with confirmed fields from Round 3
         if state.story_brief:
-            state.story_brief["round"] = 3
+            state.story_brief["round"] = "review"
             for key, field in state.story_brief.get("fields", {}).items():
                 if key in state.confirmed_fields:
                     field["confirmed"] = True
                     field["value"] = state.confirmed_fields[key].get("value", field.get("value"))
 
-        result["message"] = "Section 3 confirmed. Select an angle for your video."
-        result["perspectives"] = perspectives
-        result["round"] = "angle_selection"
+        result["message"] = "Section 3 confirmed. Review complete brief before proceeding."
+        result["full_brief"] = state.story_brief
+        result["confirmed_fields"] = state.confirmed_fields
+        result["round"] = "review"
 
         return state, result
 
