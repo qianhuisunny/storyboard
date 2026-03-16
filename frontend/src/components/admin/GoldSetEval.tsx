@@ -450,7 +450,7 @@ function BriefSection({ brief }: { brief: Record<string, unknown> }) {
           <div><span className="text-muted-foreground">Tone:</span> <span>{String(b.delivery_tone)}</span></div>
           <div><span className="text-muted-foreground">On-Camera:</span> <span>{String(b.on_camera_presence)}</span></div>
           <div><span className="text-muted-foreground">B-Roll Types:</span> <span>{Array.isArray(b.broll_type) ? (b.broll_type as string[]).join(", ") : String(b.broll_type)}</span></div>
-          <div className="col-span-2"><span className="text-muted-foreground">Angle:</span> <span>{String(b.selected_angle)}</span></div>
+          <div className="col-span-2"><span className="text-muted-foreground">Point of View:</span> <span>{String(b.point_of_view)}</span></div>
           <div className="col-span-2">
             <span className="text-muted-foreground">Core Talking Points:</span>
             <ul className="list-disc list-inside mt-1 text-base">

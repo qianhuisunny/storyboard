@@ -4,27 +4,20 @@
  */
 
 import { useState, useCallback, useEffect, useRef } from "react";
-import { RoundOneForm, RoundTwoForm, RoundThreeForm, BriefReview, AngleSelectionForm, CollapsibleSection } from "./RoundForms";
+import { RoundOneForm, RoundTwoForm, RoundThreeForm, BriefReview, CollapsibleSection } from "./RoundForms";
 import type { BriefField, BriefRound } from "./types";
 import { createInitialKnowledgeShareFields } from "./types";
 import { cn } from "@/lib/utils";
-
-interface Perspective {
-  id: number;
-  statement: string;
-  hook: string;
-}
 
 interface KnowledgeShareBriefBuilderProps {
   projectId: string;
   initialFields?: Record<string, BriefField>;
   initialRound?: BriefRound;
-  perspectives?: Perspective[];
   researchComplete?: boolean;
   isResearchRunning?: boolean;
   isAlreadyApproved?: boolean; // Brief was already approved on backend
   onRoundConfirm: (round: number, confirmedFields: Record<string, BriefField>) => Promise<Record<string, BriefField>>;
-  onAngleApprove: (selectedAngle: string) => Promise<void>;
+  onGenerateContentSpine: (pov: string) => Promise<Record<string, BriefField>>;
   onBriefApprove: (allFields: Record<string, BriefField>) => Promise<void>;
   onEditBrief: () => void;
 }
@@ -33,12 +26,11 @@ export default function KnowledgeShareBriefBuilder({
   projectId: _projectId,
   initialFields,
   initialRound = 1,
-  perspectives: initialPerspectives = [],
   researchComplete = false,
   isResearchRunning = false,
   isAlreadyApproved = false,
   onRoundConfirm,
-  onAngleApprove,
+  onGenerateContentSpine,
   onBriefApprove,
   onEditBrief,
 }: KnowledgeShareBriefBuilderProps) {
@@ -53,8 +45,6 @@ export default function KnowledgeShareBriefBuilder({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // Perspectives for angle selection
-  const [perspectives, setPerspectives] = useState<Perspective[]>(initialPerspectives);
   // Guard against double-submission (ref doesn't wait for re-render)
   const isSubmittingRef = useRef(false);
 
@@ -76,13 +66,6 @@ export default function KnowledgeShareBriefBuilder({
     }
   }, [initialRound]);
 
-  // Sync perspectives when initialPerspectives changes
-  useEffect(() => {
-    if (initialPerspectives && initialPerspectives.length > 0) {
-      setPerspectives(initialPerspectives);
-    }
-  }, [initialPerspectives]);
-
   // Track which rounds are completed
   const [completedRounds, setCompletedRounds] = useState<Set<number>>(() => {
     const completed = new Set<number>();
@@ -90,11 +73,6 @@ export default function KnowledgeShareBriefBuilder({
     if (initialRound === 3) {
       completed.add(1);
       completed.add(2);
-    }
-    if (initialRound === "angle_selection") {
-      completed.add(1);
-      completed.add(2);
-      completed.add(3);
     }
     if (initialRound === "review") {
       completed.add(1);
@@ -111,11 +89,6 @@ export default function KnowledgeShareBriefBuilder({
     if (initialRound === 3) {
       completed.add(1);
       completed.add(2);
-    }
-    if (initialRound === "angle_selection") {
-      completed.add(1);
-      completed.add(2);
-      completed.add(3);
     }
     if (initialRound === "review") {
       completed.add(1);
@@ -201,8 +174,8 @@ export default function KnowledgeShareBriefBuilder({
         } else if (round === 2) {
           setCurrentRound(3);
         } else if (round === 3) {
-          // Round 3 returns perspectives; move to angle selection
-          setCurrentRound("angle_selection");
+          // Round 3 confirmed; move directly to review
+          setCurrentRound("review");
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to confirm section");
@@ -214,22 +187,25 @@ export default function KnowledgeShareBriefBuilder({
     [fields, onRoundConfirm]
   );
 
-  // Handle angle approval
-  const handleAngleApprove = useCallback(
-    async (selectedAngle: string) => {
+  // Handle generating content spine from a point of view
+  const handleGenerateContentSpine = useCallback(
+    async (pov: string) => {
       setIsLoading(true);
       setError(null);
       try {
-        await onAngleApprove(selectedAngle);
-        setCurrentRound("review");
-        setCompletedRounds((prev) => new Set([...prev, 3]));
+        const newFields = await onGenerateContentSpine(pov);
+        // Merge returned fields into local state
+        setFields((prev) => ({
+          ...prev,
+          ...newFields,
+        }));
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to approve angle");
+        setError(err instanceof Error ? err.message : "Failed to generate content spine");
       } finally {
         setIsLoading(false);
       }
     },
-    [onAngleApprove]
+    [onGenerateContentSpine]
   );
 
   // Handle brief approval
@@ -302,6 +278,8 @@ export default function KnowledgeShareBriefBuilder({
             onFieldConfirm={handleFieldConfirm}
             onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => {}}
+            onGenerateContentSpine={handleGenerateContentSpine}
+            briefContext={briefContext}
             disabled={false}
             researchComplete={researchComplete}
             showConfirmButton={false}
@@ -323,16 +301,6 @@ export default function KnowledgeShareBriefBuilder({
           onApproveBrief={handleBriefApprove}
           disabled={isLoading}
           isAlreadyApproved={isAlreadyApproved}
-        />
-      );
-    }
-
-    if (currentRound === "angle_selection") {
-      return (
-        <AngleSelectionForm
-          perspectives={perspectives}
-          onApproveAngle={handleAngleApprove}
-          disabled={isLoading}
         />
       );
     }
@@ -368,6 +336,8 @@ export default function KnowledgeShareBriefBuilder({
             onFieldConfirm={handleFieldConfirm}
             onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => handleSectionConfirm(3)}
+            onGenerateContentSpine={handleGenerateContentSpine}
+            briefContext={briefContext}
             disabled={isLoading}
             researchComplete={researchComplete}
           />
@@ -377,32 +347,49 @@ export default function KnowledgeShareBriefBuilder({
     }
   };
 
+  // Extract brief context from Round 1 fields for content spine generation
+  const briefContext = {
+    audience: typeof fields.target_audience?.value === "string" ? fields.target_audience.value : "",
+    topic: typeof fields.viewer_outcome?.value === "string" ? fields.viewer_outcome.value : "",
+    goal: typeof (fields.viewer_next_action?.value || fields.viewer_outcome?.value) === "string"
+      ? (fields.viewer_next_action?.value || fields.viewer_outcome?.value) as string
+      : "",
+  };
+
   return (
     <div className="h-full flex flex-col relative">
       {/* Progress Bar — mockup-style rounded card with step segments */}
       <div className="flex-shrink-0" style={{ padding: "20px 38px 0" }}>
         <div className="max-w-5xl flex items-stretch bg-white border border-[#D9DDD2] overflow-hidden" style={{ borderRadius: "10px", marginBottom: "28px" }}>
-          {([1, 2, 3, "angle_selection", "review"] as const).map((round, index) => {
+          {([1, 2, 3, "review"] as const).map((round, index) => {
             const isActive = currentRound === round;
-            const stepOrder = [1, 2, 3, "angle_selection", "review"];
+            const stepOrder: readonly (1 | 2 | 3 | "review")[] = [1, 2, 3, "review"];
             const currentIndex = stepOrder.indexOf(currentRound);
             const roundIndex = stepOrder.indexOf(round);
             const isPast = currentIndex > roundIndex;
             const isCompleted =
               typeof round === "number" && completedRounds.has(round);
-            const stepNames = ["Core Intent", "Delivery", "Content Spine", "Angle", "Review"];
+            const stepNames = ["Core Intent", "Delivery", "Content Spine", "Review"];
+            const isClickable = isPast && !isActive;
 
             return (
               <div
                 key={String(round)}
                 className={cn(
-                  "flex-1 flex items-center cursor-pointer transition-colors",
-                  index < 4 && "border-r border-[#D9DDD2]",
+                  "flex-1 flex items-center transition-colors",
+                  isClickable && "cursor-pointer",
+                  !isClickable && "cursor-default",
+                  index < 3 && "border-r border-[#D9DDD2]",
                   isActive && "bg-[#E8F0E9]",
-                  !isActive && "hover:bg-[#EEF1E9]",
+                  !isActive && isClickable && "hover:bg-[#EEF1E9]",
                   (isPast && !isActive) && "opacity-55"
                 )}
                 style={{ gap: "9px", padding: "11px 16px" }}
+                onClick={() => {
+                  if (isClickable) {
+                    setCurrentRound(round);
+                  }
+                }}
               >
                 <div
                   className={cn(
@@ -417,7 +404,7 @@ export default function KnowledgeShareBriefBuilder({
                     fontSize: "12px", fontWeight: 700, fontFamily: "'Fraunces', serif"
                   }}
                 >
-                  {isCompleted || isPast ? "\u2713" : round === "review" ? "R" : round === "angle_selection" ? "A" : round}
+                  {isCompleted || isPast ? "\u2713" : round === "review" ? "R" : round}
                 </div>
                 <div>
                   <div className="text-[#626B58]" style={{ fontSize: "10.5px", letterSpacing: "0.2px", lineHeight: "1.3" }}>Step {index + 1}</div>

@@ -127,9 +127,6 @@ export default function StageContent({
   const [knowledgeShareInitialized, setKnowledgeShareInitialized] = useState(false);
   // Track if brief is already approved on backend (past brief stage)
   const [isBriefAlreadyApproved, setIsBriefAlreadyApproved] = useState(false);
-  // Perspectives for angle selection (generated after Section 3)
-  const [knowledgeSharePerspectives, setKnowledgeSharePerspectives] = useState<Array<{ id: number; statement: string; hook: string }>>([]);
-
   // RESEARCH DISABLED: research state variables
   const [researchStatus, setResearchStatus] = useState<ResearchStatus>("complete");
   const [, setResearchError] = useState<string | null>(null);
@@ -214,13 +211,10 @@ export default function StageContent({
               setResearchStatus("complete");
               return;
             } else if (stateData.phase === "angle_selection") {
-              console.log("[KS] Restoring angle_selection state, fields:", Object.keys(briefFields));
+              // Legacy: projects stuck in angle_selection get restored to round 3
+              console.log("[KS] Restoring angle_selection as round 3, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setKnowledgeShareRound("angle_selection");
-              // Restore pending perspectives from state
-              if (stateData.pending_perspectives) {
-                setKnowledgeSharePerspectives(stateData.pending_perspectives);
-              }
+              setKnowledgeShareRound(3);
               setResearchStatus("complete");
               return;
             } else if (stateData.phase === "brief_round1") {
@@ -405,12 +399,6 @@ export default function StageContent({
         setResearchStatus("error");
       }
 
-      // If round 3 returned perspectives, store them for angle selection
-      if (data.perspectives && Array.isArray(data.perspectives)) {
-        setKnowledgeSharePerspectives(data.perspectives);
-        setKnowledgeShareRound("angle_selection");
-      }
-
       return data.brief_fields || data.fields || {};
     },
     [projectId]
@@ -420,40 +408,23 @@ export default function StageContent({
   // These handlers managed the perspective → talking points → research flow
   // which is now skipped. Round 1 confirm goes directly to Round 2.
 
-  // Handle angle approval for Knowledge Share
-  const handleKnowledgeShareAngleApprove = useCallback(
-    async (selectedAngle: string): Promise<void> => {
-      console.log("[KS AngleApprove] selectedAngle:", selectedAngle);
-      console.log("[KS AngleApprove] projectId:", projectId);
-      const body = {
-        event: "approve_angle",
-        payload: { selected_angle: selectedAngle },
-      };
-      console.log("[KS AngleApprove] request body:", JSON.stringify(body, null, 2));
-
+  // Handle generating content spine from a point of view
+  const handleGenerateContentSpine = useCallback(
+    async (pov: string): Promise<Record<string, BriefField>> => {
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          event: "generate_content_spine",
+          payload: { point_of_view: pov },
+        }),
       });
-
-      console.log("[KS AngleApprove] response status:", response.status);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("[KS AngleApprove] error response:", errorText);
-        throw new Error("Failed to approve angle");
-      }
-
+      if (!response.ok) throw new Error("Failed to generate content spine");
       const data = await response.json();
-      // Move to review
-      setKnowledgeShareRound("review");
-      setKnowledgeSharePerspectives([]);
-
-      // Update fields if full_brief returned
-      if (data.full_brief?.fields) {
-        setKnowledgeShareFields(data.full_brief.fields);
-      }
+      const newFields = data.brief_fields || data.fields || {};
+      // Merge generated fields into local state
+      setKnowledgeShareFields(prev => ({ ...prev, ...newFields }));
+      return newFields;
     },
     [projectId]
   );
@@ -778,12 +749,11 @@ export default function StageContent({
           projectId={projectId}
           initialFields={knowledgeShareFields}
           initialRound={knowledgeShareRound}
-          perspectives={knowledgeSharePerspectives}
           researchComplete={true}
           isResearchRunning={false}
           isAlreadyApproved={isBriefAlreadyApproved}
           onRoundConfirm={handleKnowledgeShareRoundConfirm}
-          onAngleApprove={handleKnowledgeShareAngleApprove}
+          onGenerateContentSpine={handleGenerateContentSpine}
           onBriefApprove={handleKnowledgeShareBriefApprove}
           onEditBrief={handleKnowledgeShareEditBrief}
         />
