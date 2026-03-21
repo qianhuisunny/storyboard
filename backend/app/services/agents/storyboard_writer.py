@@ -37,7 +37,7 @@ class StoryboardWriter(BaseAgent):
     Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_v0312.md"
+    prompt_file = "storyboard_writer_prompt_v0317.md"
 
     def __init__(self):
         super().__init__()
@@ -354,8 +354,9 @@ class StoryboardWriter(BaseAgent):
 
     def _get_evidence_for_section(self, evidence_research: dict, section_title: str) -> list:
         """
-        Get evidence tasks with selected evidence for a section.
-        Returns list of evidence task dicts with high/medium confidence selections.
+        Get evidence for a section from EvidenceResearcher output.
+        Handles both v0317 (evidence_items) and v0316 (talking_points) schemas.
+        Returns list of evidence dicts with high/medium confidence research blocks.
         """
         if not evidence_research:
             return []
@@ -365,42 +366,55 @@ class StoryboardWriter(BaseAgent):
             # Match by section title (fuzzy: check if title appears in section_title)
             ev_title = section.get("section_title", "")
             if section_title.lower() in ev_title.lower() or ev_title.lower() in f"section {section_title}".lower():
-                tasks = []
-                for task in section.get("evidence_tasks", []):
-                    selected = task.get("selected_evidence")
-                    if selected and selected.get("confidence") in ("high", "medium"):
-                        tasks.append({
-                            "task_label": task.get("task_label", ""),
-                            "supports": task.get("supports", ""),
-                            "evidence_type": task.get("evidence_type", ""),
-                            "priority": task.get("priority", ""),
-                            "evidence_summary": selected.get("evidence_summary", ""),
-                            "usable_line": selected.get("usable_line", ""),
-                            "source_title": selected.get("source_title", ""),
-                            "source_url": selected.get("source_url", ""),
-                        })
-                return tasks
+                results = []
+
+                # v0317 schema: evidence_items
+                if "evidence_items" in section:
+                    for item in section.get("evidence_items", []):
+                        for block in item.get("research_blocks", []):
+                            if block.get("confidence") in ("high", "medium"):
+                                results.append({
+                                    "evidence_needed": item.get("evidence_needed", ""),
+                                    "research_question": block.get("research_question", ""),
+                                    "storyboard_usable_phrasing": block.get("storyboard_usable_phrasing", []),
+                                    "full_answer": block.get("full_answer", ""),
+                                    "sources": block.get("sources", []),
+                                    "confidence": block.get("confidence", ""),
+                                })
+                # v0316 fallback: talking_points
+                else:
+                    for tp in section.get("talking_points", []):
+                        for block in tp.get("research_blocks", []):
+                            if block.get("confidence") in ("high", "medium"):
+                                results.append({
+                                    "talking_point": tp.get("talking_point", ""),
+                                    "research_question": block.get("research_question", ""),
+                                    "storyboard_usable_phrasing": block.get("storyboard_usable_phrasing", []),
+                                    "full_answer": block.get("full_answer", ""),
+                                    "sources": block.get("sources", []),
+                                    "confidence": block.get("confidence", ""),
+                                })
+                return results
 
         return []
 
     def _format_evidence_for_prompt(self, evidence: list, research_brief: str = "") -> str:
-        """Format evidence tasks into prompt-friendly text."""
+        """Format evidence into prompt-friendly text for the Writer LLM."""
         if not evidence:
             return "No evidence research available for this section."
 
         lines = []
-        if research_brief:
-            lines.append(f"Research brief: {research_brief}")
-            lines.append("")
-
-        for task in evidence:
-            lines.append(f"Evidence: {task['task_label']} ({task['evidence_type']}, {task['priority']})")
-            if task.get("evidence_summary"):
-                lines.append(f"  Summary: {task['evidence_summary']}")
-            if task.get("usable_line"):
-                lines.append(f"  Usable line: {task['usable_line']}")
-            if task.get("source_title"):
-                lines.append(f"  Source: {task['source_title']} ({task.get('source_url', '')})")
+        for item in evidence:
+            label = item.get("evidence_needed") or item.get("talking_point", "")
+            lines.append(f"Evidence: {label}")
+            phrasing = item.get("storyboard_usable_phrasing", [])
+            if phrasing:
+                lines.append("  Usable phrasing:")
+                for p in phrasing:
+                    lines.append(f"    - {p}")
+            sources = item.get("sources", [])
+            if sources:
+                lines.append(f"  Sources: {'; '.join(sources)}")
             lines.append("")
 
         return "\n".join(lines)

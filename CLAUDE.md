@@ -34,7 +34,7 @@ User → Frontend (React/Vite :3000)
          ├── StoryboardDirector
          └── StoryboardWriter
          ↓
-       data/project_{id}/  (persisted JSON → migrating to Postgres)
+       SQLite (via SQLAlchemy async + aiosqlite)
 ```
 
 ### Key Directories
@@ -61,7 +61,7 @@ User → Frontend (React/Vite :3000)
 - **Never install packages globally** — use `venv/` for Python, `npm` for frontend
 
 ### ⚠️ Be Careful
-- **Agent changes are coupled** — modifying one agent's output schema likely breaks the next agent's input expectations. Trace the full pipeline: TopicResearcher → BriefBuilder → Director → Writer
+- **Agent changes are coupled** — modifying one agent's output schema likely breaks the next agent's input expectations. Trace the full pipeline: BriefBuilder → Director → EvidenceResearcher → Writer
 - **State machine transitions** — `state.py` controls flow. Changing states requires updating both backend transitions AND frontend `StageNavigation.tsx`
 - **Timeout handling** — AI generation can take 2+ minutes. Don't reduce timeouts without testing
 - **Data schema changes** — any change to project/story JSON schema must be backwards-compatible with existing projects in `data/`
@@ -182,7 +182,7 @@ Terminal 2: `cd frontend && npm run dev`
 | `POST` | `/api/chat` | Send message to AI chatbot |
 | `POST` | `/api/chat/save` | Persist chat history |
 | `GET` | `/api/chat/history/{id}` | Load chat history |
-| `POST` | `/api/search/images` | Google image search with filters |
+
 | `GET` | `/health` | Health check |
 
 ---
@@ -192,23 +192,17 @@ Terminal 2: `cd frontend && npm run dev`
 The storyboard generation pipeline runs sequentially. Each agent consumes the previous agent's output:
 
 ```
-TopicResearcher    → researches the topic from user input
-      ↓ research_context
-BriefBuilder       → structures a creative brief
+BriefBuilder         → structures a creative brief from intake form
       ↓ brief
-StoryboardDirector → determines scene structure and flow
+StoryboardDirector   → determines scene structure and flow
       ↓ outline
-  Evidence Research → TopicResearcher.research_evidence_claims() (post-outline, not during intake)
+EvidenceResearcher   → generates evidence for outline sections (LLM knowledge + RAG)
       ↓ evidence_research
-StoryboardWriter   → writes detailed screen-by-screen content (includes duration calculation + placeholder images)
+StoryboardWriter     → writes detailed screen-by-screen content (includes duration calculation + placeholder images)
       ↓ final_storyboard
 ```
 
 Note: Duration calculation (word_count / 130 * 60s) is now a utility function, not a separate agent.
-
-Note: Evidence Research has two implementations:
-- **Production pipeline**: `TopicResearcher.research_evidence_claims()` (web search-based, uses `EVIDENCE_RESEARCH_PROMPT.md`)
-- **Eval pipeline**: `EvidenceResearcher` agent (LLM knowledge-based, uses `evidence_researcher_prompt_v0313.md`, supports RAG from user docs)
 
 RAG pipeline: `backend/app/services/rag/` — handles PDF/URL upload, chunking, OpenAI embeddings, and similarity-based retrieval. The EvidenceResearcher queries RAG automatically when a project has uploaded documents.
 
@@ -216,12 +210,10 @@ RAG pipeline: `backend/app/services/rag/` — handles PDF/URL upload, chunking, 
 
 | Agent File | Prompt File |
 |-----------|------------|
-| `agents/topic_researcher.py` | `prompts/TOPIC_RESEARCHER_SYSTEM_PROMPT.md` |
-| `agents/topic_researcher.py` (evidence, legacy) | `prompts/EVIDENCE_RESEARCH_PROMPT.md` |
-| `agents/evidence_researcher.py` | `prompts/evidence_researcher_prompt_v0313.md` |
 | `agents/brief_builder.py` | `prompts/BRIEF_BUILDER_SYSTEM_PROMPT.md` |
-| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0312.md` |
-| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0312.md` |
+| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0316.md` |
+| `agents/evidence_researcher.py` | `prompts/evidence_researcher_prompt_v0317.md` |
+| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0317.md` |
 
 ### Agent Structure Pattern
 
@@ -262,8 +254,7 @@ class MyAgent(BaseAgent):
 ```env
 OPENAI_API_KEY=sk-proj-...        # OpenAI (primary LLM)
 GEMINI_API_KEY=AIzaSy...          # Google Gemini (secondary)
-GOOGLE_CSE_API_KEY=AIzaSy...      # Google Custom Search (images)
-SEARCH_ENGINE_ID=671cee...        # Custom Search Engine ID
+
 ```
 
 Never commit these. They're in `.gitignore`.
@@ -292,9 +283,9 @@ fly deploy --config fly.frontend.toml
 1. **Port mismatch**: `vite.config.ts` proxies to port 8000 but backend runs on 8001. Either update the proxy or run backend on 8000.
 2. **Generation timeout**: Agent pipeline requests can take 2+ minutes. Frontend has loading states for this — don't reduce the timeout.
 3. **JSON extraction**: AI responses sometimes return malformed JSON. `utils/json_extractor.py` handles cleanup — if you see parsing errors, check there first.
-4. **Image search rate limits**: Google CSE has daily quotas. The `image_search.py` utility handles failures gracefully but you'll get empty results when rate-limited.
+
 5. **Two schema versions**: Legacy projects use `on_screen_visual_keywords` (string), new pipeline uses `visual_direction` (array). Both schemas coexist until schema unification is complete (task 102).
-6. **Data is still local JSON**: All persistence currently writes to `data/project_{id}/`. DB migration is planned — see `RESTRUCTURE_PLAN.md` and task 103-105. Don't build new features on top of JSON file I/O.
+6. **Data layer is SQLite**: Persistence migrated from JSON files to SQLite via SQLAlchemy async + aiosqlite + Alembic. Legacy `data/project_{id}/` JSON may still exist for old projects but new features should use the DB layer.
 
 ---
 

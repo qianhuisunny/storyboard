@@ -1,5 +1,3 @@
 """Utility modules for the storyboard backend application"""
 
-from .image_search import GoogleImageSearch, search_image, get_longest_title_image_link
-
-__all__ = ["GoogleImageSearch", "search_image", "get_longest_title_image_link"]
+from .file_extraction import extract_text_from_pdf, extract_text_from_docx, extract_text_from_html

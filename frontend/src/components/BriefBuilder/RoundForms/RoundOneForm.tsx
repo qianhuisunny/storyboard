@@ -24,7 +24,6 @@ const SECTION_1_FIELDS = [
   "audience_level",
   "platform",
   "duration",
-  "viewer_next_action",
 ];
 
 export default function RoundOneForm({

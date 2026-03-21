@@ -60,22 +60,28 @@ export interface Analysis {
 }
 
 // Evidence research types (from EvidenceResearcher agent)
-export interface EvidenceAnswer {
-  summary: string;
-  usable_line: string;
-  source_description: string;
+export interface ResearchBlock {
+  research_question: string;
+  storyboard_usable_phrasing: string[];
+  full_answer: string;
+  sources: string[];
   confidence: "high" | "medium" | "low";
 }
 
-export interface EvidenceTask {
+export interface EvidenceItemResearch {
   evidence_needed: string;
-  research_question: string;
-  answer: EvidenceAnswer | null;
+  research_blocks: ResearchBlock[];
+}
+
+export interface TalkingPointResearch {
+  talking_point: string;
+  research_blocks: ResearchBlock[];
 }
 
 export interface EvidenceSection {
   section_title: string;
-  evidence_tasks: EvidenceTask[];
+  evidence_items?: EvidenceItemResearch[];
+  talking_points?: TalkingPointResearch[];
 }
 
 export interface EvidenceResearch {
@@ -84,7 +90,7 @@ export interface EvidenceResearch {
 
 // Citation analysis types
 export interface CitationTask {
-  evidence_needed: string;
+  talking_point: string;
   research_question: string;
   cited: boolean;
   matched_anchors: string[];

@@ -53,6 +53,8 @@ export const SCREEN_TYPE_CONFIG: Record<
 // Individual production screen in the storyboard
 export interface ProductionScreen {
   screen_number: number;
+  section_number?: number;
+  section_title?: string;
   narrative_role?: string;
   screen_type: string;
   duration: number;

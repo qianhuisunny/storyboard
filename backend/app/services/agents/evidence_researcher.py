@@ -1,11 +1,11 @@
 """
-Evidence Researcher Agent — generates factual evidence for video outline sections.
+Evidence Researcher Agent — storyboard-ready research for video outline sections.
 
 Two knowledge sources:
 1. LLM training knowledge (always available)
 2. RAG retrieval from user-uploaded documents (when project has documents)
 
-Data model: evidence_needed → research_question → answer (summary + usable_line + source)
+Data model: evidence_needed → research_question → full_answer → storyboard_usable_phrasing[]
 """
 
 import json
@@ -16,13 +16,13 @@ from .base import BaseAgent
 
 class EvidenceResearcher(BaseAgent):
     """
-    Generates evidence research from LLM knowledge + optional RAG for video outline sections.
+    Generates storyboard-ready evidence research from LLM knowledge + optional RAG.
 
     Input: outline text + brief context + optional project_id (for RAG)
-    Output: structured evidence per section with research questions and answers
+    Output: per-section, per-evidence-item research with writer-ready phrasing
     """
 
-    prompt_file = "evidence_researcher_prompt_v0313.md"
+    prompt_file = "evidence_researcher_prompt_v0317.md"
 
     def run(self, state: Any, **kwargs) -> dict:
         """Run evidence research from state object (used by orchestrator)."""
@@ -39,7 +39,7 @@ class EvidenceResearcher(BaseAgent):
         project_id: str = None,
     ) -> dict:
         """
-        Generate evidence research for an outline.
+        Generate storyboard-ready evidence research for an outline.
 
         Args:
             outline_text: Plain text outline from Director
@@ -52,17 +52,18 @@ class EvidenceResearcher(BaseAgent):
                 "sections": [
                     {
                         "section_title": "Section 1 — ...",
-                        "evidence_tasks": [
+                        "evidence_items": [
                             {
                                 "evidence_needed": "...",
-                                "research_question": "...",
-                                "answer": {
-                                    "summary": "...",
-                                    "usable_line": "...",
-                                    "source_description": "...",
-                                    "confidence": "high|medium|low"
-                                },
-                                "rag_context": "..." (if RAG results were included)
+                                "research_blocks": [
+                                    {
+                                        "research_question": "...",
+                                        "storyboard_usable_phrasing": ["...", "..."],
+                                        "full_answer": "...",
+                                        "sources": ["..."],
+                                        "confidence": "high|medium|low"
+                                    }
+                                ]
                             }
                         ]
                     }
@@ -89,7 +90,7 @@ The following excerpts are from documents uploaded by the user. Prioritize infor
 {rag_context}
 """
 
-        prompt = f"""Analyze this video outline and generate evidence for each section's evidence needs.
+        prompt = f"""Analyze this video outline and generate storyboard-ready research for each section's evidence items.
 
 ## VIDEO CONTEXT
 Viewer outcome: {viewer_outcome}
@@ -98,9 +99,9 @@ Target audience: {target_audience}
 ## OUTLINE
 {outline_text}
 
-Return JSON following the schema in your system prompt. For each section, find evidence_needed items and generate research questions + answers."""
+Return JSON following the schema in your system prompt. For each section, research every evidence item and produce usable phrasing the writer can directly lift into the storyboard."""
 
-        kwargs_llm = {"max_tokens": 6000, "temperature": 0.4}
+        kwargs_llm = {"max_tokens": 8000, "temperature": 0.4}
         if model:
             kwargs_llm["model"] = model
 

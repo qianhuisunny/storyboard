@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Video Outline — 3 Design Options</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Nunito', system-ui, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    color: #1C2118;
+    background: #f5f5f3;
+  }
+
+  h1, h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 400; letter-spacing: -0.3px; }
+  h3, h4, h5 { font-family: 'Nunito', system-ui, sans-serif; font-weight: 600; }
+
+  .page-header {
+    background: #fff;
+    border-bottom: 1px solid #e5e5e3;
+    padding: 32px 48px 24px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .page-header h1 { font-size: 28px; margin-bottom: 4px; }
+  .page-header p { color: #626B58; font-size: 14px; }
+
+  .option-label {
+    display: inline-block;
+    background: #2E5439;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 4px 14px;
+    border-radius: 20px;
+    margin-bottom: 16px;
+    letter-spacing: 0.5px;
+  }
+
+  .option-desc {
+    color: #626B58;
+    font-size: 14px;
+    margin-bottom: 24px;
+    max-width: 600px;
+  }
+
+  .section-wrapper {
+    padding: 48px;
+    background: #fff;
+    margin-bottom: 2px;
+  }
+
+  /* 80% content width constraint */
+  .content-80 {
+    max-width: 80%;
+  }
+
+  /* ===== Shared: Drag handle ===== */
+  .drag-handle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    cursor: grab;
+    opacity: 0;
+    transition: opacity 0.15s;
+    padding: 4px 2px;
+  }
+  .drag-handle .dot-row {
+    display: flex;
+    gap: 3px;
+  }
+  .drag-handle .dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 50%;
+    background: #BFC6B5;
+  }
+
+  /* ===== Shared: Insert zone ===== */
+  .insert-zone {
+    position: relative;
+    height: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+  }
+  .insert-zone .insert-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: transparent;
+    border-radius: 1px;
+    transition: background 0.15s;
+  }
+  .insert-zone .insert-btn {
+    position: relative;
+    z-index: 1;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid transparent;
+    color: transparent;
+    font-size: 16px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+    line-height: 1;
+  }
+  .insert-zone:hover .insert-line {
+    background: #3A6B47;
+  }
+  .insert-zone:hover .insert-btn {
+    border-color: #3A6B47;
+    color: #3A6B47;
+    background: #E8F0E9;
+    box-shadow: 0 2px 8px rgba(58,107,71,0.15);
+  }
+
+  /* ===== OPTION A: SessionLab Table ===== */
+  .opt-a .col-headers {
+    display: grid;
+    grid-template-columns: 100px 1fr 38%;
+    padding: 0 0 12px 0;
+    border-bottom: 2px solid #D9DDD2;
+    margin-bottom: 0;
+  }
+  .opt-a .col-headers span {
+    font-size: 12px;
+    font-weight: 700;
+    color: #626B58;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .opt-a .row-wrapper { position: relative; }
+  .opt-a .row-wrapper:hover .drag-handle { opacity: 1; }
+
+  .opt-a .row {
+    display: grid;
+    grid-template-columns: 32px 68px 1fr 38%;
+    border-bottom: 1px solid #EDEDEB;
+    padding: 24px 0;
+    align-items: start;
+    transition: background 0.1s;
+    border-radius: 8px;
+  }
+  .opt-a .row-wrapper:hover .row { background: #FAFAF8; }
+
+  .opt-a .row-time {
+    color: #626B58;
+    font-size: 14px;
+    font-variant-numeric: tabular-nums;
+    padding-top: 4px;
+  }
+  .opt-a .row-time .num {
+    font-size: 20px;
+    font-weight: 700;
+    color: #1C2118;
+    display: block;
+    margin-bottom: 2px;
+  }
+
+  .opt-a .row-main { padding-right: 40px; }
+  .opt-a .row-main h3 { font-size: 17px; margin-bottom: 6px; color: #1C2118; }
+  .opt-a .row-main .purpose { color: #5A6352; font-size: 15px; margin-bottom: 10px; }
+  .opt-a .row-main .points { color: #626B58; font-size: 14px; line-height: 1.7; }
+  .opt-a .row-main .points li { list-style: none; padding-left: 16px; position: relative; }
+  .opt-a .row-main .points li::before { content: ''; position: absolute; left: 0; top: 10px; width: 5px; height: 5px; border-radius: 50%; background: #BFC6B5; }
+
+  .opt-a .row-evidence {
+    padding-left: 32px;
+    border-left: 1px solid #EDEDEB;
+    color: #5A6352;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .opt-a .row-evidence li { list-style: none; padding-left: 16px; position: relative; }
+  .opt-a .row-evidence li::before { content: ''; position: absolute; left: 0; top: 10px; width: 5px; height: 5px; border-radius: 50%; background: #D9DDD2; }
+
+  /* drag-handle alignment for opt-a */
+  .opt-a .drag-handle { padding-top: 6px; }
+
+  /* ===== OPTION B: Shadow Cards ===== */
+  .opt-b .cards { display: flex; flex-direction: column; gap: 0; }
+
+  .opt-b .card-wrapper { position: relative; }
+  .opt-b .card-wrapper:hover .drag-handle { opacity: 1; }
+
+  .opt-b .card {
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.06);
+    padding: 28px 32px 28px 16px;
+    display: grid;
+    grid-template-columns: 32px 1fr 36%;
+    gap: 16px;
+    align-items: start;
+    transition: box-shadow 0.15s;
+  }
+  .opt-b .card-wrapper:hover .card {
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.08);
+  }
+
+  .opt-b .card-content { padding-right: 16px; }
+
+  .opt-b .card-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+  }
+  .opt-b .card-num {
+    width: 36px;
+    height: 36px;
+    border-radius: 10px;
+    background: #E8F0E9;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    color: #3A6B47;
+    flex-shrink: 0;
+  }
+  .opt-b .card-title { font-size: 18px; font-weight: 600; color: #1C2118; }
+  .opt-b .card-duration {
+    margin-left: auto;
+    font-size: 14px;
+    color: #626B58;
+    background: #f5f5f3;
+    padding: 4px 12px;
+    border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  .opt-b .card-purpose { color: #5A6352; font-size: 15px; margin-bottom: 12px; line-height: 1.6; }
+  .opt-b .card-points { color: #626B58; font-size: 14px; line-height: 1.8; }
+  .opt-b .card-points li { list-style: none; padding-left: 16px; position: relative; }
+  .opt-b .card-points li::before { content: ''; position: absolute; left: 0; top: 10px; width: 5px; height: 5px; border-radius: 50%; background: #BFC6B5; }
+
+  .opt-b .card-evidence {
+    background: #FAFAF8;
+    border-radius: 12px;
+    padding: 20px 24px;
+    align-self: start;
+  }
+  .opt-b .card-evidence-label {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #626B58;
+    margin-bottom: 10px;
+  }
+  .opt-b .card-evidence ul { color: #5A6352; font-size: 14px; line-height: 1.7; }
+  .opt-b .card-evidence li { list-style: none; padding-left: 16px; position: relative; }
+  .opt-b .card-evidence li::before { content: ''; position: absolute; left: 0; top: 10px; width: 5px; height: 5px; border-radius: 50%; background: #D9DDD2; }
+
+  /* drag-handle for opt-b */
+  .opt-b .drag-handle { padding-top: 32px; }
+
+  /* insert zone spacing for opt-b */
+  .opt-b .insert-zone { height: 16px; }
+
+  /* ===== OPTION C: Minimal Rows ===== */
+  .opt-c .rows { display: flex; flex-direction: column; }
+
+  .opt-c .row-wrapper { position: relative; }
+  .opt-c .row-wrapper:hover .drag-handle { opacity: 1; }
+
+  .opt-c .min-row {
+    padding: 32px 0 32px 0;
+    border-bottom: 1px solid #EDEDEB;
+    display: grid;
+    grid-template-columns: 32px 56px 1fr 36%;
+    gap: 16px;
+    align-items: start;
+    transition: background 0.1s;
+    border-radius: 8px;
+  }
+  .opt-c .row-wrapper:hover .min-row { background: #FAFAF8; }
+  .opt-c .row-wrapper:first-child .min-row { padding-top: 0; }
+  .opt-c .row-wrapper:last-of-type .min-row { border-bottom: none; }
+
+  .opt-c .min-num {
+    font-size: 32px;
+    font-weight: 300;
+    color: #BFC6B5;
+    text-align: right;
+    padding-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .opt-c .min-main h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1C2118;
+    margin-bottom: 4px;
+  }
+  .opt-c .min-duration {
+    font-size: 13px;
+    color: #626B58;
+    margin-bottom: 10px;
+  }
+  .opt-c .min-purpose {
+    color: #5A6352;
+    font-size: 15px;
+    line-height: 1.6;
+    margin-bottom: 12px;
+  }
+  .opt-c .min-points {
+    color: #626B58;
+    font-size: 14px;
+    line-height: 1.8;
+  }
+  .opt-c .min-points li { list-style: none; padding-left: 16px; position: relative; }
+  .opt-c .min-points li::before { content: ''; position: absolute; left: 0; top: 10px; width: 5px; height: 5px; border-radius: 50%; background: #BFC6B5; }
+
+  .opt-c .min-evidence {
+    color: #626B58;
+    font-size: 14px;
+    line-height: 1.7;
+    padding-top: 4px;
+  }
+  .opt-c .min-evidence li { list-style: none; padding-left: 16px; position: relative; }
+  .opt-c .min-evidence li::before { content: ''; position: absolute; left: 0; top: 10px; width: 5px; height: 5px; border-radius: 50%; background: #D9DDD2; }
+
+  /* drag-handle for opt-c */
+  .opt-c .drag-handle { padding-top: 34px; }
+
+  .divider {
+    height: 40px;
+    background: #f5f5f3;
+  }
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1>Video Outline — Design Options</h1>
+  <p>3 Scandinavian-inspired directions. 80% width. Drag handles on hover. Insert button between rows.</p>
+</div>
+
+<!-- ===== OPTION A ===== -->
+<div class="section-wrapper">
+  <span class="option-label">OPTION A</span>
+  <p class="option-desc">SessionLab table — clean rows, thin rules, drag handle on left, insert zone between rows.</p>
+
+  <div class="opt-a content-80">
+    <div class="col-headers" style="grid-template-columns: 32px 68px 1fr 38%;">
+      <span></span>
+      <span></span>
+      <span>Title and Description</span>
+      <span>Evidence & Visuals</span>
+    </div>
+
+    <div class="row-wrapper">
+      <div class="row">
+        <div class="drag-handle">
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+        </div>
+        <div class="row-time">
+          <span class="num">1</span>
+          3:00–4:00
+        </div>
+        <div class="row-main">
+          <h3>The Role of Attention: Contextual Information Passing</h3>
+          <p class="purpose">Introduce attention as the mechanism for passing contextual information between tokens, laying the groundwork for understanding queries, keys, and values.</p>
+          <ul class="points">
+            <li>Concept of attention as information passing</li>
+            <li>Explanation of how attention enhances context understanding</li>
+            <li>Dispelling the myth that attention is just about "important words"</li>
+          </ul>
+        </div>
+        <div class="row-evidence">
+          <ul>
+            <li>A visual example of attention highlighting context in a sentence</li>
+            <li>Comparison of token understanding with and without attention</li>
+            <li>Clarification note: Attention is more than focusing on "important" words</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="insert-zone">
+      <div class="insert-line"></div>
+      <div class="insert-btn">+</div>
+    </div>
+
+    <div class="row-wrapper">
+      <div class="row">
+        <div class="drag-handle">
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+        </div>
+        <div class="row-time">
+          <span class="num">2</span>
+          3:00–4:00
+        </div>
+        <div class="row-main">
+          <h3>Understanding Language Modeling</h3>
+          <p class="purpose">Provide a foundation by explaining the big-picture goal of language modeling, introducing tokens and embeddings, and emphasizing why context is vital.</p>
+          <ul class="points">
+            <li>The overarching goal of language modeling in AI</li>
+            <li>Introduction to tokens and embeddings</li>
+            <li>The necessity of context in understanding language</li>
+          </ul>
+        </div>
+        <div class="row-evidence">
+          <ul>
+            <li>Definition and examples of tokens and embeddings</li>
+            <li>Case study illustrating context's role in language models</li>
+            <li>A simple scenario illustrating the loss of meaning without context</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="insert-zone">
+      <div class="insert-line"></div>
+      <div class="insert-btn">+</div>
+    </div>
+
+    <div class="row-wrapper">
+      <div class="row">
+        <div class="drag-handle">
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+        </div>
+        <div class="row-time">
+          <span class="num">3</span>
+          1:00–2:00
+        </div>
+        <div class="row-main">
+          <h3>Hook: The Power of Attention in AI</h3>
+          <p class="purpose">Introduce the importance of attention in AI language models and why understanding it is crucial for comprehending modern AI.</p>
+          <ul class="points">
+            <li>Why attention is central to modern AI language models</li>
+            <li>The role of context in language understanding</li>
+            <li>The question: How does AI mimic human-like language comprehension?</li>
+          </ul>
+        </div>
+        <div class="row-evidence">
+          <ul>
+            <li>A simple analogy or example of context importance in human communication</li>
+            <li>A brief mention of AI language model achievements</li>
+            <li>A quote or reference from a thought leader in AI</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== OPTION B ===== -->
+<div class="section-wrapper">
+  <span class="option-label">OPTION B</span>
+  <p class="option-desc">Elevated shadow cards. Drag handle on left edge. Insert zone between cards with green + button on hover.</p>
+
+  <div class="opt-b content-80">
+    <div class="cards">
+
+      <div class="card-wrapper">
+        <div class="card">
+          <div class="drag-handle">
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          </div>
+          <div class="card-content">
+            <div class="card-header">
+              <div class="card-num">1</div>
+              <div class="card-title">The Role of Attention: Contextual Information Passing</div>
+              <div class="card-duration">3:00–4:00</div>
+            </div>
+            <p class="card-purpose">Introduce attention as the mechanism for passing contextual information between tokens, laying the groundwork for understanding queries, keys, and values.</p>
+            <ul class="card-points">
+              <li>Concept of attention as information passing</li>
+              <li>Explanation of how attention enhances context understanding</li>
+              <li>Dispelling the myth that attention is just about "important words"</li>
+            </ul>
+          </div>
+          <div class="card-evidence">
+            <div class="card-evidence-label">Evidence & Visuals</div>
+            <ul>
+              <li>A visual example of attention highlighting context in a sentence</li>
+              <li>Comparison of token understanding with and without attention</li>
+              <li>Clarification note: Attention is more than focusing on "important" words</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="insert-zone">
+        <div class="insert-line"></div>
+        <div class="insert-btn">+</div>
+      </div>
+
+      <div class="card-wrapper">
+        <div class="card">
+          <div class="drag-handle">
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          </div>
+          <div class="card-content">
+            <div class="card-header">
+              <div class="card-num">2</div>
+              <div class="card-title">Understanding Language Modeling</div>
+              <div class="card-duration">3:00–4:00</div>
+            </div>
+            <p class="card-purpose">Provide a foundation by explaining the big-picture goal of language modeling, introducing tokens and embeddings, and emphasizing why context is vital.</p>
+            <ul class="card-points">
+              <li>The overarching goal of language modeling in AI</li>
+              <li>Introduction to tokens and embeddings</li>
+              <li>The necessity of context in understanding language</li>
+            </ul>
+          </div>
+          <div class="card-evidence">
+            <div class="card-evidence-label">Evidence & Visuals</div>
+            <ul>
+              <li>Definition and examples of tokens and embeddings</li>
+              <li>Case study illustrating context's role in language models</li>
+              <li>A simple scenario illustrating the loss of meaning without context</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="insert-zone">
+        <div class="insert-line"></div>
+        <div class="insert-btn">+</div>
+      </div>
+
+      <div class="card-wrapper">
+        <div class="card">
+          <div class="drag-handle">
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          </div>
+          <div class="card-content">
+            <div class="card-header">
+              <div class="card-num">3</div>
+              <div class="card-title">Hook: The Power of Attention in AI</div>
+              <div class="card-duration">1:00–2:00</div>
+            </div>
+            <p class="card-purpose">Introduce the importance of attention in AI language models and why understanding it is crucial for comprehending modern AI.</p>
+            <ul class="card-points">
+              <li>Why attention is central to modern AI language models</li>
+              <li>The role of context in language understanding</li>
+              <li>The question: How does AI mimic human-like language comprehension?</li>
+            </ul>
+          </div>
+          <div class="card-evidence">
+            <div class="card-evidence-label">Evidence & Visuals</div>
+            <ul>
+              <li>A simple analogy or example of context importance in human communication</li>
+              <li>A brief mention of AI language model achievements</li>
+              <li>A quote or reference from a thought leader in AI</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="divider"></div>
+
+<!-- ===== OPTION C ===== -->
+<div class="section-wrapper">
+  <span class="option-label">OPTION C</span>
+  <p class="option-desc">Pure typography. Drag handle replaces number column on hover. Insert between rows with green line + button.</p>
+
+  <div class="opt-c content-80">
+    <div class="rows">
+
+      <div class="row-wrapper">
+        <div class="min-row">
+          <div class="drag-handle">
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          </div>
+          <div class="min-num">1</div>
+          <div class="min-main">
+            <h3>The Role of Attention: Contextual Information Passing</h3>
+            <div class="min-duration">3:00 – 4:00</div>
+            <p class="min-purpose">Introduce attention as the mechanism for passing contextual information between tokens, laying the groundwork for understanding queries, keys, and values.</p>
+            <ul class="min-points">
+              <li>Concept of attention as information passing</li>
+              <li>Explanation of how attention enhances context understanding</li>
+              <li>Dispelling the myth that attention is just about "important words"</li>
+            </ul>
+          </div>
+          <div class="min-evidence">
+            <ul>
+              <li>A visual example of attention highlighting context in a sentence</li>
+              <li>Comparison of token understanding with and without attention</li>
+              <li>Clarification note: Attention is more than focusing on "important" words</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="insert-zone">
+        <div class="insert-line"></div>
+        <div class="insert-btn">+</div>
+      </div>
+
+      <div class="row-wrapper">
+        <div class="min-row">
+          <div class="drag-handle">
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          </div>
+          <div class="min-num">2</div>
+          <div class="min-main">
+            <h3>Understanding Language Modeling</h3>
+            <div class="min-duration">3:00 – 4:00</div>
+            <p class="min-purpose">Provide a foundation by explaining the big-picture goal of language modeling, introducing tokens and embeddings, and emphasizing why context is vital.</p>
+            <ul class="min-points">
+              <li>The overarching goal of language modeling in AI</li>
+              <li>Introduction to tokens and embeddings</li>
+              <li>The necessity of context in understanding language</li>
+            </ul>
+          </div>
+          <div class="min-evidence">
+            <ul>
+              <li>Definition and examples of tokens and embeddings</li>
+              <li>Case study illustrating context's role in language models</li>
+              <li>A simple scenario illustrating the loss of meaning without context</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <div class="insert-zone">
+        <div class="insert-line"></div>
+        <div class="insert-btn">+</div>
+      </div>
+
+      <div class="row-wrapper">
+        <div class="min-row">
+          <div class="drag-handle">
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+            <div class="dot-row"><span class="dot"></span><span class="dot"></span></div>
+          </div>
+          <div class="min-num">3</div>
+          <div class="min-main">
+            <h3>Hook: The Power of Attention in AI</h3>
+            <div class="min-duration">1:00 – 2:00</div>
+            <p class="min-purpose">Introduce the importance of attention in AI language models and why understanding it is crucial for comprehending modern AI.</p>
+            <ul class="min-points">
+              <li>Why attention is central to modern AI language models</li>
+              <li>The role of context in language understanding</li>
+              <li>The question: How does AI mimic human-like language comprehension?</li>
+            </ul>
+          </div>
+          <div class="min-evidence">
+            <ul>
+              <li>A simple analogy or example of context importance in human communication</li>
+              <li>A brief mention of AI language model achievements</li>
+              <li>A quote or reference from a thought leader in AI</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div style="height: 80px; background: #f5f5f3;"></div>
+
+</body>
+</html>

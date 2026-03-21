@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Onboarding Redesign — A / B / C</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', sans-serif; background: #F5F5F3; color: #1C2118; }
+
+  /* ── Tab bar ── */
+  .tab-bar {
+    position: sticky; top: 0; z-index: 100;
+    display: flex; gap: 0; background: #1C2118;
+    padding: 0 32px;
+  }
+  .tab-bar button {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    padding: 14px 28px; border: none; cursor: pointer;
+    color: #8D9885; background: transparent;
+    border-bottom: 2px solid transparent;
+    transition: all .15s;
+  }
+  .tab-bar button:hover { color: #D9DDD2; }
+  .tab-bar button.active { color: #fff; border-bottom-color: #3A6B47; }
+
+  .option { display: none; }
+  .option.active { display: block; }
+
+  /* ── Shared chrome ── */
+  .top-nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 32px; background: #fff; border-bottom: 1px solid #E8EBE3;
+  }
+  .top-nav .logo { font-weight: 700; font-size: 18px; color: #1C2118; }
+  .top-nav .logo span { font-size: 10px; font-weight: 600; color: #626B58; border: 1px solid #BFC6B5; border-radius: 20px; padding: 2px 7px; margin-left: 6px; vertical-align: middle; }
+  .top-nav .nav-links { display: flex; gap: 24px; font-size: 13px; color: #626B58; }
+  .avatar { width: 32px; height: 32px; border-radius: 50%; background: #D9DDD2; }
+
+  /* ── Shared form atoms ── */
+  input[type="text"], input[type="number"], textarea, select {
+    font-family: inherit; font-size: 14px; color: #1C2118;
+    background: #fff; border: 1px solid #D9DDD2; border-radius: 8px;
+    padding: 10px 14px; width: 100%; outline: none;
+    transition: border-color .15s, box-shadow .15s;
+  }
+  input:focus, textarea:focus, select:focus {
+    border-color: #3A6B47;
+    box-shadow: 0 0 0 3px rgba(58,107,71,.1);
+  }
+  textarea { resize: vertical; min-height: 120px; }
+  label.field-label { display: block; font-size: 13px; font-weight: 600; color: #1C2118; margin-bottom: 6px; }
+  .field-hint { font-size: 12px; color: #626B58; margin-bottom: 8px; }
+  .required { color: #A63228; }
+  .btn-primary {
+    font-family: inherit; font-size: 14px; font-weight: 600;
+    padding: 11px 28px; border: none; border-radius: 8px; cursor: pointer;
+    background: #3A6B47; color: #fff; transition: background .15s;
+  }
+  .btn-primary:hover { background: #2D5538; }
+  .btn-outline {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    padding: 8px 16px; border: 1px solid #D9DDD2; border-radius: 8px;
+    cursor: pointer; background: #fff; color: #1C2118; transition: all .15s;
+  }
+  .btn-outline:hover { border-color: #3A6B47; color: #3A6B47; }
+
+  /* ───────────────────────────────────────────────
+     OPTION A — "The Focused Brief"
+     Clean single-column, no card wrapper, editorial
+     ─────────────────────────────────────────────── */
+  .opt-a .page { max-width: 640px; margin: 0 auto; padding: 48px 24px 80px; }
+  .opt-a .page-title { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+  .opt-a .page-sub { font-size: 14px; color: #626B58; margin-bottom: 40px; }
+  .opt-a .section { margin-bottom: 32px; }
+  .opt-a .section-divider { border: none; border-top: 1px solid #E8EBE3; margin: 36px 0; }
+  .opt-a .source-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .opt-a .source-chip {
+    font-size: 12px; padding: 5px 12px; border-radius: 20px;
+    background: #EEF1E9; color: #3A6B47; border: 1px solid #D9DDD2;
+    cursor: pointer; transition: all .15s;
+  }
+  .opt-a .source-chip:hover { border-color: #3A6B47; }
+  .opt-a .source-chip.active { background: #3A6B47; color: #fff; border-color: #3A6B47; }
+  .opt-a .footer-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: #fff; border-top: 1px solid #E8EBE3;
+    padding: 14px 32px; display: flex; justify-content: flex-end;
+  }
+  .opt-a .inline-row { display: flex; gap: 16px; }
+  .opt-a .inline-row > div { flex: 1; }
+
+  /* ───────────────────────────────────────────────
+     OPTION B — "The Guided Start"
+     Two-column: left context panel, right form
+     ─────────────────────────────────────────────── */
+  .opt-b .layout { display: flex; min-height: calc(100vh - 51px - 49px); }
+  .opt-b .left-panel {
+    width: 360px; flex-shrink: 0;
+    background: linear-gradient(170deg, #2D3A28 0%, #1C2118 100%);
+    color: #D9DDD2; padding: 48px 36px;
+    display: flex; flex-direction: column; gap: 32px;
+  }
+  .opt-b .left-panel h2 { font-size: 22px; font-weight: 700; color: #fff; line-height: 1.3; }
+  .opt-b .left-panel p { font-size: 13px; line-height: 1.6; opacity: .8; }
+  .opt-b .tip-card {
+    background: rgba(255,255,255,.08); border-radius: 10px; padding: 16px;
+    border: 1px solid rgba(255,255,255,.1);
+  }
+  .opt-b .tip-card .tip-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: #8CAF7E; margin-bottom: 8px; }
+  .opt-b .tip-card p { font-size: 12px; line-height: 1.5; }
+  .opt-b .right-panel { flex: 1; padding: 48px 56px; overflow-y: auto; background: #FAFAF8; }
+  .opt-b .right-panel .form-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .opt-b .right-panel .form-sub { font-size: 13px; color: #626B58; margin-bottom: 36px; }
+  .opt-b .form-section { margin-bottom: 28px; }
+  .opt-b .form-row { display: flex; gap: 16px; }
+  .opt-b .form-row > div { flex: 1; }
+  .opt-b .source-bar { display: flex; gap: 8px; }
+  .opt-b .form-actions { display: flex; justify-content: flex-end; margin-top: 36px; padding-top: 24px; border-top: 1px solid #E8EBE3; }
+
+  /* ───────────────────────────────────────────────
+     OPTION C — "The Step-by-Step Wizard"
+     Centered card with stepper
+     ─────────────────────────────────────────────── */
+  .opt-c .wizard-page { display: flex; flex-direction: column; align-items: center; padding: 48px 24px 80px; min-height: calc(100vh - 51px - 49px); background: #F5F5F3; }
+  .opt-c .stepper { display: flex; gap: 0; margin-bottom: 40px; }
+  .opt-c .step {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 600; color: #8D9885;
+  }
+  .opt-c .step.active { color: #3A6B47; }
+  .opt-c .step.done { color: #3A6B47; }
+  .opt-c .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700;
+    background: #E8EBE3; color: #626B58;
+  }
+  .opt-c .step.active .step-num { background: #3A6B47; color: #fff; }
+  .opt-c .step.done .step-num { background: #3A6B47; color: #fff; }
+  .opt-c .step-line { width: 48px; height: 2px; background: #D9DDD2; margin: 0 12px; align-self: center; }
+  .opt-c .step-line.done { background: #3A6B47; }
+  .opt-c .wizard-card {
+    width: 100%; max-width: 600px;
+    background: #fff; border-radius: 14px;
+    border: 1px solid #E8EBE3;
+    box-shadow: 0 2px 12px rgba(0,0,0,.05);
+    padding: 40px;
+  }
+  .opt-c .wizard-card h2 { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .opt-c .wizard-card .card-sub { font-size: 13px; color: #626B58; margin-bottom: 28px; }
+  .opt-c .wizard-actions { display: flex; justify-content: space-between; margin-top: 32px; }
+  .opt-c .btn-back {
+    font-family: inherit; font-size: 13px; font-weight: 600;
+    padding: 10px 20px; border: none; border-radius: 8px;
+    cursor: pointer; background: transparent; color: #626B58;
+    transition: color .15s;
+  }
+  .opt-c .btn-back:hover { color: #1C2118; }
+  .opt-c .example-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+  .opt-c .example-pill {
+    font-size: 11px; padding: 4px 10px; border-radius: 20px;
+    background: #EEF1E9; color: #626B58; cursor: pointer;
+  }
+  .opt-c .example-pill:hover { background: #D9DDD2; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ TAB BAR ═══════════════ -->
+<div class="tab-bar">
+  <button class="active" onclick="showOption('a',this)">A — The Focused Brief</button>
+  <button onclick="showOption('b',this)">B — The Guided Start</button>
+  <button onclick="showOption('c',this)">C — The Step-by-Step</button>
+</div>
+
+<!-- ═══════════════════════════════════════
+     OPTION A — "The Focused Brief"
+     Single-column, editorial, no card wrappers
+     ═══════════════════════════════════════ -->
+<div id="opt-a" class="option opt-a active">
+  <nav class="top-nav">
+    <div class="logo">Plotline <span>BETA</span></div>
+    <div class="nav-links">
+      <span>My Projects</span>
+      <span>Analytics</span>
+      <span>Eval</span>
+      <div class="avatar"></div>
+    </div>
+  </nav>
+
+  <div class="page">
+    <div class="page-title">New Knowledge Share</div>
+    <div class="page-sub">Describe your video and we'll build a storyboard for it.</div>
+
+    <div class="section">
+      <label class="field-label">What's this video about? <span class="required">*</span></label>
+      <div class="field-hint">Topic, learning objectives, key message — the more detail, the better the storyboard.</div>
+      <textarea placeholder="e.g., A 90-second explainer on how retrieval-augmented generation works, aimed at product managers who've heard of RAG but haven't built with it..."></textarea>
+    </div>
+
+    <div class="inline-row">
+      <div>
+        <label class="field-label">Duration <span class="required">*</span></label>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <input type="number" placeholder="90" style="width:100px;">
+          <span style="font-size:13px;color:#626B58;">seconds</span>
+        </div>
+      </div>
+      <div>
+        <label class="field-label">Target Audience <span class="required">*</span></label>
+        <input type="text" placeholder="e.g., Product managers new to AI">
+      </div>
+    </div>
+
+    <hr class="section-divider">
+
+    <div class="section">
+      <label class="field-label">Sources</label>
+      <div class="field-hint">Optional — upload docs, paste links, or add notes to give the AI more context.</div>
+      <div class="source-chips">
+        <div class="source-chip">+ Upload file</div>
+        <div class="source-chip">+ Paste link</div>
+        <div class="source-chip">+ Add text</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-bar">
+    <button class="btn-primary">Generate Storyboard →</button>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     OPTION B — "The Guided Start"
+     Two-column: dark left panel + right form
+     ═══════════════════════════════════════ -->
+<div id="opt-b" class="option opt-b">
+  <nav class="top-nav">
+    <div class="logo">Plotline <span>BETA</span></div>
+    <div class="nav-links">
+      <span>My Projects</span>
+      <span>Analytics</span>
+      <span>Eval</span>
+      <div class="avatar"></div>
+    </div>
+  </nav>
+
+  <div class="layout">
+    <div class="left-panel">
+      <div>
+        <h2>Create a Knowledge Share</h2>
+        <p style="margin-top:8px;">Tell us about your video and we'll generate a structured storyboard with voiceover scripts, visual direction, and timing.</p>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-label">Tip</div>
+        <p>Be specific about your audience's skill level. "Engineers who use Python daily" produces better results than "technical audience."</p>
+      </div>
+
+      <div class="tip-card">
+        <div class="tip-label">What you'll get</div>
+        <p>A screen-by-screen storyboard with voiceover scripts, visual directions, on-screen text, and timing — ready to produce or iterate on.</p>
+      </div>
+
+      <div style="margin-top:auto; opacity:.5; font-size:11px;">
+        Typical generation time: ~60 seconds
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="form-title">Describe your video</div>
+      <div class="form-sub">The more context you give, the better the storyboard.</div>
+
+      <div class="form-section">
+        <label class="field-label">What's this video about? <span class="required">*</span></label>
+        <textarea placeholder="e.g., A 90-second explainer on how retrieval-augmented generation works, aimed at product managers who've heard of RAG but haven't built with it..." style="min-height:140px;"></textarea>
+      </div>
+
+      <div class="form-row">
+        <div>
+          <label class="field-label">Duration <span class="required">*</span></label>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <input type="number" placeholder="90" style="width:100px;">
+            <span style="font-size:13px;color:#626B58;">seconds</span>
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Target Audience <span class="required">*</span></label>
+          <input type="text" placeholder="Product managers new to AI">
+        </div>
+      </div>
+
+      <div class="form-section" style="margin-top:28px;">
+        <label class="field-label">Sources <span style="font-size:11px;color:#626B58;font-weight:400;">(optional)</span></label>
+        <div class="field-hint" style="margin-bottom:10px;">Upload docs, paste links, or add notes for additional context.</div>
+        <div class="source-bar">
+          <button class="btn-outline" style="font-size:12px;padding:7px 14px;">📎 Upload file</button>
+          <button class="btn-outline" style="font-size:12px;padding:7px 14px;">🔗 Paste link</button>
+          <button class="btn-outline" style="font-size:12px;padding:7px 14px;">📝 Add text</button>
+        </div>
+      </div>
+
+      <div class="form-actions">
+        <button class="btn-primary">Generate Storyboard →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ═══════════════════════════════════════
+     OPTION C — "The Step-by-Step Wizard"
+     Centered card with progress stepper
+     ═══════════════════════════════════════ -->
+<div id="opt-c" class="option opt-c">
+  <nav class="top-nav">
+    <div class="logo">Plotline <span>BETA</span></div>
+    <div class="nav-links">
+      <span>My Projects</span>
+      <span>Analytics</span>
+      <span>Eval</span>
+      <div class="avatar"></div>
+    </div>
+  </nav>
+
+  <div class="wizard-page">
+    <!-- Stepper -->
+    <div class="stepper">
+      <div class="step done">
+        <div class="step-num">✓</div>
+        <span>Video Type</span>
+      </div>
+      <div class="step-line done"></div>
+      <div class="step active">
+        <div class="step-num">2</div>
+        <span>Describe</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <span>Settings</span>
+      </div>
+      <div class="step-line"></div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <span>Sources</span>
+      </div>
+    </div>
+
+    <!-- Wizard Card — Step 2: Describe -->
+    <div class="wizard-card">
+      <h2>Describe your Knowledge Share</h2>
+      <div class="card-sub">What topic are you explaining, and what should viewers take away?</div>
+
+      <textarea placeholder="e.g., A 90-second explainer on how retrieval-augmented generation works, aimed at product managers who've heard of RAG but haven't built with it..." style="min-height:160px;"></textarea>
+
+      <div style="margin-top:12px;">
+        <div style="font-size:11px;color:#8D9885;margin-bottom:6px;">Try one of these to get started:</div>
+        <div class="example-pills">
+          <div class="example-pill">How RAG works for PMs</div>
+          <div class="example-pill">Git branching strategies</div>
+          <div class="example-pill">Intro to design systems</div>
+          <div class="example-pill">GDPR for product teams</div>
+        </div>
+      </div>
+
+      <div class="wizard-actions">
+        <button class="btn-back">← Back</button>
+        <button class="btn-primary">Next: Settings →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showOption(id, btn) {
+  document.querySelectorAll('.option').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-bar button').forEach(el => el.classList.remove('active'));
+  document.getElementById('opt-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+</script>
+</body>
+</html>

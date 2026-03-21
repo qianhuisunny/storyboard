@@ -644,6 +644,7 @@ export default function StageContent({
   }, [projectId, currentOutlineText, onAnchorChange]);
 
   const handleResearchContinue = useCallback(async () => {
+    console.log("[Outline] handleResearchContinue called, projectId:", projectId);
     if (!projectId) return;
     try {
       // Check current backend phase before sending event
@@ -651,6 +652,7 @@ export default function StageContent({
       if (!stateResp.ok) return;
       const stateData = await stateResp.json();
 
+      console.log("[Outline] Current backend phase:", stateData.phase);
       // If project already past outline_research, advance frontend using existing storyboard
       if (stateData.phase !== "outline_research") {
         const storyboard = stateData.data?.storyboard;
@@ -658,6 +660,7 @@ export default function StageContent({
         const isValidStoryboard = Array.isArray(storyboard) &&
           storyboard.length >= 3 &&
           storyboard[0]?.screen_type != null;
+        console.log("[Outline] storyboard exists:", !!storyboard, "isValid:", isValidStoryboard);
         if (isValidStoryboard) {
           onApprove(currentOutlineText, {
             skipNextGeneration: true,
@@ -665,6 +668,7 @@ export default function StageContent({
           });
         } else {
           // Storyboard missing or invalid — advance without it, let stage 3 regenerate
+          console.log("[Outline] No valid storyboard, advancing with currentOutlineText length:", currentOutlineText?.length);
           onApprove(currentOutlineText);
         }
         return;

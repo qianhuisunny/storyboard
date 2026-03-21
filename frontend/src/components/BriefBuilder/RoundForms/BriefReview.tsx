@@ -21,7 +21,6 @@ const SECTION_1_FIELDS = [
   "audience_level",
   "platform",
   "duration",
-  "viewer_next_action",
 ];
 
 const SECTION_2_FIELDS = [

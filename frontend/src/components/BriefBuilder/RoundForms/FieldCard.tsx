@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import type { BriefField, FieldColor } from "../types";
-import { getFieldColor, KNOWLEDGE_SHARE_FIELD_LABELS, KNOWLEDGE_SHARE_OPTIONS, KNOWLEDGE_SHARE_FIELD_TYPES } from "../types";
+import { getFieldColor, KNOWLEDGE_SHARE_FIELD_LABELS, KNOWLEDGE_SHARE_OPTIONS, KNOWLEDGE_SHARE_FIELD_TYPES, KNOWLEDGE_SHARE_FIELD_TOOLTIPS } from "../types";
 
 interface FieldCardProps {
   fieldKey: string;
@@ -105,7 +105,7 @@ function MultiselectOption({
               style={{
                 position: "absolute",
                 bottom: "calc(100% + 8px)",
-                left: "24px",
+                right: 0,
                 width: "280px",
                 background: "#1C2118",
                 color: "#F0F2EC",
@@ -144,7 +144,7 @@ function MultiselectOption({
                 style={{
                   position: "absolute",
                   bottom: "-4px",
-                  left: "20px",
+                  right: "12px",
                   width: "8px",
                   height: "8px",
                   background: "#1C2118",
@@ -168,10 +168,12 @@ export default function FieldCard({
   onUnconfirm,
   disabled = false,
 }: FieldCardProps) {
+  const [showFieldTooltip, setShowFieldTooltip] = useState(false);
   const color = getFieldColor(field, isRequired);
   const label = KNOWLEDGE_SHARE_FIELD_LABELS[fieldKey] || fieldKey;
   const fieldType = KNOWLEDGE_SHARE_FIELD_TYPES[fieldKey] || "text";
   const options = KNOWLEDGE_SHARE_OPTIONS[fieldKey] || [];
+  const tooltip = KNOWLEDGE_SHARE_FIELD_TOOLTIPS[fieldKey];
 
   const handleValueChange = (newValue: string | string[] | boolean) => {
     onChange(newValue);
@@ -442,6 +444,38 @@ export default function FieldCard({
       <div className="flex items-center justify-between" style={{ marginBottom: "10px", gap: "10px" }}>
         <div className="flex items-center gap-2 flex-wrap">
           <span style={{ fontSize: "13px", fontWeight: 600, color: "#1C2118" }}>{label}</span>
+          {tooltip && (
+            <span
+              className="relative inline-block"
+              onMouseEnter={() => setShowFieldTooltip(true)}
+              onMouseLeave={() => setShowFieldTooltip(false)}
+              onClick={() => setShowFieldTooltip(!showFieldTooltip)}
+            >
+              <span style={{ fontSize: "12px", color: "#8D9885", cursor: "help" }}>ⓘ</span>
+              {showFieldTooltip && (
+                <span
+                  style={{
+                    position: "absolute",
+                    bottom: "calc(100% + 8px)",
+                    left: 0,
+                    width: "300px",
+                    background: "#1C2118",
+                    color: "#F0F2EC",
+                    fontSize: "12px",
+                    lineHeight: "1.5",
+                    borderRadius: "8px",
+                    padding: "10px 14px",
+                    zIndex: 50,
+                    pointerEvents: "none",
+                    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+                    whiteSpace: "pre-line",
+                  }}
+                >
+                  {tooltip}
+                </span>
+              )}
+            </span>
+          )}
           <span
             style={{
               fontSize: "10px",

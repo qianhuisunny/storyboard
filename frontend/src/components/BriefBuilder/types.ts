@@ -97,7 +97,6 @@ export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
     "audience_level",
     "platform",
     "duration",
-    "viewer_next_action",
   ],
   2: [
     "on_camera_presence",
@@ -118,12 +117,11 @@ export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
 export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   // Section 1: Core Intent
   video_type: "Video type",
-  viewer_outcome: "Viewer outcome: know, do, believe",
+  viewer_outcome: "Viewer outcome: what do you want people to know, do, believe, by the end of watching this video?",
   target_audience: "Who is this video for?",
   audience_level: "How familiar is your audience with this topic?",
   platform: "Where will this video be published?",
   duration: "How long should this video be? (seconds)",
-  viewer_next_action: "What is the next thing you want people to do after watching this video?",
   // Section 2: Delivery & Format
   on_camera_presence: "Do you want your face on screen?",
   broll_type: "What should viewers mostly see while you explain?",
@@ -146,7 +144,6 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   audience_level: "select",
   platform: "select",
   duration: "number",
-  viewer_next_action: "textarea",
   on_camera_presence: "select",
   broll_type: "multiselect",
   delivery_tone: "select",
@@ -172,9 +169,8 @@ export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: str
     { value: "internal_lms", label: "Internal LMS" },
   ],
   on_camera_presence: [
+    { value: "yes", label: "Yes" },
     { value: "no", label: "No" },
-    { value: "yes_throughout", label: "Yes — throughout" },
-    { value: "yes_intro_outro", label: "Yes — intro/outro/transition" },
   ],
   broll_type: [
     { value: "screen_recording", label: "Screen recording (product/demo/document)", description: "Viewer watches your screen as you navigate — product walkthroughs, software demos, document reviews", image: "/tooltips/screen_recording.jpg" },
@@ -198,6 +194,13 @@ export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: str
 };
 
 /**
+ * Field tooltips for Knowledge Share (shown as info icon next to label).
+ */
+export const KNOWLEDGE_SHARE_FIELD_TOOLTIPS: Record<string, string> = {
+  viewer_outcome: "Know = a concept or fact they understand after watching.\nDo = a specific action they can take.\nBelieve = a perspective or conviction they walk away with.\n\nYou can aim for one or a combination — just be specific.",
+};
+
+/**
  * Create an empty BriefField.
  */
 export function createEmptyField(key: string): BriefField {
@@ -218,7 +221,7 @@ export function createInitialKnowledgeShareFields(): Record<string, BriefField> 
   // Section 1 fields
   const section1Fields = [
     "video_type", "viewer_outcome", "target_audience", "audience_level",
-    "platform", "duration", "viewer_next_action"
+    "platform", "duration"
   ];
 
   // Section 2 fields

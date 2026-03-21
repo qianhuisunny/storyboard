@@ -15,32 +15,32 @@ export interface OutlineSection {
   evidenceNeeded: string[];
 }
 
-// 3-Layer Evidence Research types
+// Evidence Research types (from EvidenceResearcher agent)
 
-export interface SelectedEvidence {
-  source_title: string;
-  source_url: string;
-  source_type: "primary" | "official" | "educational" | "secondary";
-  why_selected: string;
-  evidence_summary: string;
-  usable_line: string;
+export interface ResearchBlock {
+  research_question: string;
+  storyboard_usable_phrasing: string[];
+  full_answer: string;
+  sources: string[];
   confidence: "high" | "medium" | "low";
 }
 
-export interface EvidenceTask {
-  task_label: string;
-  supports: string;
-  evidence_type: string;
-  priority: "required" | "helpful" | "optional";
-  queries: string[];
-  selection_criteria: string;
-  selected_evidence: SelectedEvidence | null;
+// v0317: evidence-item-based research
+export interface EvidenceItemResearch {
+  evidence_needed: string;
+  research_blocks: ResearchBlock[];
+}
+
+// v0316 backward compat
+export interface TalkingPointResearch {
+  talking_point: string;
+  research_blocks: ResearchBlock[];
 }
 
 export interface SectionResearch {
   section_title: string;
-  research_brief: string;
-  evidence_tasks: EvidenceTask[];
+  evidence_items?: EvidenceItemResearch[];
+  talking_points?: TalkingPointResearch[];  // v0316 fallback
 }
 
 export interface EvidenceResearch {
@@ -53,7 +53,7 @@ export interface OutlineBuilderProps {
   aiContent?: string | null;  // AI original version for drawer comparison
   onChange: (content: string) => void;
   onRunResearch: () => void;
-  onContinue: () => void;
+  onContinue: () => void | Promise<void>;
   isResearching?: boolean;
   researchResults?: EvidenceResearch | null;
 }

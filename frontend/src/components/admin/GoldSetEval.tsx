@@ -672,58 +672,67 @@ function ResearchTab({
               })()}
             </div>
 
-            {/* Evidence tasks table */}
+            {/* Research blocks table — grouped by talking point */}
             <table className="w-full text-sm">
               <thead className="bg-muted/20">
                 <tr>
-                  <th className="text-left px-3 py-2 font-medium w-[22%]">Evidence Needed</th>
-                  <th className="text-left px-3 py-2 font-medium w-[22%]">Research Question</th>
-                  <th className="text-left px-3 py-2 font-medium w-[36%]">Answer</th>
+                  <th className="text-left px-3 py-2 font-medium w-[20%]">Talking Point</th>
+                  <th className="text-left px-3 py-2 font-medium w-[20%]">Research Question</th>
+                  <th className="text-left px-3 py-2 font-medium w-[40%]">Usable Phrasing</th>
                   <th className="text-left px-3 py-2 font-medium w-[10%]">Confidence</th>
                   <th className="text-left px-3 py-2 font-medium w-[10%]">Cited?</th>
                 </tr>
               </thead>
               <tbody>
-                {section.evidence_tasks.map((task, ti) => {
-                  const citation = citationSection?.tasks?.[ti];
-                  const answer = task.answer;
-                  const conf = answer?.confidence || "low";
-                  return (
-                    <tr key={ti} className="border-t align-top">
-                      <td className="px-3 py-2 text-xs">{task.evidence_needed}</td>
-                      <td className="px-3 py-2 text-xs italic text-muted-foreground">{task.research_question}</td>
-                      <td className="px-3 py-2">
-                        {answer ? (
-                          <div className="space-y-1">
-                            <p className="text-xs">{answer.summary}</p>
-                            <p className="text-xs bg-muted/30 rounded px-2 py-1 italic">
-                              &ldquo;{answer.usable_line}&rdquo;
-                            </p>
-                            <p className="text-[10px] text-muted-foreground">
-                              Source: {answer.source_description}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-muted-foreground italic">No answer</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2">
-                        <Badge variant="outline" className={`text-[10px] ${CONFIDENCE_COLORS[conf] || ""}`}>
-                          {conf}
-                        </Badge>
-                      </td>
-                      <td className="px-3 py-2">
-                        {citation ? (
-                          <Badge variant={citation.cited ? "default" : "secondary"} className="text-[10px]">
-                            {citation.cited ? "Yes" : "No"}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">-</span>
-                        )}
-                      </td>
-                    </tr>
+                {(() => {
+                  let blockIndex = 0;
+                  // Dual-schema: v0317 evidence_items or v0316 talking_points
+                  const groups = section.evidence_items
+                    ? section.evidence_items.map((item) => ({ label: item.evidence_needed, blocks: item.research_blocks }))
+                    : (section.talking_points ?? []).map((tp) => ({ label: tp.talking_point, blocks: tp.research_blocks }));
+                  return groups.map((group, tpi) =>
+                    group.blocks.map((block, bi) => {
+                      const citation = citationSection?.tasks?.[blockIndex];
+                      blockIndex++;
+                      return (
+                        <tr key={`${tpi}-${bi}`} className="border-t align-top">
+                          <td className="px-3 py-2 text-xs">
+                            {bi === 0 ? group.label : ""}
+                          </td>
+                          <td className="px-3 py-2 text-xs italic text-muted-foreground">
+                            {block.research_question}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="space-y-1">
+                              {block.storyboard_usable_phrasing.map((line, li) => (
+                                <p key={li} className="text-xs">{line}</p>
+                              ))}
+                              {block.sources.length > 0 && (
+                                <p className="text-[10px] text-muted-foreground mt-1">
+                                  {block.sources.join("; ")}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2">
+                            <Badge variant="outline" className={`text-[10px] ${CONFIDENCE_COLORS[block.confidence] || ""}`}>
+                              {block.confidence}
+                            </Badge>
+                          </td>
+                          <td className="px-3 py-2">
+                            {citation ? (
+                              <Badge variant={citation.cited ? "default" : "secondary"} className="text-[10px]">
+                                {citation.cited ? "Yes" : "No"}
+                              </Badge>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
                   );
-                })}
+                })()}
               </tbody>
             </table>
           </div>

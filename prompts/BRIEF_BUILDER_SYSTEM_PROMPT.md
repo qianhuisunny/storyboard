@@ -45,7 +45,6 @@ Return extracted fields immediately. All other fields are empty for user input.
 | `duration` | extracted | From initial form (blue) |
 | `audience_level` | empty | User selects (red - needs input) |
 | `platform` | empty | User selects (red - needs input) |
-| `viewer_next_action` | empty | User fills in (red - needs input) |
 
 **No LLM call in Round 1** - fields are returned immediately to ensure fast response.
 
@@ -54,7 +53,6 @@ Return extracted fields immediately. All other fields are empty for user input.
 1. **viewer_outcome**: What the viewer should know, do, or believe after watching (combines old primary_goal + one_big_thing).
 2. **audience_level**: How familiar is the audience? (beginner/intermediate/advanced/mixed)
 3. **platform**: Where will this be published? (youtube/internal_lms)
-4. **viewer_next_action**: What viewers should do after watching.
 
 ---
 
@@ -103,9 +101,10 @@ All Round 2 fields are empty for user input. No AI suggestions.
    - Points should build on each other logically
    - Example: ["Understanding exit types (IPO, M&A, secondary)", "Timing considerations", "Financial realities"]
 
-3. **misconceptions**: Identify 2-3 common misconceptions about the topic.
-   - Focus on beliefs that could hurt the viewer
-   - Example: ["IPO is the only 'real' exit", "Higher valuation = more founder payout"]
+3. **misconceptions**: Identify 3-5 misconceptions and objections (two types).
+   - **Knowledge misconceptions** (1-2): Incorrect beliefs, oversimplifications, outdated assumptions about the topic
+   - **Adoption objections** (2-3): Why a skeptical audience member would resist acting on this advice — credibility challenges, practical friction, competitive alternatives
+   - Example: ["IPO is the only 'real' exit", "Higher valuation = more founder payout", "This advice only works for Silicon Valley startups", "My investors will never agree to a secondary sale"]
 
 4. **additional_notes**: Leave empty - this is for optional user input only.
 
@@ -164,11 +163,6 @@ For each round, return a JSON object with this structure:
       "source": "empty",
       "confirmed": false
     },
-    "viewer_next_action": {
-      "value": "",
-      "source": "empty",
-      "confirmed": false
-    }
   }
 }
 ```

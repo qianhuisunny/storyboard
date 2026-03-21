@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, Search, Loader2, ExternalLink, ChevronDown, ChevronRight, PanelRight } from "lucide-react";
+import { Check, Search, Loader2, ChevronDown, ChevronRight, PanelRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OutlineGrid from "./OutlineGrid";
 import AiOriginalDrawer from "./AiOriginalDrawer";
@@ -18,7 +18,9 @@ import type {
   OutlineBuilderProps,
   OutlineSection,
   SectionResearch,
-  EvidenceTask,
+  EvidenceItemResearch,
+  TalkingPointResearch,
+  ResearchBlock,
 } from "./types";
 
 export default function OutlineBuilder({
@@ -30,6 +32,8 @@ export default function OutlineBuilder({
   isResearching = false,
   researchResults = null,
 }: OutlineBuilderProps) {
+  const [isContinuing, setIsContinuing] = useState(false);
+
   // Parse text → sections on mount and when content changes externally
   const [sections, setSections] = useState<OutlineSection[]>(() =>
     parseOutline(content)
@@ -207,9 +211,19 @@ export default function OutlineBuilder({
       <div className="px-6 sm:px-10 py-3 sm:py-4 border-t border-border bg-muted/20 shrink-0">
         <div className="w-full flex justify-end">
           {hasResearch ? (
-            <Button onClick={onContinue}>
-              <Check className="w-4 h-4 mr-2" />
-              Continue to Storyboard Draft
+            <Button
+              onClick={async () => {
+                setIsContinuing(true);
+                try { await onContinue(); } finally { setIsContinuing(false); }
+              }}
+              disabled={isContinuing}
+            >
+              {isContinuing ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Check className="w-4 h-4 mr-2" />
+              )}
+              {isContinuing ? "Generating storyboard..." : "Continue to Storyboard Draft"}
             </Button>
           ) : (
             <Button
@@ -230,14 +244,18 @@ export default function OutlineBuilder({
   );
 }
 
-/** Section-level research card with brief and evidence tasks */
+/** Section-level research card — detects v0317 (evidence_items) vs v0316 (talking_points) */
 function SectionResearchCard({ section }: { section: SectionResearch }) {
   const [isExpanded, setIsExpanded] = useState(true);
 
-  const taskCount = section.evidence_tasks.length;
-  const foundCount = section.evidence_tasks.filter(
-    (t) => t.selected_evidence
-  ).length;
+  const isNewSchema = section.evidence_items && section.evidence_items.length > 0;
+  const items = isNewSchema ? section.evidence_items! : [];
+  const legacyTPs = !isNewSchema ? (section.talking_points ?? []) : [];
+
+  const itemCount = isNewSchema ? items.length : legacyTPs.length;
+  const researchedCount = isNewSchema
+    ? items.filter((item) => item.research_blocks.length > 0).length
+    : legacyTPs.filter((tp) => tp.research_blocks.length > 0).length;
 
   return (
     <div className="border border-border rounded-lg overflow-hidden">
@@ -255,37 +273,59 @@ function SectionResearchCard({ section }: { section: SectionResearch }) {
           <p className="text-sm font-semibold truncate">{section.section_title}</p>
         </div>
         <span className="text-xs text-muted-foreground flex-shrink-0">
-          {foundCount}/{taskCount} found
+          {researchedCount}/{itemCount} evidence items
         </span>
       </button>
 
       {isExpanded && (
         <div className="p-4 space-y-4">
-          {/* Research brief */}
-          <div className="text-sm text-muted-foreground bg-muted/20 rounded-md p-3">
-            <span className="font-medium text-foreground">Research brief: </span>
-            {section.research_brief}
-          </div>
-
-          {/* Evidence tasks */}
-          <div className="space-y-3">
-            {section.evidence_tasks.map((task, j) => (
-              <EvidenceTaskCard key={j} task={task} />
-            ))}
-          </div>
+          {isNewSchema
+            ? items.map((item, j) => <EvidenceItemCard key={j} item={item} />)
+            : legacyTPs.map((tp, j) => <TalkingPointCard key={j} tp={tp} />)
+          }
         </div>
       )}
     </div>
   );
 }
 
-/** Single evidence task card with selected evidence */
-function EvidenceTaskCard({ task }: { task: EvidenceTask }) {
-  const priorityColors: Record<string, string> = {
-    required: "bg-[#FBEAE8] text-[#A63228]",
-    helpful: "bg-[#F7F0E0] text-[#7A5C1E]",
-    optional: "bg-muted text-muted-foreground",
-  };
+/** Evidence item with its research blocks (v0317) */
+function EvidenceItemCard({ item }: { item: EvidenceItemResearch }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">{item.evidence_needed}</p>
+      {item.research_blocks.map((block, k) => (
+        <ResearchBlockCard key={k} block={block} />
+      ))}
+      {item.research_blocks.length === 0 && (
+        <p className="text-xs text-muted-foreground italic pl-1">
+          No research needed
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Talking point with its research blocks (v0316 fallback) */
+function TalkingPointCard({ tp }: { tp: TalkingPointResearch }) {
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium">{tp.talking_point}</p>
+      {tp.research_blocks.map((block, k) => (
+        <ResearchBlockCard key={k} block={block} />
+      ))}
+      {tp.research_blocks.length === 0 && (
+        <p className="text-xs text-muted-foreground italic pl-1">
+          No research needed
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Single research block — phrasing is the star */
+function ResearchBlockCard({ block }: { block: ResearchBlock }) {
+  const [showDetails, setShowDetails] = useState(false);
 
   const confidenceColors: Record<string, string> = {
     high: "text-[#3A6B47]",
@@ -293,78 +333,58 @@ function EvidenceTaskCard({ task }: { task: EvidenceTask }) {
     low: "text-[#A63228]",
   };
 
-  const ev = task.selected_evidence;
-
   return (
     <div className="border border-border rounded-md">
-      {/* Task header */}
-      <div className="px-3 py-2 flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium">{task.task_label}</span>
-            <span
-              className={cn(
-                "text-[10px] px-1.5 py-0.5 rounded-full font-medium uppercase tracking-wider",
-                priorityColors[task.priority] || priorityColors.optional
-              )}
-            >
-              {task.priority}
-            </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">
-              {task.evidence_type.replace(/_/g, " ")}
-            </span>
-          </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Supports: {task.supports}
-          </p>
-        </div>
+      {/* Research question — compact */}
+      <div className="px-3 py-1.5">
+        <p className="text-xs text-muted-foreground">{block.research_question}</p>
       </div>
 
-      {/* Selected evidence */}
-      <div className="px-3 py-2 border-t border-border bg-muted/10">
-        {ev ? (
-          <div className="space-y-1.5">
-            <div className="flex items-start gap-2">
+      {/* Storyboard-usable phrasing — primary content */}
+      <div className="px-3 py-2 border-t border-border">
+        <ul className="space-y-1">
+          {block.storyboard_usable_phrasing.map((line, i) => (
+            <li key={i} className="text-sm text-foreground flex items-start gap-2">
               <Check className="w-3.5 h-3.5 text-[#3A6B47] mt-0.5 flex-shrink-0" />
-              <div className="flex-1 min-w-0">
-                <a
-                  href={ev.source_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-sm text-primary hover:underline inline-flex items-center gap-1"
-                >
-                  {ev.source_title}
-                  <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                </a>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-[10px] text-muted-foreground capitalize">
-                    {ev.source_type} source
-                  </span>
-                  <span className="text-[10px]">·</span>
-                  <span
-                    className={cn(
-                      "text-[10px] font-medium capitalize",
-                      confidenceColors[ev.confidence] || confidenceColors.medium
-                    )}
-                  >
-                    {ev.confidence} confidence
-                  </span>
-                </div>
+              <span>{line}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {/* Full answer + sources — secondary, collapsible */}
+      <div className="px-3 py-1.5 border-t border-border bg-muted/10">
+        <button
+          onClick={() => setShowDetails(!showDetails)}
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
+        >
+          {showDetails ? (
+            <ChevronDown className="w-3 h-3" />
+          ) : (
+            <ChevronRight className="w-3 h-3" />
+          )}
+          <span>Full answer &amp; sources</span>
+          <span className="text-[10px]">·</span>
+          <span
+            className={cn(
+              "text-[10px] font-medium capitalize",
+              confidenceColors[block.confidence] || confidenceColors.medium
+            )}
+          >
+            {block.confidence}
+          </span>
+        </button>
+        {showDetails && (
+          <div className="mt-2 space-y-1.5">
+            <p className="text-xs text-muted-foreground">{block.full_answer}</p>
+            {block.sources.length > 0 && (
+              <div className="text-[10px] text-muted-foreground">
+                {block.sources.map((s, i) => (
+                  <p key={i}>{s}</p>
+                ))}
               </div>
-            </div>
-            <p className="text-xs text-muted-foreground pl-5">
-              {ev.evidence_summary}
-            </p>
-            <div className="pl-5 mt-1">
-              <p className="text-sm text-foreground bg-muted/30 rounded px-2 py-1 italic">
-                "{ev.usable_line}"
-              </p>
-            </div>
+            )}
           </div>
-        ) : (
-          <p className="text-xs text-muted-foreground italic">
-            No suitable source found
-          </p>
         )}
       </div>
     </div>

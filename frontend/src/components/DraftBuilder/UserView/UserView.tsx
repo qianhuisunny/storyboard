@@ -73,6 +73,23 @@ export default function UserView({
     setExpandedIndex(screens.length);
   };
 
+  // Group screens by section
+  const sectionGroups = screens.reduce<
+    { sectionNumber: number; sectionTitle: string; screens: { screen: ProductionScreen; globalIndex: number }[] }[]
+  >((groups, screen, index) => {
+    const sectionNum = screen.section_number ?? 0;
+    const sectionTitle = screen.section_title ?? "Untitled Section";
+    let group = groups.find((g) => g.sectionNumber === sectionNum);
+    if (!group) {
+      group = { sectionNumber: sectionNum, sectionTitle, screens: [] };
+      groups.push(group);
+    }
+    group.screens.push({ screen, globalIndex: index });
+    return groups;
+  }, []);
+
+  const hasSections = sectionGroups.length > 1 || (sectionGroups.length === 1 && sectionGroups[0].sectionNumber > 0);
+
   return (
     <div className="user-view h-full flex flex-col">
       {/* Header with Summary */}
@@ -138,6 +155,69 @@ export default function UserView({
             <div className="text-center py-12 text-muted-foreground">
               <Film className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p>No panels yet. Add your first panel to get started.</p>
+            </div>
+          ) : hasSections ? (
+            <div className="space-y-6">
+              {sectionGroups.map((group) => {
+                const sectionDuration = calculateTotalDuration(group.screens.map((s) => s.screen));
+                return (
+                  <div key={group.sectionNumber}>
+                    {/* Section Header */}
+                    <div
+                      className="flex items-center justify-between mb-3"
+                      style={{ padding: "8px 0" }}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className="flex-shrink-0 flex items-center justify-center rounded-full bg-[#E6F2EB] text-[#2D6A4F]"
+                          style={{
+                            width: "24px",
+                            height: "24px",
+                            fontSize: "11px",
+                            fontWeight: 700,
+                            border: "1.5px solid #2D6A4F",
+                            fontFamily: "'Fraunces', serif",
+                          }}
+                        >
+                          {group.sectionNumber}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            fontWeight: 600,
+                            color: "#1C2118",
+                            letterSpacing: "-0.2px",
+                          }}
+                        >
+                          {group.sectionTitle}
+                        </span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">
+                        {group.screens.length} panel{group.screens.length !== 1 ? "s" : ""} &middot; {formatDuration(sectionDuration)}
+                      </span>
+                    </div>
+                    {/* Section Screens */}
+                    <div className="space-y-3">
+                      {group.screens.map(({ screen, globalIndex }) => (
+                        <PanelCard
+                          key={`${screen.screen_number}-${globalIndex}`}
+                          screen={screen}
+                          isExpanded={expandedIndex === globalIndex}
+                          onToggleExpand={() =>
+                            setExpandedIndex(expandedIndex === globalIndex ? null : globalIndex)
+                          }
+                          onChange={(s) => handleScreenChange(globalIndex, s)}
+                          onDelete={() => handleDeleteScreen(globalIndex)}
+                          onMoveUp={() => handleMoveScreen(globalIndex, "up")}
+                          onMoveDown={() => handleMoveScreen(globalIndex, "down")}
+                          isFirst={globalIndex === 0}
+                          isLast={globalIndex === screens.length - 1}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div className="space-y-3">

@@ -8,10 +8,10 @@ from typing import Optional, Dict, Any
 
 from app.services.state import StateManager, StoryboardState, RevisionRecord
 from app.services.agents import (
-    TopicResearcher,  # Re-enabled for angle/perspective generation
     BriefBuilder,
     StoryboardDirector,
     StoryboardWriter,
+    EvidenceResearcher,
 )
 
 
@@ -20,11 +20,11 @@ class StoryboardOrchestrator:
     Orchestrates the storyboard generation pipeline.
 
     Pipeline:
-    1. intake -> research (TopicResearcher)
-    2. research -> brief (BriefBuilder) -> brief confirmation is gate1
-    3. gate1 -> outline (StoryboardDirector)
-    4. outline -> gate2 (Human Review)
-    5. gate2 -> write (StoryboardWriter)
+    1. intake -> brief (BriefBuilder) -> brief confirmation is gate1
+    2. gate1 -> outline (StoryboardDirector)
+    3. outline -> gate2 (Human Review)
+    4. gate2 -> evidence research (EvidenceResearcher)
+    5. evidence -> write (StoryboardWriter)
     6. write -> review (Optional refinements)
     7. review -> done
 
@@ -43,10 +43,10 @@ class StoryboardOrchestrator:
     def __init__(self):
         """Initialize the orchestrator with all agents."""
         self.agents = {
-            "researcher": TopicResearcher(),  # Re-enabled for angle/perspective generation
             "brief_builder": BriefBuilder(),
             "director": StoryboardDirector(),
             "writer": StoryboardWriter(),
+            "evidence_researcher": EvidenceResearcher(),
         }
 
     async def process_event(
@@ -147,8 +147,6 @@ class StoryboardOrchestrator:
         state = manager.transition(state, "submit")
         result["message"] = "Intake received, building brief..."
 
-        # RESEARCH DISABLED: Topic Researcher step skipped
-        # self.agents["researcher"].run(state)
         state = manager.transition(state, "context_ready")
         result["message"] = "Building brief..."
 
@@ -318,7 +316,7 @@ class StoryboardOrchestrator:
 
         # Run evidence research
         outline_text = state.screen_outline if isinstance(state.screen_outline, str) else ""
-        evidence_research = self.agents["researcher"].research_evidence_claims(
+        evidence_research = self.agents["evidence_researcher"].research(
             outline_text=outline_text,
             story_brief=state.story_brief or {},
             project_id=state.project_id,
@@ -544,10 +542,6 @@ class StoryboardOrchestrator:
             **confirmed_fields
         }
 
-        # RESEARCH DISABLED: Skip perspective generation and go directly to Round 2
-        # Original code generated perspectives via self.agents["researcher"].generate_perspectives()
-        # and stayed in brief_round1 awaiting perspective selection.
-
         # Transition directly to Round 2
         state = manager.transition(state, "round1_confirm")
         state.brief_round = 2
@@ -577,30 +571,6 @@ class StoryboardOrchestrator:
         result["research_status"] = "complete"
 
         return state, result
-
-    # RESEARCH DISABLED: _handle_select_perspective
-    # This handler is no longer called since round1_confirm now skips perspectives
-    # and transitions directly to Round 2.
-    #
-    # async def _handle_select_perspective(self, state, manager, payload, result):
-    #     perspective = payload.get("perspective")
-    #     if not perspective:
-    #         raise ValueError("perspective is required in payload")
-    #     # ... perspective selection and talking points generation ...
-    #     talking_points = self.agents["researcher"].generate_talking_points(...)
-    #     state.pending_talking_points = talking_points
-    #     result["status"] = "awaiting_talking_points_confirm"
-    #     return state, result
-
-    # RESEARCH DISABLED: _handle_confirm_talking_points
-    # This handler is no longer called since round1_confirm now skips
-    # perspectives/talking points and transitions directly to Round 2.
-    #
-    # async def _handle_confirm_talking_points(self, state, manager, payload, result):
-    #     # Ran full research flow: generate_research_questions(), research_questions()
-    #     # Then transitioned to Round 2 and generated Round 2 fields.
-    #     # All research calls via self.agents["researcher"] are disabled.
-    #     pass
 
     async def _handle_round2_confirm(
         self,

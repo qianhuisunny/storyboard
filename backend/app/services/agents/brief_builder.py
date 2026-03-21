@@ -70,7 +70,6 @@ class BriefBuilder(BaseAgent):
         - duration: extracted (from initial form)
         - audience_level: empty (user selects)
         - platform: empty (user selects)
-        - viewer_next_action: empty (user fills in)
         """
         fields = {}
 
@@ -117,13 +116,6 @@ class BriefBuilder(BaseAgent):
 
         # platform - empty (user selects)
         fields["platform"] = {
-            "value": "",
-            "source": "empty",
-            "confirmed": False,
-        }
-
-        # viewer_next_action - empty (user fills in)
-        fields["viewer_next_action"] = {
             "value": "",
             "source": "empty",
             "confirmed": False,
@@ -206,7 +198,6 @@ class BriefBuilder(BaseAgent):
         audience_level = get_val("audience_level", "intermediate")
         duration = get_val("duration", "300")
         platform = get_val("platform")
-        viewer_next_action = get_val("viewer_next_action")
         delivery_tone = get_val("delivery_tone")
         freshness = get_val("freshness_expectation")
 
@@ -224,7 +215,6 @@ Your job is to generate the argument structure that supports this claim.
 - Viewer Outcome: {viewer_outcome}
 - Duration: {duration} seconds
 - Platform: {platform}
-- Viewer Next Action: {viewer_next_action}
 - Delivery Tone: {delivery_tone}
 - Freshness: {freshness}
 
@@ -238,11 +228,22 @@ These are the major ARGUMENT BEATS required to make the POV convincing.
 - They should create progression: point N builds on point N-1
 - Do NOT list subtopics or generic bullet points — list the steps of the argument
 
-### 2. misconceptions (2-3 items)
-These are the ASSUMPTIONS or DEFAULT FRAMINGS this POV pushes against.
-- What does the audience typically get wrong or oversimplify about this topic?
-- These create tension against the POV — they are what make the claim non-obvious
-- Do NOT restate talking points in negative form
+### 2. misconceptions (3-5 items, two types)
+Generate BOTH types:
+
+**Knowledge misconceptions** (1-2): What the audience gets wrong about the topic.
+- Incorrect beliefs, oversimplifications, outdated assumptions
+- These create intellectual tension against the POV
+
+**Adoption objections** (2-3): Why the audience would resist ACTING on this POV.
+- "This sounds good but..." pushback
+- Credibility challenges ("sounds too good to be true")
+- Practical friction ("my team won't go for this", "this doesn't work at our scale")
+- Competitive alternatives ("why not just use X instead?")
+- These are the hardest objections — the ones that would make someone close the tab
+
+Do NOT generate surface-level FAQ items like "how does it work" or "what does it cost."
+Generate the objections that a skeptical, experienced audience member would actually voice.
 
 ### 3. must_avoid (1-3 items)
 These are what would make THIS SPECIFIC POV weaker, blurrier, or less credible.

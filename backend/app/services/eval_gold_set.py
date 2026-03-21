@@ -222,6 +222,8 @@ def _extract_anchors(text: str) -> set[str]:
 def compute_citation_rate(evidence_research: dict, screens: list) -> dict:
     """Compute how much evidence research was cited in the storyboard.
 
+    Works with v0317 (evidence_items) and v0316 (talking_points) schemas.
+
     Returns:
         {
             "total_tasks": int,
@@ -232,7 +234,7 @@ def compute_citation_rate(evidence_research: dict, screens: list) -> dict:
                     "section_title": str,
                     "tasks": [
                         {
-                            "evidence_needed": str,
+                            "talking_point": str,
                             "research_question": str,
                             "cited": bool,
                             "matched_anchors": [str],
@@ -258,38 +260,39 @@ def compute_citation_rate(evidence_research: dict, screens: list) -> dict:
 
     for section in evidence_research["sections"]:
         section_tasks = []
-        for task in section.get("evidence_tasks", []):
-            total += 1
-            answer = task.get("answer", {})
-            if not answer:
+
+        # Collect (label, research_blocks) pairs from either schema
+        groups = []
+        if "evidence_items" in section:
+            for item in section.get("evidence_items", []):
+                groups.append((item.get("evidence_needed", ""), item.get("research_blocks", [])))
+        else:
+            for tp in section.get("talking_points", []):
+                groups.append((tp.get("talking_point", ""), tp.get("research_blocks", [])))
+
+        for group_label, blocks in groups:
+            for block in blocks:
+                total += 1
+
+                # Collect anchors from usable phrasing and full answer
+                phrasing_text = " ".join(block.get("storyboard_usable_phrasing", []))
+                full_answer = block.get("full_answer", "")
+                anchors = _extract_anchors(phrasing_text) | _extract_anchors(full_answer)
+
+                # Check which anchors appear in voiceover
+                matched = [a for a in anchors if a.lower() in all_voiceover]
+                is_cited = len(matched) >= 2  # Need ≥2 anchor matches
+
+                if is_cited:
+                    cited += 1
+
                 section_tasks.append({
-                    "evidence_needed": task.get("evidence_needed", ""),
-                    "research_question": task.get("research_question", ""),
-                    "cited": False,
-                    "matched_anchors": [],
-                    "confidence": "low",
+                    "talking_point": group_label,
+                    "research_question": block.get("research_question", ""),
+                    "cited": is_cited,
+                    "matched_anchors": matched,
+                    "confidence": block.get("confidence", "low"),
                 })
-                continue
-
-            # Collect anchors from usable_line and summary
-            usable = answer.get("usable_line", "")
-            summary = answer.get("summary", "")
-            anchors = _extract_anchors(usable) | _extract_anchors(summary)
-
-            # Check which anchors appear in voiceover
-            matched = [a for a in anchors if a.lower() in all_voiceover]
-            is_cited = len(matched) >= 2  # Need ≥2 anchor matches
-
-            if is_cited:
-                cited += 1
-
-            section_tasks.append({
-                "evidence_needed": task.get("evidence_needed", ""),
-                "research_question": task.get("research_question", ""),
-                "cited": is_cited,
-                "matched_anchors": matched,
-                "confidence": answer.get("confidence", "low"),
-            })
 
         per_section.append({
             "section_title": section.get("section_title", ""),

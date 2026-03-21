@@ -34,7 +34,14 @@ export default function KnowledgeShareBriefBuilder({
   onBriefApprove,
   onEditBrief,
 }: KnowledgeShareBriefBuilderProps) {
+  // Fields whose edits invalidate the content spine (Round 3 generated fields)
+  const SPINE_DEPENDENT_FIELDS = new Set([
+    'viewer_outcome', 'target_audience', 'audience_level',
+    'duration', 'platform', 'delivery_tone', 'freshness_expectation', 'point_of_view'
+  ]);
+
   // State
+  const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set());
   const [currentRound, setCurrentRound] = useState<BriefRound>(initialRound);
   const [fields, setFields] = useState<Record<string, BriefField>>(() => {
     // Use initialFields if it has any keys, otherwise create empty fields
@@ -100,8 +107,14 @@ export default function KnowledgeShareBriefBuilder({
     }
   }, [initialRound]);
 
+  // Derived: has any field been edited since last confirm/load?
+  const hasDirtyFields = dirtyFields.size > 0;
+  // Derived: do dirty fields include any that invalidate the content spine?
+  const needsSpineRegeneration = [...dirtyFields].some(f => SPINE_DEPENDENT_FIELDS.has(f));
+
   // Handle field value change
   const handleFieldChange = useCallback((key: string, value: string | string[] | boolean) => {
+    setDirtyFields(prev => new Set(prev).add(key));
     setFields((prev) => ({
       ...prev,
       [key]: {
@@ -166,7 +179,8 @@ export default function KnowledgeShareBriefBuilder({
           ...nextFields,
         }));
 
-        // Mark round as completed and move to next
+        // Mark round as completed, reset dirty tracking, and move to next
+        setDirtyFields(new Set());
         setCompletedRounds((prev) => new Set([...prev, round]));
 
         if (round === 1) {
@@ -305,6 +319,9 @@ export default function KnowledgeShareBriefBuilder({
       );
     }
 
+    // In revision mode, disable confirm buttons until user actually edits something
+    const confirmDisabled = isLoading || (isAlreadyApproved && !hasDirtyFields);
+
     switch (currentRound) {
       case 1:
         return (
@@ -314,7 +331,7 @@ export default function KnowledgeShareBriefBuilder({
             onFieldConfirm={handleFieldConfirm}
             onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => handleSectionConfirm(1)}
-            disabled={isLoading}
+            disabled={confirmDisabled}
           />
         );
       case 2:
@@ -325,7 +342,7 @@ export default function KnowledgeShareBriefBuilder({
             onFieldConfirm={handleFieldConfirm}
             onFieldUnconfirm={handleFieldUnconfirm}
             onSectionConfirm={() => handleSectionConfirm(2)}
-            disabled={isLoading}
+            disabled={confirmDisabled}
           />
         );
       case 3:
@@ -338,7 +355,7 @@ export default function KnowledgeShareBriefBuilder({
             onSectionConfirm={() => handleSectionConfirm(3)}
             onGenerateContentSpine={handleGenerateContentSpine}
             briefContext={briefContext}
-            disabled={isLoading}
+            disabled={confirmDisabled}
             researchComplete={researchComplete}
           />
         );
@@ -351,9 +368,7 @@ export default function KnowledgeShareBriefBuilder({
   const briefContext = {
     audience: typeof fields.target_audience?.value === "string" ? fields.target_audience.value : "",
     topic: typeof fields.viewer_outcome?.value === "string" ? fields.viewer_outcome.value : "",
-    goal: typeof (fields.viewer_next_action?.value || fields.viewer_outcome?.value) === "string"
-      ? (fields.viewer_next_action?.value || fields.viewer_outcome?.value) as string
-      : "",
+    goal: typeof fields.viewer_outcome?.value === "string" ? fields.viewer_outcome.value : "",
   };
 
   return (
@@ -370,7 +385,10 @@ export default function KnowledgeShareBriefBuilder({
             const isCompleted =
               typeof round === "number" && completedRounds.has(round);
             const stepNames = ["Core Intent", "Delivery", "Content Spine", "Review"];
-            const isClickable = isPast && !isActive;
+            // Revision mode (all rounds completed): free navigation
+            // First-pass mode: only backward navigation
+            const allRoundsCompleted = completedRounds.size >= 3;
+            const isClickable = !isActive && (isPast || allRoundsCompleted);
 
             return (
               <div
@@ -387,6 +405,16 @@ export default function KnowledgeShareBriefBuilder({
                 style={{ gap: "9px", padding: "11px 16px" }}
                 onClick={() => {
                   if (isClickable) {
+                    // If navigating to Round 3 and spine-dependent fields were edited,
+                    // clear generated content spine fields so user must regenerate
+                    if (round === 3 && needsSpineRegeneration) {
+                      setFields(prev => ({
+                        ...prev,
+                        core_talking_points: { ...prev.core_talking_points, value: "", confirmed: false },
+                        misconceptions: { ...prev.misconceptions, value: "", confirmed: false },
+                        must_avoid: { ...prev.must_avoid, value: "", confirmed: false },
+                      }));
+                    }
                     setCurrentRound(round);
                   }
                 }}

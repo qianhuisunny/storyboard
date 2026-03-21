@@ -6,16 +6,15 @@ from app.services.orchestrator import orchestrator
 from app.services.edit_tracker import edit_tracker
 from app.services.analytics import analytics_tracker
 from app.services.processing_log import get_store as get_processing_log_store
-from app.utils.image_search import GoogleImageSearch
+
 from app.utils.json_extractor import extract_json_from_text, convert_to_story_format
+from app.utils.file_extraction import extract_text_from_pdf, extract_text_from_docx, extract_text_from_html
 from app.db import get_db, init_db, ProjectRepository
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import List, Optional
 import json
 import os
-import hmac
-import hashlib
 import httpx
 from datetime import datetime
 from pathlib import Path
@@ -153,67 +152,7 @@ async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
 
 
 
-# Chat endpoints removed — dead code (no UI entry point)
 
-
-class ImageSearchRequest(BaseModel):
-    query: str
-    num_results: Optional[int] = 5
-    image_size: Optional[str] = None
-    image_type: Optional[str] = None
-    safe_search: Optional[str] = "medium"
-
-
-@app.post("/api/search/images")
-async def search_images(request: ImageSearchRequest):
-    """Search for images using Google Custom Search API"""
-    try:
-        if not request.query.strip():
-            raise HTTPException(status_code=400, detail="Query cannot be empty")
-
-        searcher = GoogleImageSearch()
-        results = searcher.search_images(
-            query=request.query,
-            num_results=request.num_results,
-            image_size=request.image_size,
-            image_type=request.image_type,
-            safe_search=request.safe_search,
-        )
-
-        return {
-            "success": True,
-            "query": request.query,
-            "count": len(results),
-            "images": results,
-        }
-
-    except ValueError as e:
-        # Missing API keys
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching images: {str(e)}")
-
-
-@app.get("/api/search/image")
-async def get_first_image(query: str, image_type: Optional[str] = None):
-    """Get the first image result for a query"""
-    try:
-        if not query.strip():
-            raise HTTPException(status_code=400, detail="Query cannot be empty")
-
-        searcher = GoogleImageSearch()
-        result = searcher.get_first_image(query, image_type=image_type)
-
-        if result:
-            return {"success": True, "query": query, "image": result}
-        else:
-            return {"success": False, "query": query, "message": "No images found"}
-
-    except ValueError as e:
-        # Missing API keys
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error searching image: {str(e)}")
 
 
 class JSONExtractionRequest(BaseModel):
@@ -841,7 +780,6 @@ async def get_pipeline_state(project_id: str):
                 "has_screen_outline": state.screen_outline is not None,
                 "has_storyboard": state.storyboard is not None,
             },
-            "pending_perspectives": None,  # Removed: angle_selection phase no longer exists
             "data": {
                 "intake_form": state.intake_form,
                 "story_brief": state.story_brief,
@@ -997,6 +935,62 @@ async def load_stages(project_id: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Error loading stages: {str(e)}")
 
 
+def _scan_legacy_projects(data_dir: Path, user_id: str, exclude_ids: set) -> list:
+    """Scan filesystem for legacy JSON projects not yet in the DB."""
+    projects = []
+    if not data_dir.exists():
+        return projects
+
+    for project_dir in data_dir.iterdir():
+        if not project_dir.is_dir() or not project_dir.name.startswith("project_"):
+            continue
+
+        project_id = project_dir.name.replace("project_", "")
+        if project_id in exclude_ids:
+            continue
+
+        project_files = list(project_dir.glob("project_type*.json"))
+        if not project_files:
+            continue
+
+        try:
+            with open(project_files[0], "r") as f:
+                project_data = json.load(f)
+
+            if project_data.get("userId") != user_id:
+                continue
+
+            stages_file = project_dir / "stages.json"
+            current_stage = 1
+            progress = 0
+            last_updated = project_data.get("lastUpdated") or project_data.get("createdAt")
+
+            if stages_file.exists():
+                with open(stages_file, "r") as f:
+                    stages_data = json.load(f)
+                    current_stage = stages_data.get("currentStageId", 1)
+                    last_updated = stages_data.get("lastSaved") or last_updated
+                    stage_statuses = stages_data.get("stageStatuses", [])
+                    approved_count = sum(
+                        1 for s in stage_statuses if s.get("status") == "approved"
+                    )
+                    progress = int((approved_count / 4) * 100)
+
+            projects.append({
+                "id": project_data.get("id"),
+                "typeName": project_data.get("typeName"),
+                "userInput": project_data.get("userInput", "")[:100],
+                "createdAt": project_data.get("createdAt"),
+                "lastUpdated": last_updated,
+                "currentStage": current_stage,
+                "progress": progress,
+            })
+        except (json.JSONDecodeError, KeyError):
+            continue
+
+    return projects
+
+
 @app.get("/api/projects")
 async def list_user_projects(user_id: str, db: AsyncSession = Depends(get_db)):
     """List all projects for a specific user."""
@@ -1024,57 +1018,10 @@ async def list_user_projects(user_id: str, db: AsyncSession = Depends(get_db)):
                 "progress": progress,
             })
 
-        # Also scan legacy JSON projects
+        # Also scan legacy JSON projects on filesystem
         data_dir = Path(__file__).parent.parent.parent / "data"
         db_project_ids = {p.id for p in db_projects}
-
-        if data_dir.exists():
-            for project_dir in data_dir.iterdir():
-                if not project_dir.is_dir() or not project_dir.name.startswith("project_"):
-                    continue
-
-                project_id = project_dir.name.replace("project_", "")
-                if project_id in db_project_ids:
-                    continue  # Already in DB
-
-                project_files = list(project_dir.glob("project_type*.json"))
-                if not project_files:
-                    continue
-
-                try:
-                    with open(project_files[0], "r") as f:
-                        project_data = json.load(f)
-
-                    if project_data.get("userId") != user_id:
-                        continue
-
-                    stages_file = project_dir / "stages.json"
-                    current_stage = 1
-                    progress = 0
-                    last_updated = project_data.get("lastUpdated") or project_data.get("createdAt")
-
-                    if stages_file.exists():
-                        with open(stages_file, "r") as f:
-                            stages_data = json.load(f)
-                            current_stage = stages_data.get("currentStageId", 1)
-                            last_updated = stages_data.get("lastSaved") or last_updated
-                            stage_statuses = stages_data.get("stageStatuses", [])
-                            approved_count = sum(
-                                1 for s in stage_statuses if s.get("status") == "approved"
-                            )
-                            progress = int((approved_count / 4) * 100)
-
-                    projects.append({
-                        "id": project_data.get("id"),
-                        "typeName": project_data.get("typeName"),
-                        "userInput": project_data.get("userInput", "")[:100],
-                        "createdAt": project_data.get("createdAt"),
-                        "lastUpdated": last_updated,
-                        "currentStage": current_stage,
-                        "progress": progress,
-                    })
-                except (json.JSONDecodeError, KeyError):
-                    continue
+        projects.extend(_scan_legacy_projects(data_dir, user_id, db_project_ids))
 
         projects.sort(key=lambda p: p.get("lastUpdated") or "", reverse=True)
         return {"success": True, "projects": projects}
@@ -1127,36 +1074,6 @@ async def delete_project(project_id: str, user_id: str, db: AsyncSession = Depen
 # ============================================================
 # FILE UPLOAD AND LINK FETCHING ENDPOINTS
 # ============================================================
-
-
-def extract_text_from_pdf(file_path: Path) -> str:
-    """Extract text content from a PDF file."""
-    try:
-        import PyPDF2
-        text = ""
-        with open(file_path, "rb") as f:
-            reader = PyPDF2.PdfReader(f)
-            for page in reader.pages:
-                text += page.extract_text() or ""
-        return text.strip()
-    except ImportError:
-        # Fallback if PyPDF2 not installed
-        return f"[PDF file: {file_path.name} - install PyPDF2 for text extraction]"
-    except Exception as e:
-        return f"[Error extracting PDF: {str(e)}]"
-
-
-def extract_text_from_docx(file_path: Path) -> str:
-    """Extract text content from a DOCX file."""
-    try:
-        from docx import Document
-        doc = Document(file_path)
-        text = "\n".join([paragraph.text for paragraph in doc.paragraphs])
-        return text.strip()
-    except ImportError:
-        return f"[DOCX file: {file_path.name} - install python-docx for text extraction]"
-    except Exception as e:
-        return f"[Error extracting DOCX: {str(e)}]"
 
 
 @app.post("/api/project/{project_id}/upload")
@@ -1274,28 +1191,9 @@ async def fetch_link_content(project_id: str, request: FetchLinkRequest):
             )
             response.raise_for_status()
 
-        html_content = response.text
-
-        # Simple HTML to text extraction
-        # Remove script and style elements
-        import re
-        html_content = re.sub(r'<script[^>]*>.*?</script>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-        html_content = re.sub(r'<style[^>]*>.*?</style>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-        html_content = re.sub(r'<nav[^>]*>.*?</nav>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-        html_content = re.sub(r'<footer[^>]*>.*?</footer>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-        html_content = re.sub(r'<header[^>]*>.*?</header>', '', html_content, flags=re.DOTALL | re.IGNORECASE)
-
-        # Extract title
-        title_match = re.search(r'<title[^>]*>(.*?)</title>', html_content, re.IGNORECASE | re.DOTALL)
-        title = title_match.group(1).strip() if title_match else request.url
-
-        # Remove HTML tags
-        text_content = re.sub(r'<[^>]+>', ' ', html_content)
-        # Normalize whitespace
-        text_content = re.sub(r'\s+', ' ', text_content).strip()
-        # Decode HTML entities
-        import html
-        text_content = html.unescape(text_content)
+        title, text_content = extract_text_from_html(response.text)
+        if not title:
+            title = request.url
 
         # Save the extracted content
         from urllib.parse import urlparse
@@ -1709,65 +1607,6 @@ async def get_admin_field_edits(
 
 
 # ============================================================
-# RESEARCH ENDPOINTS — DISABLED
-# All research endpoints (angle, status, start, stream, run)
-# have been commented out. Research is disabled.
-# ============================================================
-
-# from fastapi.responses import StreamingResponse
-# import asyncio
-
-# class ResearchRequest(BaseModel):
-#     video_type: str
-#     company_name: Optional[str] = None
-#     description: Optional[str] = None
-#     links: Optional[List[str]] = None
-#     round: Optional[int] = None
-#     angle: Optional[dict] = None
-
-# class AngleRequest(BaseModel):
-#     audience: str
-#     description: str
-#     duration: int
-#     primary_goal: Optional[str] = None
-
-# @app.post("/api/project/{project_id}/research/angle")
-# @app.get("/api/project/{project_id}/research/status")
-# @app.post("/api/project/{project_id}/research/start")
-# @app.get("/api/project/{project_id}/research/stream")
-# @app.post("/api/project/{project_id}/research/run")
-# ... all research endpoint implementations removed ...
-
-# Stub endpoints so frontend doesn't get 404s
-@app.post("/api/project/{project_id}/research/angle")
-async def calculate_research_angle_stub(project_id: str):
-    """RESEARCH DISABLED: Returns empty angle."""
-    return {"angle": {}, "success": True}
-
-@app.get("/api/project/{project_id}/research/status")
-async def get_research_status_stub(project_id: str):
-    """RESEARCH DISABLED: Always returns complete."""
-    return {"status": "complete", "events": [], "findings": None}
-
-@app.post("/api/project/{project_id}/research/start")
-async def start_research_status_stub(project_id: str):
-    """RESEARCH DISABLED: No-op."""
-    return {"success": True}
-
-@app.post("/api/project/{project_id}/research/run")
-async def run_research_stub(project_id: str):
-    """RESEARCH DISABLED: Returns empty findings."""
-    return {"success": True, "findings": {}}
-
-
-class BriefGenerateRequest(BaseModel):
-    onboarding_data: dict
-    # RESEARCH DISABLED: research_findings: Optional[dict] = None
-    gap_answers: Optional[dict] = None
-    corrections: Optional[dict] = None
-
-
-# ============================================================
 # OBSERVABILITY ENDPOINTS (Harness Engineering Inspired)
 # ============================================================
 
@@ -1994,53 +1833,6 @@ async def get_prompt_signals(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting prompt signals: {str(e)}")
-
-
-@app.post("/api/project/{project_id}/brief/generate")
-async def generate_brief(project_id: str, request: BriefGenerateRequest):
-    """
-    Generate a Story Brief from onboarding data, research findings, and gap answers.
-    """
-    try:
-        from app.services.agents.brief_builder import BriefBuilder
-
-        builder = BriefBuilder()
-
-        # Prepare inputs for brief builder
-        onboarding = request.onboarding_data
-        findings = {}  # RESEARCH DISABLED: was request.research_findings or {}
-        gap_answers = request.gap_answers or {}
-        corrections = request.corrections or {}
-
-        # Build the brief
-        brief = await builder.build_brief(
-            video_type=onboarding.get("videoType", "Product Release"),
-            video_goal=onboarding.get("description", ""),
-            target_audience=onboarding.get("audience", ""),
-            company_name=onboarding.get("companyName", ""),
-            tone=onboarding.get("tone", "professional"),
-            duration=onboarding.get("duration", 60),
-            show_face=onboarding.get("showFace", False),
-            platform=onboarding.get("platform", "general"),
-            research_findings=findings,
-            gap_answers=gap_answers,
-            corrections=corrections,
-        )
-
-        # Save brief to project
-        project_dir = Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        if project_dir.exists():
-            brief_file = project_dir / "story_brief.json"
-            with open(brief_file, "w") as f:
-                json.dump(brief, f, indent=2)
-
-        return {
-            "success": True,
-            "brief": brief,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error generating brief: {str(e)}")
 
 
 # ============================================================================
