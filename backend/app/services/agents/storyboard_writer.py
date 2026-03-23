@@ -37,7 +37,7 @@ class StoryboardWriter(BaseAgent):
     Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_v0317.md"
+    prompt_file = "storyboard_writer_prompt_v0323.md"
 
     def __init__(self):
         super().__init__()
@@ -82,52 +82,42 @@ class StoryboardWriter(BaseAgent):
             if section_evidence:
                 all_evidence[title] = section_evidence
 
-        # 4. Compute screen budget
-        total_tp = sum(len(s.get("talking_points", [])) for s in sections)
-        # Floor: at least 1 screen per talking point (min 2 per section)
-        min_screens = max(len(sections) * 2, total_tp)
-        # Ceiling: from target duration (~30s per screen), capped at 8 per section
-        max_screens = min(max(min_screens, round(target_duration / 30)), len(sections) * 8)
-        if min_screens > max_screens:
-            max_screens = min_screens
-
-        # 5. Build full storyboard prompt and call LLM once
+        # 4. Build full storyboard prompt and call LLM once
         user_prompt = self._build_full_storyboard_prompt(
             sections=sections,
             all_evidence=all_evidence,
             full_outline=outline_text,
             brief_context=brief_context,
             allowed_types=allowed_types,
-            min_screens=min_screens,
-            max_screens=max_screens,
             target_duration=target_duration,
         )
 
-        # Log request
+        # Log full LLM context for debugging
         if project_id:
             log_llm_request(
                 project_id=project_id,
                 phase="storyboard_writer_full",
                 input_fields={
                     "sections": len(sections),
-                    "target_screens": f"{min_screens}-{max_screens}",
+                    "target_duration": target_duration,
+                    "allowed_types": allowed_types,
                 },
-                system_prompt=self.system_prompt[:200] if self.system_prompt else "",
-                user_prompt=user_prompt[:200],
+                system_prompt=self.system_prompt or "",
+                user_prompt=user_prompt,
                 max_tokens=16000,
             )
 
         # Call LLM
         all_screens = self._call_storyboard_llm(user_prompt, project_id)
 
-        # 6. Post-process: add duration + on_screen_visual
+        # 5. Post-process: add duration + on_screen_visual
         all_screens = self._post_process_screens(all_screens, allowed_types)
 
-        # 7. Validate and adjust total duration
+        # 6. Validate and adjust total duration
         if target_duration > 0:
             all_screens = self._adjust_total_duration(all_screens, target_duration)
 
-        # 8. Ensure sequential numbering
+        # 7. Ensure sequential numbering
         for i, screen in enumerate(all_screens):
             screen["screen_number"] = i + 1
 
@@ -143,7 +133,7 @@ class StoryboardWriter(BaseAgent):
             log_llm_response(
                 project_id=project_id,
                 phase="storyboard_writer_full",
-                raw_response=response[:500] if response else "",
+                raw_response=response or "",
                 parsed_result={
                     "screens_generated": len(parsed) if isinstance(parsed, list) else 0,
                 },
@@ -151,8 +141,27 @@ class StoryboardWriter(BaseAgent):
 
         if not parsed or not isinstance(parsed, list):
             # Retry once with lower temperature
+            if project_id:
+                log_llm_request(
+                    project_id=project_id,
+                    phase="storyboard_writer_full_retry",
+                    input_fields={"reason": "first call returned unparseable response", "temperature": 0.4},
+                    system_prompt=self.system_prompt or "",
+                    user_prompt=user_prompt,
+                    max_tokens=16000,
+                )
             response = self.call_llm(user_prompt, max_tokens=16000, temperature=0.4)
             parsed = self._extract_json(response)
+            if project_id:
+                log_llm_response(
+                    project_id=project_id,
+                    phase="storyboard_writer_full_retry",
+                    raw_response=response or "",
+                    parsed_result={
+                        "screens_generated": len(parsed) if isinstance(parsed, list) else 0,
+                        "gave_up": not parsed or not isinstance(parsed, list),
+                    },
+                )
             if not parsed or not isinstance(parsed, list):
                 return []
 
@@ -190,7 +199,6 @@ class StoryboardWriter(BaseAgent):
                 "exit_state": self._extract_field(block, "Exit state"),
                 "duration_range": self._extract_field(block, "Duration"),
                 "talking_points": self._extract_bullets(block, "Talking points"),
-                "evidence_needed": self._extract_bullets(block, "Evidence needed"),
             })
 
         return sections
@@ -208,7 +216,6 @@ class StoryboardWriter(BaseAgent):
             ["Exit state"],
             ["Duration", "Approx. duration", "Approx duration"],
             ["Talking points", "Talking point"],
-            ["Evidence needed", "Evidence"],
             ["Research queries", "Research query"],
         ]
 
@@ -430,8 +437,6 @@ class StoryboardWriter(BaseAgent):
         full_outline: str,
         brief_context: dict,
         allowed_types: list,
-        min_screens: int,
-        max_screens: int,
         target_duration: float,
     ) -> str:
         """Construct the user prompt for the full storyboard in one LLM call."""
@@ -441,7 +446,6 @@ class StoryboardWriter(BaseAgent):
         for section in sections:
             title = section.get("title", "")
             tp_text = "\n".join(f"  - {tp}" for tp in section.get("talking_points", [])) or "  - (none)"
-            ev_text = "\n".join(f"  - {ev}" for ev in section.get("evidence_needed", [])) or "  - (none)"
 
             # Evidence research for this section
             evidence = all_evidence.get(title, [])
@@ -459,9 +463,6 @@ Duration range: {min_sec}–{max_sec} seconds
 Talking points:
 {tp_text}
 
-Evidence needed:
-{ev_text}
-
 Evidence research:
 {evidence_text}"""
             section_blocks.append(block)
@@ -477,8 +478,10 @@ Point of View: {brief_context['point_of_view']}
 Viewer outcome: {brief_context['viewer_outcome']}
 Total video duration: {target_duration}s
 
-=== ALLOWED SCREEN TYPES (palette — use what fits, not all of them) ===
-{', '.join(allowed_types)}
+=== REQUIRED SCREEN TYPES ===
+The user selected these visual formats: {', '.join(allowed_types)}
+Default behavior: USE these types. Every type the user selected should appear in at least one screen unless the content genuinely has no use for it — in which case, state the reason in that screen's action_notes.
+You may use any type from the allowed list as many times as needed. But do NOT drop a user-selected type without justification.
 
 === FULL OUTLINE ===
 {full_outline}
@@ -487,7 +490,7 @@ Total video duration: {target_duration}s
 {sections_text}
 
 === INSTRUCTIONS ===
-Generate {min_screens}–{max_screens} screens total for the ENTIRE video.
+**Duration constraint (hard):** The total video is {target_duration} seconds. Your storyboard's total voiceover word count must produce approximately this duration at ~130 words/minute (2.17 words/second). Use this to judge how many screens you need — NOT a fixed formula.
 
 **Constraints:**
 - Every talking point from every section MUST appear in at least one screen's voiceover. Do not skip or vaguely paraphrase any talking point.
@@ -561,7 +564,7 @@ Follow your system prompt rules strictly. Every sentence of voiceover must teach
             adjusted = original * scale
             # Round to nearest 0.5, apply min/max
             adjusted = round(adjusted * 2) / 2
-            adjusted = max(15.0, min(90.0, adjusted))
+            adjusted = max(4.0, min(90.0, adjusted))  # matches DurationCalculator.MIN_DURATION
             screen["duration"] = adjusted
 
         return screens

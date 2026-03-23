@@ -109,7 +109,10 @@ class StoryboardOrchestrator:
             ("gate1", "edit"): self._handle_gate1_edit,
             ("gate2", "approve"): self._handle_gate2_approve,
             ("gate2", "run_research"): self._handle_gate2_run_research,
+            ("gate2", "regenerate_section"): self._handle_regenerate_section,
+            ("gate2", "refine_outline"): self._handle_refine_outline,
             ("gate2", "edit"): self._handle_gate2_edit,
+            ("outline_research", "run_research"): self._handle_rerun_research,
             ("outline_research", "approve"): self._handle_outline_research_approve,
             ("review", "approve"): self._handle_review_approve,
             ("review", "edit"): self._handle_review_edit,
@@ -314,8 +317,8 @@ class StoryboardOrchestrator:
         state = manager.transition(state, "run_research")
         result["message"] = "Running evidence research..."
 
-        # Run evidence research
-        outline_text = state.screen_outline if isinstance(state.screen_outline, str) else ""
+        # Prefer frontend's current outline (includes user edits) over backend state
+        outline_text = payload.get("current_outline") or (state.screen_outline if isinstance(state.screen_outline, str) else "")
         evidence_research = self.agents["evidence_researcher"].research(
             outline_text=outline_text,
             story_brief=state.story_brief or {},
@@ -326,6 +329,89 @@ class StoryboardOrchestrator:
         result["message"] = "Evidence research complete. Review results."
         result["evidence_research"] = evidence_research
 
+        return state, result
+
+    async def _handle_regenerate_section(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """Regenerate a single section of the outline based on user instruction."""
+        section_number = payload.get("section_number")
+        instruction = payload.get("instruction", "")
+        if not section_number or not instruction:
+            raise ValueError("section_number and instruction are required")
+
+        # Prefer frontend's current outline (includes user edits) over backend state
+        current_outline = payload.get("current_outline") or state.screen_outline or ""
+        if not current_outline:
+            raise ValueError("Cannot regenerate section: no outline exists")
+
+        state = manager.transition(state, "regenerate_section")
+
+        new_outline = self.agents["director"].regenerate_section(
+            current_outline=current_outline,
+            section_number=section_number,
+            instruction=instruction,
+            story_brief=state.story_brief or {},
+        )
+        state.screen_outline = new_outline
+        result["message"] = f"Section {section_number} regenerated."
+        result["screen_outline"] = new_outline
+        return state, result
+
+    async def _handle_refine_outline(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """Regenerate the full outline based on user instruction."""
+        instruction = payload.get("instruction", "")
+        if not instruction:
+            raise ValueError("instruction is required")
+
+        # Prefer frontend's current outline (includes user edits) over backend state
+        current_outline = payload.get("current_outline") or state.screen_outline or ""
+        if not current_outline:
+            raise ValueError("Cannot refine outline: no outline exists")
+
+        state = manager.transition(state, "refine_outline")
+
+        new_outline = self.agents["director"].refine_outline(
+            current_outline=current_outline,
+            instruction=instruction,
+            story_brief=state.story_brief or {},
+        )
+        state.screen_outline = new_outline
+        result["message"] = "Outline regenerated."
+        result["screen_outline"] = new_outline
+        return state, result
+
+    async def _handle_rerun_research(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """Re-run evidence research on the approved outline."""
+        state = manager.transition(state, "run_research")
+        result["message"] = "Re-running evidence research..."
+
+        outline_text = state.screen_outline if isinstance(state.screen_outline, str) else ""
+        evidence_research = self.agents["evidence_researcher"].research(
+            outline_text=outline_text,
+            story_brief=state.story_brief or {},
+            project_id=state.project_id,
+        )
+
+        state.evidence_research = evidence_research
+        result["message"] = "Evidence research complete. Review results."
+        result["evidence_research"] = evidence_research
         return state, result
 
     async def _handle_outline_research_approve(

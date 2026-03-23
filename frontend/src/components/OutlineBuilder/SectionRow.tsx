@@ -4,10 +4,10 @@
  * ContentEditable blocks for document-feel editing.
  */
 
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical } from "lucide-react";
+import { GripVertical, MoreHorizontal, Trash2, RefreshCw, Loader2, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OutlineSection } from "./types";
 
@@ -16,6 +16,9 @@ interface SectionRowProps {
   index: number;
   totalSections: number;
   onUpdate: (id: string, updates: Partial<OutlineSection>) => void;
+  onRemove?: (id: string) => void;
+  onRegenerate?: (sectionNumber: number, instruction: string) => Promise<void>;
+  isRegenerating?: boolean;
   disabled?: boolean;
   isLast?: boolean;
 }
@@ -117,9 +120,17 @@ export default function SectionRow({
   index,
   totalSections: _totalSections,
   onUpdate,
+  onRemove,
+  onRegenerate,
+  isRegenerating = false,
   disabled = false,
   isLast = false,
 }: SectionRowProps) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [showRegenInput, setShowRegenInput] = useState(false);
+  const [regenInstruction, setRegenInstruction] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+
   const {
     attributes,
     listeners,
@@ -134,17 +145,32 @@ export default function SectionRow({
     transition,
   };
 
+  const [regenError, setRegenError] = useState<string | null>(null);
+
+  const handleRegenSubmit = async () => {
+    if (!regenInstruction.trim() || !onRegenerate) return;
+    setRegenError(null);
+    try {
+      await onRegenerate(section.sectionNumber, regenInstruction.trim());
+      setRegenInstruction("");
+      setShowRegenInput(false);
+    } catch (err) {
+      setRegenError(err instanceof Error ? err.message : "Regeneration failed");
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group grid grid-cols-[32px_56px_1fr_36%] items-start py-8 transition-colors rounded-lg",
+        "group relative grid grid-cols-[32px_56px_1fr] items-start py-8 transition-colors rounded-lg",
         !isLast && "border-b border-border/50",
         index === 0 && "pt-2",
         isDragging
           ? "opacity-50 shadow-lg z-10 bg-muted/20"
-          : "hover:bg-muted/10"
+          : "hover:bg-muted/10",
+        isRegenerating && "opacity-60 pointer-events-none"
       )}
     >
       {/* Drag handle — hidden by default, visible on row hover */}
@@ -169,13 +195,64 @@ export default function SectionRow({
 
       {/* Main content: title, duration, purpose, talking points */}
       <div className="pr-10 space-y-1.5 min-w-0">
-        <EditableBlock
-          value={section.title}
-          onChange={(v) => onUpdate(section.id, { title: v })}
-          className="font-semibold text-[17px] text-foreground"
-          placeholder="Section title"
-          disabled={disabled}
-        />
+        <div className="flex items-start justify-between gap-2">
+          <EditableBlock
+            value={section.title}
+            onChange={(v) => onUpdate(section.id, { title: v })}
+            className="font-semibold text-[17px] text-foreground flex-1"
+            placeholder="Section title"
+            disabled={disabled}
+          />
+
+          {/* [...] action menu */}
+          {!disabled && (onRemove || onRegenerate) && (
+            <div className="relative flex-shrink-0" ref={menuRef}>
+              <button
+                onClick={() => setShowMenu(!showMenu)}
+                className={cn(
+                  "w-7 h-7 rounded-md flex items-center justify-center transition-all",
+                  showMenu
+                    ? "bg-muted text-foreground"
+                    : "opacity-0 group-hover:opacity-60 hover:!opacity-100 text-muted-foreground hover:bg-muted"
+                )}
+              >
+                <MoreHorizontal className="w-4 h-4" />
+              </button>
+
+              {showMenu && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
+                  <div className="absolute right-0 top-8 z-20 w-48 bg-popover border border-border rounded-lg shadow-lg py-1">
+                    {onRegenerate && (
+                      <button
+                        onClick={() => {
+                          setShowMenu(false);
+                          setShowRegenInput(true);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
+                      >
+                        <RefreshCw className="w-3.5 h-3.5" />
+                        Regen with note
+                      </button>
+                    )}
+                    {onRemove && (
+                      <button
+                        onClick={() => {
+                          setShowMenu(false);
+                          onRemove(section.id);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Remove section
+                      </button>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         <EditableBlock
           value={section.duration}
@@ -201,19 +278,62 @@ export default function SectionRow({
           placeholder="Talking points..."
           disabled={disabled}
         />
+
+        {/* Inline regen input */}
+        {showRegenInput && (
+          <div className="mt-3 flex items-center gap-2">
+            <input
+              type="text"
+              value={regenInstruction}
+              onChange={(e) => setRegenInstruction(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleRegenSubmit();
+                if (e.key === "Escape") {
+                  setShowRegenInput(false);
+                  setRegenInstruction("");
+                }
+              }}
+              placeholder="What should change about this section?"
+              className="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              autoFocus
+            />
+            <button
+              onClick={handleRegenSubmit}
+              disabled={!regenInstruction.trim() || isRegenerating}
+              className="px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+            >
+              {isRegenerating ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Send className="w-3.5 h-3.5" />
+              )}
+            </button>
+            <button
+              onClick={() => {
+                setShowRegenInput(false);
+                setRegenInstruction("");
+                setRegenError(null);
+              }}
+              className="px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+        {regenError && (
+          <p className="mt-1 text-xs text-destructive">{regenError}</p>
+        )}
       </div>
 
-      {/* Evidence column */}
-      <div className="min-w-0 pt-1">
-        <BulletBlock
-          items={section.evidenceNeeded}
-          onChange={(items) =>
-            onUpdate(section.id, { evidenceNeeded: items })
-          }
-          placeholder="Evidence needed..."
-          disabled={disabled}
-        />
-      </div>
+      {/* Regenerating overlay */}
+      {isRegenerating && (
+        <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-lg">
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            Regenerating section...
+          </div>
+        </div>
+      )}
     </div>
   );
 }

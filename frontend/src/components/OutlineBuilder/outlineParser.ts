@@ -64,7 +64,6 @@ export function parseOutline(text: string): OutlineSection[] {
         exitState: "",
         duration: "",
         talkingPoints: [],
-        evidenceNeeded: [],
       },
     ];
   }
@@ -93,7 +92,6 @@ function parseBlock(block: string): {
   exitState: string;
   duration: string;
   talkingPoints: string[];
-  evidenceNeeded: string[];
 } {
   const result = {
     purpose: "",
@@ -101,7 +99,6 @@ function parseBlock(block: string): {
     exitState: "",
     duration: "",
     talkingPoints: [] as string[],
-    evidenceNeeded: [] as string[],
   };
 
   // Known sub-field headers (case-insensitive)
@@ -111,7 +108,7 @@ function parseBlock(block: string): {
     { key: "exitState" as const, pattern: /^Exit\s+state\s*$/im },
     { key: "duration" as const, pattern: /^Duration\s*$/im },
     { key: "talkingPoints" as const, pattern: /^Talking\s+points?\s*$/im },
-    { key: "evidenceNeeded" as const, pattern: /^Evidence\s+needed\s*$/im },
+    { key: "_evidenceNeeded" as const, pattern: /^Evidence\s+needed\s*$/im },  // recognized but discarded (legacy)
     { key: "_visualIntent" as const, pattern: /^Visual\s+(?:intent|direction)\s*$/im },  // recognized but discarded (legacy)
   ];
 
@@ -148,8 +145,6 @@ function parseBlock(block: string): {
       result.duration = content;
     } else if (pos.key === "talkingPoints") {
       result.talkingPoints = parseBullets(content);
-    } else if (pos.key === "evidenceNeeded") {
-      result.evidenceNeeded = parseBullets(content);
     }
     // _visualIntent is recognized but discarded (legacy outlines)
   }
@@ -205,11 +200,6 @@ export function serializeOutline(sections: OutlineSection[]): string {
         lines.push(`- ${tp}`);
       }
       lines.push("");
-
-      lines.push("Evidence needed");
-      for (const ev of s.evidenceNeeded) {
-        lines.push(`- ${ev}`);
-      }
 
       return lines.join("\n");
     })

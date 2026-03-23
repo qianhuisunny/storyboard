@@ -211,9 +211,9 @@ RAG pipeline: `backend/app/services/rag/` — handles PDF/URL upload, chunking, 
 | Agent File | Prompt File |
 |-----------|------------|
 | `agents/brief_builder.py` | `prompts/BRIEF_BUILDER_SYSTEM_PROMPT.md` |
-| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0316.md` |
-| `agents/evidence_researcher.py` | `prompts/evidence_researcher_prompt_v0317.md` |
-| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0317.md` |
+| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0323.md` |
+| `agents/evidence_researcher.py` | `prompts/evidence_researcher_prompt_v0323.md` |
+| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0323.md` |
 
 ### Agent Structure Pattern
 
@@ -588,3 +588,21 @@ if (currentStatus?.status === "approved") {
 - After any frontend change, run `npm run build` — not just `npm run dev`. Dev server passing means nothing for type safety.
 - When you see build errors, fix them all — even "pre-existing" ones. Don't say "not my problem" and move on. If you can see it, you own it.
 - Especially watch for: disabled features leaving orphaned state variables, `Record<string, unknown>` values rendered in JSX, type definitions changed without updating consumers.
+
+---
+
+### 2026-03-22: Data ownership shifts from backend to frontend after user edits
+
+**Problem:** Same bug twice in one session — outline regeneration and evidence research both used the AI-generated outline instead of the user's edited version.
+
+**Root Cause — split-brain data ownership:** The backend pipeline state stores the AI-generated version. The frontend holds the user's edited version. These are two copies of the same data that can diverge. Backend event handlers read their own copy, which is stale after user edits.
+
+**The ownership model:**
+- AI generates content → **backend is owner** (it created and stored the data)
+- User starts editing → **frontend becomes owner** (it has the only up-to-date copy)
+- Backend processes an event using that data → it must ask the frontend for the current version
+
+**Lesson:**
+- Before writing any event handler that reads stored content, ask: **"Has the user had a chance to edit this since it was stored?"** If yes, the backend's copy may be stale.
+- This applies to any user-editable content: outline text, brief fields, storyboard screens.
+- The architecture doesn't auto-sync frontend edits back to backend pipeline state — frontend auto-save goes to a separate stages endpoint, not to `state.screen_outline`.

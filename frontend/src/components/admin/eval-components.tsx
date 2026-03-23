@@ -134,6 +134,7 @@ export interface EvalData {
   judge?: {
     outline_quality?: Record<string, { tags: string[]; notes: string }>;
     storyboard_quality?: Record<string, { tags: string[]; notes: string }>;
+    cross_stage_quality?: Record<string, { tags: string[]; notes: string }>;
   };
 }
 

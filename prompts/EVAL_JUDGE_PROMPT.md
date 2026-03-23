@@ -10,34 +10,42 @@ You will evaluate one of two content types per call:
 
 ### When evaluating OUTLINE quality, assess these 5 dimensions:
 
-1. **flow_coherence** — Do sections connect logically? Does the exit state of section N naturally lead to the entry assumption of section N+1? Look for abrupt jumps, missing bridges between ideas, or circular reasoning.
-   - Example tags: `abrupt_transition`, `missing_bridge`, `circular_flow`
+1. **flow_coherence** — Does each section prepare the next and create a natural cognitive progression? Look for abrupt jumps, missing bridges between ideas, or circular reasoning.
+   - Example tags: `abrupt_transition`, `missing_bridge`, `circular_flow`, `no_cognitive_progression`
 
-2. **talking_point_specificity** — Are talking points concrete and actionable, or are they vague platitudes that could apply to any topic? Compare specificity level against the gold standard.
-   - Example tags: `vague_platitude`, `no_actionable_detail`
+2. **talking_point_sharpness** — Are the talking points specific, differentiated, and thesis-supporting rather than generic or interchangeable? Compare sharpness against the gold standard.
+   - Example tags: `generic_talking_point`, `interchangeable_points`, `not_thesis_supporting`
 
-3. **evidence_relevance** — Are the suggested evidence areas and research queries actually relevant to the claims being made? Would they strengthen the argument?
-   - Example tags: `irrelevant_evidence`, `missing_key_evidence`
+3. **evidence_fitness** — Do the proposed evidence directions provide the right kind and strength of support for the claims? Would they actually strengthen the argument?
+   - Example tags: `wrong_evidence_type`, `weak_support`, `missing_key_evidence`
 
-4. **brief_alignment** — Does the outline serve the brief's `viewer_outcome` and `point_of_view`? Has the AI drifted to a related but different topic?
-   - Example tags: `drifted_from_angle`, `outcome_not_served`
+4. **brief_pov_alignment** — Does the outline clearly serve the brief's intended viewer outcome and defend the intended point of view? Has the AI drifted to a related but different topic?
+   - Example tags: `drifted_from_pov`, `outcome_not_served`, `pov_not_defended`
 
-5. **section_necessity** — Does every section earn its place? Could any sections be merged without losing value? Are there filler sections that don't advance the viewer toward the outcome?
-   - Example tags: `redundant_section`, `filler_section`
+5. **section_necessity** — Does each section have a distinct teaching job, or is it redundant, mergeable, or disposable? Could any sections be combined without losing value?
+   - Example tags: `redundant_section`, `mergeable_sections`, `no_distinct_job`
 
-### When evaluating STORYBOARD quality, assess these 4 dimensions:
+### When evaluating STORYBOARD quality, assess these 5 dimensions:
 
-1. **context_rot** — Does the voiceover text say something without actually conveying substance? Sentences that sound meaningful but are empty elaboration.
-   - Example tags: `empty_elaboration`, `says_nothing`
+1. **instructional_progression** — Do the screens build understanding step by step, or merely place information in sequence? Is there a clear learning arc?
+   - Example tags: `no_learning_arc`, `information_dumped`, `steps_not_building`
 
-2. **generic_rewrite** — Did the AI flatten specific, concrete gold content into generic language? Compare the AI voiceover against the gold — did specific examples, numbers, or references get replaced with vague generalities?
-   - Example tags: `lost_specificity`, `generic_replacement`
+2. **context_rot** — Does the storyboard preserve the specificity and intent of the outline, or drift into empty significance / context rot? Sentences that sound meaningful but convey no substance.
+   - Example tags: `empty_elaboration`, `says_nothing`, `intent_lost`
 
-3. **factual_invention** — Did the AI fabricate facts, statistics, quotes, or claims that are NOT present in the gold standard or the brief? This is a serious quality issue.
-   - Example tags: `invented_stat`, `fabricated_claim`
+3. **specificity_retention** — Does the writing preserve concrete, topic-specific substance, or flatten into generic language? Compare the AI voiceover against the gold — did specific examples, numbers, or references get replaced with vague generalities?
+   - Example tags: `lost_specificity`, `generic_replacement`, `flattened_to_generic`
 
-4. **redundancy** — Do multiple screens repeat substantially the same point? Look for the same idea restated in different words across screens.
-   - Example tags: `repeated_point`, `duplicate_content`
+4. **source_fidelity** — Does the storyboard stay within the supported claims and evidence, without invention or overreach? Did the AI fabricate facts, statistics, quotes, or claims not present in the gold standard or brief?
+   - Example tags: `invented_stat`, `fabricated_claim`, `overreach_beyond_evidence`
+
+5. **redundancy** — Do screens add distinct instructional value, or repeat the same point / move without meaningful progression? Look for the same idea restated in different words across screens.
+   - Example tags: `repeated_point`, `duplicate_content`, `no_new_value`
+
+### When evaluating CROSS-STAGE quality, assess this 1 dimension:
+
+1. **handoff_integrity** — Does the storyboard faithfully realize the outline's intended teaching job, section thesis, and required content, without drift, omission, or simplification into weaker material?
+   - Example tags: `teaching_job_lost`, `thesis_diluted`, `content_omitted`, `simplified_to_weaker`
 
 ## Output Format
 
@@ -51,9 +59,9 @@ You may use the example tags above OR create new descriptive tags that fit the d
 {
   "outline_quality": {
     "flow_coherence": { "tags": [], "notes": "" },
-    "talking_point_specificity": { "tags": [], "notes": "" },
-    "evidence_relevance": { "tags": [], "notes": "" },
-    "brief_alignment": { "tags": [], "notes": "" },
+    "talking_point_sharpness": { "tags": [], "notes": "" },
+    "evidence_fitness": { "tags": [], "notes": "" },
+    "brief_pov_alignment": { "tags": [], "notes": "" },
     "section_necessity": { "tags": [], "notes": "" }
   }
 }
@@ -64,10 +72,21 @@ Or for storyboard evaluation:
 ```json
 {
   "storyboard_quality": {
+    "instructional_progression": { "tags": [], "notes": "" },
     "context_rot": { "tags": [], "notes": "" },
-    "generic_rewrite": { "tags": [], "notes": "" },
-    "factual_invention": { "tags": [], "notes": "" },
+    "specificity_retention": { "tags": [], "notes": "" },
+    "source_fidelity": { "tags": [], "notes": "" },
     "redundancy": { "tags": [], "notes": "" }
+  }
+}
+```
+
+Or for cross-stage evaluation:
+
+```json
+{
+  "cross_stage_quality": {
+    "handoff_integrity": { "tags": [], "notes": "" }
   }
 }
 ```

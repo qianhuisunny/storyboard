@@ -179,8 +179,8 @@ class BriefBuilder(BaseAgent):
 
         Uses chained generation order:
         1. core_talking_points <- POV + audience + brief context (argument beats)
-        2. misconceptions <- POV + talking_points + audience (counter-assumptions)
-        3. must_avoid <- POV + talking_points + misconceptions (claim guardrails)
+        2. misconception <- POV + talking_points + audience (the single strongest counter-thesis)
+        3. must_avoid <- POV + talking_points + misconception (claim guardrails)
 
         POV is the source of truth. All fields are downstream derivations.
         """
@@ -228,24 +228,20 @@ These are the major ARGUMENT BEATS required to make the POV convincing.
 - They should create progression: point N builds on point N-1
 - Do NOT list subtopics or generic bullet points — list the steps of the argument
 
-### 2. misconceptions (3-5 items, two types)
-Generate BOTH types:
+### 2. misconception (1 sentence)
+What is the single most important misconception this video needs to address?
 
-**Knowledge misconceptions** (1-2): What the audience gets wrong about the topic.
-- Incorrect beliefs, oversimplifications, outdated assumptions
-- These create intellectual tension against the POV
+This is NOT a list of all possible objections. It is the ONE counter-thesis that, if left unaddressed, would make the audience dismiss the POV entirely.
 
-**Adoption objections** (2-3): Why the audience would resist ACTING on this POV.
-- "This sounds good but..." pushback
-- Credibility challenges ("sounds too good to be true")
-- Practical friction ("my team won't go for this", "this doesn't work at our scale")
-- Competitive alternatives ("why not just use X instead?")
-- These are the hardest objections — the ones that would make someone close the tab
+Pick the misconception that is:
+- The most widely held by this specific audience
+- The hardest to let go of (not a strawman)
+- The one that, once dismantled, clears the path for the rest of the argument
 
-Do NOT generate surface-level FAQ items like "how does it work" or "what does it cost."
-Generate the objections that a skeptical, experienced audience member would actually voice.
+Frame it as a belief statement: "Most people think X, but actually Y."
+Do NOT generate a list. Return a single string.
 
-### 3. must_avoid (1-3 items)
+### 3. must_avoid (1-2 items)
 These are what would make THIS SPECIFIC POV weaker, blurrier, or less credible.
 - Identify traps specific to this argument that would dilute the thesis
 - Be specific to this POV, not generic writing advice
@@ -254,7 +250,7 @@ These are what would make THIS SPECIFIC POV weaker, blurrier, or less credible.
 ## QUALITY CHECK
 Before returning, verify:
 1. Each talking point directly advances the case for the POV
-2. Each misconception identifies a genuine counter-assumption, not a mirror-phrased talking point
+2. The misconception is a genuine counter-thesis the audience holds, not a mirror-phrased talking point
 3. Each must_avoid is specific to this POV, not generic advice like "don't be vague"
 4. The three fields are functionally distinct — no paraphrases of one another
 
@@ -262,7 +258,7 @@ Before returning, verify:
 Return a JSON object with exactly these 3 keys:
 {{
   "core_talking_points": ["argument beat 1", "argument beat 2", "argument beat 3"],
-  "misconceptions": ["counter-assumption 1", "counter-assumption 2"],
+  "misconception": "Most people think X, but actually Y.",
   "must_avoid": ["POV-specific guardrail 1"]
 }}"""
 
@@ -277,16 +273,18 @@ Return a JSON object with exactly these 3 keys:
         # Build fields from LLM response or fallback to empty
         if parsed and isinstance(parsed, dict):
             talking_points = parsed.get("core_talking_points", [])
-            misconceptions = parsed.get("misconceptions", [])
+            # Accept both "misconception" (new) and "misconceptions" (legacy)
+            misconception = parsed.get("misconception") or parsed.get("misconceptions", "")
             must_avoid = parsed.get("must_avoid", [])
 
-            # Ensure they're lists
+            # Ensure talking_points and must_avoid are lists
             if isinstance(talking_points, str):
                 talking_points = [talking_points]
-            if isinstance(misconceptions, str):
-                misconceptions = [misconceptions]
             if isinstance(must_avoid, str):
                 must_avoid = [must_avoid]
+            # misconception should be a string; if LLM returned a list, take the first
+            if isinstance(misconception, list):
+                misconception = misconception[0] if misconception else ""
 
             fields = {
                 "core_talking_points": {
@@ -295,7 +293,7 @@ Return a JSON object with exactly these 3 keys:
                     "confirmed": False,
                 },
                 "misconceptions": {
-                    "value": misconceptions,
+                    "value": misconception,
                     "source": "inferred",
                     "confirmed": False,
                 },
@@ -314,7 +312,7 @@ Return a JSON object with exactly these 3 keys:
                     "confirmed": False,
                 },
                 "misconceptions": {
-                    "value": [],
+                    "value": "",
                     "source": "empty",
                     "confirmed": False,
                 },

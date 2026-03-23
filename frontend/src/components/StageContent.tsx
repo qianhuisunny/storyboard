@@ -539,6 +539,7 @@ export default function StageContent({
   // Evidence research state for outline stage
   const [outlineResearchResults, setOutlineResearchResults] = useState<EvidenceResearch | null>(null);
   const [isResearchingEvidence, setIsResearchingEvidence] = useState(false);
+  const [isRegeneratingOutline, setIsRegeneratingOutline] = useState(false);
 
   // Track draft updates for the Draft stage
   const [localDraft, setLocalDraft] = useState<ProductionScreen[] | null>(null);
@@ -622,7 +623,7 @@ export default function StageContent({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           event: "run_research",
-          payload: {},
+          payload: { current_outline: currentOutlineText },
         }),
       });
       if (response.ok) {
@@ -642,6 +643,81 @@ export default function StageContent({
       setIsResearchingEvidence(false);
     }
   }, [projectId, currentOutlineText, onAnchorChange]);
+
+  const handleRerunResearch = useCallback(async () => {
+    if (!projectId) return;
+    setOutlineResearchResults(null);
+    setIsResearchingEvidence(true);
+    try {
+      const response = await fetch(`/api/project/${projectId}/rerun-research`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ current_outline: currentOutlineText }),
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.evidence_research) {
+          setOutlineResearchResults(data.evidence_research);
+        }
+      }
+    } catch (err) {
+      console.error("[Outline] Re-run research failed:", err);
+    } finally {
+      setIsResearchingEvidence(false);
+    }
+  }, [projectId, currentOutlineText]);
+
+  const handleRegenerateSection = useCallback(async (sectionNumber: number, instruction: string) => {
+    if (!projectId) return;
+    setIsRegeneratingOutline(true);
+    try {
+      const response = await fetch(`/api/project/${projectId}/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "regenerate_section",
+          payload: { section_number: sectionNumber, instruction, current_outline: currentOutlineText },
+        }),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to regenerate section ${sectionNumber}`);
+      }
+      const data = await response.json();
+      if (data.screen_outline) {
+        setLocalOutlineText(data.screen_outline);
+        onContentChange(data.screen_outline);
+      }
+    } finally {
+      setIsRegeneratingOutline(false);
+    }
+  }, [projectId, currentOutlineText, onContentChange]);
+
+  const handleRefineOutline = useCallback(async (instruction: string) => {
+    if (!projectId) return;
+    setIsRegeneratingOutline(true);
+    try {
+      const response = await fetch(`/api/project/${projectId}/event`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          event: "refine_outline",
+          payload: { instruction, current_outline: currentOutlineText },
+        }),
+      });
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || "Failed to regenerate outline");
+      }
+      const data = await response.json();
+      if (data.screen_outline) {
+        setLocalOutlineText(data.screen_outline);
+        onContentChange(data.screen_outline);
+      }
+    } finally {
+      setIsRegeneratingOutline(false);
+    }
+  }, [projectId, currentOutlineText, onContentChange]);
 
   const handleResearchContinue = useCallback(async () => {
     console.log("[Outline] handleResearchContinue called, projectId:", projectId);
@@ -832,8 +908,12 @@ export default function StageContent({
           aiContent={aiContent}
           onChange={handleOutlineTextChange}
           onRunResearch={handleRunResearch}
+          onRerunResearch={handleRerunResearch}
           onContinue={handleResearchContinue}
+          onRegenerateSection={handleRegenerateSection}
+          onRefineOutline={handleRefineOutline}
           isResearching={isResearchingEvidence}
+          isRegenerating={isRegeneratingOutline}
           researchResults={outlineResearchResults}
         />
       </div>

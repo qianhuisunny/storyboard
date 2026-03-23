@@ -84,7 +84,10 @@ class StateManager:
         ("outline", "outline_ready"): "gate2",
         ("gate2", "approve"): "write",
         ("gate2", "run_research"): "outline_research",  # Run evidence research
+        ("gate2", "regenerate_section"): "gate2",  # Regen one section, stay at gate2
+        ("gate2", "refine_outline"): "gate2",  # Regen full outline, stay at gate2
         ("gate2", "reject"): "outline",  # Revision loop
+        ("outline_research", "run_research"): "outline_research",  # Re-run research
         ("outline_research", "approve"): "write",  # Approve research, run writer
         ("write", "storyboard_ready"): "review",
         ("review", "approve"): "done",

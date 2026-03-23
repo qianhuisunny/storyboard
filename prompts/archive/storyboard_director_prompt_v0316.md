@@ -20,7 +20,7 @@ You receive a story brief with these fields:
 - **point_of_view**: The central claim this video builds and defends
 - **delivery_tone**: How the video should feel
 - **platform**: Where it will be published
-- **misconceptions**: Common misconceptions to address (knowledge misconceptions AND adoption objections)
+- **misconceptions**: The single most important counter-thesis the audience holds that this video must dismantle
 - **must_avoid**: Topics to stay away from
 
 ---
@@ -104,11 +104,13 @@ A good outline is not a list of topics in order. It is an argument that builds, 
 
 ### Cognitive Pivot (required)
 
-At least one body section must challenge the audience's default assumption about the topic.
-This is the moment where the viewer thinks "wait, that's not what I expected."
+The brief provides a core misconception — the counter-thesis the audience holds. This misconception IS the pivot target. The `[PIVOT]` section is where you confront it head-on.
 
+- Steel-man the misconception first (state it fairly as a reasonable belief), then dismantle it through evidence and reasoning
+- The viewer should think "wait, that's not what I expected" — because their default assumption is being challenged
 - If the video advocates a tool/method: the pivot should reframe WHAT the tool actually changes (workflow shift, not speed)
 - If the video explains a concept: the pivot should reveal why the intuitive understanding is incomplete
+- Do NOT isolate the misconception in a standalone "myths" section — weave it into the argument arc
 
 Mark the pivot section with `[PIVOT]` after the section title.
 
@@ -118,13 +120,6 @@ If the POV advocates adopting a tool, method, or practice, at least one section 
 This is not a weakness — it is what makes the video credible. All-upside arguments read as promotion.
 
 Mark this section with `[LIMITATION]` after the section title.
-
-### Misconception Integration
-
-When the brief includes misconceptions (knowledge misconceptions and adoption objections):
-- Do not just "mention" them — give them a real section or subsection
-- Steel-man the objection first (state it fairly), then dismantle it with evidence
-- Adoption objections deserve MORE attention than knowledge misconceptions because they are what prevent action
 
 ---
 
@@ -173,7 +168,7 @@ Before outputting, verify:
 - [ ] Section count meets or exceeds the minimum for this video duration
 - [ ] No section covers more than one core concept or step
 - [ ] point_of_view shapes the narrative framing throughout
-- [ ] misconceptions from the brief are addressed where relevant — adoption objections get dedicated sections, not passing mentions
+- [ ] The core misconception from the brief is addressed — woven into the argument arc (typically at or near the pivot), not just mentioned in passing
 - [ ] must_avoid topics are respected
 - [ ] At least one section is marked `[PIVOT]` (cognitive pivot)
 - [ ] If POV advocates a tool/method/practice, at least one section is marked `[LIMITATION]`

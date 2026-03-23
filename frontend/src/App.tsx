@@ -40,7 +40,7 @@ function AppHeader() {
           Plotline
         </h1>
         <span className="text-[9.5px] font-semibold text-[#626B58] bg-white border border-[#D9DDD2] rounded uppercase relative -top-px" style={{ padding: "2px 6px", letterSpacing: "0.6px" }}>
-          Beta
+          Research Preview
         </span>
       </Link>
       <div className="flex items-center gap-4">

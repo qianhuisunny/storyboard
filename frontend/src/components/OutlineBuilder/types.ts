@@ -12,7 +12,7 @@ export interface OutlineSection {
   exitState: string;
   duration: string;
   talkingPoints: string[];
-  evidenceNeeded: string[];
+  evidenceNeeded?: string[];  // Legacy — no longer produced by Director v0323+
 }
 
 // Evidence Research types (from EvidenceResearcher agent)
@@ -53,7 +53,11 @@ export interface OutlineBuilderProps {
   aiContent?: string | null;  // AI original version for drawer comparison
   onChange: (content: string) => void;
   onRunResearch: () => void;
+  onRerunResearch?: () => Promise<void>;
   onContinue: () => void | Promise<void>;
+  onRegenerateSection?: (sectionNumber: number, instruction: string) => Promise<void>;
+  onRefineOutline?: (instruction: string) => Promise<void>;
   isResearching?: boolean;
+  isRegenerating?: boolean;
   researchResults?: EvidenceResearch | null;
 }

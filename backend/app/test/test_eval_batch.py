@@ -48,7 +48,7 @@ def test_compute_batch_report_with_data(tmp_path, monkeypatch):
             "judge": {
                 "outline_quality": {
                     "flow_coherence": {"tags": ["abrupt_transition"], "notes": "test"},
-                    "brief_alignment": {"tags": [], "notes": ""},
+                    "brief_pov_alignment": {"tags": [], "notes": ""},
                 },
                 "storyboard_quality": {
                     "context_rot": {"tags": ["empty_elaboration"], "notes": "test"},

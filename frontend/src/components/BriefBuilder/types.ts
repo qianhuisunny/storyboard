@@ -95,7 +95,7 @@ export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
     "viewer_outcome",
     "target_audience",
     "audience_level",
-    "platform",
+    // "platform", // Commented out — see task #77
     "duration",
   ],
   2: [
@@ -121,7 +121,7 @@ export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   target_audience: "Who is this video for?",
   audience_level: "How familiar is your audience with this topic?",
   platform: "Where will this video be published?",
-  duration: "How long should this video be? (seconds)",
+  duration: "How long should this video be?",
   // Section 2: Delivery & Format
   on_camera_presence: "Do you want your face on screen?",
   broll_type: "What should viewers mostly see while you explain?",
@@ -129,9 +129,9 @@ export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   freshness_expectation: "How time-sensitive is this video?",
   // Section 3: Content Spine
   point_of_view: "Your point of view",
-  core_talking_points: "Argument beats",
-  misconceptions: "Counter-assumptions",
-  must_avoid: "What would weaken this POV?",
+  core_talking_points: "Key talking points",
+  misconceptions: "What misconception does this video need to address?",
+  must_avoid: "Anything you want to absolutely avoid talking about? (Optional)",
 };
 
 /**
@@ -143,14 +143,14 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   target_audience: "text",
   audience_level: "select",
   platform: "select",
-  duration: "number",
+  duration: "select",
   on_camera_presence: "select",
   broll_type: "multiselect",
   delivery_tone: "select",
   freshness_expectation: "select",
   point_of_view: "textarea",
   core_talking_points: "editable-list",
-  misconceptions: "editable-list",
+  misconceptions: "textarea",
   must_avoid: "list",
 };
 
@@ -158,6 +158,14 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
  * Select options for Knowledge Share fields.
  */
 export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: string; description?: string; image?: string | string[] }[]> = {
+  duration: [
+    { value: "60", label: "1 minute" },
+    { value: "120", label: "2 minutes" },
+    { value: "180", label: "3 minutes" },
+    { value: "300", label: "5 minutes" },
+    { value: "600", label: "10 minutes" },
+    { value: "900", label: "15 minutes" },
+  ],
   audience_level: [
     { value: "beginner", label: "Beginner" },
     { value: "intermediate", label: "Intermediate" },

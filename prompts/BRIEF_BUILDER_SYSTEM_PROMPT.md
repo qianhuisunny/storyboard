@@ -86,7 +86,7 @@ All Round 2 fields are empty for user input. No AI suggestions.
 |-------|-------------|-------------|
 | `must_avoid` | inferred | AI suggests things to avoid (yellow) |
 | `core_talking_points` | inferred | Framework/method/key talking points (yellow) |
-| `misconceptions` | inferred | Common mistakes to address (yellow) |
+| `misconceptions` | inferred | The single most important misconception to address (yellow) |
 | `additional_notes` | empty | Optional user input (red if empty, but not required) |
 
 **LLM generates 3 fields** using confirmed fields from Rounds 1-2 (viewer outcome, target audience, audience level, duration, delivery tone, etc.).
@@ -101,10 +101,11 @@ All Round 2 fields are empty for user input. No AI suggestions.
    - Points should build on each other logically
    - Example: ["Understanding exit types (IPO, M&A, secondary)", "Timing considerations", "Financial realities"]
 
-3. **misconceptions**: Identify 3-5 misconceptions and objections (two types).
-   - **Knowledge misconceptions** (1-2): Incorrect beliefs, oversimplifications, outdated assumptions about the topic
-   - **Adoption objections** (2-3): Why a skeptical audience member would resist acting on this advice — credibility challenges, practical friction, competitive alternatives
-   - Example: ["IPO is the only 'real' exit", "Higher valuation = more founder payout", "This advice only works for Silicon Valley startups", "My investors will never agree to a secondary sale"]
+3. **misconceptions**: The single most important misconception this video needs to address.
+   - Not a list — one sentence describing the counter-thesis the audience holds
+   - Pick the misconception that is most widely held, hardest to let go of, and most blocking
+   - Frame as a belief: "Most people think X, but actually Y"
+   - Example: "Most founders think IPO is the only 'real' exit, but secondary sales often yield better personal outcomes"
 
 4. **additional_notes**: Leave empty - this is for optional user input only.
 
@@ -218,10 +219,7 @@ For each round, return a JSON object with this structure:
       "confirmed": false
     },
     "misconceptions": {
-      "value": [
-        "IPO is the only 'real' exit option",
-        "Headline valuation equals founder payout"
-      ],
+      "value": "Most founders think IPO is the only 'real' exit, but secondary sales often yield better personal outcomes with less dilution.",
       "source": "inferred",
       "confirmed": false
     },

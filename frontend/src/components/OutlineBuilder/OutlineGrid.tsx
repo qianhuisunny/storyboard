@@ -32,6 +32,9 @@ interface OutlineGridProps {
   onReorder: (sections: OutlineSection[]) => void;
   onUpdateSection: (id: string, updates: Partial<OutlineSection>) => void;
   onInsertSection?: (atIndex: number) => void;
+  onRemoveSection?: (id: string) => void;
+  onRegenerateSection?: (sectionNumber: number, instruction: string) => Promise<void>;
+  regeneratingSectionNumber?: number | null;
   disabled?: boolean;
 }
 
@@ -61,6 +64,9 @@ export default function OutlineGrid({
   onReorder,
   onUpdateSection,
   onInsertSection,
+  onRemoveSection,
+  onRegenerateSection,
+  regeneratingSectionNumber = null,
   disabled = false,
 }: OutlineGridProps) {
   const sensors = useSensors(
@@ -113,6 +119,9 @@ export default function OutlineGrid({
                 index={index}
                 totalSections={sections.length}
                 onUpdate={onUpdateSection}
+                onRemove={onRemoveSection}
+                onRegenerate={onRegenerateSection}
+                isRegenerating={regeneratingSectionNumber === section.sectionNumber}
                 disabled={disabled}
                 isLast={index === sections.length - 1}
               />

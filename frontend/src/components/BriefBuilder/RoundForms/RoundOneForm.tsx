@@ -22,7 +22,7 @@ const SECTION_1_FIELDS = [
   "viewer_outcome",
   "target_audience",
   "audience_level",
-  "platform",
+  // "platform", // Commented out: platform-aware narrative (YouTube vs LMS) not yet implemented — see task #77
   "duration",
 ];
 

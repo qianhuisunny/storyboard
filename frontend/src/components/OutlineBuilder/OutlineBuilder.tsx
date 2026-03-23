@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, Search, Loader2, ChevronDown, ChevronRight, PanelRight } from "lucide-react";
+import { Check, Search, Loader2, ChevronDown, ChevronRight, PanelRight, RefreshCw } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OutlineGrid from "./OutlineGrid";
 import AiOriginalDrawer from "./AiOriginalDrawer";
@@ -28,11 +28,19 @@ export default function OutlineBuilder({
   aiContent,
   onChange,
   onRunResearch,
+  onRerunResearch,
   onContinue,
+  onRegenerateSection,
+  onRefineOutline,
   isResearching = false,
+  isRegenerating = false,
   researchResults = null,
 }: OutlineBuilderProps) {
   const [isContinuing, setIsContinuing] = useState(false);
+  const [isRerunningResearch, setIsRerunningResearch] = useState(false);
+  const [regeneratingSectionNumber, setRegeneratingSectionNumber] = useState<number | null>(null);
+  const [outlineRegenInstruction, setOutlineRegenInstruction] = useState("");
+  const [isRefiningOutline, setIsRefiningOutline] = useState(false);
 
   // Parse text → sections on mount and when content changes externally
   const [sections, setSections] = useState<OutlineSection[]>(() =>
@@ -91,7 +99,6 @@ export default function OutlineBuilder({
         exitState: "",
         duration: "1:00–2:00",
         talkingPoints: [],
-        evidenceNeeded: [],
       };
       const updated = [...sections];
       updated.splice(atIndex, 0, newSection);
@@ -104,6 +111,49 @@ export default function OutlineBuilder({
     },
     [sections, propagate]
   );
+
+  // Handle removing a section (local only, no LLM call)
+  const handleRemoveSection = useCallback(
+    (id: string) => {
+      const updated = sections.filter((s) => s.id !== id);
+      const renumbered = updated.map((s, i) => ({
+        ...s,
+        sectionNumber: i + 1,
+      }));
+      propagate(renumbered);
+    },
+    [sections, propagate]
+  );
+
+  // Handle regenerating a single section
+  const handleRegenerateSection = useCallback(
+    async (sectionNumber: number, instruction: string) => {
+      if (!onRegenerateSection) return;
+      setRegeneratingSectionNumber(sectionNumber);
+      try {
+        await onRegenerateSection(sectionNumber, instruction);
+      } finally {
+        setRegeneratingSectionNumber(null);
+      }
+    },
+    [onRegenerateSection]
+  );
+
+  // Handle regenerating the full outline
+  const [outlineRegenError, setOutlineRegenError] = useState<string | null>(null);
+  const handleRefineOutline = useCallback(async () => {
+    if (!onRefineOutline || !outlineRegenInstruction.trim()) return;
+    setIsRefiningOutline(true);
+    setOutlineRegenError(null);
+    try {
+      await onRefineOutline(outlineRegenInstruction.trim());
+      setOutlineRegenInstruction("");
+    } catch (err) {
+      setOutlineRegenError(err instanceof Error ? err.message : "Regeneration failed");
+    } finally {
+      setIsRefiningOutline(false);
+    }
+  }, [onRefineOutline, outlineRegenInstruction]);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -158,7 +208,9 @@ export default function OutlineBuilder({
                 onReorder={handleReorder}
                 onUpdateSection={handleUpdateSection}
                 onInsertSection={handleInsertSection}
-                disabled={!!hasResearch}
+                onRemoveSection={handleRemoveSection}
+                onRegenerateSection={onRegenerateSection ? handleRegenerateSection : undefined}
+                regeneratingSectionNumber={regeneratingSectionNumber}
               />
             ) : (
               <div className="text-center py-12 text-muted-foreground">
@@ -167,6 +219,38 @@ export default function OutlineBuilder({
               </div>
             )}
           </div>
+
+          {/* Outline-level regeneration input */}
+          {onRefineOutline && sections.length > 0 && (
+            <div className="flex items-center gap-2 pt-2">
+              <input
+                type="text"
+                value={outlineRegenInstruction}
+                onChange={(e) => setOutlineRegenInstruction(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleRefineOutline();
+                }}
+                placeholder="Regen entire outline with a note..."
+                className="flex-1 px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                disabled={isRefiningOutline || isRegenerating}
+              />
+              <button
+                onClick={handleRefineOutline}
+                disabled={!outlineRegenInstruction.trim() || isRefiningOutline || isRegenerating}
+                className="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {isRefiningOutline ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <RefreshCw className="w-3.5 h-3.5" />
+                )}
+                {isRefiningOutline ? "Regenerating..." : "Regen Outline"}
+              </button>
+            </div>
+          )}
+          {outlineRegenError && (
+            <p className="text-xs text-destructive mt-1">{outlineRegenError}</p>
+          )}
 
           {/* Research loading state */}
           {isResearching && (
@@ -181,13 +265,33 @@ export default function OutlineBuilder({
           {/* Section: Evidence Research Results (3-layer) */}
           {hasResearch && (
             <div id="evidence" className="pt-6 border-t-2 border-border">
-              <div className="py-3 mb-4">
-                <h2 className="text-xl font-semibold">Evidence Research Results</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Structured evidence gathered per section. Review usable lines, then continue.
-                </p>
+              <div className="py-3 mb-4 flex items-start justify-between">
+                <div>
+                  <h2 className="text-xl font-semibold">Evidence Research Results</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Structured evidence gathered per section. Review usable lines, then continue.
+                  </p>
+                </div>
+                {onRerunResearch && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={async () => {
+                      setIsRerunningResearch(true);
+                      try { await onRerunResearch(); } finally { setIsRerunningResearch(false); }
+                    }}
+                    disabled={isRerunningResearch || isContinuing}
+                  >
+                    {isRerunningResearch ? (
+                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
+                    ) : (
+                      <RefreshCw className="w-4 h-4 mr-1.5" />
+                    )}
+                    {isRerunningResearch ? "Re-running..." : "Re-run Research"}
+                  </Button>
+                )}
               </div>
-              <div className="space-y-6">
+              <div className="divide-y divide-border/50">
                 {researchResults.sections.map((section, i) => (
                   <SectionResearchCard key={i} section={section} />
                 ))}
@@ -209,14 +313,14 @@ export default function OutlineBuilder({
 
       {/* Action Footer */}
       <div className="px-6 sm:px-10 py-3 sm:py-4 border-t border-border bg-muted/20 shrink-0">
-        <div className="w-full flex justify-end">
+        <div className="w-full flex justify-end gap-3">
           {hasResearch ? (
             <Button
               onClick={async () => {
                 setIsContinuing(true);
                 try { await onContinue(); } finally { setIsContinuing(false); }
               }}
-              disabled={isContinuing}
+              disabled={isContinuing || isRerunningResearch}
             >
               {isContinuing ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -258,11 +362,11 @@ function SectionResearchCard({ section }: { section: SectionResearch }) {
     : legacyTPs.filter((tp) => tp.research_blocks.length > 0).length;
 
   return (
-    <div className="border border-border rounded-lg overflow-hidden">
+    <div className={cn("py-6", !isExpanded && "py-4")}>
       {/* Section header */}
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full px-4 py-3 bg-muted/40 border-b border-border flex items-center gap-2 hover:bg-muted/60 transition-colors text-left"
+        className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
       >
         {isExpanded ? (
           <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -278,7 +382,7 @@ function SectionResearchCard({ section }: { section: SectionResearch }) {
       </button>
 
       {isExpanded && (
-        <div className="p-4 space-y-4">
+        <div className="mt-4 pl-6 space-y-4">
           {isNewSchema
             ? items.map((item, j) => <EvidenceItemCard key={j} item={item} />)
             : legacyTPs.map((tp, j) => <TalkingPointCard key={j} tp={tp} />)
@@ -334,14 +438,14 @@ function ResearchBlockCard({ block }: { block: ResearchBlock }) {
   };
 
   return (
-    <div className="border border-border rounded-md">
+    <div className="pb-4 mb-4 border-b border-border/50 last:border-b-0 last:mb-0 last:pb-0">
       {/* Research question — compact */}
-      <div className="px-3 py-1.5">
+      <div className="py-1">
         <p className="text-xs text-muted-foreground">{block.research_question}</p>
       </div>
 
       {/* Storyboard-usable phrasing — primary content */}
-      <div className="px-3 py-2 border-t border-border">
+      <div className="py-2">
         <ul className="space-y-1">
           {block.storyboard_usable_phrasing.map((line, i) => (
             <li key={i} className="text-sm text-foreground flex items-start gap-2">
@@ -353,7 +457,7 @@ function ResearchBlockCard({ block }: { block: ResearchBlock }) {
       </div>
 
       {/* Full answer + sources — secondary, collapsible */}
-      <div className="px-3 py-1.5 border-t border-border bg-muted/10">
+      <div className="py-1">
         <button
           onClick={() => setShowDetails(!showDetails)}
           className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
@@ -380,7 +484,7 @@ function ResearchBlockCard({ block }: { block: ResearchBlock }) {
             {block.sources.length > 0 && (
               <div className="text-[10px] text-muted-foreground">
                 {block.sources.map((s, i) => (
-                  <p key={i}>{s}</p>
+                  <p key={i}>{s.startsWith("[") ? s : `[${i + 1}] ${s}`}</p>
                 ))}
               </div>
             )}

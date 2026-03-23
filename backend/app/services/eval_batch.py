@@ -95,8 +95,8 @@ Evaluate the AI outline against the gold outline across all 5 outline quality di
         return {
             "outline_quality": {
                 dim: {"tags": [], "notes": f"Judge error: {e}"}
-                for dim in ["flow_coherence", "talking_point_specificity",
-                           "evidence_relevance", "brief_alignment", "section_necessity"]
+                for dim in ["flow_coherence", "talking_point_sharpness",
+                           "evidence_fitness", "brief_pov_alignment", "section_necessity"]
             }
         }
 
@@ -123,7 +123,7 @@ def run_llm_judge_storyboard(gold: dict, ai_storyboard: list) -> dict:
 ## AI Storyboard (to evaluate)
 {ai_sb_str}
 
-Evaluate the AI storyboard against the gold storyboard across all 4 storyboard quality dimensions. Return JSON."""
+Evaluate the AI storyboard against the gold storyboard across all 5 storyboard quality dimensions. Return JSON."""
 
     try:
         return _call_judge_llm(system_prompt, user_prompt)
@@ -131,8 +131,38 @@ Evaluate the AI storyboard against the gold storyboard across all 4 storyboard q
         return {
             "storyboard_quality": {
                 dim: {"tags": [], "notes": f"Judge error: {e}"}
-                for dim in ["context_rot", "generic_rewrite",
-                           "factual_invention", "redundancy"]
+                for dim in ["instructional_progression", "context_rot",
+                           "specificity_retention", "source_fidelity", "redundancy"]
+            }
+        }
+
+
+def run_llm_judge_cross_stage(gold: dict, ai_director_output: str,
+                              ai_storyboard: list) -> dict:
+    """Judge cross-stage handoff integrity: outline → storyboard."""
+    system_prompt = _load_judge_prompt()
+    gold_brief_str = json.dumps(gold["brief"], indent=2, ensure_ascii=False)
+    ai_sb_str = json.dumps(ai_storyboard, indent=2, ensure_ascii=False)
+
+    user_prompt = f"""## Evaluation Mode: CROSS-STAGE
+
+## Gold Brief (context)
+{gold_brief_str}
+
+## AI Outline (source stage)
+{ai_director_output}
+
+## AI Storyboard (target stage — to evaluate against the outline above)
+{ai_sb_str}
+
+Evaluate whether the AI storyboard faithfully realizes the AI outline's teaching jobs, section theses, and required content. Return JSON."""
+
+    try:
+        return _call_judge_llm(system_prompt, user_prompt)
+    except Exception as e:
+        return {
+            "cross_stage_quality": {
+                "handoff_integrity": {"tags": [], "notes": f"Judge error: {e}"}
             }
         }
 
@@ -175,15 +205,17 @@ def run_batch_eval(names: Optional[list[str]] = None, force: bool = False):
             cached = get_cached_eval(name)
             if cached and "judge" not in cached:
                 gold = load_gold_set(name)
-                judge_outline = run_llm_judge_outline(
-                    gold, cached.get("director_output", "")
-                )
-                judge_storyboard = run_llm_judge_storyboard(
-                    gold, cached.get("writer_output_path_a", [])
+                director_output = cached.get("director_output", "")
+                writer_output = cached.get("writer_output_path_a", [])
+                judge_outline = run_llm_judge_outline(gold, director_output)
+                judge_storyboard = run_llm_judge_storyboard(gold, writer_output)
+                judge_cross_stage = run_llm_judge_cross_stage(
+                    gold, director_output, writer_output
                 )
                 cached["judge"] = {
                     **judge_outline,
                     **judge_storyboard,
+                    **judge_cross_stage,
                 }
                 _save_cache(name, cached)
 
@@ -252,7 +284,8 @@ def compute_batch_report(completed_names: list[str],
 
         judge = cached.get("judge", {})
         for layer_key, layer_name in [("outline_quality", "outline"),
-                                       ("storyboard_quality", "storyboard")]:
+                                       ("storyboard_quality", "storyboard"),
+                                       ("cross_stage_quality", "cross_stage")]:
             layer = judge.get(layer_key, {})
             for dim_data in layer.values():
                 for tag in dim_data.get("tags", []):

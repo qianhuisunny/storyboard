@@ -120,21 +120,6 @@ function DrawerSection({
         </div>
       )}
 
-      {section.evidenceNeeded.length > 0 && (
-        <div>
-          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">
-            Evidence Needed
-          </p>
-          {section.evidenceNeeded.map((ev, j) => (
-            <p
-              key={j}
-              className="text-[13px] text-muted-foreground leading-relaxed pl-3 border-l-2 border-border/40 mb-1"
-            >
-              {ev}
-            </p>
-          ))}
-        </div>
-      )}
     </div>
   );
 }

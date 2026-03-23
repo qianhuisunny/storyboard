@@ -20,7 +20,7 @@ class StoryboardDirector(BaseAgent):
             evidence needed, visual intent)
     """
 
-    prompt_file = "storyboard_director_prompt_v0316.md"
+    prompt_file = "storyboard_director_prompt_v0323.md"
 
     def _extract_brief_field(self, story_brief: dict, field_name: str, default=None):
         """
@@ -108,9 +108,10 @@ class StoryboardDirector(BaseAgent):
         if isinstance(talking_points, str):
             talking_points = [talking_points]
 
-        misconceptions = self._extract_brief_field(story_brief, "misconceptions") or []
-        if isinstance(misconceptions, str):
-            misconceptions = [misconceptions]
+        misconceptions = self._extract_brief_field(story_brief, "misconceptions") or ""
+        # Handle legacy array format — join into single string
+        if isinstance(misconceptions, list):
+            misconceptions = "; ".join(misconceptions) if misconceptions else ""
 
         must_avoid = self._extract_brief_field(story_brief, "must_avoid") or []
         if isinstance(must_avoid, str):
@@ -118,7 +119,7 @@ class StoryboardDirector(BaseAgent):
 
         # Format lists
         tp_text = "\n".join(f"- {tp}" for tp in talking_points) if talking_points else "- (none provided)"
-        misc_text = "\n".join(f"- {m}" for m in misconceptions) if misconceptions else "- (none)"
+        misc_text = misconceptions if misconceptions else "(none)"
         avoid_text = "\n".join(f"- {a}" for a in must_avoid) if must_avoid else "- (none)"
 
         return f"""Generate a video outline for this brief.
@@ -144,10 +145,90 @@ POINT OF VIEW
 CORE TALKING POINTS
 {tp_text}
 
-MISCONCEPTIONS TO ADDRESS
+CORE MISCONCEPTION TO ADDRESS
 {misc_text}
 
 MUST AVOID
 {avoid_text}
 
 Generate the outline now. Return plain text only, following the section format in your system prompt."""
+
+    def _strip_markdown_wrapper(self, text: str) -> str:
+        """Strip markdown code block wrappers if present."""
+        text = text.strip()
+        if text.startswith("```"):
+            lines = text.split("\n")
+            lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            text = "\n".join(lines).strip()
+        return text
+
+    def regenerate_section(
+        self,
+        current_outline: str,
+        section_number: int,
+        instruction: str,
+        story_brief: dict,
+    ) -> str:
+        """
+        Regenerate a single section of the outline based on user instruction.
+
+        Returns the full updated outline text with the target section replaced.
+        """
+        brief_context = self._build_brief_context(story_brief)
+
+        prompt = f"""You are revising ONE section of an existing video outline.
+
+{brief_context}
+
+## CURRENT OUTLINE
+{current_outline}
+
+## TASK
+Regenerate ONLY Section {section_number} based on this instruction:
+"{instruction}"
+
+Return the COMPLETE outline with all sections. Only Section {section_number} should change — keep all other sections exactly as they are. Return plain text only, following the same section format."""
+
+        response = self.call_llm(prompt, max_tokens=8000, temperature=0.7)
+        return self._strip_markdown_wrapper(response)
+
+    def refine_outline(
+        self,
+        current_outline: str,
+        instruction: str,
+        story_brief: dict,
+    ) -> str:
+        """
+        Regenerate the full outline based on user instruction.
+
+        Returns the complete new outline text.
+        """
+        brief_context = self._build_brief_context(story_brief)
+
+        prompt = f"""You are revising a video outline based on user feedback.
+
+{brief_context}
+
+## CURRENT OUTLINE
+{current_outline}
+
+## USER INSTRUCTION
+"{instruction}"
+
+Regenerate the full outline incorporating the instruction above. You may add, remove, merge, or restructure sections as needed. Return plain text only, following the same section format."""
+
+        response = self.call_llm(prompt, max_tokens=8000, temperature=0.7)
+        return self._strip_markdown_wrapper(response)
+
+    def _build_brief_context(self, story_brief: dict) -> str:
+        """Build a brief context summary for refinement prompts."""
+        viewer_outcome = self._extract_brief_field(story_brief, "viewer_outcome") or ""
+        target_audience = self._extract_brief_field(story_brief, "target_audience") or ""
+        point_of_view = self._extract_brief_field(story_brief, "point_of_view") or ""
+
+        return f"""## BRIEF CONTEXT
+Viewer outcome: {viewer_outcome}
+Target audience: {target_audience}
+Point of view: {point_of_view}"""

@@ -4,7 +4,7 @@ import {
   getFieldStatus,
   TONE_OPTIONS,
   VIDEO_TYPE_OPTIONS,
-  FORMAT_OPTIONS,
+  // FORMAT_OPTIONS, // Commented out — see task #77
 } from "../types";
 
 /**
@@ -108,8 +108,8 @@ export default function RequiredFieldsForm({
         helperText="Recommended lengths: 15s (TikTok), 60s (Instagram), 90-180s (YouTube)"
       />
 
-      {/* Format/Platform - Optional but shown in required form */}
-      <FormField
+      {/* Format/Platform - Commented out: platform-aware narrative (YouTube vs LMS) not yet implemented — see task #77 */}
+      {/* <FormField
         label="Platform"
         name="format_or_platform"
         value={brief.format_or_platform}
@@ -118,7 +118,7 @@ export default function RequiredFieldsForm({
         options={FORMAT_OPTIONS}
         status={getFieldStatus("format_or_platform", brief)}
         helperText="Where will this video be published?"
-      />
+      /> */}
 
       {/* Key Points */}
       <FormField

@@ -45,7 +45,8 @@ function DiffRow({ name }: DiffRowProps) {
   const scrAi = analysis?.writer_path_b.screen_count.ai ?? "?";
   const tagCount = judge
     ? Object.values(judge.outline_quality ?? {}).reduce((s, d) => s + (d.tags?.length ?? 0), 0) +
-      Object.values(judge.storyboard_quality ?? {}).reduce((s, d) => s + (d.tags?.length ?? 0), 0)
+      Object.values(judge.storyboard_quality ?? {}).reduce((s, d) => s + (d.tags?.length ?? 0), 0) +
+      Object.values(judge.cross_stage_quality ?? {}).reduce((s, d) => s + (d.tags?.length ?? 0), 0)
     : 0;
 
   return (
@@ -72,7 +73,7 @@ function DiffRow({ name }: DiffRowProps) {
             <div className="mt-4">
               <h3 className="text-sm font-medium mb-2">Quality Tags</h3>
               <div className="space-y-2">
-                {(["outline_quality", "storyboard_quality"] as const).map(layerKey => {
+                {(["outline_quality", "storyboard_quality", "cross_stage_quality"] as const).map(layerKey => {
                   const layer = judge[layerKey];
                   if (!layer) return null;
                   const hasTags = Object.values(layer).some(d => d.tags?.length > 0);

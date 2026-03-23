@@ -22,7 +22,7 @@ class EvidenceResearcher(BaseAgent):
     Output: per-section, per-evidence-item research with writer-ready phrasing
     """
 
-    prompt_file = "evidence_researcher_prompt_v0317.md"
+    prompt_file = "evidence_researcher_prompt_v0323.md"
 
     def run(self, state: Any, **kwargs) -> dict:
         """Run evidence research from state object (used by orchestrator)."""
@@ -90,7 +90,7 @@ The following excerpts are from documents uploaded by the user. Prioritize infor
 {rag_context}
 """
 
-        prompt = f"""Analyze this video outline and generate storyboard-ready research for each section's evidence items.
+        prompt = f"""Analyze this video outline and generate storyboard-ready research for each section's claims and talking points.
 
 ## VIDEO CONTEXT
 Viewer outcome: {viewer_outcome}
