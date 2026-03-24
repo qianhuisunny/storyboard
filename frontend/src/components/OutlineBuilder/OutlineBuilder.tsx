@@ -18,6 +18,7 @@ import { parseOutline, serializeOutline } from "./outlineParser";
 import type {
   OutlineBuilderProps,
   OutlineSection,
+  EvidenceResearch,
   SectionResearch,
   ResearchBlock,
 } from "./types";
@@ -40,6 +41,23 @@ export default function OutlineBuilder({
   const [regeneratingSectionNumber, setRegeneratingSectionNumber] = useState<number | null>(null);
   const [isRefiningOutline, setIsRefiningOutline] = useState(false);
   const [showOutlineRegenPopover, setShowOutlineRegenPopover] = useState(false);
+
+  // Snippet deletion: key = "sectionIdx-evidenceIdx-blockIdx", value = set of struck phrase indices
+  const [deletedSnippets, setDeletedSnippets] = useState<Record<string, Set<number>>>({});
+
+  const toggleSnippet = useCallback((key: string, phraseIdx: number) => {
+    setDeletedSnippets((prev) => {
+      const next = { ...prev };
+      const set = new Set(next[key] || []);
+      if (set.has(phraseIdx)) {
+        set.delete(phraseIdx);
+      } else {
+        set.add(phraseIdx);
+      }
+      next[key] = set;
+      return next;
+    });
+  }, []);
 
   // Parse text → sections on mount and when content changes externally
   const [sections, setSections] = useState<OutlineSection[]>(() =>
@@ -148,6 +166,40 @@ export default function OutlineBuilder({
       setIsRefiningOutline(false);
     }
   }, [onRefineOutline]);
+
+  /** Return research with struck-through snippets filtered out (used by continue handler). */
+  const getFilteredEvidence = useCallback((): EvidenceResearch | null => {
+    if (!researchResults) return null;
+    return {
+      sections: researchResults.sections.map((sec, si) => ({
+        ...sec,
+        evidence_items: sec.evidence_items?.map((ei, ei_idx) => ({
+          ...ei,
+          research_blocks: ei.research_blocks.map((rb, bi) => {
+            const key = `${si}-${ei_idx}-${bi}`;
+            const struck = deletedSnippets[key];
+            if (!struck || struck.size === 0) return rb;
+            return {
+              ...rb,
+              storyboard_usable_phrasing: rb.storyboard_usable_phrasing.filter((_, pi) => !struck.has(pi)),
+            };
+          }),
+        })),
+        talking_points: sec.talking_points?.map((tp, tp_idx) => ({
+          ...tp,
+          research_blocks: tp.research_blocks.map((rb, bi) => {
+            const key = `${si}-tp${tp_idx}-${bi}`;
+            const struck = deletedSnippets[key];
+            if (!struck || struck.size === 0) return rb;
+            return {
+              ...rb,
+              storyboard_usable_phrasing: rb.storyboard_usable_phrasing.filter((_, pi) => !struck.has(pi)),
+            };
+          }),
+        })),
+      })),
+    };
+  }, [researchResults, deletedSnippets]);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -283,7 +335,13 @@ export default function OutlineBuilder({
                   </div>
                 ) : (
                   researchResults?.sections.map((sectionRes, i) => (
-                    <SectionResearchCard key={i} sectionRes={sectionRes} />
+                    <SectionResearchCard
+                      key={i}
+                      sectionRes={sectionRes}
+                      sectionIndex={i}
+                      deletedSnippets={deletedSnippets}
+                      onToggleSnippet={toggleSnippet}
+                    />
                   ))
                 )}
               </div>
@@ -309,7 +367,11 @@ export default function OutlineBuilder({
             <Button
               onClick={async () => {
                 setIsContinuing(true);
-                try { await onContinue(); } finally { setIsContinuing(false); }
+                try {
+                  // TODO Task 6: pass getFilteredEvidence() to the approve event
+                  void getFilteredEvidence();
+                  await onContinue();
+                } finally { setIsContinuing(false); }
               }}
               disabled={isContinuing || isRerunningResearch}
             >
@@ -347,7 +409,17 @@ const CONFIDENCE_STYLES = {
 } as const;
 
 /** Single research block — confidence-first with colored left accent */
-function ResearchBlockCard({ block }: { block: ResearchBlock }) {
+function ResearchBlockCard({
+  block,
+  blockKey,
+  deletedIndices,
+  onToggleSnippet,
+}: {
+  block: ResearchBlock;
+  blockKey: string;
+  deletedIndices?: Set<number>;
+  onToggleSnippet?: (key: string, idx: number) => void;
+}) {
   const [showDetails, setShowDetails] = useState(false);
   const style = CONFIDENCE_STYLES[block.confidence] || CONFIDENCE_STYLES.medium;
 
@@ -367,12 +439,26 @@ function ResearchBlockCard({ block }: { block: ResearchBlock }) {
         </span>
       </div>
 
-      {/* Snippet lines */}
-      {block.storyboard_usable_phrasing.map((line, i) => (
-        <div key={i} className="text-sm leading-relaxed py-1">
-          {line}
-        </div>
-      ))}
+      {/* Snippet lines — clickable with strikethrough */}
+      {block.storyboard_usable_phrasing.map((line, i) => {
+        const isStruck = deletedIndices?.has(i) ?? false;
+        return (
+          <div
+            key={i}
+            onClick={() => onToggleSnippet?.(blockKey, i)}
+            className={`group/snippet flex items-start gap-2 py-1 rounded cursor-pointer hover:bg-muted/30 transition-opacity ${
+              isStruck ? "opacity-40" : ""
+            }`}
+          >
+            <span className={`text-sm leading-relaxed flex-1 ${isStruck ? "line-through decoration-muted-foreground/35" : ""}`}>
+              {line}
+            </span>
+            <span className="w-5 h-5 flex items-center justify-center shrink-0 text-muted-foreground opacity-0 group-hover/snippet:opacity-60 hover:!opacity-100 hover:text-destructive text-lg">
+              &times;
+            </span>
+          </div>
+        );
+      })}
 
       {/* Expandable sources */}
       {block.sources.length > 0 && (
@@ -400,7 +486,17 @@ function ResearchBlockCard({ block }: { block: ResearchBlock }) {
 }
 
 /** Section-level research card — detects v0317 (evidence_items) vs v0316 (talking_points) */
-function SectionResearchCard({ sectionRes }: { sectionRes: SectionResearch }) {
+function SectionResearchCard({
+  sectionRes,
+  sectionIndex,
+  deletedSnippets,
+  onToggleSnippet,
+}: {
+  sectionRes: SectionResearch;
+  sectionIndex: number;
+  deletedSnippets: Record<string, Set<number>>;
+  onToggleSnippet: (key: string, idx: number) => void;
+}) {
   const [isExpanded, setIsExpanded] = useState(true);
   const evidenceItems = sectionRes.evidence_items || [];
   const talkingPoints = sectionRes.talking_points || [];
@@ -419,20 +515,38 @@ function SectionResearchCard({ sectionRes }: { sectionRes: SectionResearch }) {
 
       {isExpanded && (
         <div className="pl-6 mt-3">
-          {evidenceItems.map((item, i) => (
-            <div key={i}>
+          {evidenceItems.map((item, ei) => (
+            <div key={ei}>
               <div className="text-[13px] font-medium mb-1.5 mt-3 first:mt-0">{item.evidence_needed}</div>
-              {item.research_blocks.map((block, j) => (
-                <ResearchBlockCard key={j} block={block} />
-              ))}
+              {item.research_blocks.map((block, bi) => {
+                const key = `${sectionIndex}-${ei}-${bi}`;
+                return (
+                  <ResearchBlockCard
+                    key={bi}
+                    block={block}
+                    blockKey={key}
+                    deletedIndices={deletedSnippets[key]}
+                    onToggleSnippet={onToggleSnippet}
+                  />
+                );
+              })}
             </div>
           ))}
-          {!evidenceItems.length && talkingPoints.map((tp, i) => (
-            <div key={i}>
+          {!evidenceItems.length && talkingPoints.map((tp, ti) => (
+            <div key={ti}>
               <div className="text-[13px] font-medium mb-1.5 mt-3 first:mt-0">{tp.talking_point}</div>
-              {tp.research_blocks.map((block, j) => (
-                <ResearchBlockCard key={j} block={block} />
-              ))}
+              {tp.research_blocks.map((block, bi) => {
+                const key = `${sectionIndex}-tp${ti}-${bi}`;
+                return (
+                  <ResearchBlockCard
+                    key={bi}
+                    block={block}
+                    blockKey={key}
+                    deletedIndices={deletedSnippets[key]}
+                    onToggleSnippet={onToggleSnippet}
+                  />
+                );
+              })}
             </div>
           ))}
         </div>
