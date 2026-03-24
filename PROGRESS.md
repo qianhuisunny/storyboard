@@ -364,3 +364,47 @@ Priority: `required` (section can't work without it), `helpful` (strengthens), `
 | `frontend/src/components/OutlineBuilder/OutlineBuilder.tsx` | Section-grouped evidence display with research briefs, task cards, usable lines |
 | `frontend/src/components/StageNavigation.tsx` | Added Evidence Research as nav sub-step between Outline and Draft |
 | `frontend/src/components/StageLayout.tsx` | Anchor-based navigation for outline vs evidence sections |
+
+---
+
+## 2026-03-23 — Outline + Evidence Research UX Redesign + Progressive Research
+
+### What Was Built
+
+**Outline UX Redesign (8 commits):**
+- Bordered container layout for outline and evidence sections
+- 4-column grid: drag-handle | section-num | content | actions (28px 40px 1fr 32px)
+- Actions column: × (remove) on top + sparkle (regen) below, stacked vertically
+- Claude Chat-style RegenPopover for both section-level and outline-level regeneration
+- Confidence-first evidence display: green/amber/red left border accents + badges
+- Deletable evidence snippets: click-to-strikethrough, filtered on approve
+
+**Progressive Evidence Research (3 commits):**
+- Backend `research_section()` method: researches one section at a time (full outline sent as context, max_tokens=2000)
+- Stateless `POST /research-section` endpoint: no orchestrator, no state machine transition
+- Frontend fires N parallel fetch calls (one per outline section), each result appends to the UI as it arrives
+- Progress indicator: "2 of 5 sections researched..."
+- State machine `run_research` event fires in background for phase transition (redundant full research, but ensures state transitions correctly)
+
+### Architecture Decision: Parallel vs Sequential Research
+
+Chose **parallel** section calls for demo speed. Trade-off: no cross-section source deduplication. If quality drops (repeated sources across sections), switch to sequential calls where each call receives previous sections' sources list. See `memory/feedback_parallel_research.md`.
+
+### Key Design Decisions
+
+1. **Grid alignment:** Header sparkle uses the same grid as section rows (`grid-template-columns: 28px 40px 1fr 32px`) to guarantee vertical alignment
+2. **Data ownership:** Frontend owns edited data after user edits. `getFilteredEvidence()` filters struck snippets before sending to backend writer
+3. **Progressive display:** Sections render above the spinner as they arrive. Spinner shows count that updates in real-time
+4. **State machine sync:** Background `run_research` event fires concurrently with progressive calls. Backend does redundant full research but this ensures phase transition. By the time user reviews evidence (~1 min), backend is ready for approve
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `backend/app/services/agents/evidence_researcher.py` | Added `research_section()` method for per-section LLM calls |
+| `backend/app/main.py` | Added `POST /research-section` endpoint |
+| `frontend/src/components/OutlineBuilder/OutlineBuilder.tsx` | Container layout, progressive display, confidence accents, deletable snippets |
+| `frontend/src/components/OutlineBuilder/SectionRow.tsx` | 4-column grid, actions column (× + sparkle) |
+| `frontend/src/components/OutlineBuilder/RegenPopover.tsx` | New: Claude Chat-style regen popover |
+| `frontend/src/components/OutlineBuilder/types.ts` | Added `researchProgress` prop |
+| `frontend/src/components/StageContent.tsx` | Progressive parallel fetch, filtered evidence on approve |
