@@ -113,6 +113,15 @@ class ProjectRepository:
         )
         return list(result.scalars().all())
 
+    async def get_all_stage_snapshots(self) -> list[StageSnapshot]:
+        """Get all stage snapshots across all projects (for admin drift view)."""
+        result = await self.session.execute(
+            select(StageSnapshot).where(
+                StageSnapshot.stage_id.in_([2, 3])
+            ).order_by(StageSnapshot.project_id, StageSnapshot.stage_id)
+        )
+        return list(result.scalars().all())
+
     async def save_stage_snapshot(
         self, project_id: str, stage_id: int,
         ai_version: Optional[str] = None,

@@ -1684,6 +1684,39 @@ async def get_admin_field_edits(
         raise HTTPException(status_code=500, detail=f"Error getting field edits: {str(e)}")
 
 
+@app.get("/api/admin/stages/all")
+async def get_admin_all_stages(
+    user_id: Optional[str] = Header(None, alias="X-User-Id"),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all stage snapshots across all projects for drift analysis."""
+    if not verify_admin(user_id):
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+    repo = ProjectRepository(db)
+    snapshots = await repo.get_all_stage_snapshots()
+
+    # Group by project
+    projects_map: dict = {}
+    for snap in snapshots:
+        pid = snap.project_id
+        if pid not in projects_map:
+            # Get project name
+            project = await repo.get_project(pid)
+            projects_map[pid] = {
+                "project_id": pid,
+                "project_name": project.title if project else pid,
+                "created_at": project.created_at.isoformat() if project else None,
+                "stages": {},
+            }
+        projects_map[pid]["stages"][str(snap.stage_id)] = {
+            "ai_version": snap.ai_version,
+            "human_version": snap.human_version,
+        }
+
+    return {"projects": list(projects_map.values())}
+
+
 # ============================================================
 # OBSERVABILITY ENDPOINTS (Harness Engineering Inspired)
 # ============================================================
