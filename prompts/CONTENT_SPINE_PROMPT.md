@@ -19,6 +19,20 @@ These are the major ARGUMENT BEATS required to make the POV convincing.
 - They should create progression: point N builds on point N-1
 - Do NOT list subtopics or generic bullet points — list the steps of the argument
 
+**Example — POV: "Don't think Claude Code is irrelevant to marketers. Try building projects to make your life easier as a PMM."**
+
+BAD — feature list, no progression (each point is a parallel example at the same level):
+- "Claude Code can build functional marketing landing pages and campaign microsites in minutes"
+- "You can prototype interactive demos and product showcases without waiting for engineering"
+- "Campaign artifacts like comparison tables, ROI calculators, and lead magnets become immediately testable"
+
+GOOD — argument that builds (each point depends on the previous one):
+- "The barrier isn't skill — it's the assumption that building requires engineering"
+- "Claude Code changes the equation: describe what you want in plain English, get a working artifact"
+- "When PMMs can prototype and test their own campaign assets, iteration speed compounds — you're no longer blocked by sprint cycles"
+
+The BAD version is a product feature list. The GOOD version is a chain of reasoning: identify the blocker → explain why it no longer applies → show the compounding consequence. Each step only makes sense after the previous one.
+
 ### 2. misconception (1 sentence)
 
 What is the single most important misconception this video needs to address?
