@@ -9,10 +9,11 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, Search, Loader2, ChevronDown, ChevronRight, PanelRight, RefreshCw } from "lucide-react";
+import { Check, Search, Loader2, ChevronDown, ChevronRight, PanelRight, RefreshCw, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OutlineGrid from "./OutlineGrid";
 import AiOriginalDrawer from "./AiOriginalDrawer";
+import { RegenPopover } from "./RegenPopover";
 import { parseOutline, serializeOutline } from "./outlineParser";
 import type {
   OutlineBuilderProps,
@@ -33,14 +34,14 @@ export default function OutlineBuilder({
   onRegenerateSection,
   onRefineOutline,
   isResearching = false,
-  isRegenerating = false,
+  isRegenerating: _isRegenerating = false,
   researchResults = null,
 }: OutlineBuilderProps) {
   const [isContinuing, setIsContinuing] = useState(false);
   const [isRerunningResearch, setIsRerunningResearch] = useState(false);
   const [regeneratingSectionNumber, setRegeneratingSectionNumber] = useState<number | null>(null);
-  const [outlineRegenInstruction, setOutlineRegenInstruction] = useState("");
   const [isRefiningOutline, setIsRefiningOutline] = useState(false);
+  const [showOutlineRegenPopover, setShowOutlineRegenPopover] = useState(false);
 
   // Parse text → sections on mount and when content changes externally
   const [sections, setSections] = useState<OutlineSection[]>(() =>
@@ -140,20 +141,15 @@ export default function OutlineBuilder({
   );
 
   // Handle regenerating the full outline
-  const [outlineRegenError, setOutlineRegenError] = useState<string | null>(null);
-  const handleRefineOutline = useCallback(async () => {
-    if (!onRefineOutline || !outlineRegenInstruction.trim()) return;
+  const handleRefineOutline = useCallback(async (instruction: string) => {
+    if (!onRefineOutline || !instruction.trim()) return;
     setIsRefiningOutline(true);
-    setOutlineRegenError(null);
     try {
-      await onRefineOutline(outlineRegenInstruction.trim());
-      setOutlineRegenInstruction("");
-    } catch (err) {
-      setOutlineRegenError(err instanceof Error ? err.message : "Regeneration failed");
+      await onRefineOutline(instruction.trim());
     } finally {
       setIsRefiningOutline(false);
     }
-  }, [onRefineOutline, outlineRegenInstruction]);
+  }, [onRefineOutline]);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
 
@@ -200,18 +196,58 @@ export default function OutlineBuilder({
           className="flex-1 overflow-y-auto px-6 sm:px-10 py-6 min-w-0"
         >
           <div className="w-full max-w-5xl space-y-6">
+          <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+            Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.
+          </p>
+
           {/* Section: Video Outline */}
           <div id="outline">
             {sections.length > 0 ? (
-              <OutlineGrid
-                sections={sections}
-                onReorder={handleReorder}
-                onUpdateSection={handleUpdateSection}
-                onInsertSection={handleInsertSection}
-                onRemoveSection={handleRemoveSection}
-                onRegenerateSection={onRegenerateSection ? handleRegenerateSection : undefined}
-                regeneratingSectionNumber={regeneratingSectionNumber}
-              />
+              <div className="border border-border rounded-[10px] mb-6">
+                {/* Header — same grid as section rows for sparkle alignment */}
+                <div className="grid grid-cols-[28px_40px_1fr_32px] gap-x-2 items-center px-5 py-3 border-b border-border">
+                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground" style={{ gridColumn: "1 / 4" }}>
+                    Video Outline
+                  </h3>
+                  {onRefineOutline && (
+                    <button
+                      onClick={() => setShowOutlineRegenPopover((v) => !v)}
+                      className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all justify-self-center"
+                      title="Regenerate entire outline"
+                    >
+                      <Sparkles className="w-[15px] h-[15px]" />
+                    </button>
+                  )}
+                </div>
+
+                {/* Outline-level regen popover */}
+                {showOutlineRegenPopover && (
+                  <div className="mx-5 my-3">
+                    <RegenPopover
+                      title="Regenerate entire outline"
+                      onRegenerate={(instruction) => {
+                        handleRefineOutline(instruction);
+                        setShowOutlineRegenPopover(false);
+                      }}
+                      onClose={() => setShowOutlineRegenPopover(false)}
+                      isRegenerating={isRefiningOutline}
+                    />
+                  </div>
+                )}
+
+                {/* Grid content */}
+                <div className="px-5">
+                  <OutlineGrid
+                    sections={sections}
+                    onReorder={handleReorder}
+                    onUpdateSection={handleUpdateSection}
+                    onInsertSection={handleInsertSection}
+                    onRemoveSection={handleRemoveSection}
+                    onRegenerateSection={onRegenerateSection ? handleRegenerateSection : undefined}
+                    regeneratingSectionNumber={regeneratingSectionNumber}
+                  />
+                </div>
+              </div>
             ) : (
               <div className="text-center py-12 text-muted-foreground">
                 No outline yet. The Director will generate one after you approve
@@ -220,81 +256,38 @@ export default function OutlineBuilder({
             )}
           </div>
 
-          {/* Outline-level regeneration input */}
-          {onRefineOutline && sections.length > 0 && (
-            <div className="flex items-center gap-2 pt-2">
-              <input
-                type="text"
-                value={outlineRegenInstruction}
-                onChange={(e) => setOutlineRegenInstruction(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") handleRefineOutline();
-                }}
-                placeholder="Regen entire outline with a note..."
-                className="flex-1 px-3 py-2 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                disabled={isRefiningOutline || isRegenerating}
-              />
-              <button
-                onClick={handleRefineOutline}
-                disabled={!outlineRegenInstruction.trim() || isRefiningOutline || isRegenerating}
-                className="px-3 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
-              >
-                {isRefiningOutline ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3.5 h-3.5" />
-                )}
-                {isRefiningOutline ? "Regenerating..." : "Regen Outline"}
-              </button>
-            </div>
-          )}
-          {outlineRegenError && (
-            <p className="text-xs text-destructive mt-1">{outlineRegenError}</p>
-          )}
-
-          {/* Research loading state */}
-          {isResearching && (
-            <div className="flex items-center justify-center py-8">
-              <Loader2 className="w-6 h-6 text-primary animate-spin mr-3" />
-              <span className="text-sm text-muted-foreground">
-                Researching evidence across sections...
-              </span>
-            </div>
-          )}
-
-          {/* Section: Evidence Research Results (3-layer) */}
-          {hasResearch && (
-            <div id="evidence" className="pt-6 border-t-2 border-border">
-              <div className="py-3 mb-4 flex items-start justify-between">
-                <div>
-                  <h2 className="text-xl font-semibold">Evidence Research Results</h2>
-                  <p className="text-sm text-muted-foreground mt-0.5">
-                    Structured evidence gathered per section. Review usable lines, then continue.
-                  </p>
-                </div>
-                {onRerunResearch && (
-                  <Button
-                    variant="outline"
-                    size="sm"
+          {/* Section: Evidence Research */}
+          {(hasResearch || isResearching) && (
+            <div className="border border-border rounded-[10px]" id="evidence">
+              <div className="flex items-center justify-between px-5 py-3 border-b border-border">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Evidence Research
+                </h3>
+                {onRerunResearch && hasResearch && (
+                  <button
                     onClick={async () => {
                       setIsRerunningResearch(true);
                       try { await onRerunResearch(); } finally { setIsRerunningResearch(false); }
                     }}
-                    disabled={isRerunningResearch || isContinuing}
+                    disabled={isRerunningResearch}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all disabled:opacity-50"
                   >
-                    {isRerunningResearch ? (
-                      <Loader2 className="w-4 h-4 mr-1.5 animate-spin" />
-                    ) : (
-                      <RefreshCw className="w-4 h-4 mr-1.5" />
-                    )}
-                    {isRerunningResearch ? "Re-running..." : "Re-run Research"}
-                  </Button>
+                    <RefreshCw className={`w-3.5 h-3.5 ${isRerunningResearch ? "animate-spin" : ""}`} />
+                    Re-run Research
+                  </button>
                 )}
               </div>
-              <div className="divide-y divide-border/50">
-                {researchResults.sections.map((section, i) => (
-                  <SectionResearchCard key={i} section={section} />
-                ))}
+              <div className="px-5">
+                {isResearching ? (
+                  <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="text-sm">Researching evidence across sections...</span>
+                  </div>
+                ) : (
+                  researchResults?.sections.map((section, i) => (
+                    <SectionResearchCard key={i} section={section} />
+                  ))
+                )}
               </div>
             </div>
           )}
