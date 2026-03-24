@@ -7,8 +7,6 @@ import { Check, RefreshCw, Loader2 } from "lucide-react";
 import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type BriefRound, KnowledgeShareBriefBuilder, type ProcessingLogEntry as LegacyProcessingLogEntry } from "./BriefBuilder";
 import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
 import { type OnboardingData, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
-// RESEARCH DISABLED: import { type ResearchChatState, type PerspectiveOption, type ChatMessage } from "./BriefBuilder/SplitBriefBuilder/types";
-// RESEARCH DISABLED: import { TabbedResearchPanel } from "./BriefBuilder/SplitBriefBuilder/ResearchPanel/TabbedResearchPanel";
 import { OutlineBuilder, type EvidenceResearch, type SectionResearch } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
