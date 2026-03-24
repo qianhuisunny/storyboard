@@ -117,6 +117,84 @@ Return JSON following the schema in your system prompt. For each section, resear
 
         return {"sections": sections}
 
+    def research_section(
+        self,
+        section_text: str,
+        full_outline: str,
+        story_brief: dict,
+        project_id: str = None,
+    ) -> dict:
+        """
+        Research a single section from the outline.
+
+        Sends the full outline for cross-section context awareness,
+        but instructs the LLM to research ONLY the specified section.
+
+        Returns:
+            A single SectionResearch dict:
+            {"section_title": "...", "evidence_items": [...]}
+        """
+        if not section_text or not section_text.strip():
+            return {"section_title": "", "evidence_items": []}
+
+        viewer_outcome = self._extract_brief_field(story_brief, "viewer_outcome")
+        target_audience = self._extract_brief_field(story_brief, "target_audience")
+
+        rag_context = self._get_rag_context(full_outline, project_id)
+
+        rag_section = ""
+        if rag_context:
+            rag_section = f"""
+## USER-PROVIDED REFERENCE MATERIALS
+The following excerpts are from documents uploaded by the user. Prioritize information from these sources when relevant, and cite them as "User-provided: [source name]".
+
+{rag_context}
+"""
+
+        prompt = f"""Here is the full video outline for context:
+
+## VIDEO CONTEXT
+Viewer outcome: {viewer_outcome}
+Target audience: {target_audience}
+{rag_section}
+## FULL OUTLINE (for context only)
+{full_outline}
+
+## RESEARCH TASK
+Research ONLY the following section. Do NOT research other sections.
+
+{section_text}
+
+Return a JSON object with this exact structure:
+{{
+  "section_title": "the section title",
+  "evidence_items": [
+    {{
+      "evidence_needed": "what evidence is needed",
+      "research_blocks": [
+        {{
+          "research_question": "specific research question",
+          "storyboard_usable_phrasing": ["ready-to-use phrasing 1", "ready-to-use phrasing 2"],
+          "full_answer": "detailed answer",
+          "sources": ["source 1"],
+          "confidence": "high|medium|low"
+        }}
+      ]
+    }}
+  ]
+}}"""
+
+        response = self.call_llm(prompt, max_tokens=2000, temperature=0.4)
+        parsed = self._extract_json(response)
+
+        if not parsed or not isinstance(parsed, dict):
+            return {"section_title": "", "evidence_items": []}
+
+        return {
+            "section_title": parsed.get("section_title", ""),
+            "evidence_items": parsed.get("evidence_items", []),
+        }
+
     def _get_rag_context(self, outline_text: str, project_id: str = None) -> str:
         """Retrieve relevant chunks from user-uploaded documents via RAG.
 
