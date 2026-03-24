@@ -39,72 +39,81 @@ const OUTLINE_FIELDS: (keyof OutlineSection)[] = [
   "duration",
 ];
 
+function diffSectionFields(ai: OutlineSection | undefined, human: OutlineSection | undefined): FieldDiff[] {
+  const fields: FieldDiff[] = [];
+
+  if (ai && !human) {
+    for (const key of OUTLINE_FIELDS) {
+      fields.push({ field: key, status: "removed", aiValue: String(ai[key] || "") });
+    }
+    for (const tp of ai.talkingPoints) {
+      fields.push({ field: "talking_point", status: "removed", aiValue: tp });
+    }
+    return fields;
+  }
+
+  if (!ai && human) {
+    for (const key of OUTLINE_FIELDS) {
+      fields.push({ field: key, status: "added", humanValue: String(human[key] || "") });
+    }
+    for (const tp of human.talkingPoints) {
+      fields.push({ field: "talking_point", status: "added", humanValue: tp });
+    }
+    return fields;
+  }
+
+  if (!ai || !human) return fields;
+
+  // Both exist — compare field by field
+  for (const key of OUTLINE_FIELDS) {
+    const aiVal = String(ai[key] || "");
+    const humanVal = String(human[key] || "");
+    if (aiVal === humanVal) {
+      fields.push({ field: key, status: "unchanged", aiValue: aiVal, humanValue: humanVal });
+    } else {
+      fields.push({ field: key, status: "modified", aiValue: aiVal, humanValue: humanVal });
+    }
+  }
+
+  // Compare talking points by position
+  const aiTPs = ai.talkingPoints;
+  const humanTPs = human.talkingPoints;
+  const maxTP = Math.max(aiTPs.length, humanTPs.length);
+  for (let t = 0; t < maxTP; t++) {
+    const aiTP = aiTPs[t];
+    const humanTP = humanTPs[t];
+    if (aiTP && !humanTP) {
+      fields.push({ field: "talking_point", status: "removed", aiValue: aiTP });
+    } else if (!aiTP && humanTP) {
+      fields.push({ field: "talking_point", status: "added", humanValue: humanTP });
+    } else if (aiTP === humanTP) {
+      fields.push({ field: "talking_point", status: "unchanged", aiValue: aiTP, humanValue: humanTP });
+    } else {
+      fields.push({ field: "talking_point", status: "modified", aiValue: aiTP, humanValue: humanTP });
+    }
+  }
+
+  return fields;
+}
+
 function diffOutlineSections(
   aiSections: OutlineSection[],
   humanSections: OutlineSection[]
 ): SectionDiff[] {
+  // Join on sectionNumber (not array index) so insertions/deletions don't cascade
+  const aiMap = new Map(aiSections.map(s => [s.sectionNumber, s]));
+  const humanMap = new Map(humanSections.map(s => [s.sectionNumber, s]));
+  const allNumbers = new Set([...aiMap.keys(), ...humanMap.keys()]);
+
   const result: SectionDiff[] = [];
-  const maxLen = Math.max(aiSections.length, humanSections.length);
-
-  for (let i = 0; i < maxLen; i++) {
-    const ai = aiSections[i];
-    const human = humanSections[i];
-    const fields: FieldDiff[] = [];
-
-    if (ai && !human) {
-      // Section removed by human
-      for (const key of OUTLINE_FIELDS) {
-        fields.push({ field: key, status: "removed", aiValue: String(ai[key] || "") });
-      }
-      for (const tp of ai.talkingPoints) {
-        fields.push({ field: "talking_point", status: "removed", aiValue: tp });
-      }
-      result.push({ label: `Section ${ai.sectionNumber}: ${ai.title}`, fields });
-      continue;
-    }
-
-    if (!ai && human) {
-      // Section added by human
-      for (const key of OUTLINE_FIELDS) {
-        fields.push({ field: key, status: "added", humanValue: String(human[key] || "") });
-      }
-      for (const tp of human.talkingPoints) {
-        fields.push({ field: "talking_point", status: "added", humanValue: tp });
-      }
-      result.push({ label: `Section ${human.sectionNumber}: ${human.title}`, fields });
-      continue;
-    }
-
-    // Both exist — compare field by field
-    for (const key of OUTLINE_FIELDS) {
-      const aiVal = String(ai[key] || "");
-      const humanVal = String(human[key] || "");
-      if (aiVal === humanVal) {
-        fields.push({ field: key, status: "unchanged", aiValue: aiVal, humanValue: humanVal });
-      } else {
-        fields.push({ field: key, status: "modified", aiValue: aiVal, humanValue: humanVal });
-      }
-    }
-
-    // Compare talking points
-    const aiTPs = ai.talkingPoints;
-    const humanTPs = human.talkingPoints;
-    const maxTP = Math.max(aiTPs.length, humanTPs.length);
-    for (let t = 0; t < maxTP; t++) {
-      const aiTP = aiTPs[t];
-      const humanTP = humanTPs[t];
-      if (aiTP && !humanTP) {
-        fields.push({ field: "talking_point", status: "removed", aiValue: aiTP });
-      } else if (!aiTP && humanTP) {
-        fields.push({ field: "talking_point", status: "added", humanValue: humanTP });
-      } else if (aiTP === humanTP) {
-        fields.push({ field: "talking_point", status: "unchanged", aiValue: aiTP, humanValue: humanTP });
-      } else {
-        fields.push({ field: "talking_point", status: "modified", aiValue: aiTP, humanValue: humanTP });
-      }
-    }
-
-    result.push({ label: `Section ${human.sectionNumber}: ${human.title}`, fields });
+  for (const num of [...allNumbers].sort((a, b) => a - b)) {
+    const ai = aiMap.get(num);
+    const human = humanMap.get(num);
+    const fields = diffSectionFields(ai, human);
+    const label = human
+      ? `Section ${human.sectionNumber}: ${human.title}`
+      : `Section ${ai!.sectionNumber}: ${ai!.title}`;
+    result.push({ label, fields });
   }
 
   return result;
