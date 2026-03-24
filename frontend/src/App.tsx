@@ -18,6 +18,7 @@ import ProjectsPage from "@/components/ProjectsPage";
 import AdminDashboard from "@/components/admin/AdminDashboard";
 import GoldSetEval from "@/components/admin/GoldSetEval";
 import BatchDiffs from "@/components/admin/BatchDiffs";
+import DriftDetailPage from "@/components/admin/drift/DriftDetailPage";
 import { BarChart3, FlaskConical } from "lucide-react";
 import "./App.css";
 
@@ -109,6 +110,7 @@ function App() {
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
               <Route path="/admin/gold-set-eval" element={<GoldSetEval />} />
               <Route path="/admin/gold-set-eval/diffs" element={<BatchDiffs />} />
+              <Route path="/admin/drift/:stageName" element={<DriftDetailPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </SignedIn>

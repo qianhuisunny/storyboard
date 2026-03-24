@@ -2,18 +2,14 @@
  * Admin Dashboard for Plotline Analytics
  *
  * Features:
- * - KPI cards (New Users, Total Projects, Completion Rate, Avg Rating, Avg TTFT)
+ * - KPI cards (New Users, Total Projects, Completion Rate, Avg Rating)
  * - Time range toggle (7d, 30d, 90d, All)
- * - Performance metrics charts
  * - Completion funnel
- * - User behavior metrics
- * - Field edit patterns for prompt refinement
  * - Satisfaction ratings
- * - Projects table
  */
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useNavigate } from "react-router-dom";
 import { useUser } from "@clerk/clerk-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,9 +19,7 @@ import {
   FolderOpen,
   CheckCircle,
   Star,
-  Clock,
   RefreshCw,
-  ArrowLeft,
   TrendingUp,
   TrendingDown,
   AlertCircle,
@@ -40,32 +34,6 @@ interface DashboardData {
   new_registrations: number;
   avg_rating: number;
   rating_distribution: Record<string, number>;
-  performance_by_stage: Record<
-    string,
-    {
-      avg_ttft_ms: number | null;
-      avg_gen_time_ms: number | null;
-      p95_ttft_ms: number | null;
-      sample_count: number;
-    }
-  >;
-  behavior_summary: Record<
-    string,
-    {
-      avg_time_seconds: number | null;
-      avg_regenerations: number;
-      avg_edits: number;
-    }
-  > & { total_go_backs: number };
-  field_edit_patterns: Record<
-    string,
-    {
-      edit_count: number;
-      projects_affected: number;
-      edit_rate: number;
-      samples: Array<{ ai_value: string; human_value: string }>;
-    }
-  >;
   funnel: Record<string, number> & { dropoff_rates: Record<string, number> };
   recent_feedback: Array<{
     project_id: string;
@@ -92,6 +60,9 @@ export function AdminDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   const timeRange = (searchParams.get("range") as TimeRange) || "30d";
+
+  const navigate = useNavigate();
+  const [expandedStage, setExpandedStage] = useState<number | null>(null);
 
   const setTimeRange = (range: TimeRange) => {
     setSearchParams({ range });
@@ -164,13 +135,6 @@ export function AdminDashboard() {
         <div className="max-w-7xl mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => window.history.back()}
-              >
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
               <h1 className="text-xl font-semibold">Analytics Dashboard</h1>
             </div>
 
@@ -211,8 +175,8 @@ export function AdminDashboard() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-6 space-y-6">
         {loading && !data ? (
-          <div className="grid grid-cols-5 gap-4">
-            {[...Array(5)].map((_, i) => (
+          <div className="grid grid-cols-4 gap-4">
+            {[...Array(4)].map((_, i) => (
               <Card key={i} className="p-4 animate-pulse">
                 <div className="h-4 bg-muted rounded w-20 mb-2" />
                 <div className="h-8 bg-muted rounded w-16" />
@@ -222,7 +186,7 @@ export function AdminDashboard() {
         ) : data ? (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <MetricCard
                 title="New Users"
                 value={data.new_registrations}
@@ -248,141 +212,79 @@ export function AdminDashboard() {
                 icon={Star}
                 color="yellow"
               />
-              <MetricCard
-                title="Avg TTFT"
-                value={formatMs(
-                  data.performance_by_stage?.stage_1?.avg_ttft_ms
-                )}
-                icon={Clock}
-                color="cyan"
-              />
             </div>
 
-            {/* Charts Row 1 */}
+            {/* Charts Row */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Performance Metrics */}
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-4">
-                  Performance by Stage
-                </h3>
-                <div className="space-y-4">
-                  {Object.entries(data.performance_by_stage || {}).map(
-                    ([stage, metrics]) => (
-                      <div key={stage} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span className="capitalize">
-                            {stage.replace("_", " ")}
-                          </span>
-                          <span className="text-muted-foreground">
-                            TTFT: {formatMs(metrics.avg_ttft_ms)} | Gen:{" "}
-                            {formatMs(metrics.avg_gen_time_ms)}
-                          </span>
-                        </div>
-                        <div className="h-2 bg-muted rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-primary rounded-full"
-                            style={{
-                              width: `${Math.min(
-                                ((metrics.avg_ttft_ms || 0) / 5000) * 100,
-                                100
-                              )}%`,
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )
-                  )}
-                </div>
-              </Card>
-
               {/* Completion Funnel */}
               <Card className="p-6">
                 <h3 className="text-lg font-semibold mb-4">Completion Funnel</h3>
                 <div className="space-y-3">
-                  {[1, 2, 3, 4].map((stage) => {
+                  {[
+                    { key: 1, label: "Briefing", color: "bg-blue-500", diffable: false },
+                    { key: 2, label: "Outline", color: "bg-purple-500", diffable: true, route: "outline" },
+                    { key: 3, label: "Evidence Research", color: "bg-green-500", diffable: false },
+                    { key: 4, label: "Storyboard Draft", color: "bg-yellow-500", diffable: true, route: "storyboard" },
+                    { key: 5, label: "Review & Share", color: "bg-orange-500", diffable: false },
+                  ].map(({ key: stage, label, color, diffable, route }) => {
                     const count = data.funnel?.[`stage_${stage}`] || 0;
                     const total = data.total_projects || 1;
                     const percentage = Math.round((count / total) * 100);
                     const dropoff =
                       data.funnel?.dropoff_rates?.[`stage_${stage}`] || 0;
+                    const isExpanded = expandedStage === stage;
 
                     return (
-                      <div key={stage} className="space-y-1">
-                        <div className="flex justify-between text-sm">
-                          <span>Stage {stage}</span>
-                          <span className="text-muted-foreground">
-                            {count} ({percentage}%)
-                            {dropoff > 0 && (
-                              <span className="text-destructive ml-2">
-                                -{dropoff}% drop
-                              </span>
-                            )}
-                          </span>
+                      <div key={stage}>
+                        <div
+                          className={cn("space-y-1", diffable && "cursor-pointer")}
+                          onClick={() => diffable && setExpandedStage(isExpanded ? null : stage)}
+                        >
+                          <div className="flex justify-between text-sm">
+                            <span className="flex items-center gap-1">
+                              {diffable && (
+                                <span className="text-xs text-muted-foreground">
+                                  {isExpanded ? "▼" : "▶"}
+                                </span>
+                              )}
+                              {label}
+                            </span>
+                            <span className="text-muted-foreground">
+                              {count} ({percentage}%)
+                              {dropoff > 0 && (
+                                <span className="text-destructive ml-2">
+                                  -{dropoff}% drop
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                          <div className="h-6 bg-muted rounded overflow-hidden">
+                            <div
+                              className={cn("h-full rounded transition-all", color)}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
                         </div>
-                        <div className="h-6 bg-muted rounded overflow-hidden">
-                          <div
-                            className={cn(
-                              "h-full rounded transition-all",
-                              stage === 1 && "bg-blue-500",
-                              stage === 2 && "bg-purple-500",
-                              stage === 3 && "bg-green-500",
-                              stage === 4 && "bg-yellow-500"
-                            )}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
+                        {/* Accordion panel */}
+                        {isExpanded && diffable && (
+                          <div className="mt-2 mb-1 bg-[#fafaf8] border border-border rounded-md px-3 py-2.5 flex justify-between items-center">
+                            <div className="text-xs text-muted-foreground">
+                              <strong className="text-foreground">{count}</strong> projects reached this stage
+                            </div>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/admin/drift/${route}`);
+                              }}
+                              className="text-xs font-semibold text-[#7C3AED] hover:text-[#6D28D9] transition-colors"
+                            >
+                              View all diffs →
+                            </button>
+                          </div>
+                        )}
                       </div>
                     );
                   })}
-                </div>
-              </Card>
-            </div>
-
-            {/* Charts Row 2 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Field Edit Patterns */}
-              <Card className="p-6">
-                <h3 className="text-lg font-semibold mb-2">
-                  Field Edit Patterns
-                </h3>
-                <p className="text-sm text-muted-foreground mb-4">
-                  Most frequently edited fields (for prompt refinement)
-                </p>
-                <div className="space-y-4">
-                  {Object.entries(data.field_edit_patterns || {})
-                    .slice(0, 5)
-                    .map(([field, stats]) => (
-                      <div key={field} className="border-b border-border pb-3">
-                        <div className="flex justify-between items-center mb-2">
-                          <span className="font-medium text-sm">{field}</span>
-                          <span className="text-xs text-muted-foreground">
-                            {stats.edit_rate}% of projects
-                          </span>
-                        </div>
-                        {stats.samples.slice(0, 2).map((sample, i) => (
-                          <div
-                            key={i}
-                            className="text-xs grid grid-cols-2 gap-2 bg-muted/50 rounded p-2 mb-1"
-                          >
-                            <div>
-                              <span className="text-destructive">AI: </span>
-                              <span className="text-muted-foreground">
-                                {sample.ai_value || "(empty)"}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="text-green-600">User: </span>
-                              <span>{sample.human_value || "(empty)"}</span>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  {Object.keys(data.field_edit_patterns || {}).length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      No field edits recorded yet
-                    </p>
-                  )}
                 </div>
               </Card>
 
@@ -455,54 +357,6 @@ export function AdminDashboard() {
                 </div>
               </Card>
             </div>
-
-            {/* Behavior Summary */}
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold mb-4">User Behavior</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {Object.entries(data.behavior_summary || {})
-                  .filter(([key]) => key !== "total_go_backs")
-                  .map(([stage, metrics]) => {
-                    const m = metrics as { avg_time_seconds?: number | null; avg_regenerations?: number; avg_edits?: number };
-                    return (
-                    <div key={stage} className="text-center p-4 bg-muted/50 rounded-lg">
-                      <h4 className="text-sm font-medium capitalize mb-2">
-                        {stage.replace("_", " ")}
-                      </h4>
-                      <div className="grid grid-cols-3 gap-2 text-xs">
-                        <div>
-                          <div className="text-lg font-bold">
-                            {m.avg_time_seconds
-                              ? Math.round(m.avg_time_seconds)
-                              : "-"}
-                          </div>
-                          <div className="text-muted-foreground">sec</div>
-                        </div>
-                        <div>
-                          <div className="text-lg font-bold">
-                            {m.avg_regenerations?.toFixed(1) || "0"}
-                          </div>
-                          <div className="text-muted-foreground">regen</div>
-                        </div>
-                        <div>
-                          <div className="text-lg font-bold">
-                            {m.avg_edits?.toFixed(1) || "0"}
-                          </div>
-                          <div className="text-muted-foreground">edits</div>
-                        </div>
-                      </div>
-                    </div>
-                    );
-                  })}
-                <div className="text-center p-4 bg-muted/50 rounded-lg">
-                  <h4 className="text-sm font-medium mb-2">Go-backs</h4>
-                  <div className="text-3xl font-bold">
-                    {data.behavior_summary?.total_go_backs || 0}
-                  </div>
-                  <div className="text-xs text-muted-foreground">total</div>
-                </div>
-              </div>
-            </Card>
           </>
         ) : null}
       </main>
@@ -516,7 +370,7 @@ interface MetricCardProps {
   value: string | number;
   subtitle?: string;
   icon: React.ElementType;
-  color: "blue" | "purple" | "green" | "yellow" | "cyan";
+  color: "blue" | "purple" | "green" | "yellow";
   trend?: { value: number; isPositive: boolean };
 }
 
@@ -533,7 +387,6 @@ function MetricCard({
     purple: "bg-purple-500/10 text-purple-600",
     green: "bg-green-500/10 text-green-600",
     yellow: "bg-yellow-500/10 text-yellow-600",
-    cyan: "bg-cyan-500/10 text-cyan-600",
   };
 
   return (
@@ -567,13 +420,6 @@ function MetricCard({
       </div>
     </Card>
   );
-}
-
-// Helper Functions
-function formatMs(ms: number | null | undefined): string {
-  if (ms === null || ms === undefined) return "-";
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
 }
 
 export default AdminDashboard;
