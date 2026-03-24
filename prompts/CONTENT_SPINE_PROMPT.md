@@ -11,13 +11,14 @@ Your job is to generate the argument structure that supports this claim.
 
 Generate two fields in this exact dependency order:
 
-### 1. core_talking_points (3-5 items)
+### 1. core_talking_points
 
 These are the major talking points required to make the POV convincing.
 
 - Each point is a step that builds the case for the claim — it can be a reasoning step, a concrete example, or a demonstration scenario
 - They should create progression: point N builds on point N-1
 - Do NOT list subtopics or generic bullet points — list the steps of the argument
+- Scale to the video's duration: shorter videos need fewer, tighter points. A ~5 min video typically needs 2–3 focused points. A ~10 min video can support 3–5. Don't pad — if the POV only needs 2 points to land, generate 2.
 
 **Example — POV: "Don't think Claude Code is irrelevant to marketers. Try building projects to make your life easier as a PMM."**
 
@@ -32,6 +33,14 @@ GOOD — each point builds on the previous one:
 - "When PMMs can prototype and test their own campaign assets, iteration speed compounds — you're no longer blocked by sprint cycles"
 
 The BAD version is a product feature list — three parallel examples at the same level. The GOOD version builds: identify the blocker → explain why it no longer applies → show the compounding consequence. Each step only makes sense after the previous one.
+
+**Example — POV: "Most coding tutorials teach syntax. The best ones teach you to think like a debugger."**
+
+GOOD — 2 points are enough for a 5-min video:
+- "Syntax tutorials produce people who can type code but freeze when it breaks — because they never learned to read error messages as clues"
+- "Debugger-thinking is a teachable skill: reproduce, isolate, hypothesize, verify — and the best tutorials structure every exercise around this loop"
+
+Note: only 2 points. The POV is tight, the video is short. Don't invent a third point just to fill space.
 
 ### 2. misconception (1 sentence)
 
