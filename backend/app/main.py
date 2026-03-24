@@ -1690,10 +1690,10 @@ async def get_admin_all_stages(
     db: AsyncSession = Depends(get_db),
 ):
     """Get all stage snapshots across all projects for drift analysis."""
-    if not verify_admin(user_id):
-        raise HTTPException(status_code=403, detail="Admin access required")
-
     try:
+        if not verify_admin(user_id):
+            raise HTTPException(status_code=403, detail="Admin access required")
+
         repo = ProjectRepository(db)
         snapshots = await repo.get_all_stage_snapshots()
 
@@ -1715,8 +1715,10 @@ async def get_admin_all_stages(
             }
 
         return {"projects": list(projects_map.values())}
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=f"Error getting stage snapshots: {str(e)}")
 
 
 # ============================================================
