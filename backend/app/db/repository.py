@@ -6,6 +6,7 @@ import json
 from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select, update
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import Project, PipelineState, StageSnapshot, Upload
@@ -114,11 +115,13 @@ class ProjectRepository:
         return list(result.scalars().all())
 
     async def get_all_stage_snapshots(self) -> list[StageSnapshot]:
-        """Get all stage snapshots across all projects (for admin drift view)."""
+        """Get all stage snapshots across all projects (for admin drift view).
+        Eager-loads the Project relationship to avoid N+1 queries."""
         result = await self.session.execute(
-            select(StageSnapshot).where(
-                StageSnapshot.stage_id.in_([2, 3])
-            ).order_by(StageSnapshot.project_id, StageSnapshot.stage_id)
+            select(StageSnapshot)
+            .where(StageSnapshot.stage_id.in_([2, 3]))
+            .options(selectinload(StageSnapshot.project))
+            .order_by(StageSnapshot.project_id, StageSnapshot.stage_id)
         )
         return list(result.scalars().all())
 

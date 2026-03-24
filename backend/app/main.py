@@ -1693,28 +1693,30 @@ async def get_admin_all_stages(
     if not verify_admin(user_id):
         raise HTTPException(status_code=403, detail="Admin access required")
 
-    repo = ProjectRepository(db)
-    snapshots = await repo.get_all_stage_snapshots()
+    try:
+        repo = ProjectRepository(db)
+        snapshots = await repo.get_all_stage_snapshots()
 
-    # Group by project
-    projects_map: dict = {}
-    for snap in snapshots:
-        pid = snap.project_id
-        if pid not in projects_map:
-            # Get project name
-            project = await repo.get_project(pid)
-            projects_map[pid] = {
-                "project_id": pid,
-                "project_name": project.title if project else pid,
-                "created_at": project.created_at.isoformat() if project else None,
-                "stages": {},
+        # Group by project (Project is eager-loaded via selectinload)
+        projects_map: dict = {}
+        for snap in snapshots:
+            pid = snap.project_id
+            if pid not in projects_map:
+                project = snap.project
+                projects_map[pid] = {
+                    "project_id": pid,
+                    "project_name": project.title if project else pid,
+                    "created_at": project.created_at.isoformat() if project else None,
+                    "stages": {},
+                }
+            projects_map[pid]["stages"][str(snap.stage_id)] = {
+                "ai_version": snap.ai_version,
+                "human_version": snap.human_version,
             }
-        projects_map[pid]["stages"][str(snap.stage_id)] = {
-            "ai_version": snap.ai_version,
-            "human_version": snap.human_version,
-        }
 
-    return {"projects": list(projects_map.values())}
+        return {"projects": list(projects_map.values())}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 # ============================================================
