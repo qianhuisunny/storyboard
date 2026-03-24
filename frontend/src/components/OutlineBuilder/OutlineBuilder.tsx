@@ -368,9 +368,7 @@ export default function OutlineBuilder({
               onClick={async () => {
                 setIsContinuing(true);
                 try {
-                  // TODO Task 6: pass getFilteredEvidence() to the approve event
-                  void getFilteredEvidence();
-                  await onContinue();
+                  await onContinue(getFilteredEvidence());
                 } finally { setIsContinuing(false); }
               }}
               disabled={isContinuing || isRerunningResearch}

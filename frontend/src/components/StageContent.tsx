@@ -719,7 +719,7 @@ export default function StageContent({
     }
   }, [projectId, currentOutlineText, onContentChange]);
 
-  const handleResearchContinue = useCallback(async () => {
+  const handleResearchContinue = useCallback(async (filteredEvidence?: EvidenceResearch | null) => {
     console.log("[Outline] handleResearchContinue called, projectId:", projectId);
     if (!projectId) return;
     try {
@@ -753,7 +753,13 @@ export default function StageContent({
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ event: "approve", payload: {} }),
+        body: JSON.stringify({
+          event: "approve",
+          payload: {
+            current_outline: currentOutlineText,
+            ...(filteredEvidence ? { evidence_research: filteredEvidence } : {}),
+          },
+        }),
       });
       if (response.ok) {
         const data = await response.json();

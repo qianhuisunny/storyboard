@@ -54,7 +54,7 @@ export interface OutlineBuilderProps {
   onChange: (content: string) => void;
   onRunResearch: () => void;
   onRerunResearch?: () => Promise<void>;
-  onContinue: () => void | Promise<void>;
+  onContinue: (filteredEvidence?: EvidenceResearch | null) => void | Promise<void>;
   onRegenerateSection?: (sectionNumber: number, instruction: string) => Promise<void>;
   onRefineOutline?: (instruction: string) => Promise<void>;
   isResearching?: boolean;
