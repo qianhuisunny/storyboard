@@ -620,6 +620,46 @@ async def rerun_evidence_research(project_id: str, request: Request):
     return {"success": True, "evidence_research": evidence_research}
 
 
+@app.post("/api/project/{project_id}/research-section")
+async def research_single_section(project_id: str, request: Request):
+    """
+    Research a single outline section. Stateless — no state machine transition.
+    Frontend calls this N times in parallel (one per section) for progressive display.
+    """
+    from app.services.state import StateManager
+    from app.services.agents import EvidenceResearcher
+
+    body = await request.json()
+
+    section_text = body.get("section_text", "")
+    full_outline = body.get("full_outline", "")
+    section_index = body.get("section_index", 0)
+
+    if not section_text or not section_text.strip():
+        raise HTTPException(status_code=400, detail="section_text is required")
+
+    if not full_outline or not full_outline.strip():
+        raise HTTPException(status_code=400, detail="full_outline is required")
+
+    # Load state for story_brief and project_id (read-only, no state mutation)
+    manager = StateManager(project_id)
+    state = manager.load()
+
+    researcher = EvidenceResearcher()
+    section_research = researcher.research_section(
+        section_text=section_text,
+        full_outline=full_outline,
+        story_brief=state.story_brief or {},
+        project_id=state.project_id,
+    )
+
+    return {
+        "success": True,
+        "section_index": section_index,
+        "section_research": section_research,
+    }
+
+
 @app.post("/api/project/{project_id}/start")
 async def start_pipeline(project_id: str, request: IntakeFormRequest):
     """
