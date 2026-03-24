@@ -60,4 +60,5 @@ export interface OutlineBuilderProps {
   isResearching?: boolean;
   isRegenerating?: boolean;
   researchResults?: EvidenceResearch | null;
+  researchProgress?: { completed: number; total: number } | null;
 }

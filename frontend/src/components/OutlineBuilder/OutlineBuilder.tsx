@@ -35,6 +35,7 @@ export default function OutlineBuilder({
   isResearching = false,
   isRegenerating: _isRegenerating = false,
   researchResults = null,
+  researchProgress = null,
 }: OutlineBuilderProps) {
   const [isContinuing, setIsContinuing] = useState(false);
   const [isRerunningResearch, setIsRerunningResearch] = useState(false);
@@ -328,21 +329,26 @@ export default function OutlineBuilder({
                 )}
               </div>
               <div className="px-5">
-                {isResearching ? (
-                  <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground">
+                {/* Render completed sections as they arrive */}
+                {researchResults?.sections.map((sectionRes, i) => (
+                  <SectionResearchCard
+                    key={i}
+                    sectionRes={sectionRes}
+                    sectionIndex={i}
+                    deletedSnippets={deletedSnippets}
+                    onToggleSnippet={toggleSnippet}
+                  />
+                ))}
+                {/* Progress indicator while researching */}
+                {isResearching && (
+                  <div className="flex items-center gap-2 py-6 justify-center text-muted-foreground">
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    <span className="text-sm">Researching evidence across sections...</span>
+                    <span className="text-sm">
+                      {researchProgress
+                        ? `${researchProgress.completed} of ${researchProgress.total} sections researched...`
+                        : "Researching evidence across sections..."}
+                    </span>
                   </div>
-                ) : (
-                  researchResults?.sections.map((sectionRes, i) => (
-                    <SectionResearchCard
-                      key={i}
-                      sectionRes={sectionRes}
-                      sectionIndex={i}
-                      deletedSnippets={deletedSnippets}
-                      onToggleSnippet={toggleSnippet}
-                    />
-                  ))
                 )}
               </div>
             </div>

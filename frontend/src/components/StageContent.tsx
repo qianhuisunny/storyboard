@@ -9,7 +9,7 @@ import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
 import { type OnboardingData, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
 // RESEARCH DISABLED: import { type ResearchChatState, type PerspectiveOption, type ChatMessage } from "./BriefBuilder/SplitBriefBuilder/types";
 // RESEARCH DISABLED: import { TabbedResearchPanel } from "./BriefBuilder/SplitBriefBuilder/ResearchPanel/TabbedResearchPanel";
-import { OutlineBuilder, type EvidenceResearch } from "./OutlineBuilder";
+import { OutlineBuilder, type EvidenceResearch, type SectionResearch } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
 
@@ -539,6 +539,7 @@ export default function StageContent({
   // Evidence research state for outline stage
   const [outlineResearchResults, setOutlineResearchResults] = useState<EvidenceResearch | null>(null);
   const [isResearchingEvidence, setIsResearchingEvidence] = useState(false);
+  const [researchProgress, setResearchProgress] = useState<{ completed: number; total: number } | null>(null);
   const [isRegeneratingOutline, setIsRegeneratingOutline] = useState(false);
 
   // Track draft updates for the Draft stage
@@ -616,32 +617,72 @@ export default function StageContent({
 
   const handleRunResearch = useCallback(async () => {
     if (!projectId || !currentOutlineText.trim()) return;
+
+    // Parse outline into individual section texts for parallel per-section calls
+    const { parseOutline, serializeOutline } = await import("./OutlineBuilder/outlineParser");
+    const sections = parseOutline(currentOutlineText);
+
+    if (sections.length === 0) return;
+
     setIsResearchingEvidence(true);
-    try {
-      const response = await fetch(`/api/project/${projectId}/event`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "run_research",
-          payload: { current_outline: currentOutlineText },
-        }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.evidence_research) {
-          setOutlineResearchResults(data.evidence_research);
-          onAnchorChange?.("evidence");
-          // Scroll to evidence section
-          setTimeout(() => {
-            document.getElementById("evidence")?.scrollIntoView({ behavior: "smooth" });
-          }, 100);
+    setOutlineResearchResults({ sections: [] });
+    setResearchProgress({ completed: 0, total: sections.length });
+    onAnchorChange?.("evidence");
+    setTimeout(() => {
+      document.getElementById("evidence")?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
+
+    // Fire the state machine event in the background (locks outline + transitions phase).
+    // This also runs full research on the backend — redundant but needed for state transition.
+    // By the time the user reviews evidence and clicks approve, this will have completed.
+    fetch(`/api/project/${projectId}/event`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        event: "run_research",
+        payload: { current_outline: currentOutlineText },
+      }),
+    }).catch(() => { /* non-critical */ });
+
+    // Track results in a local array — state updates are batched per-resolve
+    const results: Array<SectionResearch | null> = new Array(sections.length).fill(null);
+    let completedCount = 0;
+
+    const promises = sections.map(async (section, index) => {
+      const sectionText = serializeOutline([section]);
+
+      try {
+        const response = await fetch(`/api/project/${projectId}/research-section`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            section_text: sectionText,
+            full_outline: currentOutlineText,
+            section_index: index,
+          }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          results[index] = data.section_research;
         }
+      } catch (err) {
+        console.error(`[Outline] Research failed for section ${index}:`, err);
       }
-    } catch (err) {
-      console.error("[Outline] Research failed:", err);
-    } finally {
-      setIsResearchingEvidence(false);
-    }
+
+      // Update UI progressively as each section completes
+      completedCount++;
+      const orderedSections: SectionResearch[] = results.filter(
+        (r): r is SectionResearch => r !== null
+      );
+      setOutlineResearchResults({ sections: orderedSections });
+      setResearchProgress({ completed: completedCount, total: sections.length });
+    });
+
+    await Promise.allSettled(promises);
+
+    setIsResearchingEvidence(false);
+    setResearchProgress(null);
   }, [projectId, currentOutlineText, onAnchorChange]);
 
   const handleRerunResearch = useCallback(async () => {
@@ -921,6 +962,7 @@ export default function StageContent({
           isResearching={isResearchingEvidence}
           isRegenerating={isRegeneratingOutline}
           researchResults={outlineResearchResults}
+          researchProgress={researchProgress}
         />
       </div>
     );
