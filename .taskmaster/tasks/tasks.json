@@ -945,16 +945,117 @@
         "dependencies": [],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": 78,
+        "title": "Implement get_current_content utility for data ownership fix",
+        "description": "Create utility function to resolve split-brain by prioritizing frontend stage_snapshots over backend state.screen_outline",
+        "details": "In backend/app/services/state.py: def get_current_content(project_id: str, stage_id: str) -> dict: Check stage_snapshots for 'human_version' key, fallback to state.screen_outline. Cache result with TTL=5min using redis. Update all event handlers in orchestrator.py (evidence_research, outline_regeneration) to call this utility before reading content. Log resolution source for debugging. Follow FastAPI best practices for async/await if applicable.",
+        "testStrategy": "Unit test utility with mock stage_snapshots and state data. Integration test: simulate frontend edit → backend event → verify correct version used. Mock redis cache hits/misses. Assert no stale data used in 2 documented bug scenarios.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 79,
+        "title": "Update backend event handlers to use get_current_content",
+        "description": "Refactor orchestrator event handlers to read from single source of truth via new utility",
+        "details": "In backend/app/services/orchestrator.py: Replace direct state.screen_outline reads with get_current_content() in evidence_research, outline_regeneration, and any other user-editable content handlers. Add type hints. Handle missing stage_id gracefully with fallback.",
+        "testStrategy": "pytest: test each updated handler with human_version present/absent. Verify correct content passed to downstream agents. End-to-end test: frontend edit → trigger event → assert backend processes latest version.",
+        "priority": "high",
+        "dependencies": [
+          78
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 80,
+        "title": "Remove dead code from orchestrator, state, and agents",
+        "description": "Delete disabled handlers, legacy methods, stale transitions, and orphaned imports",
+        "details": "backend/app/services/orchestrator.py: delete select_perspective, confirm_talking_points, run_stage(). backend/app/services/state.py: remove old state transitions. agents/__init__.py: remove topic_researcher imports. grep -r 'topic_researcher' to find orphans. Use black formatter post-cleanup.",
+        "testStrategy": "Pre/post cleanup: verify backend starts (pytest -v), all active flows complete successfully. Smoke test production-like workflow. No regressions in existing event handlers.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 81,
+        "title": "Replace broad exception handling in main.py",
+        "description": "Convert 15+ bare 'except Exception' to specific exception types",
+        "details": "backend/app/main.py: Replace with except (ValueError, HTTPException, json.JSONDecodeError, ValidationError) as e: logger.error(...); raise. Let AttributeError/KeyError propagate in dev. Add Sentry integration for unhandled exceptions. Use FastAPI's HTTPException for client errors.",
+        "testStrategy": "Unit test each endpoint with expected/expected-unexpected errors. Verify specific exceptions logged correctly, unexpected ones crash loudly. Load test: ensure no silent failures mask bugs.",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 82,
+        "title": "Add agent-level unit tests with pytest fixtures",
+        "description": "Create gold-set fixtures testing agent output schema compatibility",
+        "details": "backend/app/test/test_agents.py: @pytest.fixture for each agent (Director, EvidenceResearcher, Writer) with saved LLM JSON responses. Test: 1) pydantic model validation, 2) required fields present, 3) downstream parse success. No live LLM calls. Use pytest parametrize for prompt versions.",
+        "testStrategy": "CI/CD: tests must pass 100% on every PR. Coverage >90% for agent parse logic. Manual verification: change prompt → watch test fail → fix → green.",
+        "priority": "medium",
+        "dependencies": [
+          80
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 83,
+        "title": "Implement POV quality validation in BriefBuilder",
+        "description": "Add LLM/heuristic check for arguable, specific POV before spine generation",
+        "details": "backend/app/services/agents/brief_builder.py: def validate_pov(pov_text: str) -> tuple[bool, str]: Use lightweight gpt-4o-mini call: 'Is this specific/arguable? Score 1-10.' Threshold=7. Return warning+suggestions if weak. Frontend RoundThreeForm.tsx: show inline validation feedback.",
+        "testStrategy": "Unit test validator with good/bad POV examples. A/B test: weak POV → validation warning → user improves. Monitor false positives in prod logs.",
+        "priority": "low",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 84,
+        "title": "Add misconception-talking point deduplication",
+        "description": "Post-generation check and regenerate if overlap detected",
+        "details": "backend/app/services/agents/brief_builder.py: After spine LLM call, compute semantic similarity (sentence-transformers/all-MiniLM-L6-v2). If cosine_sim(misconception, any_talking_point) > 0.85, second LLM call: 'Regenerate misconception distinct from: {talking_points}'. Limit retries=2.",
+        "testStrategy": "Test with project 1774203470824 data: assert dedup fixes duplicate. Edge cases: total overlap, partial overlap, no overlap. Performance: <500ms added latency.",
+        "priority": "low",
+        "dependencies": [
+          83
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 85,
+        "title": "Refactor StageLayout state into custom hooks/context",
+        "description": "Extract 10+ useState hooks into useSaveStatus, useScrollAnchors, StageContext",
+        "details": "frontend/src/components/StageLayout.tsx: Create custom hooks directory. useSaveStatus: autosave logic+status. useScrollAnchors: scroll management. StageContext: wrap consumers, provide useStageData(). useReducer for complex state. TypeScript interfaces for all hooks.",
+        "testStrategy": "React Testing Library: test each hook independently. Storybook: visual regression for StageLayout. Cypress E2E: save→reload→state preserved correctly.",
+        "priority": "low",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 86,
+        "title": "Gather requirements for must_avoid field re-enablement",
+        "description": "Conduct comprehensive requirements gathering for the must_avoid field by addressing the four specified points: defining useful types, determining sourcing method, deciding field placement, and reviewing usage effectiveness in gold set outputs.",
+        "details": "1. Review current implementation: Examine backend/app/services/agents/brief_builder.py (commented must_avoid), frontend/src/components/BriefBuilder/RoundForms/RoundThreeForm.tsx (UI hidden), prompts/storyboard_director_prompt_v0323.md (prompt references). 2. Define types: Categorize into POV-specific guardrails (e.g., narrative style restrictions), generic advice (e.g., 'avoid clichés'), content restrictions (e.g., 'no violence'). Document pros/cons table. 3. Sourcing decision: Evaluate user-provided (via form input), AI-generated (via analysis of POV/content_spine), hybrid (user overrides AI suggestions). Consider UX impact and data privacy. 4. Placement: Compare embedding in content_spine JSON vs standalone field in request payload. Assess serialization, prompt injection efficiency. 5. Usage review: Analyze gold set outputs where must_avoid was provided; check Director/Writer adherence via keyword matching, semantic similarity (use embeddings), output quality metrics. Output: Requirements doc with decisions, rationale, proposed schema changes.",
+        "testStrategy": "Validate completeness by checklist: all 4 PRD points covered with evidence (code snippets, gold set analysis). Peer review by 2+ stakeholders for consensus on decisions. Success criteria: documented types (3+ categories), sourcing method selected with tradeoffs, placement decision with JSON schema mockup, gold set review with 5+ examples showing usage patterns (effective/ignored). No open questions remain.",
+        "priority": "low",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
       }
     ],
     "metadata": {
-      "version": "1.0.0",
-      "lastModified": "2026-03-14T05:08:08.154Z",
-      "taskCount": 43,
-      "completedCount": 15,
-      "tags": [
-        "master"
-      ]
+      "created": "2026-03-24T01:00:20.456Z",
+      "updated": "2026-03-24T02:59:17.468Z",
+      "description": "Tasks for master context"
     }
   }
 }

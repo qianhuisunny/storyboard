@@ -96,7 +96,10 @@ class StateManager:
         # NEW: 3-Round Briefing Flow
         ("intake", "submit_knowledge_share"): "brief_round1",      # Start new flow
         ("brief_round1", "round1_confirm"): "brief_round2",        # Section 1 -> Section 2
+        ("brief_round2", "round1_confirm"): "brief_round2",        # Re-confirm Section 1 from Section 2
         ("brief_round2", "round2_confirm"): "brief_round3",        # Section 2 -> Section 3
+        ("brief_round3", "round1_confirm"): "brief_round3",        # Re-confirm Section 1 from Section 3
+        ("brief_round3", "round2_confirm"): "brief_round3",        # Re-confirm Section 2 from Section 3
         ("brief_round3", "generate_content_spine"): "brief_round3",   # POV submitted -> stay, generate fields
         ("brief_round3", "round3_confirm"): "brief_review",           # Section 3 confirmed -> Final review
         ("brief_review", "brief_approve"): "gate1",                # Final review -> Gate 1 (locked)

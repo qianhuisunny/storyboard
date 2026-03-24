@@ -640,11 +640,12 @@ class StoryboardOrchestrator:
             confirmed_fields=state.confirmed_fields
         )
 
-        # Update story_brief with round 2 fields
+        # Update story_brief with confirmed Round 1 values + new Round 2 fields
         if state.story_brief:
             state.story_brief["round"] = 2
             state.story_brief["fields"] = {
                 **state.story_brief.get("fields", {}),
+                **confirmed_fields,  # User's confirmed Round 1 values
                 **round2_result.get("fields", {})
             }
         else:
@@ -680,6 +681,14 @@ class StoryboardOrchestrator:
         # Transition to brief_round3 — Round 3 fields generated after user provides POV
         state = manager.transition(state, "round2_confirm")
         state.brief_round = 3
+
+        # Write confirmed Round 2 values back to story_brief for state restoration
+        if state.story_brief:
+            state.story_brief["round"] = 3
+            state.story_brief["fields"] = {
+                **state.story_brief.get("fields", {}),
+                **confirmed_fields,
+            }
 
         result["message"] = "Section 2 confirmed. Moving to Section 3: Content Spine."
         result["brief_fields"] = {}
@@ -769,13 +778,13 @@ class StoryboardOrchestrator:
         state = manager.transition(state, "round3_confirm")
         state.brief_round = 4  # Review phase
 
-        # Update story_brief with confirmed fields from Round 3
+        # Write confirmed Round 3 values back to story_brief for state restoration
         if state.story_brief:
             state.story_brief["round"] = "review"
-            for key, field in state.story_brief.get("fields", {}).items():
-                if key in state.confirmed_fields:
-                    field["confirmed"] = True
-                    field["value"] = state.confirmed_fields[key].get("value", field.get("value"))
+            state.story_brief["fields"] = {
+                **state.story_brief.get("fields", {}),
+                **confirmed_fields,
+            }
 
         result["message"] = "Section 3 confirmed. Review complete brief before proceeding."
         result["full_brief"] = state.story_brief

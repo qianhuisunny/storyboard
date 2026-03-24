@@ -23,7 +23,7 @@ interface RoundThreeFormProps {
   onFieldConfirm: (key: string) => void;
   onFieldUnconfirm?: (key: string) => void;
   onSectionConfirm: () => void;
-  onGenerateContentSpine?: (pov: string) => Promise<void>;
+  onGenerateContentSpine?: (pov: string, feedback?: string) => Promise<void>;
   briefContext?: BriefContext;
   disabled?: boolean;
   researchComplete?: boolean;
@@ -53,21 +53,6 @@ function PovTooltip() {
       </button>
       {open && (
         <div className="absolute left-0 top-6 z-50 w-[380px] bg-white border border-border rounded-lg shadow-lg p-4 text-sm space-y-3">
-          <div>
-            <p className="font-medium text-foreground mb-1">What this is</p>
-            <p className="text-muted-foreground">
-              Your point of view is the single claim this video will build and defend.
-              Teaching a concept? Your PoV keeps it from becoming an assembly of facts.
-              Teaching a tool? Your PoV is your way of using it — not a tour of features.
-            </p>
-          </div>
-          <div>
-            <p className="font-medium text-foreground mb-1">A useful way to frame it</p>
-            <p className="text-muted-foreground italic">
-              &quot;For [audience], [topic] isn&apos;t about [common assumption]; it&apos;s about [your insight].&quot;
-            </p>
-            <p className="text-muted-foreground text-xs mt-1">You don&apos;t need to follow this exactly.</p>
-          </div>
           <div>
             <p className="font-medium text-foreground mb-1">Weak vs. stronger</p>
             <div className="space-y-2 text-muted-foreground">
@@ -144,16 +129,19 @@ export default function RoundThreeForm({
             marginBottom: "5px",
           }}
         >
-          Section 3: Content Spine
+          Section 3: Content Spine & Key Point of View
         </h2>
         <p style={{ fontSize: "13.5px", fontWeight: 300, color: "#5A6352" }}>
-          Not what you'll cover — what you'll argue.
+          Your point of view is the single claim this video will build and defend.
+          Teaching a concept? Your PoV keeps it from becoming an assembly of facts.
+          Teaching a tool? Your PoV is your way of using it — not a tour of features.
         </p>
       </div>
 
       {/* Context Reminder */}
       {briefContext && phase === "pov" && (
         <div className="flex gap-4 text-xs text-muted-foreground bg-muted/30 rounded-md px-3 py-2">
+          <span className="font-medium text-foreground">Reminder:</span>
           {briefContext.audience && (
             <span><span className="font-medium text-foreground">For:</span> {briefContext.audience}</span>
           )}

@@ -148,7 +148,6 @@ RIGHT (function-driven rhythm — nameplate + concept alternation):
    - "Unravel mysteries" / "Unlock secrets" / "The world of X awaits"
    - "Let's dive in" / "Let's explore" / "Let's unpack"
    - Any sentence that could be removed without breaking the explanation
-2. **NEVER write outro language before the final screen of the entire video.**
 3. **NEVER repeat across screens.** Each screen must introduce information the viewer has NOT heard yet. If screen N explains a concept, screen N+1 must advance — not rephrase.
 
 ### Voice: Storyteller, Not Textbook

@@ -18,12 +18,10 @@ interface RoundOneFormProps {
 }
 
 const SECTION_1_FIELDS = [
-  "video_type",
   "viewer_outcome",
   "target_audience",
   "audience_level",
   // "platform", // Commented out: platform-aware narrative (YouTube vs LMS) not yet implemented — see task #77
-  "duration",
 ];
 
 export default function RoundOneForm({

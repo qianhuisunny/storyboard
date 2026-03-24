@@ -14,11 +14,6 @@ import { AngleSummaryCard } from "./AngleSummaryCard";
 import { AlertCircle, CheckCircle2, Search, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// Export components for use in StageContent
-export { ResearchChat } from "./ResearchChat";
-export { ProcessingLog } from "./ProcessingLog";
-export { TabbedResearchPanel } from "./TabbedResearchPanel";
-
 export function ResearchPanel({
   status: _status, // Legacy, kept for backwards compat
   findings,

@@ -1,0 +1,447 @@
+{
+  "brief": {
+    "video_url": "",
+    "video_title": "ChatGPT for Data Analysis Build Charts in 5 Minutes vs. 5 Hours - Lillian Chiu",
+    "viewer_outcome": "Viewers will be able to execute a 4-step AI workflow using ChatGPT, Gemini, and Claude to analyze raw data, build strategic learning agendas, and generate presentation-ready charts.",
+    "target_audience": "Data analysts, business analysts, and professionals who regularly create data-driven presentations.",
+    "audience_level": "intermediate",
+    "total_duration_sec": 535,
+    "platform": "youtube",
+    "delivery_tone": "casual, informative, and highly practical (vlog-style tutorial)",
+    "on_camera_presence": "full",
+    "broll_type": [
+      "screen_recording",
+      "real_world",
+      "text_overlays",
+      "animation"
+    ],
+    "core_talking_points": [
+      "The Modern AI Data Workflow vs. The Old Way",
+      "Step 1: Build a Learning Agenda with ChatGPT",
+      "Step 2: Build Initial Charts with Gemini",
+      "Step 3: Refine Chart Storytelling with Claude",
+      "Bonus: Upgrading Creative Assets with Freepik",
+      "Step 4: Apply Human Judgement to the Data",
+      "Closing Thoughts & NYC Holiday Vlog"
+    ],
+    "selected_angle": "Treating different AI models as specialized agents in a multi-step analytical workflow, rather than relying on a single tool to do everything.",
+    "misconceptions": [
+      "One single AI tool can perfectly handle the entire data analysis pipeline.",
+      "AI charts are ready to present right out of the box without human refinement."
+    ],
+    "must_avoid": [
+      "Deep-dive technical SQL or Python coding tutorials.",
+      "Skipping the planning (learning agenda) phase of analysis."
+    ]
+  },
+  "outline": [
+    {
+      "section_number": 1,
+      "section_title": "The Modern AI Data Workflow vs. The Old Way",
+      "purpose": "Introduce the value proposition of AI fluency and contrast the manual data pipeline with the optimized multi-tool AI pipeline.",
+      "entry_assumption": "The viewer believes data visualization requires hours of manual formatting in Excel/Google Sheets.",
+      "exit_state": "The viewer understands that AI fluency means knowing exactly which tool to use for specific analytical steps.",
+      "misconception_to_preempt": "AI completely replaces the analyst in one click.",
+      "start_timestamp": "0:00",
+      "end_timestamp": "1:05",
+      "duration_sec": 65,
+      "talking_points": [
+        "Real AI fluency is about knowing when and where to effectively use AI to yield the best results.",
+        "The old workflow was pulling SQL, visualizing manually in Sheets, and building slides manually.",
+        "The new workflow optimizes specific steps using ChatGPT, Gemini, and Claude."
+      ],
+      "evidence_needed": [
+        "Visuals of the old manual workflow vs. the new streamlined AI workflow.",
+        "Logos of ChatGPT, Gemini, and Claude."
+      ]
+    },
+    {
+      "section_number": 2,
+      "section_title": "Step 1: Build a Learning Agenda with ChatGPT",
+      "purpose": "Show viewers how to structurally plan their analysis before touching any visualization tools.",
+      "entry_assumption": "The viewer thinks they should immediately start making charts from raw data.",
+      "exit_state": "The viewer will use ChatGPT to generate a structured 'Learning Agenda' to guide their analysis.",
+      "misconception_to_preempt": null,
+      "start_timestamp": "1:06",
+      "end_timestamp": "1:59",
+      "duration_sec": 53,
+      "talking_points": [
+        "Task: Analyze Duolingo's 2025 user growth using public SEC data.",
+        "Step 1 is to build a learning agenda, acting as a Google Doc outline for your analysis.",
+        "Use ChatGPT to generate questions that guide what you actually need to visualize."
+      ],
+      "evidence_needed": [
+        "Prompt template used in ChatGPT.",
+        "Screen recording of the generated Learning Agenda in Google Docs."
+      ]
+    },
+    {
+      "section_number": 3,
+      "section_title": "Step 2: Build Initial Charts with Gemini",
+      "purpose": "Demonstrate how to quickly generate baseline charts directly within the Google Sheets environment.",
+      "entry_assumption": "The viewer builds charts by manually highlighting rows and clicking 'Insert Chart'.",
+      "exit_state": "The viewer will use Google Gemini's side-panel integration to auto-generate baseline charts from prompts.",
+      "misconception_to_preempt": "AI charts look perfect on the first try.",
+      "start_timestamp": "2:00",
+      "end_timestamp": "2:29",
+      "duration_sec": 29,
+      "talking_points": [
+        "Import data into Google Sheets.",
+        "Paste the prompt from the learning agenda into the Gemini side panel.",
+        "Gemini provides a fast first draft, but it usually lacks good business storytelling."
+      ],
+      "evidence_needed": [
+        "Screen recording of Gemini in Google Sheets generating a basic chart."
+      ]
+    },
+    {
+      "section_number": 4,
+      "section_title": "Step 3: Refine Chart Storytelling with Claude",
+      "purpose": "Teach the viewer how to use Claude to upgrade basic charts into presentation-ready, annotated visuals.",
+      "entry_assumption": "The viewer manually adds text boxes and arrows to charts in PowerPoint.",
+      "exit_state": "The viewer will use a 'Master Chart Design Prompt' in Claude to automatically generate annotated, beautifully formatted charts.",
+      "misconception_to_preempt": "Claude is only for text generation.",
+      "start_timestamp": "2:30",
+      "end_timestamp": "3:49",
+      "duration_sec": 79,
+      "talking_points": [
+        "Provide Claude with a master chart design prompt, raw data, the agenda question, and the base Gemini chart screenshot.",
+        "Request two versions: a clean version and an annotated version with insights.",
+        "Use the annotated version as a visual guide to quickly polish your final presentation."
+      ],
+      "evidence_needed": [
+        "Detailed view of the 'Chart Refinement Template for Claude'.",
+        "Before and after comparison of the Gemini chart vs. the Claude chart."
+      ]
+    },
+    {
+      "section_number": 5,
+      "section_title": "Bonus: Upgrading Creative Assets with Freepik",
+      "purpose": "Show an adjacent AI workflow for sourcing and generating creative assets (icons, video upscaling) for presentations.",
+      "entry_assumption": "The viewer searches Google Images for random, mismatched icons.",
+      "exit_state": "The viewer will use Freepik's AI suite to generate cohesive icons and upscale assets in one place.",
+      "misconception_to_preempt": null,
+      "start_timestamp": "3:50",
+      "end_timestamp": "5:09",
+      "duration_sec": 79,
+      "talking_points": [
+        "Freepik is an all-in-one creative AI suite.",
+        "Use the AI assistant to brainstorm visual concepts.",
+        "Use AI upscalers to fix blurry footage and generate matching icon sets instantly."
+      ],
+      "evidence_needed": [
+        "Screen recording of Freepik's UI, upscaler tool, and icon generation."
+      ]
+    },
+    {
+      "section_number": 6,
+      "section_title": "Step 4: Apply Human Judgement to the Data",
+      "purpose": "Reinforce the necessity of the human analyst in reviewing AI outputs for business logic and nuance.",
+      "entry_assumption": "The AI's final chart can be copied and pasted directly to the CEO.",
+      "exit_state": "The viewer will manually adjust AI phrasing and verify data implications before presenting.",
+      "misconception_to_preempt": "AI insights are flawless and perfectly understand business context.",
+      "start_timestamp": "5:10",
+      "end_timestamp": "5:40",
+      "duration_sec": 30,
+      "talking_points": [
+        "Regardless of the tools used, always apply human judgement at the end.",
+        "Adjust phrasing (e.g., changing 'Q4 Pending' to just 'Pending').",
+        "Break down the data from different angles to ensure the true business driver (e.g., APAC region, retention vs. new users) is accurately represented."
+      ],
+      "evidence_needed": [
+        "Screen recording showing specific textual edits being made to the final Claude output."
+      ]
+    },
+    {
+      "section_number": 7,
+      "section_title": "Closing Thoughts & NYC Holiday Vlog",
+      "purpose": "Wrap up the tutorial, provide a community call-to-action, and transition into a personal lifestyle vlog segment.",
+      "entry_assumption": "The video ends immediately after the technical tutorial.",
+      "exit_state": "The viewer feels a personal connection to the creator and is encouraged for the new year.",
+      "misconception_to_preempt": null,
+      "start_timestamp": "5:41",
+      "end_timestamp": "8:55",
+      "duration_sec": 194,
+      "talking_points": [
+        "Finding the right AI tool mix is key to the modern workflow.",
+        "You overestimate what you can do in a day, but underestimate what you can do in a year.",
+        "Holiday vlog: Saks 5th Ave window displays, NYC street food, and decorating a Christmas tree with a puppy."
+      ],
+      "evidence_needed": [
+        "Vlog footage of NYC, shopping, eating, and a dog."
+      ]
+    }
+  ],
+  "storyboard": [
+    {
+      "screen_number": 1,
+      "section_number": 1,
+      "screen_type": "talking_head",
+      "voiceover_text": "Today I'm turning my AI workflow into this video! We are working on AI data visualization with Gemini and Claude. This is the scripts, my brainstorm. Step 1, step 2...",
+      "visual_direction": [
+        "Speaker in a bright living room/kitchen setting, speaking directly to the camera."
+      ],
+      "action_notes": "0:01 - ChatGPT logo pops up on right with text 'Build Learning Agenda'. 0:02 - Gemini logo pops up in center with text 'Visualize Charts'. 0:03 - Claude logo pops up on left with text 'Refine Charts' Storytelling'. 0:04 - Quick montage cuts of her working and showing notebook."
+    },
+    {
+      "screen_number": 2,
+      "section_number": 1,
+      "screen_type": "real_world",
+      "voiceover_text": "I'm a very visual person so I need to write everything out. My friend the other day, she saw it, she was like 'oh my god like this is so much work for a video' but I'm like no, I actually enjoy it. I love analyzing things.",
+      "visual_direction": [
+        "Vlog style footage."
+      ],
+      "action_notes": "0:05 - Cut to wide shot at dining table typing on laptop. 0:06 - Quick cut showing notebook. 0:07 - Handheld selfie style vlog shot. 0:08 - Quick cut putting on beanie. 0:09 - Quick cuts of NYC and Saks 5th ave. 0:10 - Quick cut of holding a dog. 0:11 - Quick cut decorating Christmas tree."
+    },
+    {
+      "screen_number": 3,
+      "section_number": 1,
+      "screen_type": "talking_head",
+      "voiceover_text": "Now that we're fully in the AI era, all I hear is how do I do X with AI, how do I do Y with AI. And you guys know I was a business analyst in tech for six years and my workflow used to be: pull data from SQL, analyze data, visualize them in Google Sheets, and then build presentations in Google Slides.",
+      "visual_direction": [
+        "Speaker sitting in bright kitchen setting with laptop, holding a mug."
+      ],
+      "action_notes": "0:12 - Hard cut back to speaker in kitchen setting. 0:24 - Hand gestures outlining the old workflow."
+    },
+    {
+      "screen_number": 4,
+      "section_number": 1,
+      "screen_type": "screen_recording",
+      "voiceover_text": "Now I use AI to optimize specific steps. Not the whole thing.",
+      "visual_direction": [
+        "Screen recording of various Google Sheets and Slides."
+      ],
+      "action_notes": "0:25 - Cut to screen recording of raw spreadsheet data. 0:26 - Quick cut to different formatted sheet. 0:28 - Quick cut to Google Slides presentation."
+    },
+    {
+      "screen_number": 5,
+      "section_number": 1,
+      "screen_type": "talking_head",
+      "voiceover_text": "Because real AI fluency is about knowing when and where to use AI to yield the best result.",
+      "visual_direction": [
+        "Speaker sitting in bright kitchen setting with laptop."
+      ],
+      "action_notes": "0:30 - Hard cut back to speaker in kitchen. 0:34 - Text overlay 'AI Fluency is knowing when & where to effectively use AI' fades in."
+    },
+    {
+      "screen_number": 6,
+      "section_number": 1,
+      "screen_type": "real_world",
+      "voiceover_text": "Today I'm turning my AI workflow into this video. We are working on AI data visualization with Gemini and Claude. This is the scripts, my brainstorm. Step 1, Step 2. I'm a very visual person so I need to write everything out.",
+      "visual_direction": [
+        "Vlog style footage of working at a desk."
+      ],
+      "action_notes": "0:38 - Cut to writing in notebook. 0:41 - Cut to wide shot at desk with dog. 0:46 - Shows printed script pages to camera. 0:48 - Shows handwritten notebook to camera. 0:52 - Quick split-screen showing presentation slides."
+    },
+    {
+      "screen_number": 7,
+      "section_number": 1,
+      "screen_type": "talking_head",
+      "voiceover_text": "My friend the other day, she saw it, she was like 'oh my god like this is so much work for a video' but I'm like no, I actually enjoy it. I love analyzing things. So this is my AI data visualization workflow in four steps.",
+      "visual_direction": [
+        "Speaker in living room, handheld selfie style."
+      ],
+      "action_notes": "0:54 - Hard cut to selfie angle in living room. 1:02 - Four AI tool logos (ChatGPT, Gemini, Claude, Freepik) pop up sequentially around her face."
+    },
+    {
+      "screen_number": 8,
+      "section_number": 2,
+      "screen_type": "talking_head_left_with_notes",
+      "voiceover_text": "Let's say you're the business analyst at Duolingo and your task is to analyze their 2025 user growth.",
+      "visual_direction": [
+        "Speaker framed on the right side of the screen, left side has a tan graphic background."
+      ],
+      "action_notes": "1:06 - Hard cut to split layout. Text types out on left: 'Business Analyst at duolingo... Task: Analyze Duolingo's 2025 user growth'."
+    },
+    {
+      "screen_number": 9,
+      "section_number": 2,
+      "screen_type": "screen_recording",
+      "voiceover_text": "I'm using Duolingo's public monthly active user data from this dashboard. I use ChatGPT to create a learning agenda, Gemini to visualize charts, and Claude to refine the charts' storytelling.",
+      "visual_direction": [
+        "Screen recording of Duolingo Investor Relations site."
+      ],
+      "action_notes": "1:12 - Cut to screen recording of Duolingo website. 1:14 - Cut to spreadsheet. 1:16 - Cut to speaker briefly with AI logos. 1:17 - Cut to Google Doc 'Learning Agenda'. 1:19 - Cut to Gemini UI in Google Sheets. 1:22 - Cut to Claude UI split screen."
+    },
+    {
+      "screen_number": 10,
+      "section_number": 2,
+      "screen_type": "slides",
+      "voiceover_text": "Step 1: Build a Learning Agenda with ChatGPT.",
+      "visual_direction": [
+        "Tan graphic title card."
+      ],
+      "action_notes": "1:24 - Hard cut to full screen title card reading 'Step 1: Build Learning Agenda with ChatGPT'."
+    },
+    {
+      "screen_number": 11,
+      "section_number": 2,
+      "screen_type": "talking_head",
+      "voiceover_text": "Before I do any analysis, I always start with a learning agenda.",
+      "visual_direction": [
+        "Speaker in bright kitchen setting."
+      ],
+      "action_notes": "1:27 - Hard cut back to speaker."
+    },
+    {
+      "screen_number": 12,
+      "section_number": 2,
+      "screen_type": "talking_head_with_split_screens",
+      "voiceover_text": "Think of it like a Google Doc outline with key questions that guide your analysis, so you don't get lost in the data and you keep your analysis structured. We're answering these questions, starting with: How are monthly active users per quarter trending over time? I always ask myself the 'so what', like the business rationale behind pulling this data. I used this prompt in ChatGPT, and you can find the step-by-step in this video which a lot of you have found helpful. And it has a Gemini prompt so we can visualize later.",
+      "visual_direction": [
+        "Screen recording of Google Doc taking up mostly left/center, speaker video overlay floating on the right side."
+      ],
+      "action_notes": "1:31 - Hard cut to screen recording of Google Doc with speaker PiP on right. Scrolling through doc. 1:49 - Cut to ChatGPT prompt view with speaker PiP on left. 1:53 - Overlay graphic of previous YouTube video pops up on right. 1:56 - Cut back to Google Doc highlighting text 'Gemini Prompt'."
+    },
+    {
+      "screen_number": 13,
+      "section_number": 3,
+      "screen_type": "slides",
+      "voiceover_text": "Step 2: Build Charts with Gemini.",
+      "visual_direction": [
+        "Tan graphic title card."
+      ],
+      "action_notes": "1:59 - Hard cut to full screen title card reading 'Step 2: Build Charts with Gemini'."
+    },
+    {
+      "screen_number": 14,
+      "section_number": 3,
+      "screen_type": "talking_head_with_split_screens",
+      "voiceover_text": "I've already imported the data into Google Sheet. Then I click Gemini from the side panel and paste the Gemini prompt from the learning agenda. So, 'visualize monthly active users by quarter for 2023, 2024, and 2025.' Gemini gives me a first draft. But, it's missing storytelling. It's hard to understand what the insight is. And previously, I would just manually adjust the chart. But now, I'm going to use Claude to help me enhance the chart's storytelling.",
+      "visual_direction": [
+        "Screen recording of Google Sheets. Speaker PiP on bottom left."
+      ],
+      "action_notes": "2:02 - Hard cut to Google Sheets with speaker PiP. 2:05 - Cursor clicks Gemini side panel icon. 2:07 - Types prompt into Gemini panel. 2:15 - Gemini generates a basic line chart. 2:24 - Cut to speaker in full screen briefly."
+    },
+    {
+      "screen_number": 15,
+      "section_number": 4,
+      "screen_type": "slides",
+      "voiceover_text": "Step 3: Chart Storytelling with Claude.",
+      "visual_direction": [
+        "Tan graphic title card."
+      ],
+      "action_notes": "2:26 - Cut to slide showing 'Before' chart. 2:28 - Cut to slide showing 'Final' annotated chart. 2:29 - Hard cut to full screen title card reading 'Step 3: Chart Storytelling with Claude'."
+    },
+    {
+      "screen_number": 16,
+      "section_number": 4,
+      "screen_type": "talking_head_with_split_screens",
+      "voiceover_text": "First, I have this master chart design prompt that teaches Claude what to do. All the rules I've built over the years of doing business analysis on how to make your graphs strategic and easy to understand. These are also the fundamentals I teach in my Business Analytics course. You can find everything in the link below. In the chart design prompt, I have rules like: use callout boxes to highlight key insights in the graph, make sure colors have visual hierarchy, focus on the main point. If we're benchmarking, use at least two previous years to justify.",
+      "visual_direction": [
+        "Screen recording of a Markdown document with prompt rules. Speaker PiP on left."
+      ],
+      "action_notes": "2:32 - Hard cut to screen recording of document with speaker PiP. Scrolling through rules like Visual Hierarchy, Brand Colors, etc. 2:43 - Cut to a quick montage of course materials. 2:48 - Cut back to the Markdown document screen recording, scrolling through rules."
+    },
+    {
+      "screen_number": 17,
+      "section_number": 4,
+      "screen_type": "talking_head_with_split_screens",
+      "voiceover_text": "Then I give Claude this prompt. I attach the master chart design prompt, I state what I'm working on, what the goal is, what brand it is so it can use that brand palette. I always attach the raw data for accuracy. I paste the entire learning agenda question so it knows how to think about the insights. I attach the Gemini chart screenshot. Then I ask it to give me two graphs. Version 1 is a clean, ready-to-paste graph into my presentation. Version 2 is an annotated graph with all the storytelling as a visual guide. I will just use version 2 as a visual guide to polish version 1 much faster. So now you can see Claude is telling me 2025 growth is decelerating. We're growing at 19% year-over-year so far versus 32% and 45% in previous years.",
+      "visual_direction": [
+        "Screen recording of Claude interface. Speaker PiP on left."
+      ],
+      "action_notes": "3:00 - Hard cut to Claude UI with speaker PiP. 3:04 - Highlights text 'I'm working on 2025 user growth analysis for Duolingo'. 3:19 - Highlights attachment 'Gemini chart screenshot'. 3:24 - Claude generates charts. 3:34 - Cut to Google Slides showing manual adjustments using the annotated version as reference."
+    },
+    {
+      "screen_number": 18,
+      "section_number": 5,
+      "screen_type": "talking_head",
+      "voiceover_text": "With AI, now you can even use AI in your creative process. Like Freepik, which has quickly become one of the creative tools I reach for the most.",
+      "visual_direction": [
+        "Speaker in bright living room setting."
+      ],
+      "action_notes": "3:50 - Hard cut to speaker full screen. 3:52 - Split screen graphic with a robot icon and 'FREEPIK' logo pops up."
+    },
+    {
+      "screen_number": 19,
+      "section_number": 5,
+      "screen_type": "screen_recording",
+      "voiceover_text": "Freepik is an all-in-one creative AI suite. Meaning instead of jumping between 5 different apps, Freepik puts AI tools and a huge professional asset library all in one place. Let's say when I'm planning videos and I'm stuck on how to visualize concepts, I can use Freepik's AI assistant to brainstorm ideas. Like different ways to visualize graphics, concepts, or even aesthetic directions for a topic. And to elevate my video footages, I can also use Freepik's upscale and retouch tools to clean everything up. It sharpens the footage and fixes little imperfections automatically. It's like giving my camera a tiny upgrade without actually buying one. And yes, Freepik still has all the icons and templates that you can easily find and use. For instance, for the AI Agent video, I needed a robot icon to represent the AI tools I've been talking about, and I found the perfect one in seconds. So no more digging through the internet for random mismatching graphics. Everything just looks cohesive. So if you're a creator and you want a single place where you can generate visuals, fix footages, design graphics, and pull from this massive library of professional assets, Freepik honestly makes the whole process so much faster. You can discover Freepik's free AI tools with the link in the description.",
+      "visual_direction": [
+        "Screen recording of Freepik website."
+      ],
+      "action_notes": "3:58 - Hard cut to Freepik UI. 4:08 - Quick real-world cut of speaker drinking coffee. 4:12 - Cut to Freepik AI Assistant chat. 4:16 - Cut to speaker full screen with graphic overlay of 'Agent Architecture'. 4:19 - Cut back to Freepik UI. 4:27 - Screen recording of the video upscaler tool slider. 4:31 - Cut to speaker full screen. 4:35 - Cut to Freepik icon search. 4:48 - Comparison screen recording of messy Google Images search vs clean Freepik icons. 4:54 - Screen recording scrolling through Freepik tools. 5:06 - Cut back to speaker full screen."
+    },
+    {
+      "screen_number": 20,
+      "section_number": 6,
+      "screen_type": "slides",
+      "voiceover_text": "Finally, Step 4: Apply Human Judgement.",
+      "visual_direction": [
+        "Tan graphic title card."
+      ],
+      "action_notes": "5:10 - Hard cut to full screen title card reading 'Step 4: Human Judgement'."
+    },
+    {
+      "screen_number": 21,
+      "section_number": 6,
+      "screen_type": "talking_head_with_split_screens",
+      "voiceover_text": "Regardless of what AI tools I use, I always apply human judgement at the end. I changed 'Q4 Pending' from just 'Pending' so it's more clear we're only in Q3 right now. If I were to do this analysis, I would break down the user growth from two more angles. From a regional level, you can see APAC is the growth driver. EMEA is a growth detractor. That's something we can note to the local teams. Growth is retention-led. So sustaining retaining users while paying attention to new users that's declining.",
+      "visual_direction": [
+        "Screen recording of the finalized Google Slides charts. Speaker PiP on left."
+      ],
+      "action_notes": "5:12 - Hard cut to slides with speaker PiP. 5:21 - Zooms in on 'Q4 Pending' text edit on chart. 5:27 - Shows regional breakdown chart 'APAC is MAU Growth Driver'. 5:35 - Shows 'New Users vs Returning Users' chart."
+    },
+    {
+      "screen_number": 22,
+      "section_number": 7,
+      "screen_type": "talking_head",
+      "voiceover_text": "I think using AI is about finding the right AI tool mix in your workflow.",
+      "visual_direction": [
+        "Speaker in bright living room setting."
+      ],
+      "action_notes": "5:41 - Hard cut to speaker full screen."
+    },
+    {
+      "screen_number": 23,
+      "section_number": 7,
+      "screen_type": "screen_recording",
+      "voiceover_text": "ChatGPT builds my learning agenda fast. Gemini creates charts in my Google Sheets. Everything is tracked. Claude handles storytelling with the chart with complex design principles.",
+      "visual_direction": [
+        "Fast recap montage of tool UIs."
+      ],
+      "action_notes": "5:46 - Fast cuts between Google Docs, Sheets, and Claude UI."
+    },
+    {
+      "screen_number": 24,
+      "section_number": 7,
+      "screen_type": "talking_head",
+      "voiceover_text": "Let me know what type of AI at work stuff you want to learn next. I do want to talk about how I use AI to build presentations. So comment the word 'presentation' if you want to know more!",
+      "visual_direction": [
+        "Speaker in bright living room setting."
+      ],
+      "action_notes": "5:56 - Hard cut to speaker full screen."
+    },
+    {
+      "screen_number": 25,
+      "section_number": 7,
+      "screen_type": "real_world",
+      "voiceover_text": "It's probably already Christmas by the time you see this. I just got my Christmas tree. Haven't decorated it yet though. But I'm gonna walk around and see the New York City festivities. I got this tiny little bottle that fits right in my purse. It's -4C these days... which means the UGG season is officially here. So chaotic, there are so many people. Everyone seeing the famous Rockefeller tree. Getting claustrophobic from human traffic. I haven't gone inside the Saks 5th Ave mall in YEARS!! Let's come shop together. I never come to this location because it's always so packed, especially during the holidays. But I guess since I'm here I'm gonna walk around. I'm kinda into burgundy colors these days. Khaite bags that every influencer has. I'm seeing so many square/rectangular bags this season. Like this one. Not sure how I'd use this lol. The old me wouldn't have time to stop and appreciate these but wow. Fun fact: I intentionally walked 30 blocks so I can feast. Now I'm gonna go find some dinner to eat. A perf hot bowl of malatang soup~~",
+      "visual_direction": [
+        "Vlog footage transitioning from apartment to NYC streets at night."
+      ],
+      "action_notes": "6:05 - Hard cut to vlog selfie holding a thermos. 6:18 - Putting on heavy winter coat and boots. 6:21 - Selfie vlog on crowded NYC street. 6:24 - Shot of Rockefeller Christmas Tree. 6:29 - Shot of Saks Fifth Ave exterior light show. 6:33 - Walking into the mall. 6:39 - Selfie vlog inside the colorful mall. 6:49 - Looking at various designer handbags. 7:06 - Standing outside looking at light show again. 7:15 - Shot of hotpot bowl on table."
+    },
+    {
+      "screen_number": 26,
+      "section_number": 7,
+      "screen_type": "real_world",
+      "voiceover_text": "We have a special guest... Party! Hello! It's my friend's puppy, I'm taking care of her for two weeks. So cute, look at you having this little hoodie. I already got a bunch of stuff from Amazon, the ribbons, lights, and some ornaments. This is my first time decorating a Christmas tree, so we'll see how this goes. 'People usually do the lights first right?' Unleashing our inner child. Trying to figure out how to do the ornaments lol. 'Albert read this article that having a Christmas tree boosts your mental health by like certain percentage.' Hello girl! Final touch: the bows~ 'This is an... unprofessional Christmas tree.'",
+      "visual_direction": [
+        "Vlog footage in apartment setting up a Christmas tree."
+      ],
+      "action_notes": "7:17 - Hard cut to living room floor. Friend brings a small dog into frame. 7:32 - Pulling decorations out of Amazon boxes. 7:45 - Stringing lights on the unlit tree. 7:51 - Selfie style to camera while laughing. 7:57 - Hanging ornaments. 8:14 - Tying red bows to the tree branches. 8:16 - Friend recording the finished tree. Tree is lit up."
+    },
+    {
+      "screen_number": 27,
+      "section_number": 7,
+      "screen_type": "talking_head",
+      "voiceover_text": "Anyways, thank you guys so much for being in my life in 2024 and I hope to see you in 2025. But if there's anything I've learned, it's that you really overestimate how much you can do in a day, but you underestimate how much you can achieve in a year. I hope that whatever you have on your mind, I'm sure you will get there in 2025. And I know I'm sure I will get there in 2025 as well. So... Merry Christmas!",
+      "visual_direction": [
+        "Speaker sitting comfortably on couch with the dog, Christmas tree lit in background."
+      ],
+      "action_notes": "8:22 - Hard cut to speaker on couch petting dog. 8:48 - Vertical selfie photo with text 'merry christmas!' flashes before cutting to black."
+    }
+  ]
+}

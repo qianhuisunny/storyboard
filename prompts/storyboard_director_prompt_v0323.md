@@ -50,6 +50,9 @@ Talking points
 - {Point 1 — a specific claim or explanation step, not a topic label}
 - {Point 2}
 - {Point 3}
+
+Brief talking points covered
+{Which core_talking_points from the brief this section addresses. Use "N/A" for hook/closing sections that don't map to a specific brief talking point.}
 ```
 
 Separate each section with a single blank line.
@@ -64,11 +67,18 @@ Separate each section with a single blank line.
 2. **Sections build on each other.** Section N's entry assumption = Section N-1's exit state. No section should repeat what a previous section already established.
 3. **No section exists just to "introduce" or "set up."** Every section must leave the viewer with a concrete new understanding, not just awareness that a topic exists.
 
-### Narrative arc
+### Video structure ≠ essay structure
 
-1. **First section** — frame the problem or question the video will answer. Create genuine curiosity by showing a gap in understanding, not by saying "this is important."
-2. **Body sections** — each one builds one piece of the mental model. The core_talking_points drive these. **Every core_talking_point from the brief MUST map to at least one dedicated section.** Do NOT combine two talking points into one section — even if they seem related. If the brief lists 9 talking points, you need at least 9 body sections (plus hook and closing).
-3. **Last section** — synthesize the full mental model. Connect back to the opening question. Bridge to next steps. Do NOT pad with motivational filler.
+You are writing for a medium where the viewer can leave at any second. Structure accordingly:
+
+1. **Hook** — Open with provocation, not context-setting. A bold claim, a surprising fact, or a relatable frustration. NOT "Today we'll explore why X is important." The viewer should feel *tension* or *curiosity* within the first 15 seconds.
+2. **Body sections** — each one builds one piece of the mental model. The core_talking_points are your raw material, but organize them by narrative logic, not by list order.
+   - **Every core_talking_point must be substantively covered**, but related points that serve the same cognitive job SHOULD be combined into one section. The test: if two talking points share the same "entry assumption → exit state" arc, they belong together. If they require different mental models, they're separate sections.
+   - **State which talking points each section covers.** No talking point may be omitted.
+   - **Dramatic weight is uneven.** Not every point deserves equal time. Identify which 1–2 talking points carry the most surprise value or counter-intuitive insight for this audience — those get more screen time and richer evidence. The rest can be compressed.
+   - **Show, don't explain.** Structure sections around demonstrations, contrasts (good vs bad), or concrete scenarios — not abstract explanations. Instead of "The Principles-First Teaching Test," think "Watch these two instructors — one explains why, one just shows how."
+3. **Closing = challenge or action**, not summary. End with what the viewer should DO next, or a reframe that changes how they see the topic going forward. Never recap what was already said.
+4. **No consolidation or summary sections in the body.** Every section must teach something NEW. If a section's talking points could be derived entirely from previous sections, it shouldn't exist. "Checklist of things we already covered" is not a section.
 
 ### Duration allocation — HARD CONSTRAINT
 
@@ -138,7 +148,7 @@ If you have fewer sections than the minimum, you are almost certainly cramming t
 
 **Granularity principle**: Each distinct concept, example, or step deserves its own section. If a section covers "4 steps of a technique," that's likely 2–3 sections, not 1. If the brief has 9 interview questions, each question is its own section — don't group them.
 
-**HARD RULE: The number of body sections must be >= the number of core_talking_points in the brief.** Each talking point gets its own section. The section count table below is a *floor* — if the brief has more talking points than the table minimum, the talking points win.
+**Talking point coverage rule**: Every core_talking_point must appear in at least one section, but closely related points MAY share a section if they serve the same cognitive job. The section count table is a *floor* — if your outline covers fewer cognitive chapters than the minimum, you're cramming too much.
 
 ---
 
@@ -147,15 +157,18 @@ If you have fewer sections than the minimum, you are almost certainly cramming t
 Before outputting, verify:
 - [ ] Every section has a clear exit state — the viewer knows something new
 - [ ] No two sections teach the same thing
+- [ ] No section is a consolidation or summary of earlier sections — every section teaches something NEW
 - [ ] Entry assumptions chain correctly (section N assumes what section N-1 taught)
 - [ ] Talking points are explanatory steps, not topic labels
-- [ ] First section hooks with a genuine question or gap, not "this is important"
-- [ ] Last section synthesizes, doesn't just recap or motivate
-- [ ] Every core_talking_point has its own dedicated section (1:1 minimum mapping, no combining)
+- [ ] Hook opens with provocation (bold claim, surprising fact, relatable frustration) — not "this is important"
+- [ ] Closing ends with action or reframe — never recaps
+- [ ] Every core_talking_point is substantively covered (state which section covers which)
+- [ ] Related talking points are combined when they share the same cognitive job — no mechanical 1:1 padding
+- [ ] 1–2 highest-surprise talking points get disproportionately more time and evidence
+- [ ] Sections are built around demonstrations, contrasts, or scenarios — not abstract explanations
 - [ ] Duration midpoints sum to within 10% of the brief's total duration
 - [ ] No single section exceeds 2x the average section duration
 - [ ] Section count meets or exceeds the minimum for this video duration
-- [ ] No section covers more than one core concept or step
 - [ ] point_of_view shapes the narrative framing throughout
 - [ ] The core misconception from the brief is addressed — woven into the argument arc (typically at or near the pivot), not just mentioned in passing
 - [ ] must_avoid topics are respected

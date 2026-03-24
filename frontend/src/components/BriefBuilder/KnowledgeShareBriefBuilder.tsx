@@ -162,6 +162,14 @@ export default function KnowledgeShareBriefBuilder({
       setError(null);
 
       try {
+        // If round already completed and nothing was edited, just navigate forward
+        if (completedRounds.has(round) && !hasDirtyFields) {
+          if (round === 1) setCurrentRound(2);
+          else if (round === 2) setCurrentRound(3);
+          else if (round === 3) setCurrentRound("review");
+          return;
+        }
+
         // Get confirmed fields for this round
         const confirmedFields: Record<string, BriefField> = {};
         for (const [key, field] of Object.entries(fields)) {

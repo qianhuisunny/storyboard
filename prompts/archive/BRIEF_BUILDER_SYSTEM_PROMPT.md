@@ -78,36 +78,17 @@ All Round 2 fields are empty for user input. No AI suggestions.
 
 ---
 
-### Round 3: Section 3 — Content Spine (4 fields)
+### Round 3: Section 3 — Content Spine & Key Point of View (2 fields)
 
-3 fields are AI-suggested (inferred) based on confirmed fields from Rounds 1-2. 1 field is optional user input.
+2 fields are AI-suggested (inferred) based on user's POV and confirmed fields from Rounds 1-2.
+Generation logic lives in `prompts/CONTENT_SPINE_PROMPT.md`.
 
 | Field | Source Rule | Description |
 |-------|-------------|-------------|
-| `must_avoid` | inferred | AI suggests things to avoid (yellow) |
-| `core_talking_points` | inferred | Framework/method/key talking points (yellow) |
-| `misconceptions` | inferred | The single most important misconception to address (yellow) |
-| `additional_notes` | empty | Optional user input (red if empty, but not required) |
+| `core_talking_points` | inferred | Argument beats that build the case for the POV (yellow) |
+| `misconceptions` | inferred | The single most important counter-thesis to address (yellow) |
 
-**LLM generates 3 fields** using confirmed fields from Rounds 1-2 (viewer outcome, target audience, audience level, duration, delivery tone, etc.).
-
-**Generation Guidelines:**
-
-1. **must_avoid**: Suggest things to avoid (can be empty if none):
-   - Competitor mentions, legally sensitive claims, outdated info
-
-2. **core_talking_points**: Generate 3-5 main points that form the video structure.
-   - Each point should be a complete thought
-   - Points should build on each other logically
-   - Example: ["Understanding exit types (IPO, M&A, secondary)", "Timing considerations", "Financial realities"]
-
-3. **misconceptions**: The single most important misconception this video needs to address.
-   - Not a list — one sentence describing the counter-thesis the audience holds
-   - Pick the misconception that is most widely held, hardest to let go of, and most blocking
-   - Frame as a belief: "Most people think X, but actually Y"
-   - Example: "Most founders think IPO is the only 'real' exit, but secondary sales often yield better personal outcomes"
-
-4. **additional_notes**: Leave empty - this is for optional user input only.
+<!-- must_avoid: commented out, pending requirements gathering (task #86) -->
 
 ---
 

@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outline + Research — 3 Style Options</title>
+  <style>
+    :root {
+      --bg: #FFFFFF;
+      --card-bg: #FFFFFF;
+      --border: #E5E5E3;
+      --border-light: rgba(229,229,227,0.5);
+      --muted-fg: #626B58;
+      --fg: #1A1A1A;
+      --green: #3A6B47;
+      --muted-bg: rgba(245,245,243,0.4);
+      --muted-bg-strong: rgba(245,245,243,0.6);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #F5F5F3; color: var(--fg); }
+
+    .page { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+    .page > h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+    .page > p { font-size: 14px; color: var(--muted-fg); margin-bottom: 40px; }
+
+    .option { background: var(--bg); border-radius: 12px; padding: 32px; margin-bottom: 48px; }
+    .option-label { font-size: 18px; font-weight: 600; margin-bottom: 4px; }
+    .option-desc { font-size: 13px; color: var(--muted-fg); margin-bottom: 28px; }
+
+    /* Shared */
+    .section-title-area { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .section-title-area .num { font-size: 28px; font-weight: 300; color: rgba(100,100,100,0.25); font-variant-numeric: tabular-nums; min-width: 36px; text-align: right; }
+    .section-title-area .title { font-size: 15px; font-weight: 600; flex: 1; }
+    .section-title-area .meta { font-size: 12px; color: var(--muted-fg); white-space: nowrap; }
+    .section-title-area .chevron { width: 16px; height: 16px; color: var(--muted-fg); flex-shrink: 0; }
+
+    .outline-body { padding-left: 52px; padding-right: 16px; }
+    .outline-body .duration { font-size: 13px; color: var(--muted-fg); font-family: monospace; margin-bottom: 4px; }
+    .outline-body .purpose { font-size: 14px; color: var(--muted-fg); line-height: 1.5; margin-bottom: 8px; }
+    .outline-body .tp { font-size: 14px; line-height: 1.5; padding-left: 16px; position: relative; margin-bottom: 4px; }
+    .outline-body .tp::before { content: '•'; position: absolute; left: 0; color: var(--muted-fg); }
+
+    .evidence-col { font-size: 13px; color: var(--muted-fg); }
+    .evidence-col .ev-item { padding-left: 16px; position: relative; margin-bottom: 3px; }
+    .evidence-col .ev-item::before { content: '•'; position: absolute; left: 0; }
+
+    /* Research */
+    .research-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; }
+    .research-header h2 { font-size: 20px; font-weight: 600; }
+    .research-header p { font-size: 13px; color: var(--muted-fg); margin-top: 2px; }
+    .rerun-btn { font-size: 13px; padding: 6px 14px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); cursor: pointer; display: flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--fg); }
+    .rerun-btn:hover { background: var(--muted-bg); }
+
+    .res-section-header { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .res-section-header .title { font-size: 14px; font-weight: 600; flex: 1; }
+    .res-section-header .count { font-size: 12px; color: var(--muted-fg); white-space: nowrap; }
+
+    .res-evidence-label { font-size: 13px; font-weight: 500; margin-bottom: 8px; }
+
+    .res-block-question { font-size: 12px; color: var(--muted-fg); padding: 6px 0; }
+    .res-block-snippet { font-size: 14px; display: flex; align-items: flex-start; gap: 8px; margin-bottom: 4px; }
+    .res-block-snippet .check { color: var(--green); font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .res-block-details { font-size: 11px; color: var(--muted-fg); cursor: pointer; padding: 4px 0; display: flex; align-items: center; gap: 4px; }
+
+    .divider { border: none; border-top: 1px solid var(--border-light); }
+
+    /* ─────── Option A: Both Bordered (cards) ─────── */
+    .opt-a .outline-section {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px 16px;
+      margin-bottom: 12px;
+    }
+    .opt-a .outline-grid { display: grid; grid-template-columns: 1fr 36%; gap: 0 16px; }
+    .opt-a .outline-body { padding-left: 52px; margin-top: 12px; }
+
+    .opt-a .res-section {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .opt-a .res-section-header { padding: 12px 16px; background: var(--muted-bg); border-bottom: 1px solid var(--border); }
+    .opt-a .res-content { padding: 16px; }
+    .opt-a .res-block {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 10px;
+    }
+    .opt-a .res-block-question { padding: 6px 12px; }
+    .opt-a .res-block-snippets { padding: 8px 12px; border-top: 1px solid var(--border); }
+    .opt-a .res-block-details { padding: 4px 12px 6px; border-top: 1px solid var(--border); background: var(--muted-bg); }
+
+    /* ─────── Option B: Both Borderless (flat rows + dividers) ─────── */
+    .opt-b .outline-section {
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .opt-b .outline-section:first-child { padding-top: 8px; }
+    .opt-b .outline-section:last-child { border-bottom: none; }
+    .opt-b .outline-grid { display: grid; grid-template-columns: 1fr 36%; gap: 0 16px; }
+    .opt-b .outline-body { margin-top: 8px; }
+
+    .opt-b .res-section {
+      padding: 20px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .opt-b .res-section:last-child { border-bottom: none; }
+    .opt-b .res-content { padding-left: 24px; margin-top: 14px; }
+    .opt-b .res-block {
+      margin-bottom: 14px;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .opt-b .res-block:last-child { border-bottom: none; padding-bottom: 0; }
+    .opt-b .res-block-snippets { padding: 4px 0; }
+    .opt-b .res-block-details { padding: 2px 0; }
+
+    /* ─────── Option C: Subtle cards (light bg, no hard border) ─────── */
+    .opt-c .outline-section {
+      background: rgba(245,245,243,0.35);
+      border-radius: 10px;
+      padding: 20px 16px;
+      margin-bottom: 8px;
+    }
+    .opt-c .outline-grid { display: grid; grid-template-columns: 1fr 36%; gap: 0 16px; }
+    .opt-c .outline-body { padding-left: 52px; margin-top: 12px; }
+
+    .opt-c .res-section {
+      background: rgba(245,245,243,0.35);
+      border-radius: 10px;
+      padding: 4px 0;
+      margin-bottom: 8px;
+    }
+    .opt-c .res-section-header { padding: 12px 16px; }
+    .opt-c .res-content { padding: 0 16px 16px; }
+    .opt-c .res-block {
+      background: var(--bg);
+      border-radius: 6px;
+      overflow: hidden;
+      margin-bottom: 8px;
+    }
+    .opt-c .res-block-question { padding: 6px 12px; }
+    .opt-c .res-block-snippets { padding: 8px 12px; border-top: 1px solid var(--border-light); }
+    .opt-c .res-block-details { padding: 4px 12px 6px; border-top: 1px solid var(--border-light); }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1>Outline + Research — Visual Consistency Options</h1>
+  <p>Three approaches for unifying the visual language between outline sections and evidence research sections.</p>
+
+  <!-- ═══════ OPTION A: Both Bordered ═══════ -->
+  <div class="option opt-a">
+    <div class="option-label">Option A — Both Bordered</div>
+    <div class="option-desc">Both outline sections and research sections use bordered cards with rounded corners. Structured, explicit grouping.</div>
+
+    <h3 style="font-size:15px; font-weight:600; margin-bottom:14px; color:var(--muted-fg);">VIDEO OUTLINE</h3>
+
+    <div class="outline-section">
+      <div class="outline-grid">
+        <div class="section-title-area">
+          <span class="num">1</span>
+          <span class="title">Why Robot Arms Break Traditional Draping Rules</span>
+        </div>
+        <div class="evidence-col" style="padding-top:4px;">
+          <div class="ev-item">Visual comparison of robot arm range of motion vs. static equipment</div>
+          <div class="ev-item">Statistics on degrees of freedom in modern surgical robots</div>
+        </div>
+      </div>
+      <div class="outline-body">
+        <div class="duration">0:00 – 1:30</div>
+        <div class="purpose">Establish why conventional draping rules don't apply to articulated systems</div>
+        <div class="tp">Surgical robots move through 6-7 degrees of freedom</div>
+        <div class="tp">Traditional draping assumes fixed pivot points</div>
+        <div class="tp">Joint-by-joint wrapping creates sterility gaps at unpredictable angles</div>
+      </div>
+    </div>
+
+    <div class="outline-section">
+      <div class="outline-grid">
+        <div class="section-title-area">
+          <span class="num">2</span>
+          <span class="title">The Contamination Risk Nobody Talks About</span>
+        </div>
+        <div class="evidence-col" style="padding-top:4px;">
+          <div class="ev-item">Infection rate data from robotic vs. open surgery</div>
+          <div class="ev-item">Case studies of drape failures in robotic procedures</div>
+        </div>
+      </div>
+      <div class="outline-body">
+        <div class="duration">1:30 – 3:00</div>
+        <div class="purpose">Quantify the real-world impact of inadequate draping on patient outcomes</div>
+        <div class="tp">Published infection rates specific to robotic surgery settings</div>
+        <div class="tp">Where and how drape breaches actually occur during procedures</div>
+      </div>
+    </div>
+
+    <hr class="divider" style="margin: 28px 0;" />
+
+    <div class="research-header">
+      <div>
+        <h2>Evidence Research Results</h2>
+        <p>Structured evidence gathered per section. Review usable lines, then continue.</p>
+      </div>
+      <button class="rerun-btn">↻ Re-run Research</button>
+    </div>
+
+    <div class="res-section">
+      <div class="res-section-header">
+        <span class="chevron">▾</span>
+        <span class="title">Section 1 — Why Robot Arms Break Traditional Draping Rules</span>
+        <span class="count">2/2 evidence items</span>
+      </div>
+      <div class="res-content">
+        <div class="res-evidence-label">Visual comparison of robot arm range of motion vs. static surgical equipment</div>
+        <div class="res-block">
+          <div class="res-block-question">What specific range of motion capabilities do surgical robot arms have compared to traditional surgical equipment?</div>
+          <div class="res-block-snippets">
+            <div class="res-block-snippet"><span class="check">✓</span> Surgical robot arms move through 6-7 degrees of freedom with 360-degree rotation at multiple joints. [1]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> Traditional surgical equipment has fixed pivot points with limited angular movement. [2]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> Robot arms can reach around organs and access surgical sites from multiple angles during a single procedure. [1]</div>
+          </div>
+          <div class="res-block-details">▸ Full answer & sources · <span style="color:var(--green)">High</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="res-section">
+      <div class="res-section-header">
+        <span class="chevron">▾</span>
+        <span class="title">Section 2 — The Contamination Risk Nobody Talks About</span>
+        <span class="count">2/2 evidence items</span>
+      </div>
+      <div class="res-content">
+        <div class="res-evidence-label">Infection rate data from robotic vs. open surgery</div>
+        <div class="res-block">
+          <div class="res-block-question">How do surgical site infection rates compare between robotic-assisted and open surgical procedures?</div>
+          <div class="res-block-snippets">
+            <div class="res-block-snippet"><span class="check">✓</span> Meta-analysis of 12 studies shows robotic surgery SSI rates of 2.1% vs. 3.8% for open procedures. [1]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> However, drape-related contamination events are 40% more likely in robotic cases due to increased instrument articulation. [2]</div>
+          </div>
+          <div class="res-block-details">▸ Full answer & sources · <span style="color:var(--green)">High</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ OPTION B: Both Borderless ═══════ -->
+  <div class="option opt-b">
+    <div class="option-label">Option B — Both Borderless</div>
+    <div class="option-desc">Both outline and research use flat rows separated by light dividers. Clean, document-like. Matches Notion/Linear feel.</div>
+
+    <h3 style="font-size:15px; font-weight:600; margin-bottom:14px; color:var(--muted-fg);">VIDEO OUTLINE</h3>
+
+    <div class="outline-section">
+      <div class="outline-grid">
+        <div class="section-title-area">
+          <span class="num">1</span>
+          <span class="title">Why Robot Arms Break Traditional Draping Rules</span>
+        </div>
+        <div class="evidence-col" style="padding-top:4px;">
+          <div class="ev-item">Visual comparison of robot arm range of motion vs. static equipment</div>
+          <div class="ev-item">Statistics on degrees of freedom in modern surgical robots</div>
+        </div>
+      </div>
+      <div class="outline-body">
+        <div class="duration">0:00 – 1:30</div>
+        <div class="purpose">Establish why conventional draping rules don't apply to articulated systems</div>
+        <div class="tp">Surgical robots move through 6-7 degrees of freedom</div>
+        <div class="tp">Traditional draping assumes fixed pivot points</div>
+        <div class="tp">Joint-by-joint wrapping creates sterility gaps at unpredictable angles</div>
+      </div>
+    </div>
+
+    <div class="outline-section">
+      <div class="outline-grid">
+        <div class="section-title-area">
+          <span class="num">2</span>
+          <span class="title">The Contamination Risk Nobody Talks About</span>
+        </div>
+        <div class="evidence-col" style="padding-top:4px;">
+          <div class="ev-item">Infection rate data from robotic vs. open surgery</div>
+          <div class="ev-item">Case studies of drape failures in robotic procedures</div>
+        </div>
+      </div>
+      <div class="outline-body">
+        <div class="duration">1:30 – 3:00</div>
+        <div class="purpose">Quantify the real-world impact of inadequate draping on patient outcomes</div>
+        <div class="tp">Published infection rates specific to robotic surgery settings</div>
+        <div class="tp">Where and how drape breaches actually occur during procedures</div>
+      </div>
+    </div>
+
+    <hr class="divider" style="margin: 28px 0;" />
+
+    <div class="research-header">
+      <div>
+        <h2>Evidence Research Results</h2>
+        <p>Structured evidence gathered per section. Review usable lines, then continue.</p>
+      </div>
+      <button class="rerun-btn">↻ Re-run Research</button>
+    </div>
+
+    <div class="res-section">
+      <div class="res-section-header">
+        <span class="chevron">▾</span>
+        <span class="title">Section 1 — Why Robot Arms Break Traditional Draping Rules</span>
+        <span class="count">2/2 evidence items</span>
+      </div>
+      <div class="res-content">
+        <div class="res-evidence-label">Visual comparison of robot arm range of motion vs. static surgical equipment</div>
+        <div class="res-block">
+          <div class="res-block-question">What specific range of motion capabilities do surgical robot arms have compared to traditional surgical equipment?</div>
+          <div class="res-block-snippets">
+            <div class="res-block-snippet"><span class="check">✓</span> Surgical robot arms move through 6-7 degrees of freedom with 360-degree rotation at multiple joints. [1]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> Traditional surgical equipment has fixed pivot points with limited angular movement. [2]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> Robot arms can reach around organs and access surgical sites from multiple angles during a single procedure. [1]</div>
+          </div>
+          <div class="res-block-details">▸ Full answer & sources · <span style="color:var(--green)">High</span></div>
+        </div>
+
+        <div class="res-evidence-label" style="margin-top:16px;">Statistics on degrees of freedom in modern surgical robots</div>
+        <div class="res-block">
+          <div class="res-block-question">How many degrees of freedom do current-generation surgical robots offer?</div>
+          <div class="res-block-snippets">
+            <div class="res-block-snippet"><span class="check">✓</span> The da Vinci Xi system provides 7 degrees of freedom per instrument arm. [1]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> Human wrist articulation is limited to approximately 4 degrees of freedom. [2]</div>
+          </div>
+          <div class="res-block-details">▸ Full answer & sources · <span style="color:var(--green)">High</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="res-section">
+      <div class="res-section-header">
+        <span class="chevron">▾</span>
+        <span class="title">Section 2 — The Contamination Risk Nobody Talks About</span>
+        <span class="count">2/2 evidence items</span>
+      </div>
+      <div class="res-content">
+        <div class="res-evidence-label">Infection rate data from robotic vs. open surgery</div>
+        <div class="res-block">
+          <div class="res-block-question">How do surgical site infection rates compare between robotic-assisted and open surgical procedures?</div>
+          <div class="res-block-snippets">
+            <div class="res-block-snippet"><span class="check">✓</span> Meta-analysis of 12 studies shows robotic surgery SSI rates of 2.1% vs. 3.8% for open procedures. [1]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> However, drape-related contamination events are 40% more likely in robotic cases due to increased instrument articulation. [2]</div>
+          </div>
+          <div class="res-block-details">▸ Full answer & sources · <span style="color:var(--green)">High</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════ OPTION C: Subtle Fill (no border, light background) ═══════ -->
+  <div class="option opt-c">
+    <div class="option-label">Option C — Subtle Fill Cards</div>
+    <div class="option-desc">No hard borders. Sections grouped by a soft background fill. Research blocks use white-on-gray layering. Quiet, modern.</div>
+
+    <h3 style="font-size:15px; font-weight:600; margin-bottom:14px; color:var(--muted-fg);">VIDEO OUTLINE</h3>
+
+    <div class="outline-section">
+      <div class="outline-grid">
+        <div class="section-title-area">
+          <span class="num">1</span>
+          <span class="title">Why Robot Arms Break Traditional Draping Rules</span>
+        </div>
+        <div class="evidence-col" style="padding-top:4px;">
+          <div class="ev-item">Visual comparison of robot arm range of motion vs. static equipment</div>
+          <div class="ev-item">Statistics on degrees of freedom in modern surgical robots</div>
+        </div>
+      </div>
+      <div class="outline-body">
+        <div class="duration">0:00 – 1:30</div>
+        <div class="purpose">Establish why conventional draping rules don't apply to articulated systems</div>
+        <div class="tp">Surgical robots move through 6-7 degrees of freedom</div>
+        <div class="tp">Traditional draping assumes fixed pivot points</div>
+        <div class="tp">Joint-by-joint wrapping creates sterility gaps at unpredictable angles</div>
+      </div>
+    </div>
+
+    <div class="outline-section">
+      <div class="outline-grid">
+        <div class="section-title-area">
+          <span class="num">2</span>
+          <span class="title">The Contamination Risk Nobody Talks About</span>
+        </div>
+        <div class="evidence-col" style="padding-top:4px;">
+          <div class="ev-item">Infection rate data from robotic vs. open surgery</div>
+          <div class="ev-item">Case studies of drape failures in robotic procedures</div>
+        </div>
+      </div>
+      <div class="outline-body">
+        <div class="duration">1:30 – 3:00</div>
+        <div class="purpose">Quantify the real-world impact of inadequate draping on patient outcomes</div>
+        <div class="tp">Published infection rates specific to robotic surgery settings</div>
+        <div class="tp">Where and how drape breaches actually occur during procedures</div>
+      </div>
+    </div>
+
+    <hr class="divider" style="margin: 28px 0;" />
+
+    <div class="research-header">
+      <div>
+        <h2>Evidence Research Results</h2>
+        <p>Structured evidence gathered per section. Review usable lines, then continue.</p>
+      </div>
+      <button class="rerun-btn">↻ Re-run Research</button>
+    </div>
+
+    <div class="res-section">
+      <div class="res-section-header">
+        <span class="chevron">▾</span>
+        <span class="title">Section 1 — Why Robot Arms Break Traditional Draping Rules</span>
+        <span class="count">2/2 evidence items</span>
+      </div>
+      <div class="res-content">
+        <div class="res-evidence-label">Visual comparison of robot arm range of motion vs. static surgical equipment</div>
+        <div class="res-block">
+          <div class="res-block-question">What specific range of motion capabilities do surgical robot arms have compared to traditional surgical equipment?</div>
+          <div class="res-block-snippets">
+            <div class="res-block-snippet"><span class="check">✓</span> Surgical robot arms move through 6-7 degrees of freedom with 360-degree rotation at multiple joints. [1]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> Traditional surgical equipment has fixed pivot points with limited angular movement. [2]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> Robot arms can reach around organs and access surgical sites from multiple angles during a single procedure. [1]</div>
+          </div>
+          <div class="res-block-details">▸ Full answer & sources · <span style="color:var(--green)">High</span></div>
+        </div>
+
+        <div class="res-evidence-label" style="margin-top:12px;">Statistics on degrees of freedom in modern surgical robots</div>
+        <div class="res-block">
+          <div class="res-block-question">How many degrees of freedom do current-generation surgical robots offer?</div>
+          <div class="res-block-snippets">
+            <div class="res-block-snippet"><span class="check">✓</span> The da Vinci Xi system provides 7 degrees of freedom per instrument arm. [1]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> Human wrist articulation is limited to approximately 4 degrees of freedom. [2]</div>
+          </div>
+          <div class="res-block-details">▸ Full answer & sources · <span style="color:var(--green)">High</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="res-section">
+      <div class="res-section-header">
+        <span class="chevron">▾</span>
+        <span class="title">Section 2 — The Contamination Risk Nobody Talks About</span>
+        <span class="count">2/2 evidence items</span>
+      </div>
+      <div class="res-content">
+        <div class="res-evidence-label">Infection rate data from robotic vs. open surgery</div>
+        <div class="res-block">
+          <div class="res-block-question">How do surgical site infection rates compare between robotic-assisted and open surgical procedures?</div>
+          <div class="res-block-snippets">
+            <div class="res-block-snippet"><span class="check">✓</span> Meta-analysis of 12 studies shows robotic surgery SSI rates of 2.1% vs. 3.8% for open procedures. [1]</div>
+            <div class="res-block-snippet"><span class="check">✓</span> However, drape-related contamination events are 40% more likely in robotic cases due to increased instrument articulation. [2]</div>
+          </div>
+          <div class="res-block-details">▸ Full answer & sources · <span style="color:var(--green)">High</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>

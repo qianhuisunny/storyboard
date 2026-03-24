@@ -1,0 +1,171 @@
+<h2>Project Navigation — How do you browse diffs?</h2>
+<p class="subtitle">Pick the layout that feels right for /drift</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>Accordion List</h3>
+      <p>All projects listed vertically. Click to expand and see diffs inline.</p>
+      <div style="margin-top:12px; background:#fafaf8; border:1px solid #e5e5e0; border-radius:8px; overflow:hidden; font-size:13px;">
+        <!-- Summary bar -->
+        <div style="padding:12px 16px; background:#f0f0ec; border-bottom:1px solid #e5e5e0; font-size:11px; color:#666;">
+          <strong style="color:#333;">12 projects</strong> · Avg edit rate: 48%
+        </div>
+        <!-- Project 1 - expanded -->
+        <div style="border-bottom:1px solid #e5e5e0;">
+          <div style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:#fff;">
+            <div>
+              <div style="font-weight:600; color:#333;">How Attention Mechanisms Work</div>
+              <div style="font-size:11px; color:#888; margin-top:2px;">Created Mar 18 · 6 sections · 14 screens</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:12px; font-weight:600; color:#3A6B47; background:#E6F2EB; padding:2px 8px; border-radius:4px;">62% edited</span>
+              <span style="color:#888;">▼</span>
+            </div>
+          </div>
+          <!-- Expanded content -->
+          <div style="padding:0 16px 16px; background:#fff;">
+            <div style="font-size:11px; color:#666; padding:8px 0; border-top:1px solid #f0f0ec;">
+              <strong>Outline:</strong> 4/6 sections edited · <strong>Storyboard:</strong> 8/14 screens edited
+            </div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#e5e5e0; border:1px solid #e5e5e0; border-radius:6px; overflow:hidden; font-size:11px; line-height:1.5;">
+              <div style="background:#fafaf8; padding:10px;">
+                <div style="font-weight:600; color:#A63228; font-size:9px; text-transform:uppercase; margin-bottom:6px;">AI Original</div>
+                <div style="margin-bottom:4px; font-weight:500;">Section 2: Core Mechanism</div>
+                <div style="background:#FBEAE8; padding:2px 4px; border-radius:3px; margin-bottom:2px;">Purpose: Explain how transformer attention mechanisms work</div>
+                <div>Duration: 90-120s</div>
+              </div>
+              <div style="background:#fafaf8; padding:10px;">
+                <div style="font-weight:600; color:#3A6B47; font-size:9px; text-transform:uppercase; margin-bottom:6px;">Human Final</div>
+                <div style="margin-bottom:4px; font-weight:500;">Section 2: Core Mechanism</div>
+                <div style="background:#E6F2EB; padding:2px 4px; border-radius:3px; margin-bottom:2px;">Purpose: Show how attention weights shift meaning using a concrete example</div>
+                <div>Duration: 60-90s</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <!-- Project 2 - collapsed -->
+        <div style="border-bottom:1px solid #e5e5e0;">
+          <div style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:#fff;">
+            <div>
+              <div style="font-weight:600; color:#333;">Startup Exits for First-Time Founders</div>
+              <div style="font-size:11px; color:#888; margin-top:2px;">Created Mar 15 · 5 sections · 11 screens</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:12px; font-weight:600; color:#946B2D; background:#FFF8E7; padding:2px 8px; border-radius:4px;">38% edited</span>
+              <span style="color:#888;">▶</span>
+            </div>
+          </div>
+        </div>
+        <!-- Project 3 - collapsed -->
+        <div>
+          <div style="padding:12px 16px; display:flex; justify-content:space-between; align-items:center; cursor:pointer; background:#fff;">
+            <div>
+              <div style="font-weight:600; color:#333;">AI for Product Marketing</div>
+              <div style="font-size:11px; color:#888; margin-top:2px;">Created Mar 12 · 4 sections · 9 screens</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:12px;">
+              <span style="font-size:12px; font-weight:600; color:#888; background:#f0f0ec; padding:2px 8px; border-radius:4px;">12% edited</span>
+              <span style="color:#888;">▶</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>Dropdown Selector</h3>
+      <p>Pick a project from dropdown, full diff shown below.</p>
+      <div style="margin-top:12px; background:#fafaf8; border:1px solid #e5e5e0; border-radius:8px; overflow:hidden; font-size:13px;">
+        <!-- Dropdown -->
+        <div style="padding:12px 16px; background:#fff; border-bottom:1px solid #e5e5e0; display:flex; align-items:center; gap:12px;">
+          <span style="font-size:12px; color:#666; white-space:nowrap;">Project:</span>
+          <div style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:6px; background:#fff; font-size:13px; display:flex; justify-content:space-between; align-items:center;">
+            <span>How Attention Mechanisms Work</span>
+            <span style="color:#888;">▼</span>
+          </div>
+        </div>
+        <!-- Summary -->
+        <div style="padding:12px 16px; background:#f0f0ec; font-size:11px; color:#666; border-bottom:1px solid #e5e5e0;">
+          <strong style="color:#333;">62% edit rate</strong> · Outline: 4/6 sections · Storyboard: 8/14 screens
+        </div>
+        <!-- Diff preview -->
+        <div style="padding:16px;">
+          <div style="font-size:11px; font-weight:600; color:#888; text-transform:uppercase; margin-bottom:8px;">Outline Diff</div>
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#e5e5e0; border:1px solid #e5e5e0; border-radius:6px; overflow:hidden; font-size:11px; line-height:1.5;">
+            <div style="background:#fafaf8; padding:10px;">
+              <div style="font-weight:600; color:#A63228; font-size:9px; text-transform:uppercase; margin-bottom:6px;">AI Original</div>
+              <div style="background:#FBEAE8; padding:2px 4px; border-radius:3px;">Purpose: Explain how transformer attention...</div>
+            </div>
+            <div style="background:#fafaf8; padding:10px;">
+              <div style="font-weight:600; color:#3A6B47; font-size:9px; text-transform:uppercase; margin-bottom:6px;">Human Final</div>
+              <div style="background:#E6F2EB; padding:2px 4px; border-radius:3px;">Purpose: Show how attention weights shift...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>Card Grid</h3>
+      <p>Each project is a card with edit rate. Click to open full diff.</p>
+      <div style="margin-top:12px; display:grid; grid-template-columns:1fr 1fr; gap:10px; font-size:12px;">
+        <!-- Card 1 -->
+        <div style="background:#fff; border:1px solid #e5e5e0; border-radius:8px; padding:14px; cursor:pointer;">
+          <div style="font-weight:600; color:#333; margin-bottom:4px; font-size:13px;">How Attention Mechanisms Work</div>
+          <div style="font-size:11px; color:#888; margin-bottom:10px;">Mar 18 · 6 sections · 14 screens</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="flex:1; height:6px; background:#eee; border-radius:3px; margin-right:10px;">
+              <div style="width:62%; height:100%; background:#3A6B47; border-radius:3px;"></div>
+            </div>
+            <span style="font-weight:600; color:#3A6B47; font-size:12px;">62%</span>
+          </div>
+          <div style="font-size:10px; color:#888; margin-top:6px;">Outline: 4/6 · Storyboard: 8/14</div>
+        </div>
+        <!-- Card 2 -->
+        <div style="background:#fff; border:1px solid #e5e5e0; border-radius:8px; padding:14px; cursor:pointer;">
+          <div style="font-weight:600; color:#333; margin-bottom:4px; font-size:13px;">Startup Exits for Founders</div>
+          <div style="font-size:11px; color:#888; margin-bottom:10px;">Mar 15 · 5 sections · 11 screens</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="flex:1; height:6px; background:#eee; border-radius:3px; margin-right:10px;">
+              <div style="width:38%; height:100%; background:#946B2D; border-radius:3px;"></div>
+            </div>
+            <span style="font-weight:600; color:#946B2D; font-size:12px;">38%</span>
+          </div>
+          <div style="font-size:10px; color:#888; margin-top:6px;">Outline: 2/5 · Storyboard: 5/11</div>
+        </div>
+        <!-- Card 3 -->
+        <div style="background:#fff; border:1px solid #e5e5e0; border-radius:8px; padding:14px; cursor:pointer;">
+          <div style="font-weight:600; color:#333; margin-bottom:4px; font-size:13px;">AI for Product Marketing</div>
+          <div style="font-size:11px; color:#888; margin-bottom:10px;">Mar 12 · 4 sections · 9 screens</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="flex:1; height:6px; background:#eee; border-radius:3px; margin-right:10px;">
+              <div style="width:12%; height:100%; background:#888; border-radius:3px;"></div>
+            </div>
+            <span style="font-weight:600; color:#888; font-size:12px;">12%</span>
+          </div>
+          <div style="font-size:10px; color:#888; margin-top:6px;">Outline: 1/4 · Storyboard: 1/9</div>
+        </div>
+        <!-- Card 4 -->
+        <div style="background:#fff; border:1px solid #e5e5e0; border-radius:8px; padding:14px; cursor:pointer;">
+          <div style="font-weight:600; color:#333; margin-bottom:4px; font-size:13px;">Remote Team Onboarding</div>
+          <div style="font-size:11px; color:#888; margin-bottom:10px;">Mar 8 · 7 sections · 16 screens</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <div style="flex:1; height:6px; background:#eee; border-radius:3px; margin-right:10px;">
+              <div style="width:55%; height:100%; background:#3A6B47; border-radius:3px;"></div>
+            </div>
+            <span style="font-weight:600; color:#3A6B47; font-size:12px;">55%</span>
+          </div>
+          <div style="font-size:10px; color:#888; margin-top:6px;">Outline: 4/7 · Storyboard: 9/16</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
