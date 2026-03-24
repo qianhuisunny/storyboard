@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, Search, Loader2, ChevronDown, ChevronRight, PanelRight, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Search, Loader2, PanelRight, RefreshCw, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OutlineGrid from "./OutlineGrid";
 import AiOriginalDrawer from "./AiOriginalDrawer";
@@ -19,8 +19,6 @@ import type {
   OutlineBuilderProps,
   OutlineSection,
   SectionResearch,
-  EvidenceItemResearch,
-  TalkingPointResearch,
   ResearchBlock,
 } from "./types";
 
@@ -284,8 +282,8 @@ export default function OutlineBuilder({
                     <span className="text-sm">Researching evidence across sections...</span>
                   </div>
                 ) : (
-                  researchResults?.sections.map((section, i) => (
-                    <SectionResearchCard key={i} section={section} />
+                  researchResults?.sections.map((sectionRes, i) => (
+                    <SectionResearchCard key={i} sectionRes={sectionRes} />
                   ))
                 )}
               </div>
@@ -341,149 +339,104 @@ export default function OutlineBuilder({
   );
 }
 
-/** Section-level research card — detects v0317 (evidence_items) vs v0316 (talking_points) */
-function SectionResearchCard({ section }: { section: SectionResearch }) {
-  const [isExpanded, setIsExpanded] = useState(true);
+/** Confidence color mapping for research blocks */
+const CONFIDENCE_STYLES = {
+  high: { border: "#3A6B47", badgeBg: "rgba(58,107,71,0.1)", badgeText: "#3A6B47" },
+  medium: { border: "#B8960C", badgeBg: "rgba(184,150,12,0.1)", badgeText: "#7A5C1E" },
+  low: { border: "#A63228", badgeBg: "rgba(166,50,40,0.1)", badgeText: "#A63228" },
+} as const;
 
-  const isNewSchema = section.evidence_items && section.evidence_items.length > 0;
-  const items = isNewSchema ? section.evidence_items! : [];
-  const legacyTPs = !isNewSchema ? (section.talking_points ?? []) : [];
-
-  const itemCount = isNewSchema ? items.length : legacyTPs.length;
-  const researchedCount = isNewSchema
-    ? items.filter((item) => item.research_blocks.length > 0).length
-    : legacyTPs.filter((tp) => tp.research_blocks.length > 0).length;
+/** Single research block — confidence-first with colored left accent */
+function ResearchBlockCard({ block }: { block: ResearchBlock }) {
+  const [showDetails, setShowDetails] = useState(false);
+  const style = CONFIDENCE_STYLES[block.confidence] || CONFIDENCE_STYLES.medium;
 
   return (
-    <div className={cn("py-6", !isExpanded && "py-4")}>
-      {/* Section header */}
-      <button
-        onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center gap-2 hover:opacity-70 transition-opacity text-left"
-      >
-        {isExpanded ? (
-          <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        ) : (
-          <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-        )}
-        <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold truncate">{section.section_title}</p>
-        </div>
-        <span className="text-xs text-muted-foreground flex-shrink-0">
-          {researchedCount}/{itemCount} evidence items
+    <div
+      className="py-2.5 px-3.5 mb-3 rounded-r-md last:mb-0"
+      style={{ borderLeft: `3px solid ${style.border}`, background: "rgba(245,245,243,0.3)" }}
+    >
+      {/* Header: question + confidence badge */}
+      <div className="flex items-center gap-2.5 mb-2">
+        <span className="flex-1 text-xs text-muted-foreground">{block.research_question}</span>
+        <span
+          className="text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded shrink-0"
+          style={{ background: style.badgeBg, color: style.badgeText }}
+        >
+          {block.confidence}
         </span>
+      </div>
+
+      {/* Snippet lines */}
+      {block.storyboard_usable_phrasing.map((line, i) => (
+        <div key={i} className="text-sm leading-relaxed py-1">
+          {line}
+        </div>
+      ))}
+
+      {/* Expandable sources */}
+      {block.sources.length > 0 && (
+        <>
+          <button
+            onClick={() => setShowDetails((v) => !v)}
+            className="text-[11px] text-muted-foreground flex items-center gap-1 pt-1 cursor-pointer"
+          >
+            <span>{showDetails ? "\u25BE" : "\u25B8"}</span>
+            Sources: {block.sources[0]}
+            {block.sources.length > 1 && ` (+${block.sources.length - 1})`}
+          </button>
+          {showDetails && (
+            <div className="text-[11px] text-muted-foreground leading-relaxed pt-1 pl-3">
+              {block.sources.map((s, i) => <div key={i}>{s}</div>)}
+              {block.full_answer && (
+                <div className="mt-2 italic">{block.full_answer}</div>
+              )}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+/** Section-level research card — detects v0317 (evidence_items) vs v0316 (talking_points) */
+function SectionResearchCard({ sectionRes }: { sectionRes: SectionResearch }) {
+  const [isExpanded, setIsExpanded] = useState(true);
+  const evidenceItems = sectionRes.evidence_items || [];
+  const talkingPoints = sectionRes.talking_points || [];
+  const itemCount = evidenceItems.length || talkingPoints.length;
+
+  return (
+    <div className="py-4 border-b border-border/50 last:border-b-0">
+      <button
+        onClick={() => setIsExpanded((v) => !v)}
+        className="flex items-center gap-2 w-full text-left"
+      >
+        <span className="text-muted-foreground text-xs">{isExpanded ? "\u25BE" : "\u25B8"}</span>
+        <span className="text-sm font-semibold flex-1">{sectionRes.section_title}</span>
+        <span className="text-xs text-muted-foreground">{itemCount} evidence items</span>
       </button>
 
       {isExpanded && (
-        <div className="mt-4 pl-6 space-y-4">
-          {isNewSchema
-            ? items.map((item, j) => <EvidenceItemCard key={j} item={item} />)
-            : legacyTPs.map((tp, j) => <TalkingPointCard key={j} tp={tp} />)
-          }
+        <div className="pl-6 mt-3">
+          {evidenceItems.map((item, i) => (
+            <div key={i}>
+              <div className="text-[13px] font-medium mb-1.5 mt-3 first:mt-0">{item.evidence_needed}</div>
+              {item.research_blocks.map((block, j) => (
+                <ResearchBlockCard key={j} block={block} />
+              ))}
+            </div>
+          ))}
+          {!evidenceItems.length && talkingPoints.map((tp, i) => (
+            <div key={i}>
+              <div className="text-[13px] font-medium mb-1.5 mt-3 first:mt-0">{tp.talking_point}</div>
+              {tp.research_blocks.map((block, j) => (
+                <ResearchBlockCard key={j} block={block} />
+              ))}
+            </div>
+          ))}
         </div>
       )}
-    </div>
-  );
-}
-
-/** Evidence item with its research blocks (v0317) */
-function EvidenceItemCard({ item }: { item: EvidenceItemResearch }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">{item.evidence_needed}</p>
-      {item.research_blocks.map((block, k) => (
-        <ResearchBlockCard key={k} block={block} />
-      ))}
-      {item.research_blocks.length === 0 && (
-        <p className="text-xs text-muted-foreground italic pl-1">
-          No research needed
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Talking point with its research blocks (v0316 fallback) */
-function TalkingPointCard({ tp }: { tp: TalkingPointResearch }) {
-  return (
-    <div className="space-y-2">
-      <p className="text-sm font-medium">{tp.talking_point}</p>
-      {tp.research_blocks.map((block, k) => (
-        <ResearchBlockCard key={k} block={block} />
-      ))}
-      {tp.research_blocks.length === 0 && (
-        <p className="text-xs text-muted-foreground italic pl-1">
-          No research needed
-        </p>
-      )}
-    </div>
-  );
-}
-
-/** Single research block — phrasing is the star */
-function ResearchBlockCard({ block }: { block: ResearchBlock }) {
-  const [showDetails, setShowDetails] = useState(false);
-
-  const confidenceColors: Record<string, string> = {
-    high: "text-[#3A6B47]",
-    medium: "text-[#7A5C1E]",
-    low: "text-[#A63228]",
-  };
-
-  return (
-    <div className="pb-4 mb-4 border-b border-border/50 last:border-b-0 last:mb-0 last:pb-0">
-      {/* Research question — compact */}
-      <div className="py-1">
-        <p className="text-xs text-muted-foreground">{block.research_question}</p>
-      </div>
-
-      {/* Storyboard-usable phrasing — primary content */}
-      <div className="py-2">
-        <ul className="space-y-1">
-          {block.storyboard_usable_phrasing.map((line, i) => (
-            <li key={i} className="text-sm text-foreground flex items-start gap-2">
-              <Check className="w-3.5 h-3.5 text-[#3A6B47] mt-0.5 flex-shrink-0" />
-              <span>{line}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Full answer + sources — secondary, collapsible */}
-      <div className="py-1">
-        <button
-          onClick={() => setShowDetails(!showDetails)}
-          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-        >
-          {showDetails ? (
-            <ChevronDown className="w-3 h-3" />
-          ) : (
-            <ChevronRight className="w-3 h-3" />
-          )}
-          <span>Full answer &amp; sources</span>
-          <span className="text-[10px]">·</span>
-          <span
-            className={cn(
-              "text-[10px] font-medium capitalize",
-              confidenceColors[block.confidence] || confidenceColors.medium
-            )}
-          >
-            {block.confidence}
-          </span>
-        </button>
-        {showDetails && (
-          <div className="mt-2 space-y-1.5">
-            <p className="text-xs text-muted-foreground">{block.full_answer}</p>
-            {block.sources.length > 0 && (
-              <div className="text-[10px] text-muted-foreground">
-                {block.sources.map((s, i) => (
-                  <p key={i}>{s.startsWith("[") ? s : `[${i + 1}] ${s}`}</p>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </div>
     </div>
   );
 }
