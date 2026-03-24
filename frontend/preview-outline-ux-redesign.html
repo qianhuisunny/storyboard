@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Outline + Research UX — Evidence Deletion Options</title>
+  <style>
+    :root {
+      --bg: #FFFFFF;
+      --page-bg: #F5F5F3;
+      --border: #E5E5E3;
+      --border-light: rgba(229,229,227,0.5);
+      --muted-fg: #626B58;
+      --fg: #1A1A1A;
+      --green: #3A6B47;
+      --muted-bg: rgba(245,245,243,0.4);
+      --destructive: #A63228;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--page-bg); color: var(--fg); }
+
+    .page { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+    .page > h1 { font-size: 22px; font-weight: 600; margin-bottom: 6px; }
+    .page > p.subtitle { font-size: 13px; color: var(--muted-fg); margin-bottom: 32px; }
+
+    .option { background: var(--bg); border-radius: 12px; padding: 36px 32px; margin-bottom: 56px; }
+    .option-header { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+    .option-label { font-size: 18px; font-weight: 600; }
+    .option-tag { font-size: 11px; font-weight: 500; padding: 2px 8px; border-radius: 4px; background: var(--muted-bg); color: var(--muted-fg); }
+    .option-desc { font-size: 13px; color: var(--muted-fg); margin-bottom: 28px; line-height: 1.5; }
+
+    /* ── Shared layout ── */
+    .container-box {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      margin-bottom: 24px;
+    }
+    .container-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .container-header h3 { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-fg); }
+    .container-body { padding: 0 20px; }
+
+    /* Sparkle button */
+    .sparkle-btn { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 6px; border: none; cursor: pointer; transition: all 0.15s; background: transparent; color: var(--muted-fg); }
+    .sparkle-btn:hover { background: rgba(100,100,100,0.08); color: var(--fg); }
+    .sparkle-btn svg { width: 15px; height: 15px; }
+
+    /* Container header action */
+    .container-action { display: inline-flex; align-items: center; gap: 5px; padding: 5px 12px; border-radius: 6px; border: none; cursor: pointer; font-size: 12px; font-weight: 500; color: var(--muted-fg); background: transparent; transition: all 0.15s; }
+    .container-action:hover { background: rgba(100,100,100,0.08); color: var(--fg); }
+    .container-action svg { width: 14px; height: 14px; }
+
+    /* Section row */
+    .section-row {
+      display: grid;
+      grid-template-columns: 28px 40px 1fr 32px;
+      align-items: start;
+      gap: 0 8px;
+      padding: 24px 0;
+      border-bottom: 1px solid var(--border-light);
+    }
+    .section-row:last-child { border-bottom: none; }
+
+    .drag-handle { color: rgba(100,100,100,0.25); cursor: grab; display: flex; align-items: center; padding-top: 4px; }
+    .drag-handle:hover { color: rgba(100,100,100,0.5); }
+    .drag-handle svg { width: 16px; height: 16px; }
+
+    .section-num { font-size: 28px; font-weight: 300; color: rgba(100,100,100,0.22); font-variant-numeric: tabular-nums; user-select: none; padding-top: 2px; }
+    .section-title { font-size: 16px; font-weight: 600; line-height: 1.3; }
+    .section-duration { font-size: 13px; color: var(--muted-fg); font-family: 'SF Mono', 'Menlo', monospace; margin-top: 4px; }
+    .section-purpose { font-size: 14px; color: var(--muted-fg); line-height: 1.5; margin-top: 4px; }
+    .section-tp { font-size: 14px; line-height: 1.5; padding-left: 14px; position: relative; margin-top: 3px; }
+    .section-tp::before { content: '-'; position: absolute; left: 0; color: var(--muted-fg); }
+
+    .evidence-item { font-size: 13px; color: var(--muted-fg); padding-left: 14px; position: relative; margin-bottom: 3px; line-height: 1.4; }
+    .evidence-item::before { content: '-'; position: absolute; left: 0; }
+
+    /* Actions column: × on top, sparkle below */
+    .actions-col { display: flex; flex-direction: column; align-items: center; gap: 2px; padding-top: 0; }
+    .remove-btn { opacity: 0; color: var(--muted-fg); cursor: pointer; border: none; background: none; font-size: 16px; transition: all 0.15s; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border-radius: 6px; }
+    .section-row:hover .remove-btn { opacity: 0.35; }
+    .remove-btn:hover { opacity: 1 !important; color: var(--destructive); background: rgba(166,50,40,0.06); border-radius: 4px; }
+
+    /* Sparkle regen popover (Claude Chat numbered-options style) */
+    .regen-popover {
+      margin-top: 12px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+    .regen-popover-header {
+      padding: 16px 20px 12px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--fg);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .regen-popover-close {
+      width: 24px; height: 24px;
+      display: flex; align-items: center; justify-content: center;
+      border: none; background: none; cursor: pointer;
+      color: var(--muted-fg); font-size: 18px; border-radius: 4px;
+    }
+    .regen-popover-close:hover { background: rgba(100,100,100,0.08); color: var(--fg); }
+    .regen-popover-options { padding: 0 8px; }
+    .regen-popover-option {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 12px;
+      border-bottom: 1px solid var(--border-light);
+      cursor: pointer;
+      border-radius: 8px;
+      transition: background 0.1s;
+    }
+    .regen-popover-option:last-child { border-bottom: none; }
+    .regen-popover-option:hover { background: rgba(245,245,243,0.6); }
+    .regen-popover-option.selected { background: rgba(245,245,243,0.8); }
+    .regen-popover-num {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(245,245,243,0.7);
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--muted-fg);
+      flex-shrink: 0;
+    }
+    .regen-popover-option.selected .regen-popover-num { background: rgba(229,229,227,0.8); color: var(--fg); }
+    .regen-popover-label { font-size: 14px; color: var(--fg); flex: 1; }
+    .regen-popover-footer {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px 12px;
+      border-top: 1px solid var(--border-light);
+      margin: 0 8px;
+    }
+    .regen-popover-footer-icon {
+      width: 28px; height: 28px;
+      display: flex; align-items: center; justify-content: center;
+      background: rgba(245,245,243,0.7);
+      border-radius: 8px;
+      flex-shrink: 0;
+    }
+    .regen-popover-footer-icon svg { width: 14px; height: 14px; color: var(--muted-fg); }
+    .regen-popover-input {
+      flex: 1;
+      border: none;
+      outline: none;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--fg);
+      background: transparent;
+    }
+    .regen-popover-input::placeholder { color: rgba(100,100,100,0.35); }
+    .regen-popover-skip {
+      padding: 6px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      color: var(--fg);
+    }
+    .regen-popover-skip:hover { background: rgba(245,245,243,0.5); }
+
+    /* ── Research section ── */
+    .res-section { padding: 18px 0; border-bottom: 1px solid var(--border-light); }
+    .res-section:last-child { border-bottom: none; }
+    .res-section-header { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .res-section-header .title { font-size: 14px; font-weight: 600; flex: 1; }
+    .res-section-header .count { font-size: 12px; color: var(--muted-fg); }
+    .res-content { padding-left: 24px; margin-top: 12px; }
+    .res-block { padding-bottom: 12px; margin-bottom: 12px; border-bottom: 1px solid var(--border-light); }
+    .res-block:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .research-question { font-size: 12px; color: var(--muted-fg); padding: 4px 0; }
+    .evidence-label { font-size: 13px; font-weight: 500; margin-bottom: 6px; margin-top: 14px; }
+    .evidence-label:first-child { margin-top: 0; }
+    .details-toggle { font-size: 11px; color: var(--muted-fg); cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 3px 0; margin-top: 4px; }
+
+    /* ═══ Confidence-first research blocks ═══ */
+    .res-block-v2 {
+      padding: 10px 14px;
+      margin-bottom: 12px;
+      border-radius: 0 6px 6px 0;
+      background: rgba(245,245,243,0.3);
+    }
+    .res-block-v2:last-of-type { margin-bottom: 0; }
+    .res-block-v2-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .confidence-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .confidence-high { background: rgba(58,107,71,0.1); color: var(--green); }
+    .confidence-medium { background: rgba(184,150,12,0.1); color: #7A5C1E; }
+    .confidence-low { background: rgba(166,50,40,0.1); color: var(--destructive); }
+
+    .res-block-v2 .snippet-row {
+      display: flex; align-items: flex-start; gap: 8px; padding: 4px 0;
+      border-radius: 4px; cursor: pointer; transition: opacity 0.15s;
+    }
+    .res-block-v2 .snippet-row:hover { background: rgba(245,245,243,0.5); }
+    .res-block-v2 .snippet-text { font-size: 14px; line-height: 1.5; flex: 1; }
+    .res-block-v2 .snippet-delete {
+      color: var(--muted-fg); opacity: 0.3; cursor: pointer; font-size: 18px;
+      flex-shrink: 0; width: 22px; height: 22px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 4px; transition: all 0.15s;
+    }
+    .res-block-v2 .snippet-row:hover .snippet-delete { opacity: 0.6; }
+    .res-block-v2 .snippet-delete:hover { opacity: 1 !important; color: var(--destructive); background: rgba(166,50,40,0.06); }
+    .res-block-v2 .snippet-row.struck { opacity: 0.4; }
+    .res-block-v2 .snippet-row.struck .snippet-text { text-decoration: line-through; text-decoration-color: rgba(100,100,100,0.35); }
+
+    /* ═══ OPTION A: Always-visible × ═══ */
+    .opt-a .snippet-row { display: flex; align-items: flex-start; gap: 8px; padding: 5px 0; border-radius: 4px; }
+    .opt-a .snippet-check { color: var(--green); font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .opt-a .snippet-text { font-size: 14px; line-height: 1.5; flex: 1; }
+    .opt-a .snippet-delete {
+      color: var(--muted-fg);
+      opacity: 0.35;
+      cursor: pointer;
+      font-size: 18px;
+      flex-shrink: 0;
+      margin-top: 0;
+      width: 22px;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .opt-a .snippet-delete:hover { opacity: 1; color: var(--destructive); background: rgba(166,50,40,0.06); }
+
+    /* ═══ OPTION B: Strikethrough toggle ═══ */
+    .opt-c .snippet-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 8px;
+      padding: 6px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+    .opt-c .snippet-row:hover { background: rgba(245,245,243,0.6); }
+    .opt-c .snippet-check { color: var(--green); font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+    .opt-c .snippet-text { font-size: 14px; line-height: 1.5; flex: 1; }
+    .opt-c .snippet-row.struck .snippet-check { color: var(--muted-fg); opacity: 0.3; }
+    .opt-c .snippet-row.struck .snippet-text { color: var(--muted-fg); text-decoration: line-through; text-decoration-color: rgba(100,100,100,0.35); }
+    .opt-c .snippet-row.struck { opacity: 0.6; }
+    .opt-c .snippet-hint { font-size: 11px; color: var(--muted-fg); margin-top: 2px; font-style: italic; }
+  </style>
+</head>
+<body>
+<div class="page">
+  <h1>Outline + Research UX Redesign</h1>
+  <p class="subtitle">Shared layout across all 3: bordered containers, sparkle regen (Claude Chat form), remove on far right, aligned gutter. Difference: evidence snippet deletion UX.</p>
+
+  <!-- ═══════ Shared: Outline Container (same across all options) ═══════ -->
+  <div class="option" style="padding-bottom: 20px;">
+    <div class="option-header">
+      <span class="option-label">Shared — Outline Container</span>
+      <span class="option-tag">Same across all</span>
+    </div>
+    <p class="option-desc">Sparkle in container header for outline-level regen. Sparkle per section for section-level regen. × on far right to remove. Drag handle to reorder.</p>
+
+    <p style="font-size: 14px; color: var(--muted-fg); line-height: 1.6; margin-bottom: 20px;">Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.</p>
+
+    <div class="container-box">
+      <div class="container-header" style="display: grid; grid-template-columns: 28px 40px 1fr 32px; gap: 0 8px; padding: 12px 20px;">
+        <h3 style="grid-column: 1 / 4; align-self: center;">Video Outline</h3>
+        <button class="sparkle-btn" style="justify-self: center;" title="Regenerate entire outline" onclick="var p=document.getElementById('outline-regen-popover'); p.style.display=p.style.display==='none'?'block':'none';">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 3.7L17.2 8l-3.7 1.5L12 13.2 10.5 9.5 6.8 8l3.7-1.5z"/><path d="M19 13l1 2.5L22.5 17 20 18.5 19 21l-1-2.5L15.5 17 18 15.5z"/><path d="M5 17l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+        </button>
+      </div>
+      <!-- Outline-level regen popover (hidden, shown on sparkle click) -->
+      <div class="regen-popover" id="outline-regen-popover" style="display:none; margin: 12px 20px;">
+        <div class="regen-popover-header">
+          <span>Regenerate entire outline</span>
+          <button class="regen-popover-close" onclick="document.getElementById('outline-regen-popover').style.display='none';">&times;</button>
+        </div>
+        <div class="regen-popover-options">
+          <div class="regen-popover-option selected">
+            <span class="regen-popover-num">1</span>
+            <span class="regen-popover-label">Regenerate directly</span>
+          </div>
+        </div>
+        <div class="regen-popover-footer">
+          <div class="regen-popover-footer-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+          </div>
+          <input type="text" class="regen-popover-input" placeholder="Regenerate with my feedback" />
+          <button class="regen-popover-skip">Confirm</button>
+        </div>
+      </div>
+      <div class="container-body">
+        <!-- Section 1: Normal state -->
+        <div class="section-row">
+          <div class="drag-handle">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="section-num">1</div>
+          <div>
+            <div class="section-title">Robot Arms Draping Rules Intro</div>
+            <div class="section-duration">0:20 – 0:30</div>
+            <div class="section-purpose">Establish why conventional draping rules don't apply to articulated systems</div>
+            <div class="section-tp">Surgical robots move through 6-7 degrees of freedom</div>
+            <div class="section-tp">Traditional draping assumes fixed pivot points</div>
+
+            <!-- Section 1 regen popover -->
+            <div class="regen-popover" id="section1-regen-popover" style="display:none;">
+              <div class="regen-popover-header">
+                <span>Regenerate this section</span>
+                <button class="regen-popover-close" onclick="document.getElementById('section1-regen-popover').style.display='none';">&times;</button>
+              </div>
+              <div class="regen-popover-options">
+                <div class="regen-popover-option selected">
+                  <span class="regen-popover-num">1</span>
+                  <span class="regen-popover-label">Regenerate directly</span>
+                </div>
+              </div>
+              <div class="regen-popover-footer">
+                <div class="regen-popover-footer-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                </div>
+                <input type="text" class="regen-popover-input" placeholder="Regenerate with my feedback" />
+                <button class="regen-popover-skip">Confirm</button>
+              </div>
+            </div>
+          </div>
+          <div class="actions-col">
+            <button class="remove-btn" title="Remove section">&times;</button>
+            <button class="sparkle-btn" title="Regen this section" onclick="var p=document.getElementById('section1-regen-popover'); p.style.display=p.style.display==='none'?'block':'none';">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 3.7L17.2 8l-3.7 1.5L12 13.2 10.5 9.5 6.8 8l3.7-1.5z"/><path d="M19 13l1 2.5L22.5 17 20 18.5 19 21l-1-2.5L15.5 17 18 15.5z"/><path d="M5 17l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Section 2: Sparkle clicked → regen form shown -->
+        <div class="section-row" style="border-bottom:none;">
+          <div class="drag-handle">
+            <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg>
+          </div>
+          <div class="section-num">2</div>
+          <div>
+            <div class="section-title">Foundation Setup: Sterile Field and Robot Positioning</div>
+            <div class="section-duration">0:25 – 0:35</div>
+            <div class="section-purpose">Demonstrate that proper robot positioning is the critical first step</div>
+            <div class="section-tp">Robot arm must be positioned at optimal height and angle</div>
+            <div class="section-tp">Sterile field boundaries determine where draping starts and ends</div>
+
+            <!-- Claude Chat style regen popover (hidden by default, shown on sparkle click) -->
+            <div class="regen-popover" id="section2-regen-popover" style="display:none;">
+              <div class="regen-popover-header">
+                <span>Regenerate this section</span>
+                <button class="regen-popover-close" onclick="document.getElementById('section2-regen-popover').style.display='none';">&times;</button>
+              </div>
+              <div class="regen-popover-options">
+                <div class="regen-popover-option selected">
+                  <span class="regen-popover-num">1</span>
+                  <span class="regen-popover-label">Regenerate directly</span>
+                </div>
+              </div>
+              <div class="regen-popover-footer">
+                <div class="regen-popover-footer-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                </div>
+                <input type="text" class="regen-popover-input" placeholder="Regenerate with my feedback" />
+                <button class="regen-popover-skip">Confirm</button>
+              </div>
+            </div>
+          </div>
+          <div class="actions-col">
+            <button class="remove-btn" title="Remove section">&times;</button>
+            <button class="sparkle-btn" title="Regen this section" onclick="var p=document.getElementById('section2-regen-popover'); p.style.display=p.style.display==='none'?'block':'none';">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.5 3.7L17.2 8l-3.7 1.5L12 13.2 10.5 9.5 6.8 8l3.7-1.5z"/><path d="M19 13l1 2.5L22.5 17 20 18.5 19 21l-1-2.5L15.5 17 18 15.5z"/><path d="M5 17l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p style="font-size: 12px; color: var(--muted-fg); font-style: italic; margin-top: -16px;">Try it: click the sparkle on the outline header or on Section 2's title to open the regen popover.</p>
+  </div>
+
+  <!-- ═══════ Evidence Research — Confidence as visual hierarchy ═══════ -->
+  <div class="option">
+    <div class="option-header">
+      <span class="option-label">Evidence Research — Redesigned</span>
+      <span class="option-tag">Confidence-first</span>
+    </div>
+    <p class="option-desc">v0323: Evidence items are now derived by the researcher from talking points, not copied from the outline. Confidence badge is the primary visual signal per research block. High = green left accent, Medium = amber, Low = red. Snippets deletable (click to strikethrough, or × on hover).</p>
+
+    <div class="container-box">
+      <div class="container-header">
+        <h3>Evidence Research</h3>
+        <button class="container-action">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2v6h-6"/><path d="M3 12a9 9 0 0115-6.7L21 8"/><path d="M3 22v-6h6"/><path d="M21 12a9 9 0 01-15 6.7L3 16"/></svg>
+          Re-run Research
+        </button>
+      </div>
+      <div class="container-body">
+        <div class="res-section">
+          <div class="res-section-header">
+            <span style="color:var(--muted-fg);">&#9662;</span>
+            <span class="title">Section 1 — Robot Arms Draping Rules Intro</span>
+            <span class="count">2/2 evidence items</span>
+          </div>
+          <div class="res-content">
+
+            <!-- Evidence item 1: Mechanism comparison (derived from talking points) -->
+            <div class="evidence-label">Mechanism comparison: robot arm articulation vs. traditional equipment constraints</div>
+
+            <!-- Research block: HIGH confidence -->
+            <div class="res-block-v2" style="border-left: 3px solid var(--green);">
+              <div class="res-block-v2-header">
+                <span class="research-question" style="flex:1; padding:0;">How do the degrees of freedom in surgical robot arms compare to traditional instruments?</span>
+                <span class="confidence-badge confidence-high">High</span>
+              </div>
+              <div class="snippet-row" onclick="this.classList.toggle('struck')">
+                <span class="snippet-text">Surgical robot arms move through 6-7 degrees of freedom with 360-degree rotation at multiple joints. [1]</span>
+                <span class="snippet-delete">&times;</span>
+              </div>
+              <div class="snippet-row" onclick="this.classList.toggle('struck')">
+                <span class="snippet-text">Traditional surgical equipment has fixed pivot points with limited angular movement. [1]</span>
+                <span class="snippet-delete">&times;</span>
+              </div>
+              <div class="snippet-row" onclick="this.classList.toggle('struck')">
+                <span class="snippet-text">Robot arms can reach around organs from multiple angles during a single procedure — impossible with straight-shaft instruments. [1]</span>
+                <span class="snippet-delete">&times;</span>
+              </div>
+              <div class="details-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';">&#9656; Sources: [1] Intuitive Surgical, da Vinci Xi System Technical Specifications, 2024</div>
+              <div style="display:none; padding: 4px 0 2px; font-size: 11px; color: var(--muted-fg); line-height: 1.5;">
+                The da Vinci Xi provides 6-7 degrees of freedom per instrument arm compared to 4 degrees achievable by the human wrist. Each joint offers 360° articulation, enabling surgical access angles impossible with traditional straight-shaft laparoscopic instruments.
+              </div>
+            </div>
+
+            <!-- Evidence item 2: Process/method (derived from talking points about sterility gaps) -->
+            <div class="evidence-label">Process failure: how joint-by-joint wrapping creates sterility gaps</div>
+
+            <!-- Research block: MEDIUM confidence -->
+            <div class="res-block-v2" style="border-left: 3px solid #B8960C;">
+              <div class="res-block-v2-header">
+                <span class="research-question" style="flex:1; padding:0;">Where and how do drape breaches occur at robotic arm joints during articulation?</span>
+                <span class="confidence-badge confidence-medium">Medium</span>
+              </div>
+              <div class="snippet-row" onclick="this.classList.toggle('struck')">
+                <span class="snippet-text">Drape-related contamination events are estimated at 3-5% in robotic procedures, concentrated at articulation points. [1]</span>
+                <span class="snippet-delete">&times;</span>
+              </div>
+              <div class="snippet-row struck" onclick="this.classList.toggle('struck')">
+                <span class="snippet-text">Multi-arm systems create more drape stress points than single-arm configurations. [1]</span>
+                <span class="snippet-delete">&times;</span>
+              </div>
+              <div class="details-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';">&#9656; Sources: [1] AORN Guidelines for Draping in Robotic-Assisted Surgery, 2023</div>
+              <div style="display:none; padding: 4px 0 2px; font-size: 11px; color: var(--muted-fg); line-height: 1.5;">
+                Exact contamination rates specific to drape failures at robotic joints are not well-studied as an isolated variable. The 3-5% figure is extrapolated from broader SSI data and perioperative incident reports at high-volume robotic surgery centers.
+              </div>
+            </div>
+
+            <!-- Evidence item 3: Trend claim (LOW confidence) -->
+            <div class="evidence-label">Cost impact of intraoperative re-draping events</div>
+
+            <!-- Research block: LOW confidence -->
+            <div class="res-block-v2" style="border-left: 3px solid var(--destructive);">
+              <div class="res-block-v2-header">
+                <span class="research-question" style="flex:1; padding:0;">What is the cost of OR time lost to re-draping during robotic procedures?</span>
+                <span class="confidence-badge confidence-low">Low</span>
+              </div>
+              <div class="snippet-row" onclick="this.classList.toggle('struck')">
+                <span class="snippet-text">Extended OR time due to re-draping is estimated to cost $30-60 per minute in additional facility charges. [1]</span>
+                <span class="snippet-delete">&times;</span>
+              </div>
+              <div class="details-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';">&#9656; Sources: [1] General OR cost estimates — recommend verification before broadcast</div>
+              <div style="display:none; padding: 4px 0 2px; font-size: 11px; color: var(--muted-fg); line-height: 1.5;">
+                OR cost-per-minute figures vary widely by institution and region. The $30-60 range is a commonly cited ballpark not specific to robotic drape failures. Recommend verifying with your institution's data before using in the video.
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
