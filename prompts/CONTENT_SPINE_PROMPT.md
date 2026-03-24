@@ -13,9 +13,9 @@ Generate two fields in this exact dependency order:
 
 ### 1. core_talking_points (3-5 items)
 
-These are the major ARGUMENT BEATS required to make the POV convincing.
+These are the major talking points required to make the POV convincing.
 
-- Each point is a reasoning step that builds the case for the claim
+- Each point is a step that builds the case for the claim — it can be a reasoning step, a concrete example, or a demonstration scenario
 - They should create progression: point N builds on point N-1
 - Do NOT list subtopics or generic bullet points — list the steps of the argument
 
@@ -26,12 +26,12 @@ BAD — feature list, no progression (each point is a parallel example at the sa
 - "You can prototype interactive demos and product showcases without waiting for engineering"
 - "Campaign artifacts like comparison tables, ROI calculators, and lead magnets become immediately testable"
 
-GOOD — argument that builds (each point depends on the previous one):
+GOOD — each point builds on the previous one:
 - "The barrier isn't skill — it's the assumption that building requires engineering"
 - "Claude Code changes the equation: describe what you want in plain English, get a working artifact"
 - "When PMMs can prototype and test their own campaign assets, iteration speed compounds — you're no longer blocked by sprint cycles"
 
-The BAD version is a product feature list. The GOOD version is a chain of reasoning: identify the blocker → explain why it no longer applies → show the compounding consequence. Each step only makes sense after the previous one.
+The BAD version is a product feature list — three parallel examples at the same level. The GOOD version builds: identify the blocker → explain why it no longer applies → show the compounding consequence. Each step only makes sense after the previous one.
 
 ### 2. misconception (1 sentence)
 
@@ -64,7 +64,7 @@ Return a JSON object with exactly these 2 keys:
 
 ```json
 {
-  "core_talking_points": ["argument beat 1", "argument beat 2", "argument beat 3"],
+  "core_talking_points": ["talking point 1", "talking point 2", "talking point 3"],
   "misconception": "Most people think X, but actually Y."
 }
 ```
