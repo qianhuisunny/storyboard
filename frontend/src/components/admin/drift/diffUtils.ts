@@ -144,68 +144,76 @@ function normalizeVisualDirection(screen: ProductionScreen): string {
   return getVisualDirectionArray(screen.visual_direction).join("; ");
 }
 
+function diffScreenFields(ai: ProductionScreen | undefined, human: ProductionScreen | undefined): FieldDiff[] {
+  const fields: FieldDiff[] = [];
+
+  if (ai && !human) {
+    for (const key of SCREEN_FIELDS) {
+      fields.push({ field: key, status: "removed", aiValue: String(ai[key] || "") });
+    }
+    fields.push({ field: "visual_direction", status: "removed", aiValue: normalizeVisualDirection(ai) });
+    fields.push({ field: "duration", status: "removed", aiValue: String(ai.duration) });
+    return fields;
+  }
+
+  if (!ai && human) {
+    for (const key of SCREEN_FIELDS) {
+      fields.push({ field: key, status: "added", humanValue: String(human[key] || "") });
+    }
+    fields.push({ field: "visual_direction", status: "added", humanValue: normalizeVisualDirection(human) });
+    fields.push({ field: "duration", status: "added", humanValue: String(human.duration) });
+    return fields;
+  }
+
+  if (!ai || !human) return fields;
+
+  // Both exist — compare
+  for (const key of SCREEN_FIELDS) {
+    const aiVal = String(ai[key] || "");
+    const humanVal = String(human[key] || "");
+    if (aiVal === humanVal) {
+      fields.push({ field: key, status: "unchanged", aiValue: aiVal, humanValue: humanVal });
+    } else {
+      fields.push({ field: key, status: "modified", aiValue: aiVal, humanValue: humanVal });
+    }
+  }
+
+  // visual_direction (normalize to string for comparison)
+  const aiVD = normalizeVisualDirection(ai);
+  const humanVD = normalizeVisualDirection(human);
+  if (aiVD === humanVD) {
+    fields.push({ field: "visual_direction", status: "unchanged", aiValue: aiVD, humanValue: humanVD });
+  } else {
+    fields.push({ field: "visual_direction", status: "modified", aiValue: aiVD, humanValue: humanVD });
+  }
+
+  // duration
+  const aiDur = String(ai.duration);
+  const humanDur = String(human.duration);
+  if (aiDur === humanDur) {
+    fields.push({ field: "duration", status: "unchanged", aiValue: aiDur, humanValue: humanDur });
+  } else {
+    fields.push({ field: "duration", status: "modified", aiValue: aiDur, humanValue: humanDur });
+  }
+
+  return fields;
+}
+
 function diffScreens(
   aiScreens: ProductionScreen[],
   humanScreens: ProductionScreen[]
 ): SectionDiff[] {
+  // Join on screen_number (not array index) so insertions/deletions don't cascade
+  const aiMap = new Map(aiScreens.map(s => [s.screen_number, s]));
+  const humanMap = new Map(humanScreens.map(s => [s.screen_number, s]));
+  const allNumbers = new Set([...aiMap.keys(), ...humanMap.keys()]);
+
   const result: SectionDiff[] = [];
-  const maxLen = Math.max(aiScreens.length, humanScreens.length);
-
-  for (let i = 0; i < maxLen; i++) {
-    const ai = aiScreens[i];
-    const human = humanScreens[i];
-    const fields: FieldDiff[] = [];
-
-    if (ai && !human) {
-      for (const key of SCREEN_FIELDS) {
-        fields.push({ field: key, status: "removed", aiValue: String(ai[key] || "") });
-      }
-      fields.push({ field: "visual_direction", status: "removed", aiValue: normalizeVisualDirection(ai) });
-      fields.push({ field: "duration", status: "removed", aiValue: String(ai.duration) });
-      result.push({ label: `Screen ${ai.screen_number}`, fields });
-      continue;
-    }
-
-    if (!ai && human) {
-      for (const key of SCREEN_FIELDS) {
-        fields.push({ field: key, status: "added", humanValue: String(human[key] || "") });
-      }
-      fields.push({ field: "visual_direction", status: "added", humanValue: normalizeVisualDirection(human) });
-      fields.push({ field: "duration", status: "added", humanValue: String(human.duration) });
-      result.push({ label: `Screen ${human.screen_number}`, fields });
-      continue;
-    }
-
-    // Both exist — compare
-    for (const key of SCREEN_FIELDS) {
-      const aiVal = String(ai[key] || "");
-      const humanVal = String(human[key] || "");
-      if (aiVal === humanVal) {
-        fields.push({ field: key, status: "unchanged", aiValue: aiVal, humanValue: humanVal });
-      } else {
-        fields.push({ field: key, status: "modified", aiValue: aiVal, humanValue: humanVal });
-      }
-    }
-
-    // visual_direction (normalize to string for comparison)
-    const aiVD = normalizeVisualDirection(ai);
-    const humanVD = normalizeVisualDirection(human);
-    if (aiVD === humanVD) {
-      fields.push({ field: "visual_direction", status: "unchanged", aiValue: aiVD, humanValue: humanVD });
-    } else {
-      fields.push({ field: "visual_direction", status: "modified", aiValue: aiVD, humanValue: humanVD });
-    }
-
-    // duration
-    const aiDur = String(ai.duration);
-    const humanDur = String(human.duration);
-    if (aiDur === humanDur) {
-      fields.push({ field: "duration", status: "unchanged", aiValue: aiDur, humanValue: humanDur });
-    } else {
-      fields.push({ field: "duration", status: "modified", aiValue: aiDur, humanValue: humanDur });
-    }
-
-    result.push({ label: `Screen ${human.screen_number}`, fields });
+  for (const num of [...allNumbers].sort((a, b) => a - b)) {
+    const ai = aiMap.get(num);
+    const human = humanMap.get(num);
+    const fields = diffScreenFields(ai, human);
+    result.push({ label: `Screen ${num}`, fields });
   }
 
   return result;
