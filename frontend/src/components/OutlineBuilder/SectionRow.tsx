@@ -7,9 +7,10 @@
 import { useRef, useCallback, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, MoreHorizontal, Trash2, RefreshCw, Loader2, Send } from "lucide-react";
+import { GripVertical, Loader2, X, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { OutlineSection } from "./types";
+import { RegenPopover } from "./RegenPopover";
 
 interface SectionRowProps {
   section: OutlineSection;
@@ -126,10 +127,7 @@ export default function SectionRow({
   disabled = false,
   isLast = false,
 }: SectionRowProps) {
-  const [showMenu, setShowMenu] = useState(false);
-  const [showRegenInput, setShowRegenInput] = useState(false);
-  const [regenInstruction, setRegenInstruction] = useState("");
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [showRegenPopover, setShowRegenPopover] = useState(false);
 
   const {
     attributes,
@@ -145,26 +143,12 @@ export default function SectionRow({
     transition,
   };
 
-  const [regenError, setRegenError] = useState<string | null>(null);
-
-  const handleRegenSubmit = async () => {
-    if (!regenInstruction.trim() || !onRegenerate) return;
-    setRegenError(null);
-    try {
-      await onRegenerate(section.sectionNumber, regenInstruction.trim());
-      setRegenInstruction("");
-      setShowRegenInput(false);
-    } catch (err) {
-      setRegenError(err instanceof Error ? err.message : "Regeneration failed");
-    }
-  };
-
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "group relative grid grid-cols-[32px_56px_1fr] items-start py-8 transition-colors rounded-lg",
+        "group relative grid grid-cols-[28px_40px_1fr_32px] items-start py-8 transition-colors rounded-lg",
         !isLast && "border-b border-border/50",
         index === 0 && "pt-2",
         isDragging
@@ -173,7 +157,7 @@ export default function SectionRow({
         isRegenerating && "opacity-60 pointer-events-none"
       )}
     >
-      {/* Drag handle — hidden by default, visible on row hover */}
+      {/* Column 1: Drag handle — hidden by default, visible on row hover */}
       <div className="flex items-start justify-center pt-1">
         <button
           {...attributes}
@@ -188,71 +172,20 @@ export default function SectionRow({
         </button>
       </div>
 
-      {/* Section number — large, light */}
+      {/* Column 2: Section number — large, light */}
       <div className="text-3xl font-light text-muted-foreground/30 tabular-nums text-right pr-4 pt-0.5 select-none">
         {index + 1}
       </div>
 
-      {/* Main content: title, duration, purpose, talking points */}
-      <div className="pr-10 space-y-1.5 min-w-0">
-        <div className="flex items-start justify-between gap-2">
-          <EditableBlock
-            value={section.title}
-            onChange={(v) => onUpdate(section.id, { title: v })}
-            className="font-semibold text-[17px] text-foreground flex-1"
-            placeholder="Section title"
-            disabled={disabled}
-          />
-
-          {/* [...] action menu */}
-          {!disabled && (onRemove || onRegenerate) && (
-            <div className="relative flex-shrink-0" ref={menuRef}>
-              <button
-                onClick={() => setShowMenu(!showMenu)}
-                className={cn(
-                  "w-7 h-7 rounded-md flex items-center justify-center transition-all",
-                  showMenu
-                    ? "bg-muted text-foreground"
-                    : "opacity-0 group-hover:opacity-60 hover:!opacity-100 text-muted-foreground hover:bg-muted"
-                )}
-              >
-                <MoreHorizontal className="w-4 h-4" />
-              </button>
-
-              {showMenu && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowMenu(false)} />
-                  <div className="absolute right-0 top-8 z-20 w-48 bg-popover border border-border rounded-lg shadow-lg py-1">
-                    {onRegenerate && (
-                      <button
-                        onClick={() => {
-                          setShowMenu(false);
-                          setShowRegenInput(true);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors"
-                      >
-                        <RefreshCw className="w-3.5 h-3.5" />
-                        Regen with note
-                      </button>
-                    )}
-                    {onRemove && (
-                      <button
-                        onClick={() => {
-                          setShowMenu(false);
-                          onRemove(section.id);
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-destructive hover:bg-muted transition-colors"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Remove section
-                      </button>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+      {/* Column 3: Main content: title, duration, purpose, talking points */}
+      <div className="space-y-1.5 min-w-0">
+        <EditableBlock
+          value={section.title}
+          onChange={(v) => onUpdate(section.id, { title: v })}
+          className="font-semibold text-[17px] text-foreground"
+          placeholder="Section title"
+          disabled={disabled}
+        />
 
         <EditableBlock
           value={section.duration}
@@ -279,49 +212,38 @@ export default function SectionRow({
           disabled={disabled}
         />
 
-        {/* Inline regen input */}
-        {showRegenInput && (
-          <div className="mt-3 flex items-center gap-2">
-            <input
-              type="text"
-              value={regenInstruction}
-              onChange={(e) => setRegenInstruction(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleRegenSubmit();
-                if (e.key === "Escape") {
-                  setShowRegenInput(false);
-                  setRegenInstruction("");
-                }
-              }}
-              placeholder="What should change about this section?"
-              className="flex-1 px-3 py-1.5 text-sm border border-border rounded-md bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-              autoFocus
-            />
-            <button
-              onClick={handleRegenSubmit}
-              disabled={!regenInstruction.trim() || isRegenerating}
-              className="px-2.5 py-1.5 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50 flex items-center gap-1.5"
-            >
-              {isRegenerating ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-              ) : (
-                <Send className="w-3.5 h-3.5" />
-              )}
-            </button>
-            <button
-              onClick={() => {
-                setShowRegenInput(false);
-                setRegenInstruction("");
-                setRegenError(null);
-              }}
-              className="px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground"
-            >
-              Cancel
-            </button>
-          </div>
+        {showRegenPopover && onRegenerate && (
+          <RegenPopover
+            title="Regenerate this section"
+            onRegenerate={(instruction) => {
+              onRegenerate(section.sectionNumber, instruction);
+              setShowRegenPopover(false);
+            }}
+            onClose={() => setShowRegenPopover(false)}
+            isRegenerating={isRegenerating}
+          />
         )}
-        {regenError && (
-          <p className="mt-1 text-xs text-destructive">{regenError}</p>
+      </div>
+
+      {/* Column 4: Actions */}
+      <div className="flex flex-col items-center gap-0.5">
+        {!disabled && onRemove && (
+          <button
+            onClick={() => onRemove(section.id)}
+            className="w-7 h-7 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-35 hover:!opacity-100 hover:text-destructive hover:bg-destructive/5 transition-all text-muted-foreground"
+            title="Remove section"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
+        {!disabled && onRegenerate && (
+          <button
+            onClick={() => setShowRegenPopover((v) => !v)}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all"
+            title="Regenerate this section"
+          >
+            <Sparkles className="w-[15px] h-[15px]" />
+          </button>
         )}
       </div>
 
