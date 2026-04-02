@@ -37,7 +37,7 @@ class StoryboardWriter(BaseAgent):
     Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_v0323.md"
+    prompt_file = "storyboard_writer_prompt_v0324.md"
 
     def __init__(self):
         super().__init__()

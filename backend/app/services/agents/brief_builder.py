@@ -52,7 +52,7 @@ class BriefBuilder(BaseAgent):
             return self._generate_round2(state.intake_form, confirmed_fields)
         elif round == 3:
             research_results = getattr(state, 'research_results', None) or {}
-            return self._generate_round3(state.intake_form, confirmed_fields, research_results)
+            return self._generate_round3(state.intake_form, confirmed_fields, research_results, revision_feedback)
         else:
             raise ValueError(f"Invalid round: {round}. Must be 1, 2, or 3.")
 
@@ -173,7 +173,8 @@ class BriefBuilder(BaseAgent):
         self,
         intake_form: dict,
         confirmed_fields: dict,
-        research_results: dict
+        research_results: dict,
+        revision_feedback: Optional[str] = None,
     ) -> dict:
         """
         Generate Section 3: Content Spine fields from user's Point of View.
@@ -210,6 +211,15 @@ class BriefBuilder(BaseAgent):
 - Platform: {platform}
 - Delivery Tone: {delivery_tone}
 - Freshness: {freshness}"""
+
+        if revision_feedback:
+            prompt += f"""
+
+## REVISION FEEDBACK
+The user reviewed the previous generation and wants changes:
+{revision_feedback}
+
+Regenerate the content spine incorporating this feedback."""
 
         # Call LLM to generate content spine
         try:

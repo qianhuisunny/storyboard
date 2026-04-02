@@ -86,6 +86,8 @@ export default function RoundThreeForm({
 }: RoundThreeFormProps) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState<string | null>(null);
+  const [showRegenerate, setShowRegenerate] = useState(false);
+  const [regenerateFeedback, setRegenerateFeedback] = useState("");
 
   // Determine phase: if generated fields have values, we're in Phase 2
   const hasGeneratedFields = GENERATED_FIELDS.some(
@@ -98,12 +100,14 @@ export default function RoundThreeForm({
 
   const povValue = typeof fields.point_of_view?.value === "string" ? fields.point_of_view.value : "";
 
-  const handleGenerate = async () => {
+  const handleGenerate = async (feedback?: string) => {
     if (!onGenerateContentSpine || !povValue.trim()) return;
     setIsGenerating(true);
     setGenerateError(null);
     try {
-      await onGenerateContentSpine(povValue.trim());
+      await onGenerateContentSpine(povValue.trim(), feedback);
+      setShowRegenerate(false);
+      setRegenerateFeedback("");
     } catch (err) {
       setGenerateError(err instanceof Error ? err.message : "Failed to generate content spine");
     } finally {
@@ -192,7 +196,7 @@ export default function RoundThreeForm({
       {phase === "pov" && showConfirmButton && (
         <div className="border-t pt-4">
           <button
-            onClick={handleGenerate}
+            onClick={() => handleGenerate()}
             disabled={!povValue.trim() || disabled || isGenerating}
             className={cn(
               "w-full py-3 px-4 rounded-lg font-medium transition-colors flex items-center justify-center gap-2",
@@ -239,6 +243,69 @@ export default function RoundThreeForm({
               />
             );
           })}
+        </div>
+      )}
+
+      {/* Phase 2: Regenerate */}
+      {phase === "spine" && onGenerateContentSpine && (
+        <div className="border-t pt-4">
+          {!showRegenerate ? (
+            <button
+              type="button"
+              onClick={() => setShowRegenerate(true)}
+              disabled={disabled || isGenerating}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors underline underline-offset-2"
+            >
+              Not quite right? Regenerate with feedback
+            </button>
+          ) : (
+            <div className="space-y-2">
+              <textarea
+                value={regenerateFeedback}
+                onChange={(e) => setRegenerateFeedback(e.target.value)}
+                placeholder="e.g. Make the talking points more focused on the counterintuitive insight, less on features"
+                className={cn(
+                  "w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm min-h-[60px] resize-y",
+                  "focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary",
+                  "placeholder:text-muted-foreground/50"
+                )}
+                rows={2}
+              />
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => handleGenerate(regenerateFeedback || undefined)}
+                  disabled={isGenerating}
+                  className={cn(
+                    "flex-1 py-2 px-3 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2",
+                    !isGenerating
+                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                      : "bg-muted text-muted-foreground cursor-not-allowed"
+                  )}
+                >
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      Regenerating...
+                    </>
+                  ) : (
+                    "Regenerate Content Spine \u2192"
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowRegenerate(false);
+                    setRegenerateFeedback("");
+                  }}
+                  disabled={isGenerating}
+                  className="py-2 px-3 rounded-lg text-sm text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

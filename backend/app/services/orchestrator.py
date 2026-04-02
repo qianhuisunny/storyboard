@@ -712,6 +712,8 @@ class StoryboardOrchestrator:
         if not point_of_view:
             raise ValueError("point_of_view is required in payload")
 
+        feedback = payload.get("feedback")  # Optional regeneration feedback
+
         # Store POV in confirmed fields
         state.confirmed_fields["point_of_view"] = {
             "value": point_of_view,
@@ -726,7 +728,8 @@ class StoryboardOrchestrator:
         round3_result = self.agents["brief_builder"].run(
             state,
             round=3,
-            confirmed_fields=state.confirmed_fields
+            confirmed_fields=state.confirmed_fields,
+            revision_feedback=feedback,
         )
 
         # Update story_brief with generated fields

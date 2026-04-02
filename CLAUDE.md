@@ -208,9 +208,9 @@ RAG pipeline: `backend/app/services/rag/` — handles PDF/URL upload, chunking, 
 | Agent File | Prompt File |
 |-----------|------------|
 | `agents/brief_builder.py` | `prompts/CONTENT_SPINE_PROMPT.md` (Round 3 only; Rounds 1-2 have no LLM call) |
-| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0323.md` |
-| `agents/evidence_researcher.py` | `prompts/evidence_researcher_prompt_v0323.md` |
-| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0323.md` |
+| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0324.md` |
+| `agents/evidence_researcher.py` | `prompts/evidence_researcher_prompt_v0324.md` |
+| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0324.md` |
 
 ### Agent Structure Pattern
 

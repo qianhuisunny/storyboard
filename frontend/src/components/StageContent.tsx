@@ -408,13 +408,13 @@ export default function StageContent({
 
   // Handle generating content spine from a point of view
   const handleGenerateContentSpine = useCallback(
-    async (pov: string): Promise<Record<string, BriefField>> => {
+    async (pov: string, feedback?: string): Promise<Record<string, BriefField>> => {
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           event: "generate_content_spine",
-          payload: { point_of_view: pov },
+          payload: { point_of_view: pov, ...(feedback ? { feedback } : {}) },
         }),
       });
       if (!response.ok) throw new Error("Failed to generate content spine");

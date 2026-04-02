@@ -1050,11 +1050,102 @@
         "dependencies": [],
         "status": "pending",
         "subtasks": []
+      },
+      {
+        "id": "87",
+        "title": "Add context field usage instructions to CONTENT_SPINE_PROMPT.md",
+        "description": "The content spine prompt receives all confirmed brief fields (target_audience, audience_level, viewer_outcome, duration, platform, delivery_tone, freshness_expectation) but has no instructions on how to use them. LLM may ignore these fields entirely. Add explicit guidance on how each field should shape the generated talking points and misconception.",
+        "details": "Currently CONTENT_SPINE_PROMPT.md only says 'generate argument beats for the POV'. The user prompt sends all brief context fields, but the system prompt never explains how to use them.\n\nAdd a '## How to Use Brief Context' section with guidance:\n- **Target Audience + Audience Level**: Determines the starting point of the argument. Beginners need foundational concepts; experts can skip common knowledge.\n- **Viewer Outcome**: The talking points must culminate in delivering this outcome. It's the destination — if the last talking point doesn't get the viewer there, the spine is broken.\n- **Duration**: Constrains the number of talking points. ~5 min video = 3 beats. ~15 min = 5 beats. Don't generate 5 beats for a 3-minute video.\n- **Delivery Tone**: Shapes the misconception framing. Conversational tone = softer framing ('A lot of people assume...'). Authoritative tone = direct challenge ('The common wisdom is wrong because...').\n- **Platform**: May affect depth. YouTube long-form can go deeper; LinkedIn/TikTok needs punchier beats.\n- **Freshness Expectation**: If 'evergreen', avoid time-sensitive claims. If 'timely', lean into current trends.\n\nPlace this section between 'Generation Instructions' and 'Quality Check'. Update the quality check to verify that talking points account for audience level and duration constraints.",
+        "testStrategy": "1. Run the content spine generation with the same POV ('Don't think Claude Code is irrelevant to marketers...') and compare output before/after the prompt change.\n2. Test with different audience levels (beginner vs expert) — talking points should start at different abstraction levels.\n3. Test with different durations (180s vs 600s) — should produce 3 vs 4-5 talking points.\n4. Verify misconception framing changes with delivery_tone (conversational vs authoritative).",
+        "priority": "medium",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": [],
+        "updatedAt": "2026-03-24T03:35:30.624503+00:00"
+      },
+      {
+        "id": 88,
+        "title": "Implement Deterministic Eval Checks for Writer",
+        "description": "Add deterministic evaluation checks for the Writer agent's storyboard output including word count bounds, duration accuracy, screen count limits, required field completeness, and brief alignment.",
+        "details": "Implement `eval_writer_output(storyboard, brief, outline)` function that checks: 1) each screen voiceover 20-80 words, 2) duration = word_count / 130 * 60 ±5s, 3) reasonable screen count for video duration, 4) every screen has voiceover/visual_direction/screen_type, 5) title/audience matches brief. Use simple Python functions with JSON schema validation via pydantic. Log failures with specific reasons.",
+        "testStrategy": "Create 10 synthetic storyboard examples (5 pass, 5 fail each check). Run eval on all, verify 100% correct pass/fail classification. Test edge cases: 19/81 words, duration ±6s, missing fields.",
+        "priority": "high",
+        "dependencies": [],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 89,
+        "title": "Implement Generate-Evaluate-Retry Loop in BaseAgent",
+        "description": "Add `call_llm_with_eval()` method to BaseAgent implementing the inner loop: generate → eval → retry up to 3 times with failure feedback.",
+        "details": "In BaseAgent: def call_llm_with_eval(self, eval_fn, max_retries=3): for attempt in range(max_retries): response = self.llm_call(prompt); pass, failures = eval_fn(response); if pass: return response; prompt += format_failures(failures); log_attempt(attempt, failures). On final attempt, return regardless. Use structured JSON output parsing.",
+        "testStrategy": "Mock LLM that fails first 2 attempts, passes 3rd. Verify 3 calls made, feedback properly appended each time. Test max_retries=1 (no retry), successful first attempt (1 call only).",
+        "priority": "high",
+        "dependencies": [
+          88
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 90,
+        "title": "Implement Deterministic Eval Checks for Director",
+        "description": "Add deterministic evaluation for Director outline: section count 3-8, duration sum ±20% target, talking point coverage, required field completeness.",
+        "details": "Implement `eval_director_output(outline, brief)`: 1) len(sections) in [3,8], 2) abs(sum(durations) - target_duration) <= 0.2*target_duration, 3) all core_talking_points appear in some section.talking_points, 4) each section has title/talking_points/evidence_needed. Use set intersection for talking point coverage check.",
+        "testStrategy": "Test with outlines: 2/9 sections, duration ±25%, missing 1 talking point, missing fields. Verify precise failure detection. Test perfect outline passes all checks.",
+        "priority": "high",
+        "dependencies": [
+          89
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 91,
+        "title": "Implement Deterministic Eval Checks for Evidence Researcher",
+        "description": "Add deterministic evaluation for Evidence Researcher: citation presence, section_title alignment, non-empty usable_line when search results exist.",
+        "details": "Implement `eval_evidence_output(evidence, outline)`: 1) every evidence task has >=1 source, 2) evidence.section_title in outline section titles, 3) if search_results: usable_line is not empty/null. Extract section_titles from outline once for efficient lookup.",
+        "testStrategy": "Test evidence batches with: no sources, mismatched titles, empty usable_line despite search results. Verify 100% detection. Test valid evidence passes all checks.",
+        "priority": "high",
+        "dependencies": [
+          90
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 92,
+        "title": "Implement Cached Eval Mode and CLI",
+        "description": "Save agent outputs to cache directory and implement CLI for zero-cost re-evaluation on cached outputs for prompt refinement validation.",
+        "details": "Create data/eval_cache/{project_id}/{agent_name}_{timestamp}.json for each agent output. CLI: python -m eval --agent director --cached → scan directory, run corresponding eval_fn on each JSON, output pass/fail counts + failure details per file. Support --project_id filter.",
+        "testStrategy": "Generate 20 cached outputs (10 pass, 10 fail). Run CLI, verify exact pass/fail counts match. Test --agent filter shows only director files. Verify JSON parsing handles all output formats.",
+        "priority": "medium",
+        "dependencies": [
+          91
+        ],
+        "status": "pending",
+        "subtasks": []
+      },
+      {
+        "id": 93,
+        "title": "Integrate Per-Agent Eval Gating in Main Pipeline",
+        "description": "Wire eval functions into main pipeline with early stopping: run eval after each agent, fail-fast if deterministic checks fail.",
+        "details": "In main pipeline: after director.call_llm_with_eval(eval_director_output), after evidence.call_llm_with_eval(eval_evidence_output), after writer.call_llm_with_eval(eval_writer_output). If any fails after 3 retries, raise PipelineValidationError with failures. Enable/disable via config flag.",
+        "testStrategy": "Run full pipeline with: good inputs (all pass), bad director outline (stops before evidence), bad evidence (stops before writer). Verify correct early stopping and error messages.",
+        "priority": "medium",
+        "dependencies": [
+          89,
+          90,
+          91,
+          92
+        ],
+        "status": "pending",
+        "subtasks": []
       }
     ],
     "metadata": {
       "created": "2026-03-24T01:00:20.456Z",
-      "updated": "2026-03-24T02:59:17.468Z",
+      "updated": "2026-04-01T18:45:36.818Z",
       "description": "Tasks for master context"
     }
   }

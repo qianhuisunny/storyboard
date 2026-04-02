@@ -17,7 +17,7 @@ interface KnowledgeShareBriefBuilderProps {
   isResearchRunning?: boolean;
   isAlreadyApproved?: boolean; // Brief was already approved on backend
   onRoundConfirm: (round: number, confirmedFields: Record<string, BriefField>) => Promise<Record<string, BriefField>>;
-  onGenerateContentSpine: (pov: string) => Promise<Record<string, BriefField>>;
+  onGenerateContentSpine: (pov: string, feedback?: string) => Promise<Record<string, BriefField>>;
   onBriefApprove: (allFields: Record<string, BriefField>) => Promise<void>;
   onEditBrief: () => void;
 }
@@ -211,11 +211,11 @@ export default function KnowledgeShareBriefBuilder({
 
   // Handle generating content spine from a point of view
   const handleGenerateContentSpine = useCallback(
-    async (pov: string) => {
+    async (pov: string, feedback?: string) => {
       setIsLoading(true);
       setError(null);
       try {
-        const newFields = await onGenerateContentSpine(pov);
+        const newFields = await onGenerateContentSpine(pov, feedback);
         // Merge returned fields into local state
         setFields((prev) => ({
           ...prev,
