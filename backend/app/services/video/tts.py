@@ -58,7 +58,6 @@ def generate_all_audio(
         client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
     audio_dir = os.path.join(output_dir, "audio")
-    os.makedirs(audio_dir, exist_ok=True)
 
     for panel in panels:
         output_path = os.path.join(audio_dir, f"panel_{panel.panel_number:02d}.mp3")
