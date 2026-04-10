@@ -1,3 +1,4 @@
+import pytest
 from video.avatar import RunwareAvatarClient
 
 
@@ -25,3 +26,21 @@ def test_build_request_body_pro():
         model="pro",
     )
     assert body["model"] == "klingai:avatar@2.0-pro"
+
+
+def test_init_raises_without_api_key(monkeypatch):
+    """Missing RUNWARE_API_KEY should raise ValueError."""
+    monkeypatch.delenv("RUNWARE_API_KEY", raising=False)
+    with pytest.raises(ValueError, match="RUNWARE_API_KEY is required"):
+        RunwareAvatarClient(api_key=None)
+
+
+def test_build_request_rejects_invalid_model():
+    """Invalid model name should raise ValueError."""
+    client = RunwareAvatarClient(api_key="test_key")
+    with pytest.raises(ValueError, match="model must be one of"):
+        client.build_request(
+            image_url="https://example.com/speaker.png",
+            audio_url="https://example.com/audio.mp3",
+            model="typo",
+        )

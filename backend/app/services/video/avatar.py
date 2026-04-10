@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 RUNWARE_API_URL = "https://api.runware.ai/v1"
+VALID_AVATAR_MODELS = ("standard", "pro")
 
 
 class RunwareAvatarClient:
@@ -16,6 +17,10 @@ class RunwareAvatarClient:
 
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("RUNWARE_API_KEY")
+        if not self.api_key:
+            raise ValueError(
+                "RUNWARE_API_KEY is required (pass api_key or set RUNWARE_API_KEY env var)"
+            )
 
     def build_request(
         self,
@@ -24,6 +29,8 @@ class RunwareAvatarClient:
         model: str = "standard",
     ) -> dict:
         """Build the Runware API request body for Kling Avatar 2.0."""
+        if model not in VALID_AVATAR_MODELS:
+            raise ValueError(f"model must be one of {VALID_AVATAR_MODELS}, got {model!r}")
         model_id = f"klingai:avatar@2.0-{model}"
         return {
             "taskType": "videoInference",
@@ -49,7 +56,10 @@ class RunwareAvatarClient:
             headers=headers,
             timeout=30,
         )
-        response.raise_for_status()
+        if response.status_code >= 400:
+            raise RuntimeError(
+                f"Runware submit failed ({response.status_code}): {response.text}"
+            )
         return request_body["taskUUID"]
 
     def poll_result(self, task_uuid: str, timeout: int = 300, interval: int = 5) -> str:
@@ -74,10 +84,16 @@ class RunwareAvatarClient:
             data = response.json()
             if isinstance(data, list) and len(data) > 0:
                 result = data[0]
-                if result.get("status") == "success":
-                    return result.get("videoURL") or result.get("outputURL")
-                if result.get("status") == "error":
+                status = result.get("status")
+                if status == "success":
+                    video_url = result.get("videoURL") or result.get("outputURL")
+                    if not video_url:
+                        raise RuntimeError(f"Runware returned success but no video URL: {result}")
+                    return video_url
+                if status == "error":
                     raise RuntimeError(f"Runware task failed: {result}")
+                # Unknown/processing status — log and continue polling
+                print(f"  [Avatar] Polling... status={status!r}")
             time.sleep(interval)
         raise TimeoutError(f"Kling avatar generation timed out after {timeout}s")
 
