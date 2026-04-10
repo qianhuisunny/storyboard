@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from video.models import ScreenType
 from video.parser import parse_storyboard
