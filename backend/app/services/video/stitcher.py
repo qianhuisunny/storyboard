@@ -15,7 +15,9 @@ def build_concat_file(clip_paths: list[str], output_path: str) -> str:
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         for path in clip_paths:
-            f.write(f"file '{path}'\n")
+            # Escape single quotes for ffmpeg concat demuxer format
+            escaped = path.replace("'", r"'\''")
+            f.write(f"file '{escaped}'\n")
     return output_path
 
 
@@ -30,7 +32,8 @@ def stitch_videos(clip_paths: list[str], output_path: str) -> str:
         The output_path.
     """
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    concat_file = str(Path(output_path).parent / "concat.txt")
+    output_stem = Path(output_path).stem
+    concat_file = str(Path(output_path).parent / f"concat_{output_stem}.txt")
     build_concat_file(clip_paths, concat_file)
 
     cmd = [

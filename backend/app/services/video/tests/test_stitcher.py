@@ -1,5 +1,6 @@
 import os
 import tempfile
+from pathlib import Path
 from unittest.mock import patch, MagicMock
 from video.stitcher import build_concat_file, stitch_videos
 
@@ -11,7 +12,7 @@ def test_build_concat_file():
         concat_path = os.path.join(tmpdir, "concat.txt")
         build_concat_file(clips, concat_path)
 
-        content = open(concat_path).read()
+        content = Path(concat_path).read_text()
         assert "file '/tmp/clip_01.mp4'" in content
         assert "file '/tmp/clip_02.mp4'" in content
         assert "file '/tmp/clip_03.mp4'" in content
@@ -41,3 +42,28 @@ def test_stitch_calls_ffmpeg(mock_run):
         assert "-f" in call_args
         assert "concat" in call_args
         assert output in call_args
+        assert "-safe" in call_args
+        assert "0" in call_args  # -safe 0 value
+        assert "-c" in call_args
+        assert "copy" in call_args  # -c copy value
+        assert "-y" in call_args  # overwrite flag
+
+
+@patch("video.stitcher.subprocess.run")
+def test_stitch_uses_unique_concat_file_name(mock_run):
+    """Test that concat file name is derived from output stem to avoid collisions."""
+    mock_run.return_value = MagicMock(returncode=0, stderr="")
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        clips = [os.path.join(tmpdir, "clip_01.mp4")]
+        open(clips[0], "w").close()
+
+        output_a = os.path.join(tmpdir, "video_a.mp4")
+        output_b = os.path.join(tmpdir, "video_b.mp4")
+
+        stitch_videos(clips, output_a)
+        stitch_videos(clips, output_b)
+
+        # Both concat files should exist with unique names
+        assert os.path.exists(os.path.join(tmpdir, "concat_video_a.txt"))
+        assert os.path.exists(os.path.join(tmpdir, "concat_video_b.txt"))
