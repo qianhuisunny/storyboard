@@ -1,0 +1,43 @@
+{
+  "title": "Video Storyboard",
+  "total_duration": "5:00",
+  "total_panels": 15,
+  "panels": [
+    {
+      "panel_number": 1,
+      "screen_type": "talking_head",
+      "duration_seconds": 18.5,
+      "voiceover_script": "Picture this: you're the VP of Engineering, sitting in a board meeting with eleven other executives. You look around the room and realize — you're the only woman. Again. This isn't unusual. Research from McKinsey shows that 73% of women in tech report being the only woman in leadership meetings.",
+      "visual_direction": [
+        "Professional woman in business attire speaking directly to camera",
+        "Confident, authoritative presence with slight concern in expression",
+        "Clean, modern office background",
+        "Direct eye contact establishing credibility"
+      ]
+    },
+    {
+      "panel_number": 2,
+      "screen_type": "slides",
+      "duration_seconds": 17.5,
+      "voiceover_script": "Only 28% of senior leadership roles in tech are held by women, meaning most boardrooms have at most one female voice. As you climb higher, the isolation gets worse — not better. This isolation means missing the informal knowledge sharing that happens when peers face similar challenges.",
+      "visual_direction": [
+        "Pyramid diagram showing leadership levels with percentages: Entry level 45% women, Mid-level 32% women, Senior level 28% women, C-suite 22% women",
+        "Each level shows fewer female icons, emphasizing increasing isolation",
+        "Arrow pointing upward with 'Increasing Isolation' label",
+        "Clean data visualization with professional color scheme"
+      ]
+    },
+    {
+      "panel_number": 3,
+      "screen_type": "slides",
+      "duration_seconds": 20.5,
+      "voiceover_script": "Traditional mentorship and skill development programs miss this entirely. They focus on universal skills like communication and strategy, but ignore how gender affects their reception. Harvard Business Review found that identical leadership behaviors are rated 35% less favorably when exhibited by women. Standard diversity metrics count representation but miss the isolation experience that undermines effectiveness.",
+      "visual_direction": [
+        "Split comparison showing identical leadership behavior",
+        "Left side: Male leader presenting (positive ratings: 8.5/10)",
+        "Right side: Female leader with same behavior (ratings: 5.5/10)",
+        "Below: Traditional programs focusing on 'universal skills' missing the gender dynamic"
+      ]
+    }
+  ]
+}
