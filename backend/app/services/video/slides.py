@@ -9,6 +9,7 @@ from typing import Optional
 load_dotenv()
 
 VALID_TEMPLATES = ["PyramidChart", "SplitComparison", "Timeline", "ThreeColumn", "DataCard"]
+VALID_ANIMATIONS = {"fade_in", "stagger_fade_in", "slide_up"}
 
 # Path to the system prompt — 5 .parent calls: video → services → app → backend → repo root
 PROMPT_PATH = Path(__file__).parent.parent.parent.parent.parent / "prompts" / "SLIDE_GENERATOR_PROMPT.md"
@@ -17,8 +18,14 @@ PROMPT_PATH = Path(__file__).parent.parent.parent.parent.parent / "prompts" / "S
 REMOTION_DIR = Path(__file__).parent.parent.parent.parent.parent / "remotion"
 
 
+_CACHED_SYSTEM_PROMPT: Optional[str] = None
+
+
 def _load_system_prompt() -> str:
-    return PROMPT_PATH.read_text()
+    global _CACHED_SYSTEM_PROMPT
+    if _CACHED_SYSTEM_PROMPT is None:
+        _CACHED_SYSTEM_PROMPT = PROMPT_PATH.read_text()
+    return _CACHED_SYSTEM_PROMPT
 
 
 def call_llm(user_prompt: str, client: Optional[OpenAI] = None) -> str:
@@ -58,7 +65,15 @@ def map_visual_direction_to_props(
     if raw.startswith("```"):
         raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
 
-    result = json.loads(raw)
+    try:
+        result = json.loads(raw)
+    except json.JSONDecodeError:
+        print(f"  [Slides] LLM returned invalid JSON, falling back to DataCard")
+        return {
+            "template": "DataCard",
+            "props": {"title": "Content", "bullets": visual_direction},
+            "animation": "fade_in",
+        }
 
     # Validate template
     if result.get("template") not in VALID_TEMPLATES:
@@ -69,6 +84,10 @@ def map_visual_direction_to_props(
                 "title": result.get("props", {}).get("title", "Content"),
                 "bullets": visual_direction,
             }
+
+    # Validate animation field
+    if result.get("animation") not in VALID_ANIMATIONS:
+        result["animation"] = "fade_in"
 
     return result
 
@@ -92,6 +111,9 @@ def render_slide(
     Returns:
         The output_path.
     """
+    if duration_seconds <= 0:
+        raise ValueError(f"duration_seconds must be positive, got {duration_seconds}")
+
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
     # Add audio and duration to props for Remotion
@@ -103,7 +125,7 @@ def render_slide(
 
     props_json = json.dumps(render_props)
     fps = 30
-    total_frames = int(duration_seconds * fps)
+    total_frames = max(1, int(duration_seconds * fps))
 
     cmd = [
         "npx", "remotion", "render",

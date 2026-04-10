@@ -48,3 +48,14 @@ def test_valid_templates_list():
     assert "ThreeColumn" in VALID_TEMPLATES
     assert "DataCard" in VALID_TEMPLATES
     assert len(VALID_TEMPLATES) == 5
+
+
+def test_map_falls_back_on_invalid_json():
+    """Test fallback when LLM returns malformed JSON."""
+    mock_llm_response = "I apologize, but I cannot generate this slide. Here is some text not JSON."
+
+    with patch("video.slides.call_llm", return_value=mock_llm_response):
+        result = map_visual_direction_to_props(["Some visual direction", "Another line"])
+        assert result["template"] == "DataCard"
+        assert result["props"]["bullets"] == ["Some visual direction", "Another line"]
+        assert result["animation"] == "fade_in"
