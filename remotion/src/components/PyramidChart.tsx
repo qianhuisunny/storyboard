@@ -20,6 +20,7 @@ export const PyramidChart: React.FC<PyramidChartProps> = ({
   title,
   levels,
   annotation,
+  annotationDirection,
   audioSrc,
 }) => {
   const frame = useCurrentFrame();
@@ -60,7 +61,7 @@ export const PyramidChart: React.FC<PyramidChartProps> = ({
               opacity: interpolate(frame, [levels.length * 10, levels.length * 10 + 15], [0, 1], { extrapolateRight: "clamp" }),
             }}
           >
-            ↑ {annotation}
+            {annotationDirection === "downward" ? "↓" : "↑"} {annotation}
           </div>
         )}
       </div>

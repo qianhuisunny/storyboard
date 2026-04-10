@@ -46,9 +46,9 @@ Three items displayed in columns with headers and descriptions.
 interface ThreeColumnProps {
   title: string;
   columns: [
-    { header: string; items: string[]; icon?: string },
-    { header: string; items: string[]; icon?: string },
-    { header: string; items: string[]; icon?: string }
+    { header: string; items: string[] },
+    { header: string; items: string[] },
+    { header: string; items: string[] }
   ];
   footnote?: string;
 }

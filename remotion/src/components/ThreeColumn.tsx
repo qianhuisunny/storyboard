@@ -5,7 +5,6 @@ import { SlideWrapper } from "./SlideWrapper";
 interface Column {
   header: string;
   items: string[];
-  icon?: string;
 }
 
 interface ThreeColumnProps {
