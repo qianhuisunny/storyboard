@@ -106,6 +106,7 @@ def main():
         print(f"Panels: {sb.total_panels}")
         print(f"Talking Head: {len(sb.talking_head_panels)}")
         print(f"Slides: {len(sb.slides_panels)}")
+        print(f"Stock Video: {len(sb.stock_video_panels)}")
         if only_panels:
             print(f"Only panels: {only_panels}")
         print(f"\nNo API calls made (dry run).")
