@@ -235,6 +235,7 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   transition: outline-offset .15s, background-color .15s;
   user-select: none;
 }
+.tile { position: relative; }
 .tile:hover { border-color: var(--sage-4); }
 .tile-talking_head {
   background: var(--sage-8);
@@ -248,7 +249,16 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   color: var(--sage-8);
   border-color: var(--sage-4);
 }
-.tile.active { outline: 2px solid var(--sage-8); outline-offset: 2px; }
+/* Active tile — visible on both light and dark tile backgrounds.
+ * Uses an inset ring (dark sage-10) + outer glow so the selection is
+ * obvious whether the tile is white (slides), dark green (talking_head),
+ * or pale green (stock_video). */
+.tile.active {
+  outline: 2px solid var(--sage-10);
+  outline-offset: -1px;
+  box-shadow: 0 0 0 3px rgba(168, 200, 173, 0.65);
+  z-index: 1;
+}
 
 .legend {
   display: flex;
@@ -619,6 +629,17 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
         lastAutoIdx = idx;
         updateInspector(idx);
         updatePlayerLabel();
+      }
+    });
+
+    // When a single clip finishes in clip mode, auto-advance to the next
+    // clip and keep playing. The user clicked into clip mode to inspect
+    // individual panels in sequence, so stopping on the last frame would
+    // force them to click every tile manually. The last clip stops.
+    video.addEventListener('ended', () => {
+      if (mode !== 'clip') return;
+      if (currentIdx < perPanel.length - 1) {
+        playClip(currentIdx + 1);
       }
     });
 

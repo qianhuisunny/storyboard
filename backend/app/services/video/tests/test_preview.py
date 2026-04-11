@@ -299,6 +299,10 @@ def test_template_file_exists_and_has_required_hooks():
     assert "./final.mp4" in content
     assert "timeupdate" in content
     assert "start_time_seconds" in content
+    # Clip-mode auto-advance: when a single clip finishes, the next tile
+    # should start playing automatically. Guard against a future refactor
+    # dropping the `ended` event listener.
+    assert "'ended'" in content
 
 
 def test_write_preview_copies_template_into_output_dir():
