@@ -6,7 +6,13 @@ def build_concat_file(clip_paths: list[str], output_path: str) -> str:
     """Build an ffmpeg concat demuxer file listing all clips in order.
 
     Args:
-        clip_paths: Ordered list of clip file paths.
+        clip_paths: Ordered list of clip file paths. Relative paths are
+            resolved to absolute form before being written, because ffmpeg's
+            concat demuxer interprets relative ``file '...'`` entries
+            relative to the concat file's own directory — not the working
+            directory the command was invoked from. Passing relative paths
+            through verbatim would double-prefix the output path for any
+            clip whose directory matches the concat file's directory.
         output_path: Where to write the concat file.
 
     Returns:
@@ -15,8 +21,11 @@ def build_concat_file(clip_paths: list[str], output_path: str) -> str:
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     with open(output_path, "w") as f:
         for path in clip_paths:
+            # Resolve to absolute so ffmpeg doesn't reinterpret relative
+            # paths against the concat file's parent directory.
+            absolute = str(Path(path).resolve())
             # Escape single quotes for ffmpeg concat demuxer format
-            escaped = path.replace("'", r"'\''")
+            escaped = absolute.replace("'", r"'\''")
             f.write(f"file '{escaped}'\n")
     return output_path
 

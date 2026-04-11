@@ -13,11 +13,44 @@ def test_build_concat_file():
         build_concat_file(clips, concat_path)
 
         content = Path(concat_path).read_text()
-        assert "file '/tmp/clip_01.mp4'" in content
-        assert "file '/tmp/clip_02.mp4'" in content
-        assert "file '/tmp/clip_03.mp4'" in content
+        # On macOS /tmp is a symlink to /private/tmp; Path.resolve() follows
+        # the symlink, so accept either spelling.
+        assert ("file '/tmp/clip_01.mp4'" in content
+                or "file '/private/tmp/clip_01.mp4'" in content)
+        assert ("file '/tmp/clip_03.mp4'" in content
+                or "file '/private/tmp/clip_03.mp4'" in content)
         lines = [l for l in content.strip().split("\n") if l.startswith("file ")]
         assert len(lines) == 3
+
+
+def test_build_concat_file_resolves_relative_paths():
+    """Relative clip paths must be resolved to absolute in the concat file.
+
+    Regression: ffmpeg's concat demuxer resolves relative ``file '...'``
+    entries against the concat file's own directory, not the CWD. If we
+    pass a relative clip path whose directory happens to match the concat
+    file's directory, the result is a double-prefixed path that doesn't
+    exist. build_concat_file must canonicalize every entry to absolute.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        # Create a real clip file so .resolve() produces a real path
+        clip_rel = "relative_clip.mp4"
+        clip_abs = os.path.join(tmpdir, clip_rel)
+        open(clip_abs, "w").close()
+
+        concat_path = os.path.join(tmpdir, "concat.txt")
+        old_cwd = os.getcwd()
+        try:
+            os.chdir(tmpdir)
+            build_concat_file([clip_rel], concat_path)
+        finally:
+            os.chdir(old_cwd)
+
+        content = Path(concat_path).read_text()
+        # The entry must be an absolute path, not the bare relative one.
+        assert "file 'relative_clip.mp4'" not in content
+        expected_abs = str(Path(clip_abs).resolve())
+        assert f"file '{expected_abs}'" in content
 
 
 @patch("video.stitcher.subprocess.run")
