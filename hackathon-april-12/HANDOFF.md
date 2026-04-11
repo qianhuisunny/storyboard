@@ -1,8 +1,9 @@
 # Plotline — April 12 Hackathon Handoff
 
 **Branch:** `video_storyboarding`
-**Packaged:** 2026-04-11 (overnight session)
-**Last shipped final:** `./final.mp4` — 6:23, 16 panels, ~$0.67 to regenerate
+**Packaged:** 2026-04-11 (overnight session, re-rendered in the morning)
+**Last shipped final:** `./final.mp4` — **6:43**, 16 panels, ~$0.67 to regenerate from scratch
+**Last re-render:** 2026-04-11 03:22 — panels 7, 9, 10, 11 re-rendered under the new code paths and final.mp4 was re-stitched. See "Recently fixed" below.
 
 This folder is the landing page for the April 12 hackathon snapshot. Everything a fresh pair of eyes needs to understand, play, or regenerate the video lives here or one `cd` away.
 
@@ -16,8 +17,8 @@ This folder is the landing page for the April 12 hackathon snapshot. Everything 
 |---|---|---|
 | `HANDOFF.md` | ✅ git | You are here |
 | `storyboard.json` | ✅ git | The storyboard fixture the pipeline consumed. Copied verbatim from `backend/app/services/video/tests/fixtures/sample_storyboard.json` |
-| `manifest.json` | ✅ git | Run manifest from the pipeline — per-panel metadata (template picked, pexels query used, heygen video id, on-screen text, word timings). Copied from `data/video_output/manifest.json` |
-| `final.mp4` | ❌ regenerate | Stitched 6:23 video from a full pipeline run (~58 MB). Not in git. |
+| `manifest.json` | ✅ git | Run manifest from the pipeline — per-panel metadata (template picked, pexels query used, heygen video id, on-screen text, word timings). Copied from `data/video_output/manifest.json` during the initial full run. Panels 7, 9, 10, 11 were re-rendered afterwards, so their clip binaries are newer than this manifest — text metadata still matches, only reveal timings differ. |
+| `final.mp4` | ❌ regenerate | Stitched **6:43** video from a full pipeline run (~55 MB). Not in git. |
 | `clips/panel_01.mp4 … panel_16.mp4` | ❌ regenerate | Individual pre-stitch panel clips (~60 MB total). Not in git. Regenerate alongside `final.mp4`. |
 
 Architecture + API reference lives in `../docs/april-12-hackathon.md` — keep that one open alongside this note.
@@ -26,24 +27,24 @@ Architecture + API reference lives in `../docs/april-12-hackathon.md` — keep t
 
 ## Panel breakdown (final render)
 
-| # | Type | Notes |
-|---|---|---|
-| 1 | talking_head | Opening hook — Lisa_public avatar via HeyGen |
-| 2 | slides | |
-| 3 | slides | |
-| 4 | stock_video | Pexels B-roll + TTS overlay |
-| 5 | talking_head | Emphasis beat |
-| 6 | stock_video | |
-| 7 | stock_video | **NEW** — converted from slides to stock_video+text_overlay ("Career Decisions No Mentor Has Navigated") |
-| 8 | slides | |
-| 9 | slides | |
-| 10 | slides | SplitComparison "Distributed vs. Networked Nodes" — **see Known Issues** |
-| 11 | stock_video | **NEW** — converted from slides to stock_video+text_overlay ("Networks and Access") |
-| 12 | slides | |
-| 13 | slides | |
-| 14 | slides | |
-| 15 | talking_head | CTA hook |
-| 16 | slides | |
+| # | Type | Dur | Notes |
+|---|---|---|---|
+| 1 | talking_head | ~10s | Opening hook — Lisa_public avatar via HeyGen |
+| 2 | slides | ~13s | "38% Onlys" stat |
+| 3 | slides | ~23s | Leadership pyramid (PyramidChart) |
+| 4 | stock_video | ~35s | Pexels B-roll + TTS overlay |
+| 5 | talking_head | ~8s | Emphasis beat |
+| 6 | stock_video | ~20s | Collaborative framing |
+| 7 | stock_video + text overlay | 29.5s | "Career Decisions No Mentor Has Navigated" — **re-rendered 03:22** with new Pillow title bar |
+| 8 | slides | ~43s | Two-track framework (ThreeColumn) |
+| 9 | slides | 34.7s | Institutional access decision points — **re-rendered 03:17** |
+| 10 | slides | 35.5s | SplitComparison "Distributed vs. Networked Nodes" — **re-rendered 03:17** under the 2s rule. The 28s empty opening is gone. |
+| 11 | stock_video + text overlay | 36.8s | "Networks and Access" — **re-rendered 03:22** with new Pillow title bar |
+| 12 | slides | ~24s | Resistance pattern (DataCard) |
+| 13 | slides | ~33s | Three reframes (ThreeColumn) |
+| 14 | slides | ~25s | 1.7× sponsor stat (ThreeColumn) |
+| 15 | talking_head | ~4s | CTA hook |
+| 16 | slides | ~30s | Role-based CTA (ThreeColumn) |
 
 Three render paths: talking_head → OpenAI TTS → HeyGen audio-driven avatar. stock_video → Pexels search → ffmpeg overlay with Pillow-rendered title bar. slides → GPT-4o template pick → Whisper word timestamps → Remotion render with per-element fade-ins.
 
@@ -106,14 +107,17 @@ Explicit `timeout=60.0, max_retries=3` on the OpenAI client. A hung TTS call was
 
 ---
 
-## ⚠️ Known issues — read before demoing
+## Recently fixed (03:17–03:22 re-render pass)
 
-### The bundled `clips/panel_10.mp4` is STALE
+Both of the known issues flagged in the overnight version of this doc have been resolved in the morning re-render pass. The steps below are kept for history so the fix is reproducible.
 
-The `final.mp4` and `clips/panel_10.mp4` in this folder were rendered **before** the 2-second empty-frame rule landed in `slides.py`. Panel 10 in these files still has ~28 seconds of empty opening (title visible, left card not showing until ~30s, right card never appearing).
+### ✅ Panel 10 now respects the 2s empty-frame rule
 
-**Fix:** re-render panel 10 (or the whole pipeline) using the current code. See "How to regenerate" below. Estimated cost for just panel 10: < $0.05. Estimated time: ~30 seconds.
+**Was:** `clips/panel_10.mp4` was rendered before `_enforce_max_empty_gap()` landed in `slides.py`. It had ~28s of title-only screen before any card appeared.
 
+**Now:** Re-rendered at 2026-04-11 03:17, final duration 35.5s, elements land at ≤2s intervals. Final.mp4 was re-stitched at 03:22 and includes this new clip.
+
+**Reproduction command** (in case you need to redo it):
 ```bash
 cd backend && source venv/bin/activate
 PYTHONPATH=app/services python -m video generate \
@@ -122,11 +126,11 @@ PYTHONPATH=app/services python -m video generate \
   --skip-tts --skip-avatar
 ```
 
-Then re-copy `data/video_output/clips/panel_10.mp4` and `data/video_output/final.mp4` into this folder.
+### ✅ Panels 7 & 11 now have the Pillow title-bar overlay
 
-### Stock video title overlay is untested on a real pipeline run
+**Was:** The new `overlay_audio_on_video(title=..., subtitle=...)` code path in `stock_video.py` had never been exercised by a real pipeline run. The bundled clips were rendered before that code landed.
 
-`stock_video.py` has the new Pillow-rendered title bar code path, and `sample_storyboard.json` has `stock_title` / `stock_subtitle` set on panels 7 and 11. But the bundled `clips/panel_07.mp4` and `clips/panel_11.mp4` were rendered **before** that code landed — they don't have the title bar. Re-render them to verify.
+**Now:** Panel 7 (29.5s, "Career Decisions No Mentor Has Navigated") and panel 11 (36.8s, "Networks and Access") were re-rendered at 2026-04-11 03:22 with the title bar compositing active. final.mp4 was re-stitched in the same run.
 
 ```bash
 PYTHONPATH=app/services python -m video generate \
@@ -134,6 +138,12 @@ PYTHONPATH=app/services python -m video generate \
   --only-panels 7,11 \
   --skip-tts --skip-avatar
 ```
+
+## ⚠️ Open issues — read before demoing
+
+### `manifest.json` is from the initial full run, not the re-render pass
+
+The bundled `manifest.json` (timestamp 02:56) is the one written by the initial 16-panel full pipeline run. Panels 7, 9, 10, 11 were re-rendered afterwards with `--only-panels`, which **overwrote** `data/video_output/manifest.json` with a partial 2-panel document — not useful as a replacement. So this folder's manifest still has complete per-panel metadata (voiceover, pexels_query, video model, etc.) but the per-element reveal timings for panels 9 and 10 don't reflect the 2s rule. Text/source data is accurate; only timings are mildly stale. Don't panic.
 
 ### Storyboard metadata is generic
 
@@ -211,11 +221,11 @@ Full context on the preview UI: `docs/video-ui-session-2026-04-10.md`.
 
 ## TODOs for tomorrow (prioritized)
 
-1. **Re-render panel 10** to get the 2s rule applied (see Known Issues §1). 30 seconds of work, unblocks the demo.
-2. **Re-render panels 7 and 11** with the new stock_video title overlay (see Known Issues §2). ~1 minute.
-3. **Smoke-test the full pipeline** end-to-end once with all recent changes in play. ~12 min, ~$0.67.
-4. **Update storyboard.json title** from the generic "Video Storyboard" to something demo-appropriate.
-5. **Optional**: run `python -m video generate --only-panels 9` if panel 9 uses the new Timeline `openingQuestion` overlay — verify the question centers correctly in the full frame.
+1. ~~**Re-render panel 10** to get the 2s rule applied.~~ ✅ Done 03:17.
+2. ~~**Re-render panels 7 and 11** with the new stock_video title overlay.~~ ✅ Done 03:22.
+3. ~~**Re-render panel 9** to verify the Timeline `openingQuestion` overlay.~~ ✅ Done 03:17.
+4. **Smoke-test the full pipeline** end-to-end once with all recent changes in play. ~12 min, ~$0.67. The current `final.mp4` is a stitched composite of the original full run plus selective re-renders — a clean end-to-end run would give you a single coherent manifest as well.
+5. **Update `storyboard.json` title** from the generic "Video Storyboard" to something demo-appropriate (e.g. "Women in Tech: The Two-Track Advocacy Problem"). Pure cosmetic.
 6. **Optional**: expand `SPLIT_ICON_REGISTRY` if any panel's contrast doesn't fit the existing 4 pairs. Hand-author new pairs in the same sage-on-sage style (see `memory/user_pref_split_comparison_icons.md`).
 
 ---
