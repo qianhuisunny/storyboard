@@ -21,6 +21,7 @@ upload the alloy audio to HeyGen as a custom audio asset).
 """
 import os
 import json
+import subprocess
 import time
 from pathlib import Path
 
@@ -30,6 +31,43 @@ from .tts import generate_all_audio
 from .heygen import generate_avatar_video as heygen_generate_avatar_video
 from .slides import map_visual_direction_to_props, render_slide
 from .stitcher import stitch_videos
+
+
+def _probe_audio_duration(audio_path: str) -> float:
+    """Return the real playable duration of an audio file in seconds.
+
+    We call ffprobe instead of trusting the fixture's ``duration_seconds``
+    because the fixture's value is a planning estimate (word count / 130
+    wpm) which is consistently shorter than real OpenAI TTS output — often
+    30-50% shorter on long paragraphs. Passing the fixture estimate to
+    Remotion as the render duration meant Remotion rendered a clip that
+    was too short and cut off the voiceover mid-sentence. Probing the
+    real mp3 length fixes that: the rendered clip is exactly as long as
+    the audio needs, no more, no less.
+    """
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=nw=1:nk=1",
+            str(Path(audio_path).resolve()),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"ffprobe failed for {audio_path}: {result.stderr[-500:]}"
+        )
+    try:
+        return float(result.stdout.strip())
+    except ValueError as e:
+        raise RuntimeError(
+            f"ffprobe returned non-numeric duration for {audio_path}: "
+            f"{result.stdout!r}"
+        ) from e
 
 
 def run_pipeline(config: PipelineConfig) -> str:
@@ -114,13 +152,29 @@ def run_pipeline(config: PipelineConfig) -> str:
             Path(props_path).write_text(json.dumps(slide_plan, indent=2))
             print(f"    Template: {slide_plan['template']}")
 
-            # Step 3b: Remotion renders the slide with the panel's TTS audio
+            # Step 3b: probe the REAL audio length and use it as the clip
+            # duration. Using panel.duration_seconds (the fixture planning
+            # estimate) causes Remotion to cut clips short because real
+            # OpenAI TTS runs noticeably slower than the 130wpm estimate
+            # for most content — up to 50% longer on long paragraphs.
+            real_audio_duration = _probe_audio_duration(panel.audio_path)
+            if real_audio_duration != panel.duration_seconds:
+                print(
+                    f"    Audio duration: {real_audio_duration:.2f}s "
+                    f"(fixture estimate was {panel.duration_seconds}s)"
+                )
+            # Update the panel's duration in-place so the manifest and any
+            # downstream consumers see the real number instead of the
+            # planning estimate.
+            panel.duration_seconds = real_audio_duration
+
+            # Step 3c: Remotion renders the slide with the panel's TTS audio
             render_slide(
                 template=slide_plan["template"],
                 props=slide_plan["props"],
                 audio_path=panel.audio_path,
                 output_path=clip_path,
-                duration_seconds=panel.duration_seconds,
+                duration_seconds=real_audio_duration,
             )
             panel.clip_path = clip_path
 
