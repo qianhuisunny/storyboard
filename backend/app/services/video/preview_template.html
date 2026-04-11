@@ -227,7 +227,7 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   cursor: pointer;
   font-variant-numeric: tabular-nums;
   overflow: hidden;
-  transition: outline-offset .15s, background-color .15s;
+  transition: background-color .15s;
   user-select: none;
 }
 .tile { position: relative; }
@@ -247,14 +247,13 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   color: var(--sage-8);
   border-color: var(--sage-4);
 }
-/* Active tile — one consistent high-contrast ring that reads on all
- * three tile backgrounds (white / pale green / mid green). sage-10 is
- * near-black so the outline is obvious on any of them. */
+/* Active tile — inset box-shadow ring so the highlight is drawn
+ * INSIDE the tile's footprint, not outside it. An outer outline or
+ * drop shadow would bleed into the 3px gap between tiles and make the
+ * spacing look "jumpy" as the active tile moves around. Inset ring =
+ * tile pixel footprint never changes → gaps are always exactly 3px. */
 .tile.active {
-  outline: 3px solid var(--sage-10);
-  outline-offset: 2px;
-  z-index: 1;
-  box-shadow: 0 4px 10px rgba(28, 33, 24, 0.25);
+  box-shadow: inset 0 0 0 2px var(--sage-10);
 }
 
 .legend {
