@@ -142,7 +142,7 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   /* Hard-capped height so the timeline row below is always visible at
    * 100% zoom — even on a ~720px tall window. 55vh with a 540px ceiling
    * gives ~495px on a 900px viewport and 396px on a 720px viewport,
-   * leaving plenty of room for the tile strip + footnote below. */
+   * leaving plenty of room for the tile strip below. */
   background: #1C2118;
   border-radius: var(--radius-lg);
   position: relative;
@@ -278,22 +278,14 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 .dot-slides { background: var(--card-bg); }
 .dot-stock_video { background: var(--sage-2); border-color: var(--sage-4); }
 
-/* Inspector is click-and-show — its 260px column is always reserved
- * in the workspace grid (so the player never resizes), but the content
- * is invisible until the user clicks a tile. `.with-inspector` on the
- * workspace fades it in. */
+/* Inspector is always visible in its reserved 260px column. Contents
+ * are driven by whichever panel is currently active — either the
+ * tile you clicked (clip mode) or the panel matching currentTime
+ * (full mode, advanced via the timeupdate handler). */
 .inspector {
-  visibility: hidden;
-  opacity: 0;
   padding: 4px 0 4px 24px;
   background: transparent;
-  border-left: 1px solid transparent;
-  transition: opacity 0.18s ease;
-}
-.workspace.with-inspector .inspector {
-  visibility: visible;
-  opacity: 1;
-  border-left-color: var(--sage-3);
+  border-left: 1px solid var(--sage-3);
 }
 .inspector-title-row {
   display: flex;
@@ -351,12 +343,6 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   word-break: break-word;
 }
 
-.footnote {
-  margin-top: 16px;
-  max-width: 1180px;
-  font-size: 11px;
-  color: var(--sage-6);
-}
 </style>
 </head>
 <body>
@@ -423,8 +409,6 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       </div>
     </div>
 </div>
-
-<div class="footnote" id="footnote"></div>
 
 <script>
 (function () {
@@ -514,33 +498,31 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
     // -----------------------------------------------------------------
     // Playback state machine
     //
-    //   mode === 'full'  : <video src=final.mp4>. Inspector hidden.
-    //                      timeupdate handler auto-advances the active
-    //                      tile + updates the player label as playback
-    //                      crosses each start_time_seconds boundary.
-    //   mode === 'clip'  : <video src=clips/panel_XX.mp4>. Inspector
-    //                      visible and pinned to the clicked panel.
-    //                      When one clip ends we auto-advance to N+1.
+    //   mode === 'full'  : <video src=final.mp4>. The timeupdate handler
+    //                      auto-advances the active tile + inspector +
+    //                      player label as playback crosses each
+    //                      start_time_seconds boundary.
+    //   mode === 'clip'  : <video src=clips/panel_XX.mp4>. Active tile
+    //                      and inspector stay pinned to the clicked
+    //                      panel. When one clip ends we auto-advance
+    //                      to N+1 in the same mode.
     //
-    // Click a tile         → 'clip' mode + inspector open on that panel.
-    // Click Play full      → 'full' mode + inspector hidden.
+    // Inspector is always visible — `activatePanel(idx)` is the single
+    // entry point that syncs both the tile outline and the inspector
+    // content to a given panel.
     // -----------------------------------------------------------------
     const video = $('video-player');
-    const workspace = document.querySelector('.workspace');
     const playAllBtn = $('play-all');
     let mode = 'full';
     let currentIdx = 0;
 
-    function setActiveTile(idx) {
-      if (!perPanel[idx]) return;
+    function activatePanel(idx) {
+      const panel = perPanel[idx];
+      if (!panel) return;
+
       tileElements.forEach((t) => t.classList.remove('active'));
       tileElements[idx].classList.add('active');
       currentIdx = idx;
-    }
-
-    function populateInspector(idx) {
-      const panel = perPanel[idx];
-      if (!panel) return;
 
       $('insp-title').textContent = 'Panel ' + pad2(panel.panel_number);
       const dur = (Number(panel.duration_seconds) || 0).toFixed(1) + 's';
@@ -556,9 +538,6 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       $('insp-voice-label').textContent = vom.label || '—';
       $('insp-voice-sublabel').textContent = vom.sublabel || '';
     }
-
-    function showInspector() { workspace.classList.add('with-inspector'); }
-    function hideInspector() { workspace.classList.remove('with-inspector'); }
 
     function updatePlayerLabel() {
       if (mode === 'full') {
@@ -598,7 +577,6 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
     function playFull(autoplay) {
       mode = 'full';
       playAllBtn.classList.add('mode-full');
-      hideInspector();
       setVideoSrcIfChanged(finalVideoSrc);
       updatePlayerLabel();
       if (autoplay) tryPlay();
@@ -610,9 +588,7 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       mode = 'clip';
       playAllBtn.classList.remove('mode-full');
       setVideoSrcIfChanged(panel.clip_path);
-      setActiveTile(idx);
-      populateInspector(idx);
-      showInspector();
+      activatePanel(idx);
       updatePlayerLabel();
       tryPlay();
     }
@@ -637,9 +613,9 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       const idx = panelIndexAtTime(video.currentTime || 0);
       if (idx !== lastAutoIdx) {
         lastAutoIdx = idx;
-        // Inspector stays hidden in full mode — just highlight the tile
-        // and update the player label text.
-        setActiveTile(idx);
+        // Inspector is always visible — advance tile + inspector + label
+        // together so the sidebar tracks the currently playing panel.
+        activatePanel(idx);
         updatePlayerLabel();
       }
     });
@@ -671,16 +647,12 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       }
     });
 
-    // Footnote
-    $('footnote').textContent =
-      perPanel.length + ' panels · loaded from ./manifest.json · click a tile for single-clip playback + inspector · ← → to step · Play full video hides the inspector and plays ' + finalVideoSrc;
-
     // Initial state: load the full video (no autoplay — browsers block
-    // it without a user gesture). Inspector stays hidden; it only
-    // appears after the user clicks a tile. The timeupdate handler
-    // takes over highlighting the active tile once playback starts.
+    // it without a user gesture). Seed the inspector with panel 1 so
+    // the sidebar isn't blank. The timeupdate handler will take over
+    // advancing the panel as playback crosses start_time_seconds.
     playFull(false);
-    setActiveTile(0);
+    activatePanel(0);
     updatePlayerLabel();
   }
 

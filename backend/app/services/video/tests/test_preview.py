@@ -303,11 +303,9 @@ def test_template_file_exists_and_has_required_hooks():
     # should start playing automatically. Guard against a future refactor
     # dropping the `ended` event listener.
     assert "'ended'" in content
-    # Inspector is click-and-show — hidden by default, revealed via a
-    # `.with-inspector` class on the workspace when a tile is clicked.
-    assert "with-inspector" in content
-    assert "showInspector" in content
-    assert "hideInspector" in content
+    # Inspector is always visible and driven by a single activatePanel()
+    # entry point used by both clip-mode clicks and full-mode timeupdate.
+    assert "activatePanel" in content
 
 
 def test_write_preview_copies_template_into_output_dir():
