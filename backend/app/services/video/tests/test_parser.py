@@ -8,13 +8,16 @@ FIXTURES = Path(__file__).parent / "fixtures"
 def test_parse_storyboard_loads_panels():
     sb = parse_storyboard(str(FIXTURES / "sample_storyboard.json"))
     assert sb.title == "Video Storyboard"
-    assert len(sb.panels) == 3
+    assert len(sb.panels) == 14
+    # PDF revision dropped panels 7 and 8, so numbering is 1-6, 9-16
+    panel_numbers = [p.panel_number for p in sb.panels]
+    assert panel_numbers == [1, 2, 3, 4, 5, 6, 9, 10, 11, 12, 13, 14, 15, 16]
 
 
 def test_parse_storyboard_splits_by_type():
     sb = parse_storyboard(str(FIXTURES / "sample_storyboard.json"))
-    assert len(sb.talking_head_panels) == 1
-    assert len(sb.slides_panels) == 2
+    assert len(sb.talking_head_panels) == 5
+    assert len(sb.slides_panels) == 9
 
 
 def test_panel_fields_populated():
