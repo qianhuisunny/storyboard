@@ -8,6 +8,11 @@ from .tts import generate_all_audio
 from .avatar import generate_avatar_video, RunwareAvatarClient
 from .slides import map_visual_direction_to_props, render_slide
 from .stitcher import stitch_videos
+from .public_upload import upload_file
+
+
+def _is_public_url(s: str) -> bool:
+    return s.startswith("http://") or s.startswith("https://")
 
 
 def run_pipeline(config: PipelineConfig) -> str:
@@ -51,6 +56,20 @@ def run_pipeline(config: PipelineConfig) -> str:
     os.makedirs(clips_dir, exist_ok=True)
     os.makedirs(slides_dir, exist_ok=True)
 
+    # Runware's Kling Avatar API only accepts publicly-accessible HTTPS URLs
+    # for its image and audio inputs, not local file paths. If the user passed
+    # a local avatar image, upload it once and cache the resulting URL so we
+    # don't re-upload per panel. Audio is still uploaded per-panel since each
+    # panel has its own voiceover.
+    needs_avatar_render = any(
+        p.screen_type == ScreenType.TALKING_HEAD for p in panels
+    ) and not config.skip_avatar
+    avatar_image_url: str = config.avatar_image_path
+    if needs_avatar_render and not _is_public_url(config.avatar_image_path):
+        print(f"  [Avatar] Uploading speaker image to public host...")
+        avatar_image_url = upload_file(config.avatar_image_path, expiry="12h")
+        print(f"  [Avatar] image URL: {avatar_image_url}")
+
     for panel in panels:
         clip_path = os.path.join(clips_dir, f"panel_{panel.panel_number:02d}.mp4")
 
@@ -61,14 +80,27 @@ def run_pipeline(config: PipelineConfig) -> str:
                 continue
 
             print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → Kling Avatar")
-            # Note: Runware needs URLs, not local files.
-            # For v1, the avatar image and audio must be publicly accessible URLs.
-            # TODO: Add file upload to Runware or use a temp hosting service.
+            # Upload this panel's audio to get a public URL Runware can fetch.
+            # 12h expiry is well over the typical Runware job latency while
+            # still guaranteeing the file doesn't linger after the demo.
+            audio_url = upload_file(panel.audio_path, expiry="12h")
+            print(f"    audio URL: {audio_url}")
+            # Runware requires a non-empty positivePrompt. The fixture's
+            # per-panel visual_direction bullets are already written as
+            # talking-head guidance ("professional woman speaking directly
+            # to camera", etc.), so we concatenate them and append a short
+            # boilerplate about lip-sync / framing quality.
+            panel_prompt = (
+                ", ".join(s.rstrip(".") for s in panel.visual_direction)
+                + ". Natural lip sync, accurate mouth shapes, subtle head "
+                + "movements, steady framing, professional delivery."
+            )
             generate_avatar_video(
-                image_url=config.avatar_image_path,
-                audio_url=panel.audio_path,
+                image_url=avatar_image_url,
+                audio_url=audio_url,
                 output_path=clip_path,
                 model=config.kling_model,
+                positive_prompt=panel_prompt,
             )
             panel.clip_path = clip_path
 
