@@ -286,6 +286,8 @@ def test_template_file_exists_and_has_required_hooks():
         "insp-title",
         "insp-video-label",
         "insp-voice-label",
+        "insp-voiceover",
+        "insp-on-screen",
         "timeline-meta",
         "page-title",
         "play-all",
@@ -370,7 +372,20 @@ def test_make_sample_produces_all_expected_files(mock_gen_mp4):
             assert "video_model" in panel
             assert "voice_model" in panel
             assert "start_time_seconds" in panel
+            # Voiceover script + on-screen text are populated for every
+            # panel so the inspector's two new rows always have data.
+            assert "voiceover_script" in panel
+            assert panel["voiceover_script"]  # non-empty
+            assert "on_screen_text" in panel
+            assert isinstance(panel["on_screen_text"], list)
             assert panel["voice_model"]["label"] == "OpenAI tts-1-hd"
+
+        # Talking-head panels in the fixture have no on-screen text
+        # (avatar speaks directly to camera). Slides + stock_video do.
+        talking = [p for p in per_panel if p["screen_type"] == "talking_head"]
+        slides = [p for p in per_panel if p["screen_type"] == "slides"]
+        assert len(talking) > 0 and all(p["on_screen_text"] == [] for p in talking)
+        assert len(slides) > 0 and all(len(p["on_screen_text"]) > 0 for p in slides)
 
         # 3. Every panel has a clip file reachable at the clip_path the
         # manifest claims. The path is relative to the fixture dir.

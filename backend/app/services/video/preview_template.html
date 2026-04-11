@@ -95,16 +95,16 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 }
 .btn-primary:hover { background: var(--sage-9); border-color: var(--sage-9); }
 
-/* Workspace — the 260px right column is ALWAYS reserved so the player
- * width never jumps when the inspector shows up (`.with-inspector`
- * only toggles visibility of the inspector element, not the grid
- * template). Clicking a tile just fades the sidebar content in. */
+/* Workspace — the 260px right column is always reserved so the player
+ * width never jumps. align-items:stretch lets the inspector match the
+ * left column's height, and the inspector scrolls internally when its
+ * content (voiceover script + on-screen bullets) overflows. */
 .workspace {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 260px;
   gap: 24px;
   max-width: 1180px;
-  align-items: start;
+  align-items: stretch;
 }
 .left-col {
   display: grid;
@@ -281,11 +281,15 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 /* Inspector is always visible in its reserved 260px column. Contents
  * are driven by whichever panel is currently active — either the
  * tile you clicked (clip mode) or the panel matching currentTime
- * (full mode, advanced via the timeupdate handler). */
+ * (full mode, advanced via the timeupdate handler). Long voiceover
+ * scripts scroll inside the column rather than pushing the workspace
+ * taller. */
 .inspector {
   padding: 4px 0 4px 24px;
   background: transparent;
   border-left: 1px solid var(--sage-3);
+  overflow-y: auto;
+  min-height: 0;
 }
 .inspector-title-row {
   display: flex;
@@ -341,6 +345,44 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   margin-top: 3px;
   font-variant-numeric: tabular-nums;
   word-break: break-word;
+}
+
+/* Voiceover script block — uses Fraunces serif for the body copy so
+ * the script feels like "the spoken line" rather than metadata. */
+.insp-copy {
+  font-family: 'Fraunces', Georgia, serif;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--sage-10);
+  margin-top: 6px;
+  white-space: pre-line;
+}
+.insp-copy.empty { color: var(--sage-6); font-style: italic; }
+
+/* On-screen text bullet list — rendered as chips on their own lines. */
+.insp-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0 0 0;
+}
+.insp-bullets li {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--sage-10);
+  padding: 6px 10px;
+  margin-bottom: 4px;
+  background: var(--muted-bg);
+  border: 1px solid var(--sage-3);
+  border-radius: var(--radius-sm);
+  word-break: break-word;
+}
+.insp-bullets li:last-child { margin-bottom: 0; }
+.insp-bullets.empty li {
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--sage-6);
+  font-style: italic;
 }
 
 </style>
@@ -406,6 +448,16 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
         <div class="model-label">Voice model</div>
         <div class="model-value" id="insp-voice-label">—</div>
         <div class="model-sublabel" id="insp-voice-sublabel"></div>
+      </div>
+
+      <div class="model-row">
+        <div class="model-label">Voiceover</div>
+        <div class="insp-copy" id="insp-voiceover"></div>
+      </div>
+
+      <div class="model-row">
+        <div class="model-label">On-screen text</div>
+        <ul class="insp-bullets" id="insp-on-screen"></ul>
       </div>
     </div>
 </div>
@@ -537,6 +589,43 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       $('insp-video-sublabel').textContent = vm.sublabel || '';
       $('insp-voice-label').textContent = vom.label || '—';
       $('insp-voice-sublabel').textContent = vom.sublabel || '';
+
+      // Voiceover script — the raw spoken line
+      const voiceoverEl = $('insp-voiceover');
+      const voiceover = (panel.voiceover_script || '').trim();
+      if (voiceover) {
+        voiceoverEl.textContent = voiceover;
+        voiceoverEl.classList.remove('empty');
+      } else {
+        voiceoverEl.textContent = '(no voiceover)';
+        voiceoverEl.classList.add('empty');
+      }
+
+      // On-screen text bullets — the actual text rendered on the clip.
+      // Sourced from panel.on_screen_text when available; falls back to
+      // panel.visual_direction (which is the storyboard's creator-
+      // authored description of what the frame should show).
+      const bullets = $('insp-on-screen');
+      bullets.innerHTML = '';
+      let items = [];
+      if (Array.isArray(panel.on_screen_text) && panel.on_screen_text.length) {
+        items = panel.on_screen_text;
+      } else if (Array.isArray(panel.visual_direction)) {
+        items = panel.visual_direction;
+      }
+      if (items.length === 0) {
+        const li = document.createElement('li');
+        li.textContent = '(no on-screen text — avatar speaks to camera)';
+        bullets.appendChild(li);
+        bullets.classList.add('empty');
+      } else {
+        bullets.classList.remove('empty');
+        items.forEach((text) => {
+          const li = document.createElement('li');
+          li.textContent = String(text);
+          bullets.appendChild(li);
+        });
+      }
     }
 
     function updatePlayerLabel() {

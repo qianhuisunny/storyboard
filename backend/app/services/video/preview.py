@@ -221,10 +221,19 @@ def _build_sample_panel_info(panel, slide_idx_counter: list[int]) -> dict[str, A
     plausible enough that the preview UI renders all field types. Slides
     panels rotate through the 5 Remotion templates; stock_video panels get
     fake Pexels IDs; talking_head panels get a fake HeyGen video_id.
+
+    The voiceover script and visual_direction come straight from the
+    storyboard Panel so the inspector's Voiceover + On-screen text
+    rows have real data to render. For slides + stock_video panels,
+    on_screen_text falls back to visual_direction (the creator-
+    authored description of what the frame should show), since this
+    fixture doesn't actually run the slide LLM / Pexels pipeline.
     """
     base = {
         "panel_number": panel.panel_number,
         "screen_type": panel.screen_type.value,
+        "voiceover_script": panel.voiceover_script,
+        "visual_direction": list(panel.visual_direction),
         "voiceover_words": len(panel.voiceover_script.split()),
         "duration": panel.duration_seconds,
     }
@@ -233,17 +242,22 @@ def _build_sample_panel_info(panel, slide_idx_counter: list[int]) -> dict[str, A
         base.update({
             "heygen_video_id": f"sample-heygen-{panel.panel_number:02d}",
             "heygen_audio_url": "https://example.invalid/sample-audio.mp3",
+            "on_screen_text": [],
         })
     elif panel.screen_type == ScreenType.SLIDES:
         template = _SAMPLE_SLIDE_TEMPLATES[slide_idx_counter[0] % len(_SAMPLE_SLIDE_TEMPLATES)]
         slide_idx_counter[0] += 1
-        base.update({"template": template})
+        base.update({
+            "template": template,
+            "on_screen_text": list(panel.visual_direction),
+        })
     elif panel.screen_type == ScreenType.STOCK_VIDEO:
         base.update({
             "pexels_query": "sample footage placeholder",
             "pexels_video_id": 12345000 + panel.panel_number,
             "pexels_page_url": f"https://www.pexels.com/video/{12345000 + panel.panel_number}/",
             "pexels_variant_size": "1920x1080",
+            "on_screen_text": list(panel.visual_direction[:2]),
         })
     return base
 

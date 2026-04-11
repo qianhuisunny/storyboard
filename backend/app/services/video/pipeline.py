@@ -159,6 +159,8 @@ def run_pipeline(config: PipelineConfig) -> str:
         panel_info: dict = {
             "panel_number": panel.panel_number,
             "screen_type": panel.screen_type.value,
+            "voiceover_script": panel.voiceover_script,
+            "visual_direction": list(panel.visual_direction),
             "voiceover_words": len(panel.voiceover_script.split()),
         }
 
@@ -255,10 +257,19 @@ def run_pipeline(config: PipelineConfig) -> str:
                 element_timings=element_timings,
             )
             panel.clip_path = clip_path
+            # on_screen_text is the list of strings actually rendered on
+            # the slide — pulled from the element descriptions the LLM
+            # produced above. The preview UI shows this in the inspector.
+            on_screen_text = [
+                str(e.get("description", "")).strip()
+                for e in elements
+                if str(e.get("description", "")).strip()
+            ]
             panel_info.update({
                 "template": slide_plan["template"],
                 "duration": real_audio_duration,
                 "element_timings": element_timings,
+                "on_screen_text": on_screen_text,
             })
 
         elif panel.screen_type == ScreenType.STOCK_VIDEO:
@@ -273,12 +284,19 @@ def run_pipeline(config: PipelineConfig) -> str:
                 )
             panel.duration_seconds = real_audio_duration
 
-            # Step 3b: keyword → Pexels search → download → audio overlay
+            # Step 3b: keyword → Pexels search → download → audio overlay.
+            # Text overlay (title/subtitle) is optional — comes from the
+            # fixture via getattr so panels without these fields just
+            # render a plain stock video without any text on top.
+            stock_title = getattr(panel, "stock_title", None) or None
+            stock_subtitle = getattr(panel, "stock_subtitle", None) or None
             stock_result = create_stock_video_panel(
                 visual_direction=panel.visual_direction,
                 audio_path=panel.audio_path,
                 output_path=clip_path,
                 target_duration=real_audio_duration,
+                title=stock_title,
+                subtitle=stock_subtitle,
             )
             # Dump the search metadata next to the clip for auditability
             meta_path = os.path.join(
@@ -286,12 +304,19 @@ def run_pipeline(config: PipelineConfig) -> str:
             )
             Path(meta_path).write_text(json.dumps(stock_result, indent=2))
             panel.clip_path = clip_path
+            # on_screen_text for stock video = the actual overlay text
+            # if the pipeline drew any, otherwise an empty list. Inspector
+            # falls back to visual_direction in that case.
+            stock_on_screen: list[str] = [
+                t for t in (stock_title, stock_subtitle) if t
+            ]
             panel_info.update({
                 "pexels_query": stock_result["query"],
                 "pexels_video_id": stock_result["pexels_video_id"],
                 "pexels_page_url": stock_result["pexels_page_url"],
                 "pexels_variant_size": stock_result["variant_size"],
                 "duration": real_audio_duration,
+                "on_screen_text": stock_on_screen,
             })
 
         else:
