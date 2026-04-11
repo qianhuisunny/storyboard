@@ -1,15 +1,15 @@
 {
   "title": "Video Storyboard",
-  "total_duration": "4:38",
-  "total_panels": 14,
+  "total_duration": "5:00",
+  "total_panels": 16,
   "source_pdf": "storyboard_v4.docx.pdf",
-  "notes": "Panel numbers preserved from source PDF. Panels 7 and 8 were dropped in the v4 revision so numbering goes 1-6, 9-16. Panels 3 and 5 are marked 'Stock video' in the source; mapped to screen_type=slides here because the VISUAL descriptions are slide-compatible and no stock-footage pipeline branch exists yet.",
+  "notes": "Derivative of storyboard_v4.docx.pdf, restructured 2026-04-10 for unit economics. Kling Avatar 2.0 via Runware bills at ~$0.044/sec, so the earlier version's 5 talking-head panels (~107s total) blew through the $1.50/5min target by 3-4x. This version keeps only three short talking-head moments — opening hook (P1), emphasis beat (P5), CTA hook (P15) — totaling ~28s of talking head. Everything else is slides rendered by Remotion (essentially free). Panels are now numbered sequentially 1-16 (the previous version preserved PDF gaps at 7,8). Mapping to the previous fixture: new P1 = first 2 sentences of old P1; new P2 = rest of old P1; new P3-4 = old P2-3; new P5 = old P4 (unchanged text, duration corrected from 23.5s to 12s since the PDF's 23.5s was implausibly slow for a 25-word sentence and almost certainly a copy-paste carryover); new P6-7 = old P5-6; new P8 = old P9 converted from talking_head to slides; new P9-10 = old P10-11; new P11 = old P12 converted from talking_head to slides; new P12-14 = old P13-15; new P15 = first 2 sentences of old P16; new P16 = rest of old P16.",
   "panels": [
     {
       "panel_number": 1,
       "screen_type": "talking_head",
-      "duration_seconds": 18.5,
-      "voiceover_script": "Picture this: you're the VP of Engineering, sitting in a board meeting with eleven other executives. You look around the room and realize — you're the only woman. Again. This isn't unusual. Research from LeanIn and McKinsey shows that around 38% of senior-level women and women in technical roles report being 'Onlys' — the only or one of the only women in the room.",
+      "duration_seconds": 13.0,
+      "voiceover_script": "Picture this: you're the VP of Engineering, sitting in a board meeting with eleven other executives. You look around the room and realize — you're the only woman.",
       "visual_direction": [
         "Professional woman in business attire speaking directly to camera",
         "Confident, authoritative presence with slight concern in expression",
@@ -19,6 +19,18 @@
     },
     {
       "panel_number": 2,
+      "screen_type": "slides",
+      "duration_seconds": 17.0,
+      "voiceover_script": "Again. This isn't unusual. Research from LeanIn and McKinsey shows that around 38% of senior-level women and women in technical roles report being 'Onlys' — the only or one of the only women in the room.",
+      "visual_direction": [
+        "Large stat anchor: '~38%' as the centerpiece",
+        "Subtitle: 'senior-level and technical women report being Onlys'",
+        "Source line: 'LeanIn / McKinsey — Women in the Workplace 2024'",
+        "Clean diagnostic tone, statistic as the focal point — not decorative"
+      ]
+    },
+    {
+      "panel_number": 3,
       "screen_type": "slides",
       "duration_seconds": 17.5,
       "voiceover_script": "Only about 26% of VP roles in tech are held by women — and the gap widens at the C-suite, where women hold just 29% of positions across corporate America. Research by LeanIn and McKinsey shows the share of women shrinks at every step up the ladder. That isolation means missing the informal knowledge-sharing that happens when peers face similar challenges.",
@@ -30,7 +42,7 @@
       ]
     },
     {
-      "panel_number": 3,
+      "panel_number": 4,
       "screen_type": "slides",
       "duration_seconds": 20.5,
       "voiceover_script": "Traditional programs hand you the same playbook they give everyone — communication, executive presence, strategy. Useful skills. But they were written for a game where gender doesn't change the rules. And it does. Decades of research show that the same assertive behavior lands differently depending on who's making it. Women in male-dominated environments get rated lower for doing what men get praised for. Meanwhile, diversity dashboards are tracking headcount and calling it progress, while the actual experience of being isolated at the top goes completely unmeasured.",
@@ -42,9 +54,9 @@
       ]
     },
     {
-      "panel_number": 4,
+      "panel_number": 5,
       "screen_type": "talking_head",
-      "duration_seconds": 23.5,
+      "duration_seconds": 12.0,
       "voiceover_script": "Here's what I've learned after fifteen years in tech leadership: even the best male mentors cannot teach you what they've never had to learn.",
       "visual_direction": [
         "Same speaker, slight frustration in expression",
@@ -54,7 +66,7 @@
       ]
     },
     {
-      "panel_number": 5,
+      "panel_number": 6,
       "screen_type": "slides",
       "duration_seconds": 20.5,
       "voiceover_script": "Successful female negotiators use collaborative framing — 'What would it take to get to X?' rather than 'I want X.' Male mentors can't teach these nuanced approaches because they don't have to navigate the backlash. Women leaders must master 'authoritative warmth', projecting competence while remaining approachable.",
@@ -66,7 +78,7 @@
       ]
     },
     {
-      "panel_number": 6,
+      "panel_number": 7,
       "screen_type": "slides",
       "duration_seconds": 23.0,
       "voiceover_script": "Then there are career decisions no male mentor has navigated. Women in senior tech roles disproportionately report timing major career moves around family planning in ways that male colleagues don't face. Pregnancy announcements require strategic timing — too early risks project removal, too late appears deceptive. Post-maternity credibility rebuilding involves specific tactics for re-establishing technical authority that male mentors aren't expected to navigate.",
@@ -78,17 +90,20 @@
       ]
     },
     {
-      "panel_number": 9,
-      "screen_type": "talking_head",
+      "panel_number": 8,
+      "screen_type": "slides",
       "duration_seconds": 21.0,
       "voiceover_script": "So if individual excellence isn't enough, and peer networks alone can't move structural barriers — what's missing? Not effort. Design. These are two different kinds of problems that need two different kinds of intervention. One operates at the level of individual capability: how you navigate, negotiate, build. The other operates at the level of institutional access: who controls the nomination, the criteria, the conversation that happens after the meeting ends. Most organizations try to solve both with the same tool. That's why progress stalls. What works is running both tracks deliberately — and understanding that they don't just complement each other. They're load-bearing for each other.",
       "visual_direction": [
-        "Speaker shifting register — from diagnosing the problem to pointing at the solution",
-        "Forward-leaning, energy up from the frustration of panels 7-8"
+        "Two-column diagram: 'Individual Capability' (left) vs 'Institutional Access' (right)",
+        "Left column items: navigate, negotiate, build",
+        "Right column items: nomination, criteria, post-meeting conversations",
+        "Full-width bottom banner: 'Load-bearing for each other' — the thesis of the second half",
+        "Visual tone: diagnostic framework, not motivational"
       ]
     },
     {
-      "panel_number": 10,
+      "panel_number": 9,
       "screen_type": "slides",
       "duration_seconds": 20.0,
       "voiceover_script": "What does the institutional-access leg actually look like? Not intention — behavior. The people who hold structural authority in most organizations control three specific things: who gets nominated for high-visibility work before a role is ever posted, how advancement criteria get defined and whether they're made visible, and which names come up in the informal conversations that happen after the meeting ends. These aren't culture problems. They're decision points. And they only change when the person running that decision chooses to run it differently.",
@@ -99,7 +114,7 @@
       ]
     },
     {
-      "panel_number": 11,
+      "panel_number": 10,
       "screen_type": "slides",
       "duration_seconds": 19.0,
       "voiceover_script": "The capability leg is not a support group — it's a knowledge infrastructure. There is a significant amount of tactical knowledge about navigating this specific terrain that doesn't live in any onboarding document: how to frame a negotiation so the ask lands without triggering backlash, how to rebuild credibility after a visibility gap, how to read which rooms matter and which ones are theater. That knowledge exists. It's distributed across people who figured it out individually, at real cost. Networks make it transferable — and transferable knowledge compounds.",
@@ -110,17 +125,19 @@
       ]
     },
     {
-      "panel_number": 12,
-      "screen_type": "talking_head",
+      "panel_number": 11,
+      "screen_type": "slides",
       "duration_seconds": 22.0,
       "voiceover_script": "Here's where it gets interesting. These two tracks don't just run in parallel — they activate each other. People in strong peer networks develop the specific fluency to brief decision-makers on what to actually look for and where to act. Decision-makers with institutional access create the conditions where network knowledge gets used instead of just circulated. Each one makes the other more effective. Without the network, institutional allies are well-intentioned but operating blind. Without access to institutional levers, network knowledge stays inside the room it was built in.",
       "visual_direction": [
-        "Energy shift — this is the insight landing, not setup",
-        "Gesture on 'activate each other' — the connection between two things becoming one"
+        "Two arrows converging: 'Peer networks' from left, 'Institutional access' from right",
+        "Intersection label: 'Activation' — the moment the two tracks meet",
+        "Two failure-mode callouts beneath: 'Operating blind' (allies without network intel) and 'Stays in the room' (network without institutional levers)",
+        "Synthesis diagram, not decoration"
       ]
     },
     {
-      "panel_number": 13,
+      "panel_number": 12,
       "screen_type": "slides",
       "duration_seconds": 17.0,
       "voiceover_script": "The resistance to this approach tends to come from the same place regardless of how it's expressed: a worry that naming these dynamics will create division, or backlash, or the appearance of unfairness. That concern is worth taking seriously. It's also worth recognizing it for what it is — one underlying anxiety wearing four different outfits. And the answer isn't to argue against it.",
@@ -130,7 +147,7 @@
       ]
     },
     {
-      "panel_number": 14,
+      "panel_number": 13,
       "screen_type": "slides",
       "duration_seconds": 18.0,
       "voiceover_script": "The answer is to design around it. Frame sponsorship as pipeline development — not a gender initiative. Frame networks as knowledge infrastructure — not affinity groups. Track outcomes, not effort. When the framing is right and the accountability is built in, most of the political resistance dissolves on its own. What remains is the real work — and the real work is worth doing. Companies that run both tracks show consistent year-over-year improvement in senior female representation. The ones that don't keep measuring the same gap.",
@@ -140,7 +157,7 @@
       ]
     },
     {
-      "panel_number": 15,
+      "panel_number": 14,
       "screen_type": "slides",
       "duration_seconds": 16.0,
       "voiceover_script": "Here's the one number worth remembering. Women with sponsors get promoted at 1.7 times the rate of women without one. Not in tech specifically — across the board. Financial services, legal, healthcare, same pattern. And that gap gets bigger when sponsorship is deliberate and tracked versus just happening accidentally when someone likes you. Same lever, everywhere. So — what do you actually do with that?",
@@ -151,10 +168,21 @@
       ]
     },
     {
-      "panel_number": 16,
+      "panel_number": 15,
       "screen_type": "talking_head",
-      "duration_seconds": 22.0,
-      "voiceover_script": "Three moves. One per role. If you're a woman in leadership: find a network where knowledge actually transfers, then give one person with institutional access something specific to act on. If you're a senior leader: one sponsorship action this quarter — not mentoring, sponsoring. Put a name in a room it wasn't in before. If you're in HR or L&D: pull your network data next to your promotion outcomes. If the line doesn't move together, you know what to fix. The path is there. The question is whether you take it.",
+      "duration_seconds": 3.0,
+      "voiceover_script": "Three moves. One per role.",
+      "visual_direction": [
+        "Same speaker, composed forward lean, final-take energy",
+        "Professional framing, direct eye contact",
+        "Deliberate pause rhythm — 'Three moves.' [beat] 'One per role.' — setup for the three-column CTA that follows"
+      ]
+    },
+    {
+      "panel_number": 16,
+      "screen_type": "slides",
+      "duration_seconds": 40.0,
+      "voiceover_script": "If you're a woman in leadership: find a network where knowledge actually transfers, then give one person with institutional access something specific to act on. If you're a senior leader: one sponsorship action this quarter — not mentoring, sponsoring. Put a name in a room it wasn't in before. If you're in HR or L&D: pull your network data next to your promotion outcomes. If the line doesn't move together, you know what to fix. The path is there. The question is whether you take it.",
       "visual_direction": [
         "Three-column layout: Women in Leadership / Senior Leaders / HR & L&D",
         "One line per column — not a list, a single specific action",
