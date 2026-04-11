@@ -1,6 +1,14 @@
 import React from "react";
-import { useCurrentFrame, interpolate } from "remotion";
-import { SlideWrapper } from "./SlideWrapper";
+import { useCurrentFrame } from "remotion";
+import { SlideWrapper, elementOpacity, ElementTimings } from "./SlideWrapper";
+import {
+  HEADING_SIZE,
+  HEADING_WEIGHT,
+  BODY_SIZE,
+  COLOR_TITLE,
+  COLOR_MUTED,
+  COLOR_ACCENT,
+} from "../theme";
 
 interface TimelineEvent {
   label: string;
@@ -10,34 +18,44 @@ interface TimelineEvent {
 
 interface TimelineProps {
   title: string;
+  subtitle?: string;
   events: TimelineEvent[];
   direction?: "horizontal" | "vertical";
   audioSrc?: string;
   durationInSeconds?: number;
+  elementTimings?: ElementTimings;
 }
 
 export const Timeline: React.FC<TimelineProps> = ({
   title,
+  subtitle,
   events,
   direction = "horizontal",
   audioSrc,
+  elementTimings,
 }) => {
   const frame = useCurrentFrame();
   const isVertical = direction === "vertical";
 
   return (
-    <SlideWrapper title={title} audioSrc={audioSrc}>
+    <SlideWrapper title={title} subtitle={subtitle} audioSrc={audioSrc}>
       <div
         style={{
           display: "flex",
           flexDirection: isVertical ? "column" : "row",
-          gap: 16,
+          gap: 20,
           width: "100%",
           alignItems: isVertical ? "flex-start" : "flex-end",
         }}
       >
         {events.map((event, i) => {
-          const opacity = interpolate(frame, [i * 12, i * 12 + 15], [0, 1], { extrapolateRight: "clamp" });
+          const opacity = elementOpacity(
+            frame,
+            `event_${i}`,
+            elementTimings,
+            i,
+            0.5,
+          );
           return (
             <div
               key={i}
@@ -47,21 +65,34 @@ export const Timeline: React.FC<TimelineProps> = ({
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 8,
+                gap: 12,
               }}
             >
               <div
                 style={{
-                  width: 16,
-                  height: 16,
+                  width: 20,
+                  height: 20,
                   borderRadius: "50%",
-                  backgroundColor: event.highlight ? "#2D6A4F" : "#ccc",
+                  backgroundColor: event.highlight ? COLOR_ACCENT : "#d0d0d0",
                 }}
               />
-              <div style={{ fontSize: 18, fontWeight: 600, color: "#1a1a1a", textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: HEADING_SIZE,
+                  fontWeight: HEADING_WEIGHT,
+                  color: COLOR_TITLE,
+                  textAlign: "center",
+                }}
+              >
                 {event.label}
               </div>
-              <div style={{ fontSize: 14, color: "#666", textAlign: "center" }}>
+              <div
+                style={{
+                  fontSize: BODY_SIZE,
+                  color: COLOR_MUTED,
+                  textAlign: "center",
+                }}
+              >
                 {event.description}
               </div>
             </div>

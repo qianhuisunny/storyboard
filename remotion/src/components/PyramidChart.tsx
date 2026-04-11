@@ -1,6 +1,16 @@
 import React from "react";
-import { useCurrentFrame, interpolate } from "remotion";
-import { SlideWrapper } from "./SlideWrapper";
+import { useCurrentFrame } from "remotion";
+import { SlideWrapper, elementOpacity, ElementTimings } from "./SlideWrapper";
+import {
+  HEADING_SIZE,
+  HEADING_WEIGHT,
+  METRIC_SIZE,
+  METRIC_WEIGHT,
+  BODY_SIZE,
+  COLOR_TITLE,
+  COLOR_MUTED,
+  COLOR_ACCENT,
+} from "../theme";
 
 interface Level {
   label: string;
@@ -9,29 +19,46 @@ interface Level {
 
 interface PyramidChartProps {
   title: string;
+  subtitle?: string;
   levels: Level[];
   annotation?: string;
   annotationDirection?: "upward" | "downward";
   audioSrc?: string;
   durationInSeconds?: number;
+  elementTimings?: ElementTimings;
 }
 
 export const PyramidChart: React.FC<PyramidChartProps> = ({
   title,
+  subtitle,
   levels,
   annotation,
   annotationDirection,
   audioSrc,
+  elementTimings,
 }) => {
   const frame = useCurrentFrame();
   const maxWidth = 800;
 
   return (
-    <SlideWrapper title={title} audioSrc={audioSrc}>
-      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, width: "100%" }}>
+    <SlideWrapper title={title} subtitle={subtitle} audioSrc={audioSrc}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 12,
+          width: "100%",
+        }}
+      >
         {levels.map((level, i) => {
           const widthFraction = 1 - i * (0.6 / levels.length);
-          const opacity = interpolate(frame, [i * 10, i * 10 + 15], [0, 1], { extrapolateRight: "clamp" });
+          const opacity = elementOpacity(
+            frame,
+            `level_${i}`,
+            elementTimings,
+            i,
+          );
           return (
             <div
               key={i}
@@ -39,26 +66,47 @@ export const PyramidChart: React.FC<PyramidChartProps> = ({
                 width: maxWidth * widthFraction,
                 backgroundColor: `hsl(150, ${30 + i * 10}%, ${85 - i * 8}%)`,
                 borderRadius: 8,
-                padding: "16px 24px",
+                padding: "20px 28px",
                 display: "flex",
                 justifyContent: "space-between",
                 alignItems: "center",
                 opacity,
               }}
             >
-              <span style={{ fontSize: 24, fontWeight: 600, color: "#2D6A4F" }}>{level.label}</span>
-              <span style={{ fontSize: 28, fontWeight: 700, color: "#1a1a1a" }}>{level.percentage}%</span>
+              <span
+                style={{
+                  fontSize: HEADING_SIZE,
+                  fontWeight: HEADING_WEIGHT,
+                  color: COLOR_ACCENT,
+                }}
+              >
+                {level.label}
+              </span>
+              <span
+                style={{
+                  fontSize: METRIC_SIZE,
+                  fontWeight: METRIC_WEIGHT,
+                  color: COLOR_TITLE,
+                }}
+              >
+                {level.percentage}%
+              </span>
             </div>
           );
         })}
         {annotation && (
           <div
             style={{
-              marginTop: 20,
-              fontSize: 20,
-              color: "#666",
+              marginTop: 24,
+              fontSize: BODY_SIZE,
+              color: COLOR_MUTED,
               fontStyle: "italic",
-              opacity: interpolate(frame, [levels.length * 10, levels.length * 10 + 15], [0, 1], { extrapolateRight: "clamp" }),
+              opacity: elementOpacity(
+                frame,
+                "annotation",
+                elementTimings,
+                levels.length,
+              ),
             }}
           >
             {annotationDirection === "downward" ? "↓" : "↑"} {annotation}

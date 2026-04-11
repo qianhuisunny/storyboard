@@ -1,6 +1,20 @@
 import React from "react";
-import { useCurrentFrame, interpolate } from "remotion";
-import { SlideWrapper } from "./SlideWrapper";
+import { useCurrentFrame } from "remotion";
+import { SlideWrapper, elementOpacity, ElementTimings } from "./SlideWrapper";
+import {
+  HEADING_SIZE,
+  HEADING_WEIGHT,
+  METRIC_SIZE,
+  METRIC_WEIGHT,
+  BODY_SIZE,
+  BODY_LINE_HEIGHT,
+  META_SIZE,
+  COLOR_TITLE,
+  COLOR_MUTED,
+  COLOR_META,
+  COLOR_CARD_BG,
+  sentimentColor,
+} from "../theme";
 
 interface Side {
   label: string;
@@ -11,48 +25,70 @@ interface Side {
 
 interface SplitComparisonProps {
   title: string;
+  subtitle?: string;
   left: Side;
   right: Side;
   footnote?: string;
   audioSrc?: string;
   durationInSeconds?: number;
+  elementTimings?: ElementTimings;
 }
-
-const sentimentColor = (s?: string) => {
-  if (s === "positive") return "#2D6A4F";
-  if (s === "negative") return "#A63228";
-  return "#666";
-};
 
 export const SplitComparison: React.FC<SplitComparisonProps> = ({
   title,
+  subtitle,
   left,
   right,
   footnote,
   audioSrc,
+  elementTimings,
 }) => {
   const frame = useCurrentFrame();
-  const leftOpacity = interpolate(frame, [0, 15], [0, 1], { extrapolateRight: "clamp" });
-  const rightOpacity = interpolate(frame, [10, 25], [0, 1], { extrapolateRight: "clamp" });
+  const leftOpacity = elementOpacity(frame, "left", elementTimings, 0, 0.0);
+  const rightOpacity = elementOpacity(frame, "right", elementTimings, 1, 0.8);
 
   const renderSide = (side: Side, opacity: number) => (
     <div
       style={{
         flex: 1,
-        backgroundColor: "#f8f9fa",
+        backgroundColor: COLOR_CARD_BG,
         borderRadius: 12,
-        padding: 32,
+        padding: 40,
         opacity,
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: 12,
+        gap: 16,
       }}
     >
-      <div style={{ fontSize: 24, fontWeight: 600, color: "#1a1a1a" }}>{side.label}</div>
-      <div style={{ fontSize: 18, color: "#666", textAlign: "center" }}>{side.description}</div>
+      <div
+        style={{
+          fontSize: HEADING_SIZE,
+          fontWeight: HEADING_WEIGHT,
+          color: COLOR_TITLE,
+        }}
+      >
+        {side.label}
+      </div>
+      <div
+        style={{
+          fontSize: BODY_SIZE,
+          color: COLOR_MUTED,
+          textAlign: "center",
+          lineHeight: BODY_LINE_HEIGHT,
+        }}
+      >
+        {side.description}
+      </div>
       {side.metric && (
-        <div style={{ fontSize: 48, fontWeight: 700, color: sentimentColor(side.sentiment) }}>
+        <div
+          style={{
+            fontSize: METRIC_SIZE,
+            fontWeight: METRIC_WEIGHT,
+            color: sentimentColor(side.sentiment),
+            marginTop: 8,
+          }}
+        >
           {side.metric}
         </div>
       )}
@@ -60,17 +96,41 @@ export const SplitComparison: React.FC<SplitComparisonProps> = ({
   );
 
   return (
-    <SlideWrapper title={title} audioSrc={audioSrc}>
-      <div style={{ display: "flex", gap: 24, width: "100%" }}>
-        {renderSide(left, leftOpacity)}
-        <div style={{ display: "flex", alignItems: "center", fontSize: 32, color: "#ccc" }}>vs</div>
-        {renderSide(right, rightOpacity)}
-      </div>
-      {footnote && (
-        <div style={{ textAlign: "center", fontSize: 14, color: "#999", marginTop: 20 }}>
-          Source: {footnote}
+    <SlideWrapper title={title} subtitle={subtitle} audioSrc={audioSrc}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 20,
+          width: "100%",
+        }}
+      >
+        <div style={{ display: "flex", gap: 24, width: "100%" }}>
+          {renderSide(left, leftOpacity)}
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              fontSize: HEADING_SIZE,
+              color: "#cccccc",
+            }}
+          >
+            vs
+          </div>
+          {renderSide(right, rightOpacity)}
         </div>
-      )}
+        {footnote && (
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: META_SIZE,
+              color: COLOR_META,
+            }}
+          >
+            Source: {footnote}
+          </div>
+        )}
+      </div>
     </SlideWrapper>
   );
 };

@@ -7,7 +7,14 @@ import { Timeline } from "./components/Timeline";
 import { ThreeColumn } from "./components/ThreeColumn";
 import { DataCard } from "./components/DataCard";
 
-const FPS = 30;
+// 25 fps matches both HeyGen's native output and the stitcher's
+// canonical normalize target (see ../components/theme.ts FPS constant
+// and backend/app/services/video/stitcher.py CANONICAL_FPS). Keeping
+// everything at 25 fps means element_timings computed as
+// round(startSec * 25) land on the exact frames Remotion renders, and
+// mixed-source stitches pass through the stitcher's normalize step
+// with minimal frame-rate conversion work.
+const FPS = 25;
 
 // Default props for Remotion Studio preview
 const defaultPyramid = {

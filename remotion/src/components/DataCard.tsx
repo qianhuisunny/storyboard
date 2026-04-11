@@ -1,6 +1,19 @@
 import React from "react";
-import { useCurrentFrame, interpolate } from "remotion";
-import { SlideWrapper } from "./SlideWrapper";
+import { useCurrentFrame } from "remotion";
+import { SlideWrapper, elementOpacity, ElementTimings } from "./SlideWrapper";
+import {
+  HEADING_SIZE,
+  METRIC_SIZE,
+  METRIC_WEIGHT,
+  BODY_SIZE,
+  BODY_LINE_HEIGHT,
+  META_SIZE,
+  COLOR_BODY,
+  COLOR_MUTED,
+  COLOR_META,
+  COLOR_CARD_BG,
+  sentimentColor,
+} from "../theme";
 
 interface Stat {
   label: string;
@@ -10,11 +23,13 @@ interface Stat {
 
 interface DataCardProps {
   title: string;
+  subtitle?: string;
   stats?: Stat[];
   bullets?: string[];
   footnote?: string;
   audioSrc?: string;
   durationInSeconds?: number;
+  elementTimings?: ElementTimings;
 }
 
 const trendIcon = (t?: string) => {
@@ -23,45 +38,106 @@ const trendIcon = (t?: string) => {
   return "→";
 };
 
-const trendColor = (t?: string) => {
-  if (t === "up") return "#2D6A4F";
-  if (t === "down") return "#A63228";
-  return "#666";
+const trendToSentiment = (
+  t?: string,
+): "positive" | "negative" | "neutral" => {
+  if (t === "up") return "positive";
+  if (t === "down") return "negative";
+  return "neutral";
 };
 
 export const DataCard: React.FC<DataCardProps> = ({
   title,
+  subtitle,
   stats,
   bullets,
   footnote,
   audioSrc,
+  elementTimings,
 }) => {
   const frame = useCurrentFrame();
 
   return (
-    <SlideWrapper title={title} audioSrc={audioSrc}>
-      <div style={{ width: "100%" }}>
+    <SlideWrapper title={title} subtitle={subtitle} audioSrc={audioSrc}>
+      <div
+        style={{
+          width: "100%",
+          display: "flex",
+          flexDirection: "column",
+          gap: 32,
+        }}
+      >
         {stats && (
-          <div style={{ display: "flex", gap: 24, marginBottom: 32, justifyContent: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 24,
+              justifyContent: "center",
+            }}
+          >
             {stats.map((stat, i) => {
-              const opacity = interpolate(frame, [i * 10, i * 10 + 15], [0, 1], { extrapolateRight: "clamp" });
+              const opacity = elementOpacity(
+                frame,
+                `stat_${i}`,
+                elementTimings,
+                i,
+              );
               return (
-                <div key={i} style={{ textAlign: "center", opacity, padding: 20, backgroundColor: "#f8f9fa", borderRadius: 12, minWidth: 160 }}>
-                  <div style={{ fontSize: 40, fontWeight: 700, color: trendColor(stat.trend) }}>
+                <div
+                  key={i}
+                  style={{
+                    textAlign: "center",
+                    opacity,
+                    padding: 28,
+                    backgroundColor: COLOR_CARD_BG,
+                    borderRadius: 12,
+                    minWidth: 200,
+                  }}
+                >
+                  <div
+                    style={{
+                      fontSize: METRIC_SIZE,
+                      fontWeight: METRIC_WEIGHT,
+                      color: sentimentColor(trendToSentiment(stat.trend)),
+                    }}
+                  >
                     {stat.value} {trendIcon(stat.trend)}
                   </div>
-                  <div style={{ fontSize: 16, color: "#666", marginTop: 8 }}>{stat.label}</div>
+                  <div
+                    style={{
+                      fontSize: BODY_SIZE,
+                      color: COLOR_MUTED,
+                      marginTop: 12,
+                    }}
+                  >
+                    {stat.label}
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
         {bullets && (
-          <ul style={{ margin: 0, paddingLeft: 24 }}>
+          <ul style={{ margin: 0, paddingLeft: 28 }}>
             {bullets.map((b, i) => {
-              const opacity = interpolate(frame, [i * 8, i * 8 + 12], [0, 1], { extrapolateRight: "clamp" });
+              const opacity = elementOpacity(
+                frame,
+                `bullet_${i}`,
+                elementTimings,
+                i,
+                0.5,
+              );
               return (
-                <li key={i} style={{ fontSize: 22, color: "#333", marginBottom: 12, lineHeight: 1.5, opacity }}>
+                <li
+                  key={i}
+                  style={{
+                    fontSize: HEADING_SIZE,
+                    color: COLOR_BODY,
+                    marginBottom: 16,
+                    lineHeight: BODY_LINE_HEIGHT,
+                    opacity,
+                  }}
+                >
                   {b}
                 </li>
               );
@@ -69,7 +145,13 @@ export const DataCard: React.FC<DataCardProps> = ({
           </ul>
         )}
         {footnote && (
-          <div style={{ textAlign: "center", fontSize: 14, color: "#999", marginTop: 24 }}>
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: META_SIZE,
+              color: COLOR_META,
+            }}
+          >
             {footnote}
           </div>
         )}
