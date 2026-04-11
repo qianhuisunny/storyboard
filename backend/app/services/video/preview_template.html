@@ -95,23 +95,20 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 }
 .btn-primary:hover { background: var(--sage-9); border-color: var(--sage-9); }
 
-/* Workspace — one row of content; inspector is click-and-show, so by
- * default the left column takes the full width. Adding .with-inspector
- * on the workspace expands a 260px column for the right panel. */
+/* Workspace — the 260px right column is ALWAYS reserved so the player
+ * width never jumps when the inspector shows up (`.with-inspector`
+ * only toggles visibility of the inspector element, not the grid
+ * template). Clicking a tile just fades the sidebar content in. */
 .workspace {
   display: grid;
-  grid-template-columns: 1fr;
-  max-width: 1180px;
-  min-height: 560px;
-  align-items: start;
-}
-.workspace.with-inspector {
   grid-template-columns: minmax(0, 1fr) 260px;
   gap: 24px;
+  max-width: 1180px;
+  align-items: start;
 }
 .left-col {
   display: grid;
-  grid-template-rows: 1fr auto;
+  grid-template-rows: auto auto;
   gap: 16px;
   min-width: 0;
 }
@@ -119,7 +116,6 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 .player-wrap {
   display: flex;
   flex-direction: column;
-  min-height: 360px;
 }
 .player-label {
   display: flex;
@@ -143,12 +139,17 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   text-overflow: ellipsis;
 }
 .player {
+  /* Hard-capped height so the timeline row below is always visible at
+   * 100% zoom — even on a ~720px tall window. 55vh with a 540px ceiling
+   * gives ~495px on a 900px viewport and 396px on a 720px viewport,
+   * leaving plenty of room for the tile strip + footnote below. */
   background: #1C2118;
   border-radius: var(--radius-lg);
   position: relative;
   overflow: hidden;
-  flex: 1;
-  min-height: 320px;
+  height: 55vh;
+  min-height: 260px;
+  max-height: 540px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -277,16 +278,23 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 .dot-slides { background: var(--card-bg); }
 .dot-stock_video { background: var(--sage-2); border-color: var(--sage-4); }
 
-/* Inspector is click-and-show — hidden by default, revealed when the
- * user clicks any tile (via `.with-inspector` on the workspace). */
+/* Inspector is click-and-show — its 260px column is always reserved
+ * in the workspace grid (so the player never resizes), but the content
+ * is invisible until the user clicks a tile. `.with-inspector` on the
+ * workspace fades it in. */
 .inspector {
-  display: none;
+  visibility: hidden;
+  opacity: 0;
   padding: 4px 0 4px 24px;
   background: transparent;
-  border-left: 1px solid var(--sage-3);
-  overflow: auto;
+  border-left: 1px solid transparent;
+  transition: opacity 0.18s ease;
 }
-.workspace.with-inspector .inspector { display: block; }
+.workspace.with-inspector .inspector {
+  visibility: visible;
+  opacity: 1;
+  border-left-color: var(--sage-3);
+}
 .inspector-title-row {
   display: flex;
   align-items: baseline;
