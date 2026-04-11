@@ -177,6 +177,28 @@ def test_enrich_manifest_adds_top_level_fields():
     assert manifest["storyboard_title"] == "The Only Woman"
     # Total duration = 13.0 + 17.5 + 12.0 = 42.5
     assert manifest["total_duration_seconds"] == 42.5
+    # UI default: the full-video player loads ./final.mp4
+    assert manifest["final_video"] == "final.mp4"
+
+
+def test_enrich_manifest_computes_running_start_time_seconds():
+    """Each panel must know where it starts inside final.mp4 so clicking
+    a tile can seek the full-video player to that panel's beginning.
+    Panel 1 starts at 0.0; each subsequent panel's start is the cumulative
+    sum of the preceding panels' durations."""
+    manifest = _sample_raw_manifest()
+    enrich_manifest(
+        manifest,
+        storyboard_title="x",
+        config_voice="alloy",
+        config_avatar_id="Lisa_public",
+    )
+    p1, p2, p3 = manifest["per_panel"]
+    assert p1["start_time_seconds"] == 0.0
+    # p2 starts after p1 (13.0s)
+    assert p2["start_time_seconds"] == 13.0
+    # p3 starts after p1 + p2 (13.0 + 17.5 = 30.5)
+    assert p3["start_time_seconds"] == 30.5
 
 
 def test_enrich_manifest_adds_clip_path_video_voice_to_each_panel():
@@ -215,7 +237,8 @@ def test_enrich_manifest_adds_clip_path_video_voice_to_each_panel():
 def test_enrich_manifest_tolerates_panel_with_missing_duration():
     """Talking-head panels with ``skipped: true`` skip the HeyGen call and
     never get a ``duration`` field. enrich_manifest must not crash — it
-    should record 0.0 for duration_seconds and move on."""
+    should record 0.0 for duration_seconds, keep the running start time
+    stable (so later panels still line up), and move on."""
     manifest = _sample_raw_manifest()
     manifest["per_panel"][0] = {
         "panel_number": 1,
@@ -230,8 +253,13 @@ def test_enrich_manifest_tolerates_panel_with_missing_duration():
         config_voice="alloy",
         config_avatar_id="Lisa_public",
     )
-    p1 = manifest["per_panel"][0]
+    p1, p2, p3 = manifest["per_panel"]
     assert p1["duration_seconds"] == 0.0
+    assert p1["start_time_seconds"] == 0.0
+    # Panel 2 still starts at 0 since p1 contributed no duration
+    assert p2["start_time_seconds"] == 0.0
+    # Panel 3 starts after p2 (17.5s)
+    assert p3["start_time_seconds"] == 17.5
     # Total is 0 + 17.5 + 12.0
     assert manifest["total_duration_seconds"] == 29.5
 
@@ -260,11 +288,17 @@ def test_template_file_exists_and_has_required_hooks():
         "insp-voice-label",
         "timeline-meta",
         "crumb-title",
+        "play-all",
     ]:
         assert f'id="{element_id}"' in content, f"missing element id={element_id!r}"
     # Sage tokens from the Plotline design system must be present inline
     assert "--sage-8" in content
     assert "Fraunces" in content
+    # The full/clip mode toggle needs both the default fallback src AND
+    # the timeupdate handler that auto-advances the active tile in full mode.
+    assert "./final.mp4" in content
+    assert "timeupdate" in content
+    assert "start_time_seconds" in content
 
 
 def test_write_preview_copies_template_into_output_dir():
@@ -301,10 +335,11 @@ def test_write_preview_raises_when_template_missing(monkeypatch):
 @patch("video.preview._generate_placeholder_mp4")
 def test_make_sample_produces_all_expected_files(mock_gen_mp4):
     """The whole sample should be inspectable without calling ffmpeg:
-    manifest, index.html, and clips/panel_01.mp4..panel_16.mp4."""
+    manifest, index.html, final.mp4, placeholder.mp4, and
+    clips/panel_01.mp4..panel_16.mp4."""
 
-    def fake_placeholder(path, duration_seconds=2.0):
-        # Write an empty placeholder file so the symlinks have a target
+    def fake_placeholder(path, duration_seconds=2.0, **_kwargs):
+        # Write a non-empty placeholder file so the symlinks have a target
         Path(path).write_bytes(b"\x00")
 
     mock_gen_mp4.side_effect = fake_placeholder
@@ -320,12 +355,14 @@ def test_make_sample_produces_all_expected_files(mock_gen_mp4):
         manifest = json.loads((Path(tmp) / "manifest.json").read_text())
         assert manifest["storyboard_title"]
         assert "total_duration_seconds" in manifest
+        assert manifest["final_video"] == "final.mp4"
         per_panel = manifest["per_panel"]
         assert len(per_panel) == 16
         for panel in per_panel:
             assert "clip_path" in panel
             assert "video_model" in panel
             assert "voice_model" in panel
+            assert "start_time_seconds" in panel
             assert panel["voice_model"]["label"] == "OpenAI tts-1-hd"
 
         # 3. Every panel has a clip file reachable at the clip_path the
@@ -337,8 +374,13 @@ def test_make_sample_produces_all_expected_files(mock_gen_mp4):
                 f"missing clip file {full}"
             )
 
-        # 4. ffmpeg placeholder was generated exactly once
-        assert mock_gen_mp4.call_count == 1
+        # 4. Both the clip placeholder AND the long final.mp4 exist.
+        assert (Path(tmp) / "placeholder.mp4").exists()
+        assert (Path(tmp) / "final.mp4").exists()
+
+        # 5. ffmpeg was called twice — once for the clip placeholder and
+        # once for the long final.mp4 stitched-video stand-in.
+        assert mock_gen_mp4.call_count == 2
 
 
 @patch("video.preview._generate_placeholder_mp4")
@@ -347,7 +389,7 @@ def test_make_sample_is_idempotent(mock_gen_mp4):
     symlinks/files. The user may regenerate the fixture after a template
     change."""
 
-    def fake_placeholder(path, duration_seconds=2.0):
+    def fake_placeholder(path, duration_seconds=2.0, **_kwargs):
         Path(path).write_bytes(b"\x00")
 
     mock_gen_mp4.side_effect = fake_placeholder
@@ -358,6 +400,7 @@ def test_make_sample_is_idempotent(mock_gen_mp4):
         # Everything is still in place
         assert (Path(tmp) / "index.html").exists()
         assert (Path(tmp) / "manifest.json").exists()
+        assert (Path(tmp) / "final.mp4").exists()
         assert (Path(tmp) / "clips" / "panel_01.mp4").exists() or (
             Path(tmp) / "clips" / "panel_01.mp4"
         ).is_symlink()
