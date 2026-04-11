@@ -161,17 +161,19 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   background: #1C2118;
 }
 
+/* Timeline is NOT a box-within-a-box — no bg, no horizontal padding,
+ * no radius. Tiles align flush with the player's left and right edges
+ * so the "player width" and "tile strip width" are identical. */
 .timeline {
-  background: var(--muted-bg);
-  border-radius: var(--radius-lg);
-  padding: 12px 14px;
+  background: transparent;
+  padding: 0;
   min-width: 0;
 }
 .timeline-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .timeline-title {
   font-size: 11px;
