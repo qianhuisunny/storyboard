@@ -39,10 +39,14 @@ class Storyboard:
 @dataclass
 class PipelineConfig:
     storyboard_path: str
-    avatar_image_path: str
     output_dir: str
-    voice: str = "alloy"
-    kling_model: str = "standard"  # "standard" or "pro"
+    voice: str = "alloy"  # OpenAI TTS voice for slides panels
+    # HeyGen talking-head settings. See backend/app/services/video/heygen.py
+    # for defaults and how avatar_id is interpreted (it's actually a
+    # look_id internally).
+    heygen_avatar_id: str = "Lisa_public"
+    heygen_voice_id: str = "1bd001e7e50f421d891986aad5158bc8"
+    heygen_avatar_style: str = "normal"
     max_parallel: int = 4
     skip_tts: bool = False
     skip_avatar: bool = False

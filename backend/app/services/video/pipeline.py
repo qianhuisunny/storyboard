@@ -1,18 +1,35 @@
+"""
+Video generation pipeline orchestrator.
+
+Talking-head panels are rendered via HeyGen's Photo Avatar API (see
+heygen.py). HeyGen does TTS internally using voice_id, so we do NOT
+run OpenAI TTS for talking-head panels — that would be wasted cost and
+introduces a voice-consistency problem we aren't ready to solve yet.
+Slides panels still use OpenAI TTS + Remotion as before.
+
+Replaces the earlier Runware/Kling implementation. Kling Avatar 2.0 at
+~$0.044/sec put a 5-min video at ~$5 — about 3x over our $1.50/5min
+target. HeyGen Photo Avatar at ~$0.50/min Scale tier brings the talking
+-head portion to ~$0.23 for the trimmed 28s of talking head in the
+current fixture.
+
+Known caveat to revisit later: slides use OpenAI alloy voice and
+talking-head uses HeyGen's voice, so there's a voice change mid-video.
+Acceptable for smoke tests, needs a solution before real production
+(either match voices or switch slides to HeyGen TTS as well, or
+upload the alloy audio to HeyGen as a custom audio asset).
+"""
 import os
 import json
 import time
 from pathlib import Path
-from .models import PipelineConfig, Storyboard, ScreenType
+
+from .models import PipelineConfig, ScreenType
 from .parser import parse_storyboard
 from .tts import generate_all_audio
-from .avatar import generate_avatar_video, RunwareAvatarClient
+from .heygen import generate_avatar_video as heygen_generate_avatar_video
 from .slides import map_visual_direction_to_props, render_slide
 from .stitcher import stitch_videos
-from .public_upload import upload_file
-
-
-def _is_public_url(s: str) -> bool:
-    return s.startswith("http://") or s.startswith("https://")
 
 
 def run_pipeline(config: PipelineConfig) -> str:
@@ -32,43 +49,37 @@ def run_pipeline(config: PipelineConfig) -> str:
     storyboard = parse_storyboard(config.storyboard_path)
     panels = storyboard.panels
 
-    # Filter to specific panels if requested
     if config.only_panels:
         panels = [p for p in panels if p.panel_number in config.only_panels]
         print(f"  Filtered to panels: {[p.panel_number for p in panels]}")
 
-    print(f"  {len(panels)} panels: {len([p for p in panels if p.screen_type == ScreenType.TALKING_HEAD])} talking head, {len([p for p in panels if p.screen_type == ScreenType.SLIDES])} slides")
+    slides_panels = [p for p in panels if p.screen_type == ScreenType.SLIDES]
+    talking_head_panels = [p for p in panels if p.screen_type == ScreenType.TALKING_HEAD]
+    print(
+        f"  {len(panels)} panels: "
+        f"{len(talking_head_panels)} talking head, {len(slides_panels)} slides"
+    )
 
-    # 2. Generate TTS audio for all panels
-    if not config.skip_tts:
-        print(f"\n[2/4] Generating TTS audio...")
-        generate_all_audio(panels, config.output_dir, voice=config.voice)
-    else:
+    # 2. Generate TTS audio for SLIDES ONLY. Talking-head panels use
+    # HeyGen's built-in TTS (triggered by voice.type=text in the create-
+    # video request), so they don't need a local mp3 file.
+    if slides_panels and not config.skip_tts:
+        print(f"\n[2/4] Generating TTS audio for {len(slides_panels)} slide panels...")
+        generate_all_audio(slides_panels, config.output_dir, voice=config.voice)
+    elif slides_panels and config.skip_tts:
         print(f"\n[2/4] Skipping TTS (reusing existing audio)")
         audio_dir = os.path.join(config.output_dir, "audio")
-        for panel in panels:
+        for panel in slides_panels:
             panel.audio_path = os.path.join(audio_dir, f"panel_{panel.panel_number:02d}.mp3")
+    else:
+        print(f"\n[2/4] No slide panels to TTS")
 
     # 3. Generate video clips per panel
     print(f"\n[3/4] Generating video clips...")
     clips_dir = os.path.join(config.output_dir, "clips")
-    slides_dir = os.path.join(config.output_dir, "slides")
+    slides_artifacts_dir = os.path.join(config.output_dir, "slides")
     os.makedirs(clips_dir, exist_ok=True)
-    os.makedirs(slides_dir, exist_ok=True)
-
-    # Runware's Kling Avatar API only accepts publicly-accessible HTTPS URLs
-    # for its image and audio inputs, not local file paths. If the user passed
-    # a local avatar image, upload it once and cache the resulting URL so we
-    # don't re-upload per panel. Audio is still uploaded per-panel since each
-    # panel has its own voiceover.
-    needs_avatar_render = any(
-        p.screen_type == ScreenType.TALKING_HEAD for p in panels
-    ) and not config.skip_avatar
-    avatar_image_url: str = config.avatar_image_path
-    if needs_avatar_render and not _is_public_url(config.avatar_image_path):
-        print(f"  [Avatar] Uploading speaker image to public host...")
-        avatar_image_url = upload_file(config.avatar_image_path, expiry="12h")
-        print(f"  [Avatar] image URL: {avatar_image_url}")
+    os.makedirs(slides_artifacts_dir, exist_ok=True)
 
     for panel in panels:
         clip_path = os.path.join(clips_dir, f"panel_{panel.panel_number:02d}.mp4")
@@ -79,44 +90,34 @@ def run_pipeline(config: PipelineConfig) -> str:
                 panel.clip_path = clip_path
                 continue
 
-            print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → Kling Avatar")
-            # Upload this panel's audio to get a public URL Runware can fetch.
-            # 12h expiry is well over the typical Runware job latency while
-            # still guaranteeing the file doesn't linger after the demo.
-            audio_url = upload_file(panel.audio_path, expiry="12h")
-            print(f"    audio URL: {audio_url}")
-            # Runware requires a non-empty positivePrompt. The fixture's
-            # per-panel visual_direction bullets are already written as
-            # talking-head guidance ("professional woman speaking directly
-            # to camera", etc.), so we concatenate them and append a short
-            # boilerplate about lip-sync / framing quality.
-            panel_prompt = (
-                ", ".join(s.rstrip(".") for s in panel.visual_direction)
-                + ". Natural lip sync, accurate mouth shapes, subtle head "
-                + "movements, steady framing, professional delivery."
-            )
-            generate_avatar_video(
-                image_url=avatar_image_url,
-                audio_url=audio_url,
+            print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → HeyGen ({config.heygen_avatar_id})")
+            result = heygen_generate_avatar_video(
+                input_text=panel.voiceover_script,
                 output_path=clip_path,
-                model=config.kling_model,
-                positive_prompt=panel_prompt,
+                avatar_id=config.heygen_avatar_id,
+                voice_id=config.heygen_voice_id,
+                avatar_style=config.heygen_avatar_style,
             )
             panel.clip_path = clip_path
+            # Store the duration HeyGen reports, useful for manifest/debug
+            if result.get("duration"):
+                panel.duration_seconds = float(result["duration"])
 
         elif panel.screen_type == ScreenType.SLIDES:
             print(f"  [Panel {panel.panel_number:02d}] SLIDES → LLM + Remotion")
 
             # Step 3a: LLM maps visual direction to template + props
-            result = map_visual_direction_to_props(panel.visual_direction)
-            props_path = os.path.join(slides_dir, f"panel_{panel.panel_number:02d}.json")
-            Path(props_path).write_text(json.dumps(result, indent=2))
-            print(f"    Template: {result['template']}")
+            slide_plan = map_visual_direction_to_props(panel.visual_direction)
+            props_path = os.path.join(
+                slides_artifacts_dir, f"panel_{panel.panel_number:02d}.json"
+            )
+            Path(props_path).write_text(json.dumps(slide_plan, indent=2))
+            print(f"    Template: {slide_plan['template']}")
 
-            # Step 3b: Remotion renders the slide
+            # Step 3b: Remotion renders the slide with the panel's TTS audio
             render_slide(
-                template=result["template"],
-                props=result["props"],
+                template=slide_plan["template"],
+                props=slide_plan["props"],
                 audio_path=panel.audio_path,
                 output_path=clip_path,
                 duration_seconds=panel.duration_seconds,
@@ -132,7 +133,7 @@ def run_pipeline(config: PipelineConfig) -> str:
     final_path = os.path.join(config.output_dir, "final.mp4")
     stitch_videos(ordered_clips, final_path)
 
-    # Write manifest
+    # Manifest
     elapsed = time.time() - start
     manifest = {
         "storyboard": config.storyboard_path,
@@ -141,7 +142,9 @@ def run_pipeline(config: PipelineConfig) -> str:
         "elapsed_seconds": round(elapsed, 1),
         "config": {
             "voice": config.voice,
-            "kling_model": config.kling_model,
+            "heygen_avatar_id": config.heygen_avatar_id,
+            "heygen_voice_id": config.heygen_voice_id,
+            "heygen_avatar_style": config.heygen_avatar_style,
         },
     }
     manifest_path = os.path.join(config.output_dir, "manifest.json")
