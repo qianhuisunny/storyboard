@@ -18,6 +18,11 @@ class Panel:
     duration_seconds: float
     voiceover_script: str
     visual_direction: list[str]
+    # Optional text overlay for stock_video panels — drawn on top of
+    # the Pexels footage as a framing context line. Only read by the
+    # stock_video render path; ignored for slides and talking_head.
+    stock_title: Optional[str] = None
+    stock_subtitle: Optional[str] = None
     # Populated during pipeline execution
     audio_path: Optional[str] = None
     clip_path: Optional[str] = None

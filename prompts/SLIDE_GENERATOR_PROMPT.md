@@ -31,11 +31,39 @@ Side-by-side comparison of two things.
 interface SplitComparisonProps {
   title: string;
   subtitle?: string;
-  left: { label: string; description: string; metric?: string; sentiment?: "positive" | "negative" | "neutral" };
-  right: { label: string; description: string; metric?: string; sentiment?: "positive" | "negative" | "neutral" };
+  left: {
+    label: string;
+    description: string;
+    metric?: string;
+    sentiment?: "positive" | "negative" | "neutral";
+    icon?: IconKey;           // optional visual metaphor, see below
+  };
+  right: {
+    label: string;
+    description: string;
+    metric?: string;
+    sentiment?: "positive" | "negative" | "neutral";
+    icon?: IconKey;           // optional visual metaphor, see below
+  };
   footnote?: string;          // source attribution shown below the comparison
 }
 ```
+
+**Icon field (SplitComparison only):** You MAY attach an illustrated icon to each side when a visual metaphor genuinely helps the viewer. Pick icons in CONTRASTING PAIRS — one icon per side, and the two icons should embody the same contrast the two cards express. Leave ``icon`` omitted entirely if no metaphor fits — an empty icon slot is better than a mismatched one.
+
+Available icon keys (pick ONE per side, always as a contrasting pair):
+
+| Pair | Left key | Right key | Use when the contrast is… |
+|---|---|---|---|
+| isolated ↔ connected | ``distributed-nodes`` | ``networked-nodes`` | fragmented knowledge / lone effort vs. shared flow / team intelligence |
+| one ↔ many | ``person-single`` | ``person-group`` | individual vs. collective, solo actor vs. team, one voice vs. many voices |
+| fixed ↔ branching | ``arrow-linear`` | ``arrow-branching`` | single predetermined path vs. multiple possible outcomes, default vs. deliberate options |
+| closed ↔ open | ``lock-closed`` | ``lock-open`` | blocked access vs. open access, gated vs. available, stuck vs. unlocked |
+
+Rules:
+- Pick icons in pairs only. Never attach an icon to one side without the matching opposite on the other side.
+- The icon must match the card's semantic role: the "worse / isolated / closed / fixed" side gets the left-column key, the "better / connected / open / branching" side gets the right-column key, even if the left/right physical layout of the cards is different.
+- If none of these pairs captures the contrast, omit ``icon`` — do NOT invent icon keys. The component will fall back to text-only cards, which look fine.
 
 ### 3. Timeline
 Sequence of events or decision points along a time axis.

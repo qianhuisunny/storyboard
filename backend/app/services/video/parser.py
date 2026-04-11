@@ -14,6 +14,8 @@ def parse_storyboard(path: str) -> Storyboard:
             duration_seconds=p["duration_seconds"],
             voiceover_script=p["voiceover_script"],
             visual_direction=p["visual_direction"],
+            stock_title=p.get("stock_title"),
+            stock_subtitle=p.get("stock_subtitle"),
         ))
     return Storyboard(
         title=raw["title"],

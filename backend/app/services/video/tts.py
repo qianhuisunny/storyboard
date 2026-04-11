@@ -24,7 +24,10 @@ def generate_audio(
         The output_path.
     """
     if client is None:
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Explicit timeout so a single hung TTS call fails fast instead of
+        # blocking on the openai SDK's default (10 minutes). If a request
+        # genuinely takes >60s, something is wrong — retry will handle it.
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=60.0, max_retries=3)
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
@@ -55,7 +58,10 @@ def generate_all_audio(
         List of panels with audio_path populated.
     """
     if client is None:
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+        # Explicit timeout so a single hung TTS call fails fast instead of
+        # blocking on the openai SDK's default (10 minutes). If a request
+        # genuinely takes >60s, something is wrong — retry will handle it.
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"), timeout=60.0, max_retries=3)
 
     audio_dir = os.path.join(output_dir, "audio")
 

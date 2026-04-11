@@ -224,25 +224,90 @@ def align_elements_to_audio(
                 (idx / max(1, len(elements))) * total_duration * 0.6,
                 total_duration - 1.0,
             )
-    return result
+
+    # HARD RULE (see _enforce_max_empty_gap docstring): no slide frame
+    # may be empty (title-only, no revealed elements) for more than 2
+    # seconds. We honour the LLM's relative ordering but overwrite its
+    # absolute timestamps so the first element lands at 0.0 and each
+    # subsequent element lands at most MAX_EMPTY_GAP_SEC after the
+    # previous one. This is non-negotiable — panels with a 28-second
+    # blank opening (Panel 10, pre-fix) broke viewer attention.
+    return _enforce_max_empty_gap(result, total_duration)
 
 
 def _fallback_even_spacing(
     elements: list[dict],
     total_duration: float,
 ) -> dict:
-    """Spread elements evenly across the first 60% of the clip so they
-    all appear before the voiceover ends, without piling them at t=0.
-    Used when the alignment LLM fails or returns invalid data.
+    """Spread elements across the first few seconds so they appear
+    quickly, not the first 60%. Used when the alignment LLM fails or
+    returns invalid data. Honours the same MAX_EMPTY_GAP_SEC rule as
+    the main path: first element at 0.0, then every ``MAX_EMPTY_GAP_SEC``
+    seconds.
     """
     n = len(elements)
     if n == 0:
         return {}
-    window = total_duration * 0.6
+    ceiling = max(total_duration - 0.5, 0.0)
     return {
-        el["id"]: (i / max(1, n)) * window
+        el["id"]: round(min(i * MAX_EMPTY_GAP_SEC, ceiling), 3)
         for i, el in enumerate(elements)
     }
+
+
+# ---------------------------------------------------------------------------
+# Rule: never leave the viewer staring at an unchanged frame for more
+# than 2 seconds. Applies to (a) the initial "only title is visible"
+# period at the start of a slide and (b) the gap between any two
+# adjacent element reveals.
+#
+# Reason this constant exists as a named module-level value: it's a
+# product rule, not an implementation detail. Tweaking it affects every
+# slide in every video and should be done deliberately.
+# ---------------------------------------------------------------------------
+MAX_EMPTY_GAP_SEC = 2.0
+
+
+def _enforce_max_empty_gap(
+    timings: dict,
+    total_duration: float,
+    max_gap: float = MAX_EMPTY_GAP_SEC,
+) -> dict:
+    """Rewrite element timings so:
+
+    1. The first element lands at 0.0 (the slide is never "just the
+       title" — once the title has faded in, the first reveal is
+       already happening).
+    2. Each subsequent element lands at most ``max_gap`` seconds after
+       the previous one.
+    3. The last element lands no later than ``total_duration - 0.5``
+       (leave a minimum half-second tail for the final visual to sit
+       on screen before the clip ends).
+    4. The LLM's relative ordering is preserved — only absolute times
+       are overwritten.
+
+    Why ignore the LLM's absolute values? The alignment LLM is asked
+    for the timestamp when each element is *first mentioned* in the
+    voiceover. That's semantically faithful but visually catastrophic:
+    if the narrator spends the first 28 seconds setting up before
+    saying "individual capability", the slide's content stays blank
+    for 28 seconds (observed on Panel 10 in the 2026-04-11 render).
+    The reveal rhythm is a product decision, not a transcription task.
+
+    Empty dicts return unchanged. A single-element slide always gets
+    {element_id: 0.0}.
+    """
+    if not timings:
+        return timings
+
+    items = sorted(timings.items(), key=lambda kv: kv[1])
+    ceiling = max(total_duration - 0.5, 0.0)
+
+    result: dict = {}
+    for i, (element_id, _llm_time) in enumerate(items):
+        t = min(i * max_gap, ceiling)
+        result[element_id] = round(t, 3)
+    return result
 
 # Path to the system prompt — 5 .parent calls: video → services → app → backend → repo root
 PROMPT_PATH = Path(__file__).parent.parent.parent.parent.parent / "prompts" / "SLIDE_GENERATOR_PROMPT.md"

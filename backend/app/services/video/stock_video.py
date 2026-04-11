@@ -250,49 +250,191 @@ def download_video(url: str, output_path: str, timeout: int = 120) -> str:
 # ffmpeg: loop stock video + overlay TTS audio → panel clip
 # =============================================================================
 
+def _normalize_overlay_text(s: str) -> str:
+    """Replace smart quotes / em-dashes with ASCII equivalents so they
+    render cleanly in any font we fall back to. Pillow handles unicode
+    directly but Helvetica.ttc on macOS doesn't always have glyphs for
+    curly apostrophes or en/em-dashes, producing tofu boxes.
+    """
+    if s is None:
+        return ""
+    replacements = {
+        "\u2018": "'",   # left single quote
+        "\u2019": "'",   # right single quote
+        "\u201C": '"',   # left double quote
+        "\u201D": '"',   # right double quote
+        "\u2013": "-",   # en dash
+        "\u2014": "-",   # em dash
+        "\u2026": "...", # ellipsis
+    }
+    for k, v in replacements.items():
+        s = s.replace(k, v)
+    return s
+
+
+def _render_title_bar_png(
+    title: str,
+    subtitle: Optional[str],
+    output_path: str,
+    width: int = CANONICAL_WIDTH,
+    bar_height: int = 160,
+) -> str:
+    """Render the title bar as a transparent PNG (black bar at 65%
+    opacity + white title + optional muted subtitle), suitable for
+    use as an ffmpeg overlay input.
+
+    Why this instead of ffmpeg drawtext: the Homebrew ffmpeg build on
+    this machine was compiled without ``--enable-libfreetype`` and has
+    no drawtext filter. Pillow is already in the venv (rembg
+    dependency) and supports full unicode + any system TTF font. The
+    generated PNG composites cleanly via ffmpeg's ``overlay`` filter
+    which IS available.
+    """
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.new(
+        "RGBA",
+        (width, bar_height),
+        (0, 0, 0, int(255 * 0.65)),  # 65% opaque black bar
+    )
+    draw = ImageDraw.Draw(img)
+
+    # Try a few likely system font paths. macOS ships Helvetica.ttc
+    # at the first path on every machine I've tested. TTC files are
+    # font collections — index=0 is Regular, index=1 is Bold on
+    # Helvetica.ttc. We deliberately pick Bold for the title so it
+    # has similar visual weight to the Remotion slide titles (56px
+    # bold) and dominates the overlay bar. The subtitle stays regular.
+    title_font = None
+    subtitle_font = None
+    for font_path in (
+        "/System/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/HelveticaNeue.ttc",
+        "/Library/Fonts/Helvetica.ttc",
+        "/System/Library/Fonts/Supplemental/Arial.ttf",
+    ):
+        try:
+            # index=1 is usually Bold for Helvetica.ttc / .ttf lookup
+            # just uses the single face and ignores index.
+            try:
+                title_font = ImageFont.truetype(font_path, 52, index=1)
+            except Exception:
+                title_font = ImageFont.truetype(font_path, 52)
+            subtitle_font = ImageFont.truetype(font_path, 26)
+            break
+        except Exception:
+            continue
+    if title_font is None:
+        title_font = ImageFont.load_default()
+        subtitle_font = ImageFont.load_default()
+
+    title_clean = _normalize_overlay_text(title)
+    # Center horizontally, 38 px from the top
+    bbox = draw.textbbox((0, 0), title_clean, font=title_font)
+    title_w = bbox[2] - bbox[0]
+    draw.text(
+        ((width - title_w) // 2, 34),
+        title_clean,
+        fill=(255, 255, 255, 255),
+        font=title_font,
+    )
+
+    if subtitle:
+        sub_clean = _normalize_overlay_text(subtitle)
+        bbox = draw.textbbox((0, 0), sub_clean, font=subtitle_font)
+        sub_w = bbox[2] - bbox[0]
+        draw.text(
+            ((width - sub_w) // 2, 100),
+            sub_clean,
+            fill=(221, 221, 221, 255),
+            font=subtitle_font,
+        )
+
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    img.save(output_path, "PNG")
+    return output_path
+
+
 def overlay_audio_on_video(
     video_path: str,
     audio_path: str,
     output_path: str,
     target_duration: float,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
     timeout: int = 240,
 ) -> str:
     """Loop the stock video as needed, trim to target_duration, replace
-    its audio track with the TTS file, and write the canonical-format
-    result. The stitcher's normalize pass will see an already-canonical
-    clip and do a near-identity re-encode, which is still cheap.
+    its audio track with the TTS file, optionally composite a title +
+    subtitle overlay on top, and write the canonical-format result.
+
+    Two code paths:
+      - **No title**: simple ``-vf`` chain with scale + pad + fps +
+        format. Single video input, single audio input, -map 0:v / 1:a.
+      - **With title**: renders a transparent PNG title bar via Pillow
+        (``_render_title_bar_png``), adds it as a third ffmpeg input,
+        uses ``-filter_complex`` with an ``overlay`` filter to
+        composite the PNG over the scaled video. We don't use
+        ffmpeg's ``drawtext`` filter because the Homebrew ffmpeg
+        build on this machine is missing ``--enable-libfreetype``.
 
     Key ffmpeg args:
-      - ``-stream_loop -1 -i video``: loop the video indefinitely on
-        read; the output ``-t target_duration`` cuts it at the right
-        length without requiring keyframe alignment.
+      - ``-stream_loop -1 -i video``: loop the video indefinitely so
+        short Pexels clips cover long panels.
       - ``-i audio``: the OpenAI TTS mp3 (drives the panel's duration).
-      - ``-map 0:v -map 1:a``: keep the video stream from input 0 and
-        the audio stream from input 1 (discard the Pexels clip's own
-        audio — most of them are silent anyway but some have ambient
-        noise we don't want under our voiceover).
-      - ``-vf scale+pad+fps+format``: force 1920x1080 yuv420p 25fps
-        with aspect-preserving pad-to-fit. Any Pexels clip that's not
-        native 16:9 gets pillarboxed with a black fill.
+      - ``-t target_duration``: hard cut at audio length.
       - ``libx264 veryfast crf 20`` + ``aac 48k 192k`` to match the
         canonical format the stitcher wants.
     """
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
-    cmd = [
+
+    title_png: Optional[Path] = None
+    if title:
+        # Stage the title PNG next to the output, clean up in finally
+        title_png = (
+            Path(output_path).parent / f"_title_{Path(output_path).stem}.png"
+        )
+        _render_title_bar_png(title, subtitle, str(title_png))
+
+    # Build the command incrementally so the two code paths stay readable
+    cmd: list[str] = [
         "ffmpeg",
         "-y",
         "-stream_loop", "-1",
         "-i", str(Path(video_path).resolve()),
         "-i", str(Path(audio_path).resolve()),
-        "-map", "0:v:0",
-        "-map", "1:a:0",
-        "-t", f"{target_duration:.3f}",
-        "-vf", (
-            f"scale={CANONICAL_WIDTH}:{CANONICAL_HEIGHT}:"
+    ]
+
+    if title_png is not None:
+        cmd.extend(["-i", str(title_png.resolve())])
+        # Scale/pad/fps/format, then overlay the title PNG at (0, 0)
+        filter_complex = (
+            f"[0:v]scale={CANONICAL_WIDTH}:{CANONICAL_HEIGHT}:"
             f"force_original_aspect_ratio=decrease,"
             f"pad={CANONICAL_WIDTH}:{CANONICAL_HEIGHT}:(ow-iw)/2:(oh-ih)/2:black,"
-            f"fps={CANONICAL_FPS},format=yuv420p"
-        ),
+            f"fps={CANONICAL_FPS},format=yuv420p[scaled];"
+            f"[scaled][2:v]overlay=0:0:format=auto,format=yuv420p[outv]"
+        )
+        cmd.extend([
+            "-filter_complex", filter_complex,
+            "-map", "[outv]",
+            "-map", "1:a:0",
+        ])
+    else:
+        # No overlay — plain scale/pad/fps/format and direct stream maps
+        cmd.extend([
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-vf", (
+                f"scale={CANONICAL_WIDTH}:{CANONICAL_HEIGHT}:"
+                f"force_original_aspect_ratio=decrease,"
+                f"pad={CANONICAL_WIDTH}:{CANONICAL_HEIGHT}:(ow-iw)/2:(oh-ih)/2:black,"
+                f"fps={CANONICAL_FPS},format=yuv420p"
+            ),
+        ])
+
+    cmd.extend([
+        "-t", f"{target_duration:.3f}",
         "-c:v", "libx264",
         "-preset", "veryfast",
         "-crf", "20",
@@ -304,12 +446,22 @@ def overlay_audio_on_video(
         "-b:a", "192k",
         "-movflags", "+faststart",
         str(Path(output_path).resolve()),
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"ffmpeg stock-video overlay failed:\n{result.stderr[-2000:]}"
-        )
+    ])
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"ffmpeg stock-video overlay failed:\n{result.stderr[-2000:]}"
+            )
+    finally:
+        # Always clean up the title PNG so clips/ stays tidy between runs
+        if title_png is not None:
+            try:
+                title_png.unlink(missing_ok=True)
+            except Exception:
+                pass
+
     return output_path
 
 
@@ -322,9 +474,18 @@ def create_stock_video_panel(
     audio_path: str,
     output_path: str,
     target_duration: float,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
     llm_client: Optional[OpenAI] = None,
 ) -> dict:
     """End-to-end: visual direction → Pexels query → search → pick → download → overlay.
+
+    Args:
+        title: Optional title text to draw onto the stock footage as a
+            framing overlay (e.g. "Career decisions no male mentor has
+            navigated"). Drawn in a semi-transparent black bar at the
+            top of the frame.
+        subtitle: Optional smaller subtitle line under the title.
 
     Returns a dict with the chosen query, Pexels video id/url, and
     output path — useful to dump into the pipeline manifest.
@@ -339,6 +500,8 @@ def create_stock_video_panel(
         f"duration={chosen_video['duration']}s "
         f"variant={chosen_variant['width']}x{chosen_variant['height']}"
     )
+    if title:
+        print(f"    [stock] overlay title: {title!r}")
 
     # Download to a scratch path next to the final output
     scratch = Path(output_path).parent / f"_stock_source_{Path(output_path).stem}.mp4"
@@ -350,6 +513,8 @@ def create_stock_video_panel(
             audio_path=audio_path,
             output_path=output_path,
             target_duration=target_duration,
+            title=title,
+            subtitle=subtitle,
         )
     finally:
         # Clean up the raw Pexels source so clips/ doesn't accumulate them
@@ -365,4 +530,6 @@ def create_stock_video_panel(
         "output_path": output_path,
         "duration": target_duration,
         "variant_size": f"{chosen_variant['width']}x{chosen_variant['height']}",
+        "title_overlay": title,
+        "subtitle_overlay": subtitle,
     }

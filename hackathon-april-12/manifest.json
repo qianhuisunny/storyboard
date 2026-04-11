@@ -1,0 +1,356 @@
+{
+  "storyboard": "app/services/video/tests/fixtures/sample_storyboard.json",
+  "panels": 16,
+  "output": "/Users/qianhuisun/Desktop/SB/storyboard-hackathon/data/video_output/final.mp4",
+  "elapsed_seconds": 267.9,
+  "config": {
+    "voice": "alloy",
+    "heygen_avatar_id": "Lisa_public",
+    "heygen_avatar_style": "normal"
+  },
+  "per_panel": [
+    {
+      "panel_number": 1,
+      "screen_type": "talking_head",
+      "voiceover_words": 28,
+      "skipped": true,
+      "clip_path": "clips/panel_01.mp4",
+      "video_model": {
+        "label": "HeyGen \u00b7 Lisa_public",
+        "sublabel": "Photo Avatar \u00b7 audio-driven"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 0.0,
+      "duration_seconds": 0.0
+    },
+    {
+      "panel_number": 2,
+      "screen_type": "slides",
+      "voiceover_words": 36,
+      "template": "DataCard",
+      "duration": 13.056,
+      "element_timings": {},
+      "clip_path": "clips/panel_02.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 DataCard",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 0.0,
+      "duration_seconds": 13.056
+    },
+    {
+      "panel_number": 3,
+      "screen_type": "slides",
+      "voiceover_words": 61,
+      "template": "PyramidChart",
+      "duration": 23.304,
+      "element_timings": {
+        "level_0": 0.0,
+        "level_1": 1.631,
+        "level_2": 3.263,
+        "level_3": 4.894,
+        "level_4": 6.525,
+        "annotation": 8.156
+      },
+      "clip_path": "clips/panel_03.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 PyramidChart",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 13.06,
+      "duration_seconds": 23.304
+    },
+    {
+      "panel_number": 4,
+      "screen_type": "stock_video",
+      "voiceover_words": 86,
+      "pexels_query": "woman whiteboard presenting office",
+      "pexels_video_id": 9364047,
+      "pexels_page_url": "https://www.pexels.com/video/woman-presenting-at-the-office-9364047/",
+      "pexels_variant_size": "1920x1080",
+      "duration": 34.824,
+      "clip_path": "clips/panel_04.mp4",
+      "video_model": {
+        "label": "Pexels \u00b7 9364047",
+        "sublabel": "woman whiteboard presenting office"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 36.36,
+      "duration_seconds": 34.824
+    },
+    {
+      "panel_number": 5,
+      "screen_type": "talking_head",
+      "voiceover_words": 24,
+      "skipped": true,
+      "clip_path": "clips/panel_05.mp4",
+      "video_model": {
+        "label": "HeyGen \u00b7 Lisa_public",
+        "sublabel": "Photo Avatar \u00b7 audio-driven"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 71.18,
+      "duration_seconds": 0.0
+    },
+    {
+      "panel_number": 6,
+      "screen_type": "stock_video",
+      "voiceover_words": 46,
+      "pexels_query": "business handshake office",
+      "pexels_video_id": 8091686,
+      "pexels_page_url": "https://www.pexels.com/video/contract-signing-8091686/",
+      "pexels_variant_size": "1920x1080",
+      "duration": 19.704,
+      "clip_path": "clips/panel_06.mp4",
+      "video_model": {
+        "label": "Pexels \u00b7 8091686",
+        "sublabel": "business handshake office"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 71.18,
+      "duration_seconds": 19.704
+    },
+    {
+      "panel_number": 7,
+      "screen_type": "stock_video",
+      "voiceover_words": 63,
+      "pexels_query": "pregnant woman laptop office",
+      "pexels_video_id": 7155118,
+      "pexels_page_url": "https://www.pexels.com/video/pregnant-woman-talking-on-the-phone-7155118/",
+      "pexels_variant_size": "1920x1080",
+      "duration": 29.52,
+      "clip_path": "clips/panel_07.mp4",
+      "video_model": {
+        "label": "Pexels \u00b7 7155118",
+        "sublabel": "pregnant woman laptop office"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 90.89,
+      "duration_seconds": 29.52
+    },
+    {
+      "panel_number": 8,
+      "screen_type": "slides",
+      "voiceover_words": 106,
+      "template": "ThreeColumn",
+      "duration": 43.32,
+      "element_timings": {
+        "column_0": 0.0,
+        "column_1": 15.162
+      },
+      "clip_path": "clips/panel_08.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 ThreeColumn",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 120.41,
+      "duration_seconds": 43.32
+    },
+    {
+      "panel_number": 9,
+      "screen_type": "slides",
+      "voiceover_words": 84,
+      "template": "Timeline",
+      "duration": 34.68,
+      "element_timings": {
+        "event_0": 0.0,
+        "event_1": 6.069,
+        "event_2": 12.138
+      },
+      "clip_path": "clips/panel_09.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 Timeline",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 163.73,
+      "duration_seconds": 34.68
+    },
+    {
+      "panel_number": 10,
+      "screen_type": "slides",
+      "voiceover_words": 88,
+      "template": "SplitComparison",
+      "duration": 35.496,
+      "element_timings": {
+        "left": 0.0,
+        "right": 12.424
+      },
+      "clip_path": "clips/panel_10.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 SplitComparison",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 198.41,
+      "duration_seconds": 35.496
+    },
+    {
+      "panel_number": 11,
+      "screen_type": "stock_video",
+      "voiceover_words": 88,
+      "pexels_query": "professionals office conversation",
+      "pexels_video_id": 8453073,
+      "pexels_page_url": "https://www.pexels.com/video/man-and-woman-talking-in-front-of-a-elevator-8453073/",
+      "pexels_variant_size": "4096x2160",
+      "duration": 36.744,
+      "clip_path": "clips/panel_11.mp4",
+      "video_model": {
+        "label": "Pexels \u00b7 8453073",
+        "sublabel": "professionals office conversation"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 233.9,
+      "duration_seconds": 36.744
+    },
+    {
+      "panel_number": 12,
+      "screen_type": "slides",
+      "voiceover_words": 64,
+      "template": "DataCard",
+      "duration": 24.24,
+      "element_timings": {
+        "bullet_0": 0.0,
+        "bullet_1": 2.828,
+        "bullet_2": 5.656,
+        "bullet_3": 8.484
+      },
+      "clip_path": "clips/panel_12.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 DataCard",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 270.65,
+      "duration_seconds": 24.24
+    },
+    {
+      "panel_number": 13,
+      "screen_type": "slides",
+      "voiceover_words": 86,
+      "template": "ThreeColumn",
+      "duration": 33.144,
+      "element_timings": {
+        "column_0": 0.9,
+        "column_1": 2.58,
+        "column_2": 5.2
+      },
+      "clip_path": "clips/panel_13.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 ThreeColumn",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 294.89,
+      "duration_seconds": 33.144
+    },
+    {
+      "panel_number": 14,
+      "screen_type": "slides",
+      "voiceover_words": 65,
+      "template": "ThreeColumn",
+      "duration": 25.44,
+      "element_timings": {
+        "column_0": 0.0,
+        "column_1": 4.452,
+        "column_2": 8.904
+      },
+      "clip_path": "clips/panel_14.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 ThreeColumn",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 328.03,
+      "duration_seconds": 25.44
+    },
+    {
+      "panel_number": 15,
+      "screen_type": "talking_head",
+      "voiceover_words": 5,
+      "skipped": true,
+      "clip_path": "clips/panel_15.mp4",
+      "video_model": {
+        "label": "HeyGen \u00b7 Lisa_public",
+        "sublabel": "Photo Avatar \u00b7 audio-driven"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 353.47,
+      "duration_seconds": 0.0
+    },
+    {
+      "panel_number": 16,
+      "screen_type": "slides",
+      "voiceover_words": 86,
+      "template": "ThreeColumn",
+      "duration": 29.64,
+      "element_timings": {
+        "column_0": 0.0,
+        "column_1": 5.187,
+        "column_2": 10.374
+      },
+      "clip_path": "clips/panel_16.mp4",
+      "video_model": {
+        "label": "Remotion \u00b7 ThreeColumn",
+        "sublabel": "local react renderer"
+      },
+      "voice_model": {
+        "label": "OpenAI tts-1-hd",
+        "sublabel": "alloy"
+      },
+      "start_time_seconds": 353.47,
+      "duration_seconds": 29.64
+    }
+  ],
+  "storyboard_title": "Video Storyboard",
+  "total_duration_seconds": 383.1,
+  "final_video": "final.mp4"
+}

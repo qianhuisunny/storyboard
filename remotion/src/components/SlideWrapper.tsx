@@ -28,7 +28,7 @@ import {
 export type ElementTimings = Record<string, number>;
 
 export interface SlideWrapperProps {
-  title: string;
+  title?: string;
   subtitle?: string;
   audioSrc?: string;
   children: React.ReactNode;
@@ -49,6 +49,12 @@ export const SlideWrapper: React.FC<SlideWrapperProps> = ({
     extrapolateRight: "clamp",
   });
 
+  // When the caller passes no title (or an empty string) the whole
+  // title block — including its bottom margin — collapses, so the
+  // content area gets the full slide height. This is what opening-
+  // question Timelines rely on to vertically center their question.
+  const hasTitle = Boolean(title && title.trim().length > 0);
+
   return (
     <AbsoluteFill
       style={{
@@ -59,37 +65,39 @@ export const SlideWrapper: React.FC<SlideWrapperProps> = ({
         flexDirection: "column",
       }}
     >
-      <div
-        style={{
-          marginBottom: TITLE_BLOCK_MARGIN_BOTTOM,
-          opacity: titleOpacity,
-        }}
-      >
-        <h1
+      {hasTitle && (
+        <div
           style={{
-            fontSize: TITLE_SIZE,
-            fontWeight: TITLE_WEIGHT,
-            color: COLOR_TITLE,
-            lineHeight: TITLE_LINE_HEIGHT,
-            margin: 0,
+            marginBottom: TITLE_BLOCK_MARGIN_BOTTOM,
+            opacity: titleOpacity,
           }}
         >
-          {title}
-        </h1>
-        {subtitle && (
-          <div
+          <h1
             style={{
-              fontSize: SUBTITLE_SIZE,
-              fontWeight: SUBTITLE_WEIGHT,
-              color: COLOR_MUTED,
-              lineHeight: SUBTITLE_LINE_HEIGHT,
-              marginTop: TITLE_SUBTITLE_GAP,
+              fontSize: TITLE_SIZE,
+              fontWeight: TITLE_WEIGHT,
+              color: COLOR_TITLE,
+              lineHeight: TITLE_LINE_HEIGHT,
+              margin: 0,
             }}
           >
-            {subtitle}
-          </div>
-        )}
-      </div>
+            {title}
+          </h1>
+          {subtitle && (
+            <div
+              style={{
+                fontSize: SUBTITLE_SIZE,
+                fontWeight: SUBTITLE_WEIGHT,
+                color: COLOR_MUTED,
+                lineHeight: SUBTITLE_LINE_HEIGHT,
+                marginTop: TITLE_SUBTITLE_GAP,
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
+        </div>
+      )}
       <div
         style={{
           flex: 1,
