@@ -42,9 +42,18 @@ body { padding: 24px 32px 48px; }
 h1, h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 400; letter-spacing: -0.3px; margin: 0; }
 h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0.2px; margin: 0; }
 
-.page-header { margin-bottom: 20px; max-width: 1180px; }
+.page-top {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 20px;
+  max-width: 1180px;
+  flex-wrap: wrap;
+}
 .page-header h1 { font-size: 22px; letter-spacing: -0.4px; }
 .page-header .subtitle { color: var(--sage-6); font-size: 13px; margin-top: 4px; }
+.page-actions { display: flex; gap: 8px; flex-shrink: 0; }
 
 .error-banner {
   max-width: 1180px;
@@ -64,28 +73,6 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   border-radius: 3px;
 }
 
-.app-frame {
-  background: var(--card-bg);
-  border: 1px solid var(--sage-3);
-  border-radius: var(--radius-xl);
-  box-shadow: var(--shadow-sm);
-  overflow: hidden;
-  max-width: 1180px;
-}
-
-.top-nav {
-  padding: 14px 20px;
-  border-bottom: 1px solid var(--sage-3);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--card-bg);
-}
-.brand { display: flex; align-items: center; gap: 10px; }
-.brand-dot { width: 22px; height: 22px; border-radius: 6px; background: var(--sage-8); }
-.brand-title { font-family: 'Fraunces', serif; font-size: 17px; }
-.crumb { color: var(--sage-6); font-size: 13px; }
-.top-actions { display: flex; gap: 8px; }
 .btn {
   font-family: inherit;
   font-size: 12px;
@@ -108,17 +95,24 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 }
 .btn-primary:hover { background: var(--sage-9); border-color: var(--sage-9); }
 
+/* Workspace — one row of content; inspector is click-and-show, so by
+ * default the left column takes the full width. Adding .with-inspector
+ * on the workspace expands a 260px column for the right panel. */
 .workspace {
   display: grid;
-  grid-template-columns: 1fr 260px;
+  grid-template-columns: 1fr;
+  max-width: 1180px;
   min-height: 560px;
+  align-items: start;
+}
+.workspace.with-inspector {
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: 24px;
 }
 .left-col {
   display: grid;
   grid-template-rows: 1fr auto;
-  padding: 20px;
   gap: 16px;
-  border-right: 1px solid var(--sage-3);
   min-width: 0;
 }
 
@@ -237,27 +231,29 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 }
 .tile { position: relative; }
 .tile:hover { border-color: var(--sage-4); }
+/* Three screen types, three backgrounds — none of them are sage-8, so
+ * the active outline color (sage-10) stays visually distinct from any
+ * inactive tile and doesn't get confused with "just a talking_head". */
 .tile-talking_head {
-  background: var(--sage-8);
-  color: white;
-  border-color: var(--sage-9);
+  background: var(--sage-5);
+  color: var(--sage-10);
+  border-color: var(--sage-8);
 }
-.tile-talking_head:hover { border-color: var(--sage-5); }
+.tile-talking_head:hover { border-color: var(--sage-9); }
 .tile-slides { background: var(--card-bg); color: var(--sage-7); }
 .tile-stock_video {
   background: var(--sage-2);
   color: var(--sage-8);
   border-color: var(--sage-4);
 }
-/* Active tile — visible on both light and dark tile backgrounds.
- * Uses an inset ring (dark sage-10) + outer glow so the selection is
- * obvious whether the tile is white (slides), dark green (talking_head),
- * or pale green (stock_video). */
+/* Active tile — one consistent high-contrast ring that reads on all
+ * three tile backgrounds (white / pale green / mid green). sage-10 is
+ * near-black so the outline is obvious on any of them. */
 .tile.active {
-  outline: 2px solid var(--sage-10);
-  outline-offset: -1px;
-  box-shadow: 0 0 0 3px rgba(168, 200, 173, 0.65);
+  outline: 3px solid var(--sage-10);
+  outline-offset: 2px;
   z-index: 1;
+  box-shadow: 0 4px 10px rgba(28, 33, 24, 0.25);
 }
 
 .legend {
@@ -277,15 +273,20 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   margin-right: 6px;
   border: 1px solid var(--sage-3);
 }
-.dot-talking_head { background: var(--sage-8); border-color: var(--sage-9); }
+.dot-talking_head { background: var(--sage-5); border-color: var(--sage-8); }
 .dot-slides { background: var(--card-bg); }
 .dot-stock_video { background: var(--sage-2); border-color: var(--sage-4); }
 
+/* Inspector is click-and-show — hidden by default, revealed when the
+ * user clicks any tile (via `.with-inspector` on the workspace). */
 .inspector {
-  padding: 22px 20px;
-  background: var(--card-bg);
+  display: none;
+  padding: 4px 0 4px 24px;
+  background: transparent;
+  border-left: 1px solid var(--sage-3);
   overflow: auto;
 }
+.workspace.with-inspector .inspector { display: block; }
 .inspector-title-row {
   display: flex;
   align-items: baseline;
@@ -352,28 +353,21 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 </head>
 <body>
 
-<div class="page-header">
-  <h1 id="page-title">Video Preview</h1>
-  <div class="subtitle" id="page-subtitle">Click a tile to play its raw clip · pre-stitch inspection</div>
+<div class="page-top">
+  <div class="page-header">
+    <h1 id="page-title">Video Preview</h1>
+    <div class="subtitle" id="page-subtitle">Click a tile to play its raw clip · pre-stitch inspection</div>
+  </div>
+  <div class="page-actions">
+    <a class="btn" href="./manifest.json">Open manifest</a>
+    <a class="btn btn-primary" id="download-final" href="./final.mp4" download>Download final.mp4</a>
+  </div>
 </div>
 
 <div class="error-banner" id="error-banner"></div>
 
-<div class="app-frame">
-  <div class="top-nav">
-    <div class="brand">
-      <div class="brand-dot"></div>
-      <div class="brand-title">Plotline</div>
-      <span class="crumb">/ Video Preview / <span id="crumb-title">...</span></span>
-    </div>
-    <div class="top-actions">
-      <a class="btn" href="./manifest.json">Open manifest</a>
-      <a class="btn btn-primary" id="download-final" href="./final.mp4" download>Download final.mp4</a>
-    </div>
-  </div>
-
-  <div class="workspace">
-    <div class="left-col">
+<div class="workspace">
+  <div class="left-col">
       <div class="player-wrap">
         <div class="player-label">
           <div class="title" id="player-title">Loading...</div>
@@ -420,7 +414,6 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
         <div class="model-sublabel" id="insp-voice-sublabel"></div>
       </div>
     </div>
-  </div>
 </div>
 
 <div class="footnote" id="footnote"></div>
@@ -481,7 +474,6 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
     const title = manifest.storyboard_title || 'Video Preview';
     document.title = 'Plotline · ' + title;
     $('page-title').textContent = title;
-    $('crumb-title').textContent = title;
 
     // Timeline meta line
     const counts = { talking_head: 0, slides: 0, stock_video: 0 };
@@ -514,27 +506,33 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
     // -----------------------------------------------------------------
     // Playback state machine
     //
-    //   mode === 'full'  : <video src=final.mp4>, timeupdate auto-moves
-    //                      the active tile to whatever panel is currently
-    //                      on screen based on start_time_seconds.
-    //   mode === 'clip'  : <video src=clips/panel_XX.mp4>, the active
-    //                      tile stays pinned to the one you clicked.
+    //   mode === 'full'  : <video src=final.mp4>. Inspector hidden.
+    //                      timeupdate handler auto-advances the active
+    //                      tile + updates the player label as playback
+    //                      crosses each start_time_seconds boundary.
+    //   mode === 'clip'  : <video src=clips/panel_XX.mp4>. Inspector
+    //                      visible and pinned to the clicked panel.
+    //                      When one clip ends we auto-advance to N+1.
     //
-    // Click a tile    → enter 'clip' mode on that panel.
-    // Click Play all  → enter 'full' mode, deselect no tile (tracker
-    //                   will pick one automatically via timeupdate).
+    // Click a tile         → 'clip' mode + inspector open on that panel.
+    // Click Play full      → 'full' mode + inspector hidden.
     // -----------------------------------------------------------------
     const video = $('video-player');
+    const workspace = document.querySelector('.workspace');
     const playAllBtn = $('play-all');
     let mode = 'full';
     let currentIdx = 0;
 
-    function updateInspector(idx) {
-      const panel = perPanel[idx];
-      if (!panel) return;
-
+    function setActiveTile(idx) {
+      if (!perPanel[idx]) return;
       tileElements.forEach((t) => t.classList.remove('active'));
       tileElements[idx].classList.add('active');
+      currentIdx = idx;
+    }
+
+    function populateInspector(idx) {
+      const panel = perPanel[idx];
+      if (!panel) return;
 
       $('insp-title').textContent = 'Panel ' + pad2(panel.panel_number);
       const dur = (Number(panel.duration_seconds) || 0).toFixed(1) + 's';
@@ -549,9 +547,10 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       $('insp-video-sublabel').textContent = vm.sublabel || '';
       $('insp-voice-label').textContent = vom.label || '—';
       $('insp-voice-sublabel').textContent = vom.sublabel || '';
-
-      currentIdx = idx;
     }
+
+    function showInspector() { workspace.classList.add('with-inspector'); }
+    function hideInspector() { workspace.classList.remove('with-inspector'); }
 
     function updatePlayerLabel() {
       if (mode === 'full') {
@@ -591,6 +590,7 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
     function playFull(autoplay) {
       mode = 'full';
       playAllBtn.classList.add('mode-full');
+      hideInspector();
       setVideoSrcIfChanged(finalVideoSrc);
       updatePlayerLabel();
       if (autoplay) tryPlay();
@@ -602,7 +602,9 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       mode = 'clip';
       playAllBtn.classList.remove('mode-full');
       setVideoSrcIfChanged(panel.clip_path);
-      updateInspector(idx);
+      setActiveTile(idx);
+      populateInspector(idx);
+      showInspector();
       updatePlayerLabel();
       tryPlay();
     }
@@ -627,7 +629,9 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
       const idx = panelIndexAtTime(video.currentTime || 0);
       if (idx !== lastAutoIdx) {
         lastAutoIdx = idx;
-        updateInspector(idx);
+        // Inspector stays hidden in full mode — just highlight the tile
+        // and update the player label text.
+        setActiveTile(idx);
         updatePlayerLabel();
       }
     });
@@ -661,14 +665,14 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 
     // Footnote
     $('footnote').textContent =
-      perPanel.length + ' panels · loaded from ./manifest.json · click a tile for single-clip playback · ← → to step · Play full video resets to ' + finalVideoSrc;
+      perPanel.length + ' panels · loaded from ./manifest.json · click a tile for single-clip playback + inspector · ← → to step · Play full video hides the inspector and plays ' + finalVideoSrc;
 
-    // Initial state: load the full video (no autoplay — browsers block it
-    // without a user gesture). Seed the inspector to panel 1 so it's not
-    // blank. The timeupdate handler will take over as soon as playback
-    // starts.
+    // Initial state: load the full video (no autoplay — browsers block
+    // it without a user gesture). Inspector stays hidden; it only
+    // appears after the user clicks a tile. The timeupdate handler
+    // takes over highlighting the active tile once playback starts.
     playFull(false);
-    updateInspector(0);
+    setActiveTile(0);
     updatePlayerLabel();
   }
 

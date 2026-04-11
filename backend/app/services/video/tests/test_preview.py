@@ -287,7 +287,7 @@ def test_template_file_exists_and_has_required_hooks():
         "insp-video-label",
         "insp-voice-label",
         "timeline-meta",
-        "crumb-title",
+        "page-title",
         "play-all",
     ]:
         assert f'id="{element_id}"' in content, f"missing element id={element_id!r}"
@@ -303,6 +303,11 @@ def test_template_file_exists_and_has_required_hooks():
     # should start playing automatically. Guard against a future refactor
     # dropping the `ended` event listener.
     assert "'ended'" in content
+    # Inspector is click-and-show — hidden by default, revealed via a
+    # `.with-inspector` class on the workspace when a tile is clicked.
+    assert "with-inspector" in content
+    assert "showInspector" in content
+    assert "hideInspector" in content
 
 
 def test_write_preview_copies_template_into_output_dir():
