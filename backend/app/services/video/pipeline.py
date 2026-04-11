@@ -42,10 +42,16 @@ from .models import PipelineConfig, ScreenType
 from .parser import parse_storyboard
 from .tts import generate_all_audio
 from .heygen import generate_avatar_video as heygen_generate_avatar_video
-from .slides import map_visual_direction_to_props, render_slide
+from .slides import (
+    map_visual_direction_to_props,
+    render_slide,
+    extract_elements,
+    align_elements_to_audio,
+)
 from .stitcher import stitch_videos
 from .stock_video import create_stock_video_panel
 from .public_upload import upload_file
+from .transcribe import transcribe_with_word_timestamps
 
 
 def _probe_audio_duration(audio_path: str) -> float:
@@ -195,14 +201,12 @@ def run_pipeline(config: PipelineConfig) -> str:
             props_path = os.path.join(
                 slides_artifacts_dir, f"panel_{panel.panel_number:02d}.json"
             )
-            Path(props_path).write_text(json.dumps(slide_plan, indent=2))
             print(f"    Template: {slide_plan['template']}")
 
-            # Step 3b: probe the REAL audio length and use it as the clip
-            # duration. Using panel.duration_seconds (the fixture planning
-            # estimate) causes Remotion to cut clips short because real
-            # OpenAI TTS runs noticeably slower than the 130wpm estimate
-            # for most content — up to 50% longer on long paragraphs.
+            # Step 3b: probe the REAL audio length. Using panel.duration_seconds
+            # (fixture planning estimate) caused Remotion to cut clips short
+            # in earlier runs — real TTS is often 30-50% longer than the
+            # 130wpm estimate on long paragraphs.
             real_audio_duration = _probe_audio_duration(panel.audio_path)
             if abs(real_audio_duration - panel.duration_seconds) > 0.1:
                 print(
@@ -211,18 +215,49 @@ def run_pipeline(config: PipelineConfig) -> str:
                 )
             panel.duration_seconds = real_audio_duration
 
-            # Step 3c: Remotion renders the slide with the panel's TTS audio
+            # Step 3c: transcribe the TTS audio with Whisper to get
+            # word-level timestamps. ~$0.006/minute, so a 30s slide
+            # costs ~$0.003. This enables Phase B per-element animation.
+            print(f"    Transcribing audio for word timestamps...")
+            word_timestamps = transcribe_with_word_timestamps(panel.audio_path)
+            print(f"    Got {len(word_timestamps)} word timestamps")
+
+            # Step 3d: LLM aligns visual elements to the moment in the
+            # audio when each element is first mentioned.
+            elements = extract_elements(slide_plan["template"], slide_plan["props"])
+            element_timings = align_elements_to_audio(
+                voiceover_script=panel.voiceover_script,
+                word_timestamps=word_timestamps,
+                elements=elements,
+                total_duration=real_audio_duration,
+            )
+            print(
+                f"    Aligned {len(element_timings)} elements: "
+                f"{ {k: round(v, 2) for k, v in element_timings.items()} }"
+            )
+
+            # Persist the full render plan (template, props, timings) for audit
+            slide_plan_full = {
+                **slide_plan,
+                "element_timings": element_timings,
+                "elements": elements,
+            }
+            Path(props_path).write_text(json.dumps(slide_plan_full, indent=2))
+
+            # Step 3e: Remotion renders the slide with per-element timings
             render_slide(
                 template=slide_plan["template"],
                 props=slide_plan["props"],
                 audio_path=panel.audio_path,
                 output_path=clip_path,
                 duration_seconds=real_audio_duration,
+                element_timings=element_timings,
             )
             panel.clip_path = clip_path
             panel_info.update({
                 "template": slide_plan["template"],
                 "duration": real_audio_duration,
+                "element_timings": element_timings,
             })
 
         elif panel.screen_type == ScreenType.STOCK_VIDEO:
