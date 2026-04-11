@@ -24,13 +24,14 @@ import sys
 from pathlib import Path
 from .models import PipelineConfig
 from .pipeline import run_pipeline
+from .preview import make_sample
 
 # Resolve <repo_root>/data/video_output from this file: 5 .parent calls
 # take us from backend/app/services/video/__main__.py up to the repo root.
 # Same pattern used by slides.py for REMOTION_DIR / PROMPT_PATH.
-DEFAULT_OUTPUT_DIR = str(
-    Path(__file__).parent.parent.parent.parent.parent / "data" / "video_output"
-)
+_REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent
+DEFAULT_OUTPUT_DIR = str(_REPO_ROOT / "data" / "video_output")
+DEFAULT_SAMPLE_DIR = str(_REPO_ROOT / "data" / "video_output_sample")
 
 
 def main():
@@ -89,7 +90,30 @@ def main():
         help="Preview fixture parse only — zero API calls, zero credits",
     )
 
+    # `sample` subcommand: build a hand-crafted preview fixture for the UI
+    # without running the real pipeline. Uses the test storyboard fixture
+    # and fakes up per-panel metadata. Zero API calls — the only cost is
+    # one ffmpeg invocation for a ~2s placeholder video.
+    samp = sub.add_parser(
+        "sample",
+        help="Generate a preview fixture for the video pipeline UI (no API calls)",
+    )
+    samp.add_argument(
+        "--output",
+        default=DEFAULT_SAMPLE_DIR,
+        help=f"Where to write the fixture (default: {DEFAULT_SAMPLE_DIR})",
+    )
+
     args = parser.parse_args()
+
+    if args.command == "sample":
+        index_path = make_sample(args.output)
+        print(f"Preview sample written: {index_path}")
+        print(
+            f"  → cd {args.output} && python3 -m http.server 8765"
+        )
+        print(f"  → open http://localhost:8765/")
+        return
 
     if args.command != "generate":
         parser.print_help()

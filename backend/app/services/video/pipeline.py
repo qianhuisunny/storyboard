@@ -52,6 +52,7 @@ from .stitcher import stitch_videos
 from .stock_video import create_stock_video_panel
 from .public_upload import upload_file
 from .transcribe import transcribe_with_word_timestamps
+from .preview import enrich_manifest, write_preview
 
 
 def _probe_audio_duration(audio_path: str) -> float:
@@ -324,9 +325,32 @@ def run_pipeline(config: PipelineConfig) -> str:
         },
         "per_panel": panel_manifests,
     }
+
+    # Enrich with UI-required fields (clip_path, video_model, voice_model,
+    # duration_seconds per panel; storyboard_title and total_duration_seconds
+    # at top level) BEFORE writing — so manifest.json and index.html stay
+    # consistent in a single run. Purely additive, no existing field is
+    # renamed or dropped.
+    enrich_manifest(
+        manifest,
+        storyboard_title=storyboard.title,
+        config_voice=config.voice,
+        config_avatar_id=config.heygen_avatar_id,
+    )
+
     manifest_path = os.path.join(config.output_dir, "manifest.json")
     Path(manifest_path).write_text(json.dumps(manifest, indent=2))
 
+    # Write the preview UI next to the manifest — a self-contained HTML
+    # file that fetches manifest.json on load and lets you click through
+    # each raw pre-stitch clip. See preview.py and
+    # docs/superpowers/specs/2026-04-10-video-pipeline-ui-design.md.
+    index_path = write_preview(config.output_dir)
+
     print(f"\n=== Done in {elapsed:.1f}s ===")
     print(f"Final video: {final_path}")
+    print(f"Preview UI:  {index_path}")
+    print(
+        f"  → cd {config.output_dir} && python3 -m http.server 8765"
+    )
     return final_path

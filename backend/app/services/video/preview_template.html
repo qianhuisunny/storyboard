@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Plotline — Video Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sage-1:  #FFFFFF;
+  --sage-2:  #E8F0E9;
+  --sage-3:  #D9DDD2;
+  --sage-4:  #BFC6B5;
+  --sage-5:  #A8C8AD;
+  --sage-6:  #626B58;
+  --sage-7:  #5A6352;
+  --sage-8:  #3A6B47;
+  --sage-9:  #2E5439;
+  --sage-10: #1C2118;
+  --muted-bg: #EEF1E9;
+  --card-bg: #FFFFFF;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  --shadow-sm: 0 1px 2px rgba(28,33,24,.04);
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Nunito', system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--sage-10);
+  background: var(--sage-1);
+  min-height: 100vh;
+}
+body { padding: 24px 32px 48px; }
+h1, h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 400; letter-spacing: -0.3px; margin: 0; }
+h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0.2px; margin: 0; }
+
+.page-header { margin-bottom: 20px; max-width: 1180px; }
+.page-header h1 { font-size: 22px; letter-spacing: -0.4px; }
+.page-header .subtitle { color: var(--sage-6); font-size: 13px; margin-top: 4px; }
+
+.error-banner {
+  max-width: 1180px;
+  padding: 14px 18px;
+  background: #FCE9E6;
+  border: 1px solid #E8B5AA;
+  border-radius: var(--radius-lg);
+  color: #7A2E20;
+  font-size: 13px;
+  margin-bottom: 16px;
+  display: none;
+}
+.error-banner.visible { display: block; }
+.error-banner code {
+  background: rgba(255,255,255,0.6);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.app-frame {
+  background: var(--card-bg);
+  border: 1px solid var(--sage-3);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+  max-width: 1180px;
+}
+
+.top-nav {
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--sage-3);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card-bg);
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-dot { width: 22px; height: 22px; border-radius: 6px; background: var(--sage-8); }
+.brand-title { font-family: 'Fraunces', serif; font-size: 17px; }
+.crumb { color: var(--sage-6); font-size: 13px; }
+.top-actions { display: flex; gap: 8px; }
+.btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--sage-3);
+  background: var(--card-bg);
+  color: var(--sage-10);
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+.btn:hover { border-color: var(--sage-4); }
+.btn-primary {
+  background: var(--sage-8);
+  color: white;
+  border-color: var(--sage-8);
+}
+.btn-primary:hover { background: var(--sage-9); border-color: var(--sage-9); }
+
+.workspace {
+  display: grid;
+  grid-template-columns: 1fr 260px;
+  min-height: 560px;
+}
+.left-col {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  padding: 20px;
+  gap: 16px;
+  border-right: 1px solid var(--sage-3);
+  min-width: 0;
+}
+
+.player-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 360px;
+}
+.player-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 4px 8px;
+  gap: 12px;
+}
+.player-label .title {
+  font-family: 'Fraunces', serif;
+  font-size: 14px;
+  color: var(--sage-10);
+  text-transform: capitalize;
+}
+.player-label .path {
+  font-family: ui-monospace, 'SF Mono', Monaco, monospace;
+  font-size: 11px;
+  color: var(--sage-6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.player {
+  background: #1C2118;
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+  flex: 1;
+  min-height: 320px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.player video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #1C2118;
+}
+
+.timeline {
+  background: var(--muted-bg);
+  border-radius: var(--radius-lg);
+  padding: 12px 14px;
+  min-width: 0;
+}
+.timeline-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.timeline-title {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--sage-6);
+}
+.timeline-meta { font-size: 11px; color: var(--sage-6); font-variant-numeric: tabular-nums; }
+
+.tiles {
+  display: flex;
+  gap: 3px;
+  width: 100%;
+  min-width: 0;
+}
+.tile {
+  flex: 1 0 0;
+  min-width: 0;
+  height: 46px;
+  border-radius: var(--radius-sm);
+  background: var(--card-bg);
+  border: 1px solid var(--sage-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--sage-7);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+  transition: outline-offset .15s, background-color .15s;
+  user-select: none;
+}
+.tile:hover { border-color: var(--sage-4); }
+.tile-talking_head {
+  background: var(--sage-8);
+  color: white;
+  border-color: var(--sage-9);
+}
+.tile-talking_head:hover { border-color: var(--sage-5); }
+.tile-slides { background: var(--card-bg); color: var(--sage-7); }
+.tile-stock_video {
+  background: var(--sage-2);
+  color: var(--sage-8);
+  border-color: var(--sage-4);
+}
+.tile.active { outline: 2px solid var(--sage-8); outline-offset: 2px; }
+
+.legend {
+  display: flex;
+  gap: 18px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--sage-6);
+  flex-wrap: wrap;
+}
+.legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 6px;
+  border: 1px solid var(--sage-3);
+}
+.dot-talking_head { background: var(--sage-8); border-color: var(--sage-9); }
+.dot-slides { background: var(--card-bg); }
+.dot-stock_video { background: var(--sage-2); border-color: var(--sage-4); }
+
+.inspector {
+  padding: 22px 20px;
+  background: var(--card-bg);
+  overflow: auto;
+}
+.inspector-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.inspector-title { font-family: 'Fraunces', serif; font-size: 22px; }
+.panel-duration {
+  font-size: 12px;
+  color: var(--sage-6);
+  font-variant-numeric: tabular-nums;
+}
+.panel-type-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--sage-2);
+  color: var(--sage-8);
+  margin-bottom: 26px;
+}
+.badge-talking_head { background: var(--sage-8); color: white; }
+.badge-slides { background: var(--sage-2); color: var(--sage-8); }
+.badge-stock_video { background: var(--sage-4); color: var(--sage-10); }
+
+.model-row {
+  padding: 14px 0;
+  border-top: 1px solid var(--sage-3);
+}
+.model-row:last-child { border-bottom: 1px solid var(--sage-3); }
+.model-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--sage-6);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.model-value {
+  font-family: 'Fraunces', serif;
+  font-size: 17px;
+  color: var(--sage-10);
+  letter-spacing: -0.1px;
+  word-break: break-word;
+}
+.model-sublabel {
+  font-size: 11px;
+  color: var(--sage-6);
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+  word-break: break-word;
+}
+
+.footnote {
+  margin-top: 16px;
+  max-width: 1180px;
+  font-size: 11px;
+  color: var(--sage-6);
+}
+</style>
+</head>
+<body>
+
+<div class="page-header">
+  <h1 id="page-title">Video Preview</h1>
+  <div class="subtitle" id="page-subtitle">Click a tile to play its raw clip · pre-stitch inspection</div>
+</div>
+
+<div class="error-banner" id="error-banner"></div>
+
+<div class="app-frame">
+  <div class="top-nav">
+    <div class="brand">
+      <div class="brand-dot"></div>
+      <div class="brand-title">Plotline</div>
+      <span class="crumb">/ Video Preview / <span id="crumb-title">...</span></span>
+    </div>
+    <div class="top-actions">
+      <a class="btn" href="./manifest.json">Open manifest</a>
+      <a class="btn btn-primary" id="download-final" href="./final.mp4" download>Download final.mp4</a>
+    </div>
+  </div>
+
+  <div class="workspace">
+    <div class="left-col">
+      <div class="player-wrap">
+        <div class="player-label">
+          <div class="title" id="player-title">Loading...</div>
+          <div class="path" id="player-path"></div>
+        </div>
+        <div class="player">
+          <video id="video-player" controls preload="metadata"></video>
+        </div>
+      </div>
+
+      <div class="timeline">
+        <div class="timeline-header">
+          <div class="timeline-title">Clips</div>
+          <div class="timeline-meta" id="timeline-meta"></div>
+        </div>
+        <div class="tiles" id="tiles"></div>
+        <div class="legend">
+          <span><span class="legend-dot dot-talking_head"></span> talking head (HeyGen)</span>
+          <span><span class="legend-dot dot-slides"></span> slides (Remotion)</span>
+          <span><span class="legend-dot dot-stock_video"></span> stock video (Pexels)</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="inspector">
+      <div class="inspector-title-row">
+        <div class="inspector-title" id="insp-title">Panel</div>
+        <div class="panel-duration" id="insp-duration"></div>
+      </div>
+      <span class="panel-type-badge" id="insp-badge">—</span>
+
+      <div class="model-row">
+        <div class="model-label">Video model</div>
+        <div class="model-value" id="insp-video-label">—</div>
+        <div class="model-sublabel" id="insp-video-sublabel"></div>
+      </div>
+
+      <div class="model-row">
+        <div class="model-label">Voice model</div>
+        <div class="model-value" id="insp-voice-label">—</div>
+        <div class="model-sublabel" id="insp-voice-sublabel"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="footnote" id="footnote"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function formatDuration(totalSeconds) {
+    const s = Math.max(0, Number(totalSeconds) || 0);
+    const m = Math.floor(s / 60);
+    const sec = Math.round(s - m * 60);
+    return m + ':' + pad2(sec);
+  }
+
+  function showError(msg) {
+    const banner = $('error-banner');
+    banner.innerHTML = msg;
+    banner.classList.add('visible');
+  }
+
+  function prettyScreenType(st) {
+    return String(st || '').replace(/_/g, ' ');
+  }
+
+  async function loadManifest() {
+    try {
+      const res = await fetch('./manifest.json', { cache: 'no-store' });
+      if (!res.ok) {
+        throw new Error('HTTP ' + res.status + ' ' + res.statusText);
+      }
+      return await res.json();
+    } catch (err) {
+      showError(
+        "Failed to load <code>manifest.json</code>. " +
+        "If you opened this file directly (file://), re-open it through " +
+        "a local server: <code>cd &lt;this-dir&gt; && python3 -m http.server 8765</code>. " +
+        "Error: " + (err && err.message ? err.message : String(err))
+      );
+      throw err;
+    }
+  }
+
+  function init(manifest) {
+    const perPanel = Array.isArray(manifest.per_panel) ? manifest.per_panel : [];
+    if (perPanel.length === 0) {
+      showError("Manifest has no panels (<code>per_panel</code> is empty).");
+      return;
+    }
+
+    // Page header
+    const title = manifest.storyboard_title || 'Video Preview';
+    document.title = 'Plotline · ' + title;
+    $('page-title').textContent = title;
+    $('crumb-title').textContent = title;
+
+    // Timeline meta line
+    const counts = { talking_head: 0, slides: 0, stock_video: 0 };
+    perPanel.forEach((p) => {
+      const k = p.screen_type;
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    const totalSec = Number(manifest.total_duration_seconds) || 0;
+    const metaParts = [formatDuration(totalSec)];
+    if (counts.talking_head) metaParts.push(counts.talking_head + ' talking head');
+    if (counts.slides) metaParts.push(counts.slides + ' slides');
+    if (counts.stock_video) metaParts.push(counts.stock_video + ' stock video');
+    $('timeline-meta').textContent = metaParts.join(' · ');
+
+    // Build tiles (click handlers are attached below, after selectPanel is defined)
+    const tilesContainer = $('tiles');
+    const tileElements = [];
+    perPanel.forEach((panel) => {
+      const tile = document.createElement('div');
+      tile.className = 'tile tile-' + (panel.screen_type || 'unknown');
+      tile.style.flexGrow = String(panel.duration_seconds || 1);
+      tile.textContent = pad2(panel.panel_number);
+      tile.title = 'Panel ' + pad2(panel.panel_number) +
+                   ' · ' + prettyScreenType(panel.screen_type) +
+                   ' · ' + (panel.duration_seconds || 0).toFixed(1) + 's';
+      tilesContainer.appendChild(tile);
+      tileElements.push(tile);
+    });
+
+    // Video element
+    const video = $('video-player');
+    let currentIdx = 0;
+
+    function selectPanel(idx, autoplay) {
+      const panel = perPanel[idx];
+      if (!panel) return;
+
+      // Tile active state
+      tileElements.forEach((t) => t.classList.remove('active'));
+      tileElements[idx].classList.add('active');
+
+      // Video src — only reset if actually changing
+      const newSrc = panel.clip_path;
+      const current = video.getAttribute('src') || '';
+      if (!current.endsWith(newSrc)) {
+        video.src = newSrc;
+      }
+      if (autoplay) {
+        // .play() returns a promise that rejects if autoplay is blocked —
+        // swallow the rejection because the <video> still has controls so
+        // the user can press play manually.
+        const maybePromise = video.play();
+        if (maybePromise && typeof maybePromise.catch === 'function') {
+          maybePromise.catch(() => {});
+        }
+      }
+
+      // Player label bar
+      $('player-title').textContent =
+        'Panel ' + pad2(panel.panel_number) + ' · ' + prettyScreenType(panel.screen_type);
+      $('player-path').textContent = panel.clip_path;
+
+      // Inspector
+      $('insp-title').textContent = 'Panel ' + pad2(panel.panel_number);
+      const dur = (Number(panel.duration_seconds) || 0).toFixed(1) + 's';
+      $('insp-duration').textContent = dur;
+      const badge = $('insp-badge');
+      badge.textContent = prettyScreenType(panel.screen_type).toUpperCase();
+      badge.className = 'panel-type-badge badge-' + (panel.screen_type || 'unknown');
+
+      const vm = panel.video_model || { label: '—', sublabel: '' };
+      const vom = panel.voice_model || { label: '—', sublabel: '' };
+      $('insp-video-label').textContent = vm.label || '—';
+      $('insp-video-sublabel').textContent = vm.sublabel || '';
+      $('insp-voice-label').textContent = vom.label || '—';
+      $('insp-voice-sublabel').textContent = vom.sublabel || '';
+
+      currentIdx = idx;
+    }
+
+    // Wire up tile click handlers now that selectPanel exists
+    tileElements.forEach((t, idx) => {
+      t.addEventListener('click', () => selectPanel(idx, true));
+    });
+
+    // Keyboard navigation — left/right arrow keys move between tiles.
+    document.addEventListener('keydown', (e) => {
+      if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA')) return;
+      if (e.key === 'ArrowLeft' && currentIdx > 0) {
+        selectPanel(currentIdx - 1, true);
+      } else if (e.key === 'ArrowRight' && currentIdx < perPanel.length - 1) {
+        selectPanel(currentIdx + 1, true);
+      }
+    });
+
+    // Footnote
+    $('footnote').textContent =
+      perPanel.length + ' panels · loaded from ./manifest.json · ← → to navigate';
+
+    // Auto-select panel 1 on first load (no autoplay since there's no user gesture yet)
+    selectPanel(0, false);
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadManifest().then(init).catch(() => { /* already surfaced in banner */ });
+  });
+})();
+</script>
+
+</body>
+</html>
