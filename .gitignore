@@ -58,6 +58,9 @@ data/
 backend/venv/
 backend/.env
 
+# Remotion staged assets (transient audio files copied in during render)
+remotion/public/
+
 # Testing
 .pytest_cache/
 .coverage

@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import subprocess
 from pathlib import Path
 from openai import OpenAI
@@ -116,34 +117,50 @@ def render_slide(
 
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
 
-    # Add audio and duration to props for Remotion
-    render_props = {
-        **props,
-        "audioSrc": str(Path(audio_path).resolve()),
-        "durationInSeconds": duration_seconds,
-    }
+    # Remotion's <Audio> component only accepts URLs served by its webpack
+    # bundle (staticFile()) or absolute http(s) URLs — absolute filesystem
+    # paths and file:// URLs are rejected. Stage the audio inside the
+    # Remotion project's public/ directory under a unique filename derived
+    # from the output path, then reference it by filename so that
+    # staticFile() resolves it at render time.
+    public_dir = REMOTION_DIR / "public"
+    public_dir.mkdir(parents=True, exist_ok=True)
+    staged_audio_name = f"{Path(output_path).stem}{Path(audio_path).suffix}"
+    staged_audio_path = public_dir / staged_audio_name
+    shutil.copyfile(audio_path, staged_audio_path)
 
-    props_json = json.dumps(render_props)
-    fps = 30
-    total_frames = max(1, int(duration_seconds * fps))
+    try:
+        render_props = {
+            **props,
+            "audioSrc": staged_audio_name,
+            "durationInSeconds": duration_seconds,
+        }
 
-    cmd = [
-        "npx", "remotion", "render",
-        "src/index.ts", template,
-        f"--props={props_json}",
-        f"--output={str(Path(output_path).resolve())}",
-        f"--frames=0-{total_frames - 1}",
-    ]
+        props_json = json.dumps(render_props)
+        fps = 30
+        total_frames = max(1, int(duration_seconds * fps))
 
-    result = subprocess.run(
-        cmd,
-        cwd=str(REMOTION_DIR),
-        capture_output=True,
-        text=True,
-        timeout=120,
-    )
+        cmd = [
+            "npx", "remotion", "render",
+            "src/index.ts", template,
+            f"--props={props_json}",
+            f"--output={str(Path(output_path).resolve())}",
+            f"--frames=0-{total_frames - 1}",
+        ]
 
-    if result.returncode != 0:
-        raise RuntimeError(f"Remotion render failed:\n{result.stderr}")
+        result = subprocess.run(
+            cmd,
+            cwd=str(REMOTION_DIR),
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
 
-    return output_path
+        if result.returncode != 0:
+            raise RuntimeError(f"Remotion render failed:\n{result.stderr}")
+
+        return output_path
+    finally:
+        # Clean up the staged audio so public/ doesn't accumulate old files
+        # that would bloat subsequent webpack bundles.
+        staged_audio_path.unlink(missing_ok=True)

@@ -1,5 +1,5 @@
 import React from "react";
-import { AbsoluteFill, Audio } from "remotion";
+import { AbsoluteFill, Audio, staticFile } from "remotion";
 
 interface SlideWrapperProps {
   title: string;
@@ -36,7 +36,7 @@ export const SlideWrapper: React.FC<SlideWrapperProps> = ({
       <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {children}
       </div>
-      {audioSrc && <Audio src={audioSrc} />}
+      {audioSrc && <Audio src={staticFile(audioSrc)} />}
     </AbsoluteFill>
   );
 };
