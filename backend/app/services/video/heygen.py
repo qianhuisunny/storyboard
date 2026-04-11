@@ -94,30 +94,65 @@ class HeygenClient:
     def build_video_request(
         self,
         avatar_id: str = DEFAULT_AVATAR_ID,
-        input_text: str = "",
+        input_text: Optional[str] = None,
         voice_id: str = DEFAULT_VOICE_ID,
+        audio_url: Optional[str] = None,
         width: int = DEFAULT_WIDTH,
         height: int = DEFAULT_HEIGHT,
         avatar_style: str = "normal",
     ) -> dict:
-        """Build a v2/video/generate request body for a text-driven talking-head.
+        """Build a v2/video/generate request body.
+
+        Supports two voice modes:
+
+          - **Text-driven** (``input_text`` + ``voice_id``): HeyGen TTSes
+            the text using its own voice and lip-syncs the avatar to
+            the generated audio. Simplest but uses HeyGen's voice — if
+            you also narrate slides with a different TTS (e.g. OpenAI
+            alloy), the final video has a jarring voice change at each
+            talking-head panel.
+
+          - **Audio-driven** (``audio_url``): you supply a publicly
+            accessible URL to an audio file you've already generated
+            (e.g. OpenAI TTS uploaded to litterbox), HeyGen lip-syncs
+            the avatar to your audio without running its own TTS. Use
+            this for voice consistency across a mixed-panel video.
+
+        Exactly one of ``input_text`` or ``audio_url`` must be provided.
+        Mirrors HeyGen's own constraint: if you supply both or neither,
+        their API returns an error.
 
         Args:
             avatar_id: HeyGen avatar identifier. HeyGen internally treats
                 this as a look_id — see module docstring.
-            input_text: The voiceover script. HeyGen TTSes it using
-                voice_id and lip-syncs the avatar to the generated audio.
-            voice_id: HeyGen voice identifier.
+            input_text: Text for HeyGen to TTS (text-driven mode).
+            voice_id: HeyGen voice identifier (ignored if audio_url is set).
+            audio_url: Public HTTPS URL of a pre-generated audio file
+                (audio-driven mode).
             width: Output width in pixels. Defaults to 1920.
             height: Output height in pixels. Defaults to 1080.
-            avatar_style: "normal" | "happy" | "serious" etc. HeyGen docs
-                are ambiguous on the full enum; "normal" is the safe default.
+            avatar_style: "normal" | "happy" | "serious" etc.
 
         Returns:
             The request body as a dict ready to POST.
         """
-        if not input_text or not input_text.strip():
-            raise ValueError("input_text must be a non-empty string")
+        if bool(input_text and input_text.strip()) == bool(audio_url):
+            raise ValueError(
+                "build_video_request: provide exactly one of input_text "
+                "(text-driven) or audio_url (audio-driven)"
+            )
+
+        if audio_url:
+            voice_spec: dict = {
+                "type": "audio",
+                "audio_url": audio_url,
+            }
+        else:
+            voice_spec = {
+                "type": "text",
+                "input_text": input_text,
+                "voice_id": voice_id,
+            }
 
         return {
             "video_inputs": [
@@ -127,11 +162,7 @@ class HeygenClient:
                         "avatar_id": avatar_id,
                         "avatar_style": avatar_style,
                     },
-                    "voice": {
-                        "type": "text",
-                        "input_text": input_text,
-                        "voice_id": voice_id,
-                    },
+                    "voice": voice_spec,
                 }
             ],
             "dimension": {"width": width, "height": height},
@@ -249,8 +280,9 @@ class HeygenClient:
 
 
 def generate_avatar_video(
-    input_text: str,
     output_path: str,
+    input_text: Optional[str] = None,
+    audio_url: Optional[str] = None,
     avatar_id: str = DEFAULT_AVATAR_ID,
     voice_id: str = DEFAULT_VOICE_ID,
     width: int = DEFAULT_WIDTH,
@@ -260,11 +292,17 @@ def generate_avatar_video(
 ) -> dict:
     """End-to-end: submit a HeyGen video, poll until done, download the MP4.
 
+    Exactly one of ``input_text`` (text-driven, HeyGen TTS) or
+    ``audio_url`` (audio-driven, your own TTS uploaded somewhere public)
+    must be provided. See HeygenClient.build_video_request for the
+    rationale.
+
     Args:
-        input_text: The voiceover script. HeyGen handles TTS internally.
         output_path: Local path to save the downloaded MP4.
+        input_text: The voiceover script. HeyGen handles TTS internally.
+        audio_url: Public HTTPS URL of a pre-generated audio file.
         avatar_id: Which HeyGen avatar to use. Defaults to Lisa_public.
-        voice_id: Which HeyGen voice to use.
+        voice_id: Which HeyGen voice to use (only used in text mode).
         width: Output width (default 1920).
         height: Output height (default 1080).
         avatar_style: "normal" | "happy" | "serious" etc.
@@ -280,13 +318,15 @@ def generate_avatar_video(
     request = client.build_video_request(
         avatar_id=avatar_id,
         input_text=input_text,
+        audio_url=audio_url,
         voice_id=voice_id,
         width=width,
         height=height,
         avatar_style=avatar_style,
     )
     video_id = client.submit(request)
-    print(f"  [HeyGen] Submitted video {video_id}, polling...")
+    mode = "audio-driven" if audio_url else "text-driven"
+    print(f"  [HeyGen] Submitted video {video_id} ({mode}), polling...")
 
     result = client.poll_result(video_id)
     duration = result.get("duration")

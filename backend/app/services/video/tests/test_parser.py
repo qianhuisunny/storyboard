@@ -19,12 +19,22 @@ def test_parse_storyboard_loads_panels():
 def test_parse_storyboard_splits_by_type():
     sb = parse_storyboard(str(FIXTURES / "sample_storyboard.json"))
     # Only three short talking-head moments — opening hook, emphasis beat,
-    # CTA hook — total ~28s. Everything else is slides. Chosen to fit the
-    # $1.50/5min unit economics target against Kling Avatar 2.0 pricing.
+    # CTA hook — total ~28s. Panels 4 and 6 are stock_video (B-roll
+    # from Pexels) because they were labeled "Stock video" in the source
+    # PDF. Everything else is slides. Mix is chosen to fit the $1.50/5min
+    # unit-economics target.
     assert len(sb.talking_head_panels) == 3
-    assert len(sb.slides_panels) == 13
-    # Talking-head panels should be #1, #5, #15 specifically
+    assert len(sb.slides_panels) == 11
+    assert len(sb.stock_video_panels) == 2
     assert [p.panel_number for p in sb.talking_head_panels] == [1, 5, 15]
+    assert [p.panel_number for p in sb.stock_video_panels] == [4, 6]
+    # Full coverage: every panel should be in exactly one category
+    assert (
+        len(sb.talking_head_panels)
+        + len(sb.slides_panels)
+        + len(sb.stock_video_panels)
+        == len(sb.panels)
+    )
 
 
 def test_panel_fields_populated():

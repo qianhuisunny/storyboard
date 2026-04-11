@@ -60,12 +60,39 @@ def test_build_video_request_custom_dimensions():
     assert body["dimension"] == {"width": 1280, "height": 720}
 
 
-def test_build_video_request_rejects_empty_text():
+def test_build_video_request_rejects_neither_input():
+    """Must provide exactly one of input_text or audio_url."""
     c = HeygenClient(api_key="test")
-    with pytest.raises(ValueError, match="input_text must be a non-empty string"):
-        c.build_video_request(input_text="")
-    with pytest.raises(ValueError, match="input_text must be a non-empty string"):
-        c.build_video_request(input_text="   ")
+    with pytest.raises(ValueError, match="exactly one of input_text"):
+        c.build_video_request(input_text=None, audio_url=None)
+    with pytest.raises(ValueError, match="exactly one of input_text"):
+        c.build_video_request(input_text="", audio_url=None)
+    with pytest.raises(ValueError, match="exactly one of input_text"):
+        c.build_video_request(input_text="   ", audio_url=None)
+
+
+def test_build_video_request_rejects_both_inputs():
+    """Must provide exactly one of input_text or audio_url."""
+    c = HeygenClient(api_key="test")
+    with pytest.raises(ValueError, match="exactly one of input_text"):
+        c.build_video_request(
+            input_text="Hello",
+            audio_url="https://example.com/audio.mp3",
+        )
+
+
+def test_build_video_request_audio_driven():
+    """Audio-driven mode: voice.type=audio, voice.audio_url set, no voice_id."""
+    c = HeygenClient(api_key="test")
+    body = c.build_video_request(
+        audio_url="https://litter.catbox.moe/abc.mp3",
+    )
+    voice = body["video_inputs"][0]["voice"]
+    assert voice["type"] == "audio"
+    assert voice["audio_url"] == "https://litter.catbox.moe/abc.mp3"
+    # No text-mode fields should leak through when audio is specified
+    assert "input_text" not in voice
+    assert "voice_id" not in voice
 
 
 def test_build_video_request_custom_avatar_style():

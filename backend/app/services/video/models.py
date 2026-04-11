@@ -6,6 +6,9 @@ from typing import Optional
 class ScreenType(str, Enum):
     TALKING_HEAD = "talking_head"
     SLIDES = "slides"
+    # Stock video (B-roll) panels — driven by Pexels search + ffmpeg
+    # audio overlay, see backend/app/services/video/stock_video.py
+    STOCK_VIDEO = "stock_video"
 
 
 @dataclass
@@ -34,6 +37,10 @@ class Storyboard:
     @property
     def slides_panels(self) -> list[Panel]:
         return [p for p in self.panels if p.screen_type == ScreenType.SLIDES]
+
+    @property
+    def stock_video_panels(self) -> list[Panel]:
+        return [p for p in self.panels if p.screen_type == ScreenType.STOCK_VIDEO]
 
 
 @dataclass

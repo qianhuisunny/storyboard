@@ -3,7 +3,7 @@
   "total_duration": "5:00",
   "total_panels": 16,
   "source_pdf": "storyboard_v4.docx.pdf",
-  "notes": "Derivative of storyboard_v4.docx.pdf, restructured 2026-04-10 for unit economics. Kling Avatar 2.0 via Runware bills at ~$0.044/sec, so the earlier version's 5 talking-head panels (~107s total) blew through the $1.50/5min target by 3-4x. This version keeps only three short talking-head moments — opening hook (P1), emphasis beat (P5), CTA hook (P15) — totaling ~28s of talking head. Everything else is slides rendered by Remotion (essentially free). Panels are now numbered sequentially 1-16 (the previous version preserved PDF gaps at 7,8). Mapping to the previous fixture: new P1 = first 2 sentences of old P1; new P2 = rest of old P1; new P3-4 = old P2-3; new P5 = old P4 (unchanged text, duration corrected from 23.5s to 12s since the PDF's 23.5s was implausibly slow for a 25-word sentence and almost certainly a copy-paste carryover); new P6-7 = old P5-6; new P8 = old P9 converted from talking_head to slides; new P9-10 = old P10-11; new P11 = old P12 converted from talking_head to slides; new P12-14 = old P13-15; new P15 = first 2 sentences of old P16; new P16 = rest of old P16.",
+  "notes": "Derivative of storyboard_v4.docx.pdf, restructured 2026-04-10 for unit economics. Kling Avatar 2.0 via Runware bills at ~$0.044/sec, so the earlier version's 5 talking-head panels (~107s total) blew through the $1.50/5min target by 3-4x. This version keeps only three short talking-head moments — opening hook (P1), emphasis beat (P5), CTA hook (P15) — totaling ~28s of talking head. Panels 4 and 6 use screen_type=stock_video (they were labeled 'Stock video' in the source PDF and are driven by Pexels search + ffmpeg audio overlay). Everything else is slides rendered by Remotion. Panels are now numbered sequentially 1-16 (the previous version preserved PDF gaps at 7,8). Mapping to the previous fixture: new P1 = first 2 sentences of old P1; new P2 = rest of old P1; new P3 = old P2; new P4 = old P3 (Stock video in PDF, now screen_type=stock_video); new P5 = old P4 (unchanged text, duration corrected from 23.5s to 12s since the PDF's 23.5s was implausibly slow for a 25-word sentence and almost certainly a copy-paste carryover); new P6 = old P5 (Stock video in PDF, now screen_type=stock_video); new P7 = old P6; new P8 = old P9 converted from talking_head to slides; new P9-10 = old P10-11; new P11 = old P12 converted from talking_head to slides; new P12-14 = old P13-15; new P15 = first 2 sentences of old P16; new P16 = rest of old P16.",
   "panels": [
     {
       "panel_number": 1,
@@ -43,14 +43,14 @@
     },
     {
       "panel_number": 4,
-      "screen_type": "slides",
+      "screen_type": "stock_video",
       "duration_seconds": 20.5,
       "voiceover_script": "Traditional programs hand you the same playbook they give everyone — communication, executive presence, strategy. Useful skills. But they were written for a game where gender doesn't change the rules. And it does. Decades of research show that the same assertive behavior lands differently depending on who's making it. Women in male-dominated environments get rated lower for doing what men get praised for. Meanwhile, diversity dashboards are tracking headcount and calling it progress, while the actual experience of being isolated at the top goes completely unmeasured.",
       "visual_direction": [
-        "Split comparison showing identical leadership behavior",
-        "Left side: Male leader presenting (positive ratings: 8.5/10)",
-        "Right side: Female leader with same behavior (lower ratings)",
-        "Below: Traditional programs focusing on 'universal skills' missing the gender dynamic"
+        "Woman presenting at a whiteboard in a modern office",
+        "Coworkers in business attire listening attentively",
+        "Close-up of hands reviewing feedback forms and paperwork",
+        "Diverse team in a corporate meeting room"
       ]
     },
     {
@@ -67,14 +67,14 @@
     },
     {
       "panel_number": 6,
-      "screen_type": "slides",
+      "screen_type": "stock_video",
       "duration_seconds": 20.5,
       "voiceover_script": "Successful female negotiators use collaborative framing — 'What would it take to get to X?' rather than 'I want X.' Male mentors can't teach these nuanced approaches because they don't have to navigate the backlash. Women leaders must master 'authoritative warmth', projecting competence while remaining approachable.",
       "visual_direction": [
-        "Two negotiation approaches side by side",
-        "Left: Direct approach ('I want $150K') with negative reaction indicators",
-        "Right: Collaborative approach ('What would it take to get to $150K?') with positive reception",
-        "Below: 'Authoritative Warmth' balance scale showing competence and approachability"
+        "Two professionals in a salary negotiation across a desk",
+        "Business handshake between a woman and a man in an office",
+        "Confident businesswoman speaking to a colleague in a meeting",
+        "Close-up of a handshake sealing a deal"
       ]
     },
     {
