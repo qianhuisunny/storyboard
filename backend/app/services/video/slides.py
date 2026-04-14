@@ -61,6 +61,16 @@ def extract_elements(template: str, props: dict) -> list[dict]:
                     f"{header} — {items_joined}" if items_joined else header
                 ),
             })
+        # Optional late-fade reveal element — see ThreeColumn.tsx's
+        # ``reveal`` prop. Must be the LAST element appended so that
+        # ``_enforce_max_empty_gap`` (which sorts by LLM-assigned start
+        # time then renumbers) keeps it in the tail position.
+        reveal = props.get("reveal") or {}
+        if isinstance(reveal, dict) and reveal.get("label"):
+            elements.append({
+                "id": "reveal",
+                "description": f"Payoff reveal: {str(reveal['label']).strip()}",
+            })
 
     elif template == "SplitComparison":
         left = props.get("left") or {}
@@ -80,6 +90,14 @@ def extract_elements(template: str, props: dict) -> list[dict]:
                     f"{right.get('label', '')}: {right.get('description', '')}"
                     + (f" ({right['metric']})" if right.get("metric") else "")
                 ).strip(": ").strip(),
+            })
+        # Optional late-fade reveal element — see SplitComparison.tsx's
+        # ``reveal`` prop. Appended last for the same reason as above.
+        reveal = props.get("reveal") or {}
+        if isinstance(reveal, dict) and reveal.get("label"):
+            elements.append({
+                "id": "reveal",
+                "description": f"Payoff reveal: {str(reveal['label']).strip()}",
             })
 
     elif template == "Timeline":
@@ -225,88 +243,157 @@ def align_elements_to_audio(
                 total_duration - 1.0,
             )
 
-    # HARD RULE (see _enforce_max_empty_gap docstring): no slide frame
-    # may be empty (title-only, no revealed elements) for more than 2
-    # seconds. We honour the LLM's relative ordering but overwrite its
-    # absolute timestamps so the first element lands at 0.0 and each
-    # subsequent element lands at most MAX_EMPTY_GAP_SEC after the
-    # previous one. This is non-negotiable — panels with a 28-second
-    # blank opening (Panel 10, pre-fix) broke viewer attention.
-    return _enforce_max_empty_gap(result, total_duration)
+    # Redistribute so both ends of the clip have content happening.
+    # See _distribute_elements_across_clip for the full rules: opening
+    # ≤ 2s, tail ≥ (duration - 3s), middle elements rescaled
+    # proportionally, relative ordering preserved.
+    return _distribute_elements_across_clip(result, total_duration)
+
+
+# ---------------------------------------------------------------------------
+# Distribution rules for slide reveal timings.
+#
+# The predecessor of this block (`_enforce_max_empty_gap`) only guarded
+# the *opening* of the clip — it pinned the first element at 0s and
+# every subsequent element at i * 2s, regardless of voiceover length.
+# That fixed the "Panel 10 stared blank for 28s" bug at the start, but
+# it *created* a much bigger bug at the other end: every slide was now
+# front-loaded into the first 2N seconds and stayed static for 60-90%
+# of its runtime. Panel 13 at 82% tail-static, Panel 9 at 87%, Panel
+# 10 itself at 93% after the "fix".
+#
+# The new rule guards BOTH ends:
+#   - OPENING_BLANK_MAX_SEC: first element must appear by this time
+#   - TAIL_BLANK_MAX_SEC: last element must appear by (duration - this)
+#   - MIN_ELEMENT_GAP_SEC: adjacent reveals never collide (>= fade time)
+#   - The LLM's relative ordering and proportional spacing are preserved
+#     — we only rescale, we don't throw its intent away.
+#
+# These constants are named module-level values because they're
+# product decisions, not implementation details. Tweaking them affects
+# every slide in every video and should be done deliberately.
+# ---------------------------------------------------------------------------
+OPENING_BLANK_MAX_SEC = 2.0
+TAIL_BLANK_MAX_SEC = 3.0
+MIN_ELEMENT_GAP_SEC = 0.6  # matches SlideWrapper's FADE_FRAMES (15 / 25fps)
 
 
 def _fallback_even_spacing(
     elements: list[dict],
     total_duration: float,
 ) -> dict:
-    """Spread elements across the first few seconds so they appear
-    quickly, not the first 60%. Used when the alignment LLM fails or
-    returns invalid data. Honours the same MAX_EMPTY_GAP_SEC rule as
-    the main path: first element at 0.0, then every ``MAX_EMPTY_GAP_SEC``
-    seconds.
+    """Even distribution across the whole clip when the alignment LLM
+    fails or returns garbage. Without the LLM's help we can't be smart
+    about narrative rhythm, but we can at least honour the same opening
+    and tail guarantees as the main path in
+    ``_distribute_elements_across_clip``.
     """
     n = len(elements)
     if n == 0:
         return {}
-    ceiling = max(total_duration - 0.5, 0.0)
+    if n == 1:
+        return {elements[0]["id"]: 0.0}
+
+    opening = 0.0
+    tail = max(total_duration - TAIL_BLANK_MAX_SEC, opening + 1.0)
+    tail = min(tail, total_duration - 0.5)
+    span = tail - opening
+    step = span / max(n - 1, 1)
     return {
-        el["id"]: round(min(i * MAX_EMPTY_GAP_SEC, ceiling), 3)
+        el["id"]: round(opening + i * step, 3)
         for i, el in enumerate(elements)
     }
 
 
-# ---------------------------------------------------------------------------
-# Rule: never leave the viewer staring at an unchanged frame for more
-# than 2 seconds. Applies to (a) the initial "only title is visible"
-# period at the start of a slide and (b) the gap between any two
-# adjacent element reveals.
-#
-# Reason this constant exists as a named module-level value: it's a
-# product rule, not an implementation detail. Tweaking it affects every
-# slide in every video and should be done deliberately.
-# ---------------------------------------------------------------------------
-MAX_EMPTY_GAP_SEC = 2.0
-
-
-def _enforce_max_empty_gap(
+def _distribute_elements_across_clip(
     timings: dict,
     total_duration: float,
-    max_gap: float = MAX_EMPTY_GAP_SEC,
 ) -> dict:
-    """Rewrite element timings so:
+    """Rewrite element start timestamps so the clip has content
+    revealing throughout the voiceover — no long blank opening, no
+    long blank tail, LLM's relative ordering preserved.
 
-    1. The first element lands at 0.0 (the slide is never "just the
-       title" — once the title has faded in, the first reveal is
-       already happening).
-    2. Each subsequent element lands at most ``max_gap`` seconds after
-       the previous one.
-    3. The last element lands no later than ``total_duration - 0.5``
-       (leave a minimum half-second tail for the final visual to sit
-       on screen before the clip ends).
-    4. The LLM's relative ordering is preserved — only absolute times
-       are overwritten.
+    Guarantees:
 
-    Why ignore the LLM's absolute values? The alignment LLM is asked
-    for the timestamp when each element is *first mentioned* in the
-    voiceover. That's semantically faithful but visually catastrophic:
-    if the narrator spends the first 28 seconds setting up before
-    saying "individual capability", the slide's content stays blank
-    for 28 seconds (observed on Panel 10 in the 2026-04-11 render).
-    The reveal rhythm is a product decision, not a transcription task.
+    1. Relative ordering of elements is kept intact — we sort by the
+       LLM's proposed start time and never shuffle.
+    2. First element appears by ``OPENING_BLANK_MAX_SEC`` at the
+       latest (so the slide never opens on a bare title for more
+       than ~2s).
+    3. Last element appears by ``total_duration - TAIL_BLANK_MAX_SEC``
+       at the earliest (so the final reveal lands near the end, not
+       in the first 10% like the predecessor rule used to force).
+    4. Middle elements are rescaled proportionally between the
+       first and last anchors, preserving whatever rhythm the LLM
+       intended.
+    5. Adjacent elements stay at least ``MIN_ELEMENT_GAP_SEC`` apart
+       so their 0.6s fades don't pile up visually.
 
-    Empty dicts return unchanged. A single-element slide always gets
-    {element_id: 0.0}.
+    Empty input returns empty. A single-element slide returns
+    ``{id: 0.0}`` — there is no second reveal to space against, so
+    it should appear immediately.
+
+    This replaces the pre-2026-04-11 ``_enforce_max_empty_gap`` rule.
     """
     if not timings:
         return timings
 
     items = sorted(timings.items(), key=lambda kv: kv[1])
-    ceiling = max(total_duration - 0.5, 0.0)
+    n = len(items)
+
+    if n == 1:
+        return {items[0][0]: 0.0}
+
+    llm_first = items[0][1]
+    llm_last = items[-1][1]
+
+    # Anchor targets: pull opening forward if too late, push tail
+    # back if too early. Leave them alone otherwise.
+    opening = min(llm_first, OPENING_BLANK_MAX_SEC)
+    opening = max(opening, 0.0)
+    tail = max(llm_last, total_duration - TAIL_BLANK_MAX_SEC)
+    tail = min(tail, total_duration - 0.5)
+
+    # If the two anchors collapsed (short clip, or all LLM timings
+    # stacked on one value), fall back to even spacing between them.
+    if tail <= opening:
+        span = max(total_duration - 1.0, 0.0)
+        step = span / max(n - 1, 1)
+        return {
+            eid: round(min(i * step, span), 3)
+            for i, (eid, _) in enumerate(items)
+        }
+
+    llm_span = llm_last - llm_first
+    new_span = tail - opening
 
     result: dict = {}
-    for i, (element_id, _llm_time) in enumerate(items):
-        t = min(i * max_gap, ceiling)
-        result[element_id] = round(t, 3)
+    for i, (element_id, llm_t) in enumerate(items):
+        if i == 0:
+            new_t = opening
+        elif i == n - 1:
+            new_t = tail
+        elif llm_span > 0:
+            # Preserve the LLM's proportional spacing between anchors.
+            proportion = (llm_t - llm_first) / llm_span
+            new_t = opening + proportion * new_span
+        else:
+            # All LLM timings collapsed to one value — even spacing.
+            new_t = opening + (i / (n - 1)) * new_span
+        result[element_id] = round(new_t, 3)
+
+    # Enforce minimum gap so fades don't visually overlap. Walk in
+    # order; if a neighbour pair is too close, nudge the later one
+    # forward — but never past the tail anchor.
+    ordered = sorted(result.items(), key=lambda kv: kv[1])
+    for i in range(1, len(ordered)):
+        prev_t = ordered[i - 1][1]
+        cur_id, cur_t = ordered[i]
+        if cur_t - prev_t < MIN_ELEMENT_GAP_SEC:
+            new_t = min(prev_t + MIN_ELEMENT_GAP_SEC, tail)
+            ordered[i] = (cur_id, new_t)
+            result[cur_id] = round(new_t, 3)
+
     return result
 
 # Path to the system prompt — 5 .parent calls: video → services → app → backend → repo root

@@ -16,57 +16,55 @@ import { DataCard } from "./components/DataCard";
 // with minimal frame-rate conversion work.
 const FPS = 25;
 
-// Default props for Remotion Studio preview
+// Minimal default props. These exist ONLY so Remotion Studio has
+// something to render in its preview panel; every production render
+// passes a full props blob via the ``--props`` CLI flag.
+//
+// IMPORTANT: Remotion shallow-merges ``--props`` onto these defaults,
+// so ANY content field left here will LEAK into rendered clips whose
+// passed props happen to omit that key. That's exactly how Panel 2
+// and Panel 12 ended up showing "1 success / 3-4 years" and
+// "3.2x higher rate" despite their props never mentioning those
+// numbers — the slide generator LLM didn't emit a ``stats`` field,
+// so the example stats from the pre-fix defaultDataCard bled through.
+// Same bug bit Panel 8: omitted ``footnote`` → phantom
+// "Harvard Business Review" at the bottom of the slide.
+//
+// Rule of thumb: keep ONLY the structural minimum each component
+// needs to mount without crashing. No example copy, no fake numbers,
+// no source attributions.
 const defaultPyramid = {
-  title: "Women in Tech Leadership",
-  levels: [
-    { label: "Entry Level", percentage: 45 },
-    { label: "Mid-Level", percentage: 32 },
-    { label: "Senior Level", percentage: 28 },
-    { label: "C-Suite", percentage: 22 },
-  ],
-  annotation: "Increasing Isolation",
-  annotationDirection: "upward" as const,
-  durationInSeconds: 17.5,
+  title: "Pyramid Preview",
+  levels: [],
+  durationInSeconds: 18,
 };
 
 const defaultSplit = {
-  title: "Same Behavior, Different Reception",
-  left: { label: "Male Leader", description: "Presenting quarterly results", metric: "8.5/10", sentiment: "positive" as const },
-  right: { label: "Female Leader", description: "Same presentation style", metric: "5.5/10", sentiment: "negative" as const },
-  footnote: "Harvard Business Review",
+  title: "Split Preview",
+  left: { label: "Left", description: "" },
+  right: { label: "Right", description: "" },
   durationInSeconds: 20,
 };
 
 const defaultTimeline = {
-  title: "Career Decision Complexity",
-  events: [
-    { label: "Promotion Timing", description: "Strategic window management", highlight: true },
-    { label: "Family Planning", description: "Career impact assessment" },
-    { label: "Project Leadership", description: "Visibility vs. risk" },
-    { label: "Credibility Building", description: "Post-transition recovery", highlight: true },
-  ],
-  direction: "horizontal" as const,
-  durationInSeconds: 23,
+  title: "Timeline Preview",
+  events: [],
+  durationInSeconds: 20,
 };
 
 const defaultThreeColumn = {
-  title: "Implementation by Role",
+  title: "Three-Column Preview",
   columns: [
-    { header: "Female Leaders", items: ["Build peer networks", "Seek male sponsors"] },
-    { header: "Male Leaders", items: ["Active sponsorship", "Support networks"] },
-    { header: "HR Leaders", items: ["Facilitate networks", "Train sponsors"] },
+    { header: "", items: [] },
+    { header: "", items: [] },
+    { header: "", items: [] },
   ] as const,
   durationInSeconds: 20,
 };
 
 const defaultDataCard = {
-  title: "Impact Comparison",
-  stats: [
-    { label: "Individual Approach", value: "1 success / 3-4 years", trend: "flat" as const },
-    { label: "Dual-Track Approach", value: "3.2x higher rate", trend: "up" as const },
-  ],
-  durationInSeconds: 19,
+  title: "DataCard Preview",
+  durationInSeconds: 18,
 };
 
 const durationFrames = (seconds: number) => Math.ceil(seconds * FPS);

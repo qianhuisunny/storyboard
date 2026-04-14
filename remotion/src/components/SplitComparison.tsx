@@ -198,6 +198,44 @@ const SPLIT_ICON_REGISTRY: Record<string, React.ReactNode> = {
   ),
 };
 
+/**
+ * Reveal illustration registry — small inline SVGs that ride inside
+ * the reveal beam below the two cards. Each entry is a complete
+ * <svg> because different reveals use different viewBoxes (some
+ * horizontal mini-charts, some symbolic metaphors).
+ */
+const REVEAL_ILLUSTRATION_REGISTRY: Record<string, React.ReactNode> = {
+  "load-bearing-arch": (
+    <svg
+      width="110"
+      height="60"
+      viewBox="0 0 120 60"
+      fill="none"
+      stroke={COLOR_ACCENT}
+      strokeWidth="5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      style={{ color: COLOR_ACCENT, flexShrink: 0 }}
+    >
+      {/* Two leaning beams that meet at the top, each propping the
+          other up — the literal "load-bearing for each other" image. */}
+      <line x1="18" y1="52" x2="58" y2="14" strokeWidth="6" />
+      <line x1="102" y1="52" x2="62" y2="14" strokeWidth="6" />
+      <circle cx="60" cy="13" r="5" fill="currentColor" />
+      {/* Ground line — muted dashed reference. */}
+      <line
+        x1="10"
+        y1="54"
+        x2="110"
+        y2="54"
+        strokeWidth="3"
+        strokeDasharray="4,3"
+        stroke={COLOR_META}
+      />
+    </svg>
+  ),
+};
+
 interface Side {
   label: string;
   description: string;
@@ -206,11 +244,24 @@ interface Side {
   icon?: keyof typeof SPLIT_ICON_REGISTRY | string;
 }
 
+interface Reveal {
+  label: string;
+  metric?: string;
+  illustration?: string; // key into REVEAL_ILLUSTRATION_REGISTRY
+}
+
 interface SplitComparisonProps {
   title: string;
   subtitle?: string;
   left: Side;
   right: Side;
+  /**
+   * Late-fading payoff element rendered as a full-width beam below
+   * the two cards. Use for banners / climax lines like "Load-bearing
+   * for each other" that the narration builds toward. ``footnote``
+   * stays for source attribution only.
+   */
+  reveal?: Reveal;
   footnote?: string;
   audioSrc?: string;
   durationInSeconds?: number;
@@ -222,6 +273,7 @@ export const SplitComparison: React.FC<SplitComparisonProps> = ({
   subtitle,
   left,
   right,
+  reveal,
   footnote,
   audioSrc,
   elementTimings,
@@ -229,6 +281,12 @@ export const SplitComparison: React.FC<SplitComparisonProps> = ({
   const frame = useCurrentFrame();
   const leftOpacity = elementOpacity(frame, "left", elementTimings, 0, 0.0);
   const rightOpacity = elementOpacity(frame, "right", elementTimings, 1, 0.8);
+  const revealOpacity = reveal
+    ? elementOpacity(frame, "reveal", elementTimings, 2, 0.6)
+    : 0;
+  const revealIllustration = reveal?.illustration
+    ? REVEAL_ILLUSTRATION_REGISTRY[reveal.illustration]
+    : null;
 
   const renderSide = (side: Side, opacity: number) => {
     const iconNode = side.icon ? SPLIT_ICON_REGISTRY[side.icon] : null;
@@ -339,6 +397,53 @@ export const SplitComparison: React.FC<SplitComparisonProps> = ({
           </div>
           {renderSide(right, rightOpacity)}
         </div>
+        {reveal && (
+          <div
+            style={{
+              opacity: revealOpacity,
+              width: "100%",
+              padding: "26px 44px",
+              backgroundColor: "#EAF4EE",
+              borderRadius: 16,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 28,
+              marginTop: 4,
+              boxSizing: "border-box",
+            }}
+          >
+            {revealIllustration}
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "flex-start",
+                gap: 4,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: HEADING_SIZE,
+                  fontWeight: HEADING_WEIGHT,
+                  color: COLOR_ACCENT,
+                }}
+              >
+                {reveal.label}
+              </div>
+              {reveal.metric && (
+                <div
+                  style={{
+                    fontSize: META_SIZE,
+                    color: COLOR_MUTED,
+                  }}
+                >
+                  {reveal.metric}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
         {footnote && (
           <div
             style={{
