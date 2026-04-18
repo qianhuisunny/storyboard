@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Storyboard Draft — Panel Card Final Design</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Nunito', system-ui, -apple-system, sans-serif;
+    background: #FFFFFF;
+    color: #1C2118;
+    font-size: 15px;
+    line-height: 1.55;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ===== TOP BAR ===== */
+  .topbar {
+    height: 48px;
+    background: #fff;
+    border-bottom: 1px solid #D9DDD2;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    flex-shrink: 0;
+    justify-content: space-between;
+  }
+  .topbar-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .topbar-logo {
+    font-family: 'Fraunces', serif;
+    font-size: 20px;
+    color: #3A6B47;
+    font-weight: 500;
+  }
+  .topbar-badge {
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    padding: 2px 8px;
+    color: #666;
+  }
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    font-size: 14px;
+    color: #626B58;
+  }
+  .topbar-right a {
+    text-decoration: none;
+    color: #626B58;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .topbar-right a:hover { color: #3A6B47; }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #E8F0E9;
+    border: 1px solid #D9DDD2;
+  }
+
+  /* ===== MAIN LAYOUT ===== */
+  .main {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    flex: 1;
+    min-height: 0;
+  }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    background: #fff;
+    border-right: 1px solid #D9DDD2;
+    padding: 22px 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+  }
+  .sidebar-top {}
+  .sidebar-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.9px;
+    color: #626B58;
+    text-transform: uppercase;
+    padding: 0 18px 10px;
+  }
+  .stage {
+    display: flex;
+    align-items: center;
+    padding: 10px 18px;
+    gap: 11px;
+    cursor: pointer;
+    position: relative;
+  }
+  .stage.active {
+    background: #E8F0E9;
+  }
+  .stage.active::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    background: #3A6B47;
+    border-radius: 0 2px 2px 0;
+  }
+  .stage-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    font-family: 'Fraunces', serif;
+    flex-shrink: 0;
+  }
+  .stage.completed .stage-num {
+    background: #3A6B47;
+    color: #fff;
+    border: 1.5px solid #3A6B47;
+  }
+  .stage.active .stage-num {
+    background: #3A6B47;
+    color: #fff;
+    border: 1.5px solid #3A6B47;
+  }
+  .stage:not(.active):not(.completed) .stage-num {
+    border: 1.5px solid #BFC6B5;
+    color: #626B58;
+  }
+  .stage-info { flex: 1; }
+  .stage-name {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1C2118;
+    display: block;
+  }
+  .stage-status {
+    font-size: 11px;
+    color: #626B58;
+  }
+  .check-icon {
+    width: 18px;
+    height: 18px;
+    color: #3A6B47;
+    flex-shrink: 0;
+  }
+  .sidebar-bottom {
+    padding: 12px 18px;
+    border-top: 1px solid #E8EBE4;
+  }
+  .sidebar-bottom a {
+    font-size: 13px;
+    color: #626B58;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  /* ===== CONTENT AREA ===== */
+  .content {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  /* Page header */
+  .page-header {
+    padding: 28px 40px 0;
+    flex-shrink: 0;
+  }
+  .page-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+  .page-header h1 {
+    font-family: 'Fraunces', serif;
+    font-size: 24px;
+    font-weight: 500;
+    color: #1C2118;
+    margin-bottom: 4px;
+  }
+  .page-header .subtitle {
+    font-size: 14px;
+    color: #626B58;
+  }
+  .stats-bar {
+    display: flex;
+    gap: 8px;
+  }
+  .stat-chip {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    background: #F8F9F6;
+    border: 1px solid #E8EBE4;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #626B58;
+  }
+  .stat-chip svg { width: 14px; height: 14px; color: #8D9885; }
+  .stat-chip .val { font-weight: 600; color: #1C2118; }
+
+  /* Panel list */
+  .panel-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 40px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 0;
+  }
+
+  /* ===== PANEL CARD ===== */
+  .panel-card {
+    background: #FFFFFF;
+    border: 1px solid #E8EBE4;
+    border-radius: 10px;
+    overflow: visible;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .panel-card:hover {
+    border-color: #D0D5CA;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .panel-card.expanded {
+    border-color: #3A6B47;
+    box-shadow: 0 2px 12px rgba(58,107,71,0.08);
+  }
+
+  /* Collapsed row */
+  .panel-header {
+    display: grid;
+    grid-template-columns: 40px 1fr auto;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+  }
+  .screen-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Fraunces', serif;
+    font-size: 14px;
+    font-weight: 600;
+    background: #F0F2ED;
+    color: #626B58;
+    flex-shrink: 0;
+  }
+  .panel-card.expanded .screen-num {
+    background: #3A6B47;
+    color: #fff;
+  }
+  .panel-middle {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+  }
+  .panel-top-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .screen-type-badge {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    flex-shrink: 0;
+    text-transform: uppercase;
+  }
+  .badge-slides { background: #F7F0E0; color: #7A5C1E; }
+  .badge-stock { background: #E8F0E9; color: #3A6B47; }
+  .badge-whiteboard { background: #F0EDE8; color: #6B5B3E; }
+  .badge-talking-head { background: #E6F2EB; color: #2D6A4F; }
+  .badge-screen-recording { background: #EDE8F0; color: #5B3E6B; }
+
+  .section-label {
+    font-size: 12px;
+    color: #8D9885;
+    font-weight: 500;
+  }
+  .voiceover-preview {
+    font-size: 14px;
+    color: #3D4438;
+    line-height: 1.4;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .panel-meta {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+  }
+  .duration-tag {
+    font-size: 12px;
+    color: #626B58;
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+  }
+  .chevron {
+    width: 20px;
+    height: 20px;
+    color: #8D9885;
+    transition: transform 0.2s;
+  }
+  .panel-card.expanded .chevron { transform: rotate(180deg); }
+
+  /* ===== EXPANDED CONTENT ===== */
+  .panel-body {
+    display: none;
+    border-top: 1px solid #F0F2ED;
+  }
+  .panel-card.expanded .panel-body { display: block; }
+
+  /* Two-column layout: visual left, content right */
+  .panel-content-grid {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+  }
+  .visual-area {
+    position: relative;
+    background: #F0F2ED;
+    border-right: 1px solid #E8EBE4;
+    border-radius: 0 0 0 10px;
+    overflow: hidden;
+  }
+  .visual-preview {
+    position: absolute;
+    inset: 0;
+    background: #E8EBE4;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .visual-preview img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    position: absolute;
+    inset: 0;
+  }
+  .visual-preview .placeholder-icon {
+    color: #BFC6B5;
+  }
+
+  /* Generate button — overlaid on visual */
+  .generate-btn {
+    position: absolute;
+    bottom: 14px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 7px 16px;
+    border: 1.5px solid rgba(255,255,255,0.7);
+    border-radius: 8px;
+    background: rgba(255,255,255,0.88);
+    backdrop-filter: blur(4px);
+    color: #3D4438;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: 'Nunito', sans-serif;
+    cursor: pointer;
+    transition: all 0.15s;
+    z-index: 2;
+    white-space: nowrap;
+  }
+  .generate-btn:hover {
+    background: rgba(255,255,255,0.95);
+    color: #3A6B47;
+    border-color: #3A6B47;
+  }
+  .generate-btn svg { width: 14px; height: 14px; }
+
+  .generate-btn.generating {
+    color: #3A6B47;
+    border-color: #3A6B47;
+    background: rgba(232,240,233,0.9);
+    pointer-events: none;
+  }
+  @keyframes shimmer {
+    0% { background-position: -200% 0; }
+    100% { background-position: 200% 0; }
+  }
+  @keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+  }
+
+  /* Regenerate overlay on generated images */
+  .visual-preview .regenerate-overlay {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 1;
+  }
+  .visual-preview:hover .regenerate-overlay { opacity: 1; }
+  .regenerate-overlay button {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 6px 14px;
+    background: rgba(255,255,255,0.95);
+    border: none;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #1C2118;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+  }
+
+  /* Right column wrapper */
+  .content-right {
+    display: flex;
+    flex-direction: column;
+  }
+  .content-area {
+    padding: 20px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    flex: 1;
+  }
+  .content-section label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #8D9885;
+    margin-bottom: 6px;
+  }
+  .content-section label svg {
+    width: 13px;
+    height: 13px;
+    color: #BFC6B5;
+  }
+  .voiceover-full {
+    font-size: 14px;
+    color: #3D4438;
+    line-height: 1.6;
+    background: #FAFBF8;
+    padding: 12px 14px;
+    border-radius: 6px;
+    border: 1px solid #F0F2ED;
+    font-style: italic;
+  }
+  .visual-direction-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .visual-direction-item {
+    font-size: 13px;
+    color: #3D4438;
+    line-height: 1.5;
+    display: flex;
+    gap: 6px;
+  }
+  .visual-direction-item .bullet {
+    color: #BFC6B5;
+    flex-shrink: 0;
+  }
+
+  /* Footer actions */
+  .panel-footer {
+    padding: 10px 20px;
+    border-top: 1px solid #F0F2ED;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .footer-left { display: flex; gap: 2px; }
+  .footer-right { display: flex; gap: 8px; }
+  .icon-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; border-radius: 6px;
+    color: #8D9885; cursor: pointer; transition: all 0.1s;
+  }
+  .icon-btn:hover { background: #F0F2ED; color: #3D4438; }
+  .icon-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .icon-btn svg { width: 15px; height: 15px; }
+  .edit-btn {
+    padding: 4px 14px;
+    border: 1px solid #E8EBE4;
+    background: #fff;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #3D4438;
+    cursor: pointer;
+    font-family: 'Nunito', sans-serif;
+    transition: all 0.1s;
+  }
+  .edit-btn:hover { border-color: #3A6B47; color: #3A6B47; }
+  .delete-btn {
+    width: 28px; height: 28px;
+    display: flex; align-items: center; justify-content: center;
+    border: none; background: transparent; border-radius: 6px;
+    color: #BFC6B5; cursor: pointer; transition: all 0.1s;
+  }
+  .delete-btn:hover { background: #FBEAE8; color: #A63228; }
+  .delete-btn svg { width: 14px; height: 14px; }
+
+  /* ===== BOTTOM BAR ===== */
+  .bottom-bar {
+    height: 56px;
+    border-top: 1px solid #D9DDD2;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 40px;
+    flex-shrink: 0;
+  }
+  .bottom-stats {
+    font-size: 13px;
+    color: #626B58;
+  }
+  .approve-btn {
+    padding: 10px 24px;
+    background: #3A6B47;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: 'Nunito', sans-serif;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .approve-btn:hover { background: #2D5639; }
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <span class="topbar-logo">Plotline</span>
+    <span class="topbar-badge">RESEARCH PREVIEW</span>
+  </div>
+  <div class="topbar-right">
+    <a href="#">My Projects</a>
+    <a href="#">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+      Analytics
+    </a>
+    <a href="#">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      Eval
+    </a>
+    <div class="avatar"></div>
+  </div>
+</div>
+
+<!-- Main Layout -->
+<div class="main">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-label">Stages</div>
+      <div class="stage completed">
+        <div class="stage-num">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="stage-info">
+          <span class="stage-name">Video Briefing</span>
+          <span class="stage-status">Approved</span>
+        </div>
+      </div>
+      <div class="stage completed">
+        <div class="stage-num">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="stage-info">
+          <span class="stage-name">Video Outline</span>
+          <span class="stage-status">Approved</span>
+        </div>
+      </div>
+      <div class="stage active">
+        <div class="stage-num">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+        </div>
+        <div class="stage-info">
+          <span class="stage-name">Storyboard Draft</span>
+          <span class="stage-status">Approved</span>
+        </div>
+      </div>
+      <div class="stage">
+        <div class="stage-num">4</div>
+        <div class="stage-info">
+          <span class="stage-name">Review and Share</span>
+          <span class="stage-status">Needs review</span>
+        </div>
+      </div>
+    </div>
+    <div class="sidebar-bottom">
+      <a href="#">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        My Projects
+      </a>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+    <!-- Page Header -->
+    <div class="page-header">
+      <div class="page-header-row">
+        <div>
+          <h1>Storyboard Draft</h1>
+          <div class="subtitle">Review and refine your production-ready storyboard panels.</div>
+        </div>
+        <div class="stats-bar">
+          <div class="stat-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span class="val">5:00</span>
+          </div>
+          <div class="stat-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+            <span class="val">15</span> panels
+          </div>
+          <div class="stat-chip">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <span class="val">806</span> words
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel List -->
+    <div class="panel-list">
+
+      <!-- Panel 1: Expanded — placeholder state -->
+      <div class="panel-card expanded" onclick="this.classList.toggle('expanded')">
+        <div class="panel-header">
+          <div class="screen-num">1</div>
+          <div class="panel-middle">
+            <div class="panel-top-line">
+              <span class="screen-type-badge badge-talking-head">Talking Head</span>
+              <span class="section-label">Hook</span>
+            </div>
+            <div class="voiceover-preview">Picture this: you're the VP of Engineering, sitting in a board meeting with eleven other exec...</div>
+          </div>
+          <div class="panel-meta">
+            <span class="duration-tag">18.5s</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="panel-content-grid">
+            <div class="visual-area">
+              <div class="visual-preview">
+                <div class="placeholder-icon">
+                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+                </div>
+                <button class="generate-btn" onclick="event.stopPropagation()">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z"/><path d="M19 13l1 3 3 1-3 1-1 3-1-3-3-1 3-1 1-3z"/></svg>
+                  Generate Visual
+                </button>
+              </div>
+            </div>
+            <div class="content-right">
+              <div class="content-area">
+                <div class="content-section">
+                  <label>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Voiceover Script
+                  </label>
+                  <div class="voiceover-full">"Picture this: you're the VP of Engineering, sitting in a board meeting with eleven other executives. You look around the room and realize — you're the only woman. Again. This isn't unusual. Research from McKinsey shows that 73% of women in tech report being the only woman in leadership meetings."</div>
+                </div>
+                <div class="content-section">
+                  <label>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Visual Direction
+                  </label>
+                  <div class="visual-direction-list">
+                    <div class="visual-direction-item"><span class="bullet">&bull;</span> Professional woman in business attire speaking directly to camera</div>
+                    <div class="visual-direction-item"><span class="bullet">&bull;</span> Confident, authoritative presence with slight concern in expression</div>
+                    <div class="visual-direction-item"><span class="bullet">&bull;</span> Clean, modern office background</div>
+                    <div class="visual-direction-item"><span class="bullet">&bull;</span> Direct eye contact establishing credibility</div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel-footer">
+                <div class="footer-left">
+                  <button class="icon-btn" disabled title="Move up" onclick="event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5"/><polyline points="5 12 12 5 19 12"/></svg>
+                  </button>
+                  <button class="icon-btn" title="Move down" onclick="event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><polyline points="19 12 12 19 5 12"/></svg>
+                  </button>
+                </div>
+                <div class="footer-right">
+                  <button class="edit-btn" onclick="event.stopPropagation()">Edit</button>
+                  <button class="delete-btn" onclick="event.stopPropagation()" title="Delete">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 2: Collapsed -->
+      <div class="panel-card" onclick="this.classList.toggle('expanded')">
+        <div class="panel-header">
+          <div class="screen-num">2</div>
+          <div class="panel-middle">
+            <div class="panel-top-line">
+              <span class="screen-type-badge badge-slides">Slides</span>
+              <span class="section-label">The Problem</span>
+            </div>
+            <div class="voiceover-preview">The numbers are stark. Women hold only 28% of computing roles, and the pipeline is leaking...</div>
+          </div>
+          <div class="panel-meta">
+            <span class="duration-tag">22s</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="panel-content-grid">
+            <div class="visual-area">
+              <div class="visual-preview">
+                <img src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=560&h=400&fit=crop" alt="Generated visual">
+                <div class="regenerate-overlay" onclick="event.stopPropagation()">
+                  <button>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:14px;height:14px;"><path d="M1 4v6h6"/><path d="M23 20v-6h-6"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+                    Regenerate
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div class="content-right">
+              <div class="content-area">
+                <div class="content-section">
+                  <label>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                    Voiceover Script
+                  </label>
+                  <div class="voiceover-full">"The numbers are stark. Women hold only 28% of computing roles, and the pipeline is leaking at every stage. From college enrollment to mid-career retention, the drop-off is systemic — not accidental."</div>
+                </div>
+                <div class="content-section">
+                  <label>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    Visual Direction
+                  </label>
+                  <div class="visual-direction-list">
+                    <div class="visual-direction-item"><span class="bullet">&bull;</span> Clean infographic showing 28% statistic prominently</div>
+                    <div class="visual-direction-item"><span class="bullet">&bull;</span> Declining pipeline funnel visualization</div>
+                    <div class="visual-direction-item"><span class="bullet">&bull;</span> Professional data visualization, minimal color palette</div>
+                  </div>
+                </div>
+              </div>
+              <div class="panel-footer">
+                <div class="footer-left">
+                  <button class="icon-btn" title="Move up" onclick="event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5"/><polyline points="5 12 12 5 19 12"/></svg>
+                  </button>
+                  <button class="icon-btn" title="Move down" onclick="event.stopPropagation()">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><polyline points="19 12 12 19 5 12"/></svg>
+                  </button>
+                </div>
+                <div class="footer-right">
+                  <button class="edit-btn" onclick="event.stopPropagation()">Edit</button>
+                  <button class="delete-btn" onclick="event.stopPropagation()" title="Delete">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 3: Collapsed -->
+      <div class="panel-card" onclick="this.classList.toggle('expanded')">
+        <div class="panel-header">
+          <div class="screen-num">3</div>
+          <div class="panel-middle">
+            <div class="panel-top-line">
+              <span class="screen-type-badge badge-stock">Stock Footage</span>
+              <span class="section-label">Impact Stories</span>
+            </div>
+            <div class="voiceover-preview">But behind every statistic is a real person. Meet Sarah, a software engineer who left her FAANG company after...</div>
+          </div>
+          <div class="panel-meta">
+            <span class="duration-tag">25s</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="panel-body"></div>
+          <div class="panel-footer">
+            <div class="footer-left">
+              <button class="icon-btn" title="Move up">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 19V5"/><polyline points="5 12 12 5 19 12"/></svg>
+              </button>
+              <button class="icon-btn" title="Move down">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14"/><polyline points="19 12 12 19 5 12"/></svg>
+              </button>
+            </div>
+            <div class="footer-right">
+              <button class="edit-btn" onclick="event.stopPropagation()">Edit</button>
+              <button class="delete-btn" onclick="event.stopPropagation()" title="Delete">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel 4: Collapsed -->
+      <div class="panel-card" onclick="this.classList.toggle('expanded')">
+        <div class="panel-header">
+          <div class="screen-num">4</div>
+          <div class="panel-middle">
+            <div class="panel-top-line">
+              <span class="screen-type-badge badge-whiteboard">Whiteboard</span>
+              <span class="section-label">Root Causes</span>
+            </div>
+            <div class="voiceover-preview">So what's actually driving this? Let's break down the three systemic factors that research consistently identifies.</div>
+          </div>
+          <div class="panel-meta">
+            <span class="duration-tag">20s</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="panel-body"></div>
+      </div>
+
+      <!-- Panel 5: Collapsed -->
+      <div class="panel-card" onclick="this.classList.toggle('expanded')">
+        <div class="panel-header">
+          <div class="screen-num">5</div>
+          <div class="panel-middle">
+            <div class="panel-top-line">
+              <span class="screen-type-badge badge-screen-recording">Screen Recording</span>
+              <span class="section-label">Data Deep Dive</span>
+            </div>
+            <div class="voiceover-preview">Let me show you the data that most companies don't track. When we overlay attrition rates with promotion cycles...</div>
+          </div>
+          <div class="panel-meta">
+            <span class="duration-tag">30s</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="panel-body"></div>
+      </div>
+
+      <!-- Panel 6: Collapsed -->
+      <div class="panel-card" onclick="this.classList.toggle('expanded')">
+        <div class="panel-header">
+          <div class="screen-num">6</div>
+          <div class="panel-middle">
+            <div class="panel-top-line">
+              <span class="screen-type-badge badge-talking-head">Talking Head</span>
+              <span class="section-label">Call to Action</span>
+            </div>
+            <div class="voiceover-preview">Here's what you can do starting Monday. Three concrete steps that have shown measurable results...</div>
+          </div>
+          <div class="panel-meta">
+            <span class="duration-tag">15s</span>
+            <svg class="chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+          </div>
+        </div>
+        <div class="panel-body"></div>
+      </div>
+
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="bottom-bar">
+      <div class="bottom-stats">15 panels &middot; 5:00 total &middot; 806 words</div>
+      <button class="approve-btn">Approve &amp; Finalize Storyboard</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
