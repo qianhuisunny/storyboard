@@ -26,7 +26,10 @@ class ImageGenerator:
         style = STYLE_SUFFIXES.get(screen_type, "digital illustration style")
         full_prompt = f"{prompt_parts}. {style}"
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        print(f"[ImageGenerator] prompt: {full_prompt}")
+        print(f"[ImageGenerator] screen_type: {screen_type}, visual_direction: {visual_direction}")
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
             response = await client.post(
                 self.api_url,
                 headers={"Authorization": f"Bearer {self.api_key}"},
@@ -34,17 +37,14 @@ class ImageGenerator:
                     "model": "flux-schnell",
                     "prompt": full_prompt,
                     "width": 1024,
-                    "height": 576,
+                    "height": 1024,
+                    "num_inference_steps": 20,
+                    "guidance_scale": 7,
+                    "n": 1,
+                    "response_format": "b64_json",
                 },
             )
+            print(f"[ImageGenerator] status: {response.status_code}")
             response.raise_for_status()
-            result = response.json()["data"][0]
-            if "b64_json" in result:
-                return base64.b64decode(result["b64_json"])
-            # IonRouter returns a relative path — prepend base
-            url = result["url"]
-            if url.startswith("/"):
-                url = "https://api.ionrouter.io" + url
-            img_response = await client.get(url)
-            img_response.raise_for_status()
-            return img_response.content
+            b64_data = response.json()["data"][0]["b64_json"]
+            return base64.b64decode(b64_data)
