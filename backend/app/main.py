@@ -537,6 +537,13 @@ class IntakeFormRequest(BaseModel):
     intake_form: dict
 
 
+class ChatBriefRequest(BaseModel):
+    """Request body for chat-based content spine extraction."""
+    messages: list
+    fields_so_far: dict
+    onboarding: dict
+
+
 @app.post("/api/project/{project_id}/event")
 async def process_pipeline_event(project_id: str, request: EventRequest):
     """
@@ -584,6 +591,73 @@ async def process_pipeline_event(project_id: str, request: EventRequest):
 
 # [HACKATHON Apr18] Removed /rerun-research and /research-section endpoints —
 # research agent deleted. Frontend calls to these will 404.
+
+
+@app.post("/api/project/{project_id}/chat-brief")
+async def chat_brief(project_id: str, request: ChatBriefRequest):
+    """Phase 2 chat-based content spine extraction. Direct LLM call, no agent class."""
+    try:
+        # Load system prompt
+        prompt_path = Path(__file__).parent.parent.parent / "prompts" / "chat_brief_prompt.md"
+        if not prompt_path.exists():
+            raise HTTPException(status_code=500, detail="Chat brief prompt not found")
+        system_prompt = prompt_path.read_text(encoding="utf-8")
+
+        # Build user prompt with context
+        fields_summary = "\n".join(
+            f"- {k}: {v.get('value', v) if isinstance(v, dict) else v}"
+            for k, v in request.fields_so_far.items()
+            if (v.get("value") if isinstance(v, dict) else v)
+        )
+
+        conversation = "\n".join(
+            f"{'AI' if m.get('role') == 'ai' else 'User'}: {m.get('content', '')}"
+            for m in request.messages
+        )
+
+        user_prompt = f"""## ONBOARDING CONTEXT
+- Topic: {request.onboarding.get('topic', '')}
+- Duration: {request.onboarding.get('duration', 300)} seconds
+- Audience: {request.onboarding.get('audience', '')}
+
+## COLLECTED BRIEF FIELDS
+{fields_summary or '(none yet)'}
+
+## CONVERSATION SO FAR
+{conversation}
+
+Respond with the next JSON message."""
+
+        # Direct Anthropic API call
+        import anthropic
+        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+        response = client.messages.create(
+            model="claude-sonnet-4-20250514",
+            system=system_prompt,
+            messages=[{"role": "user", "content": user_prompt}],
+            temperature=0.7,
+            max_tokens=1000,
+        )
+
+        response_text = response.content[0].text
+
+        # Parse JSON from response
+        import re
+        json_match = re.search(r'\{[\s\S]*\}', response_text)
+        if not json_match:
+            return {"reply": "I'm having trouble processing that. Could you try again?", "done": False, "extracted_fields": None}
+
+        parsed = json.loads(json_match.group())
+        return {
+            "reply": parsed.get("reply", ""),
+            "done": parsed.get("done", False),
+            "extracted_fields": parsed.get("extracted_fields"),
+        }
+
+    except json.JSONDecodeError:
+        return {"reply": "I had trouble understanding that. Could you rephrase?", "done": False, "extracted_fields": None}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Chat brief error: {str(e)}")
 
 
 @app.post("/api/project/{project_id}/start")
