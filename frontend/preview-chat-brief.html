@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat Brief Builder — UI Preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Nunito', system-ui, -apple-system, sans-serif; background: #FFFFFF; color: #1C2118; height: 100vh; display: flex; flex-direction: column; font-size: 15px; line-height: 1.55; }
+
+  /* Top bar */
+  .topbar { height: 48px; background: #fff; border-bottom: 1px solid #D9DDD2; display: flex; align-items: center; padding: 0 20px; flex-shrink: 0; }
+  .topbar-logo { font-family: 'Fraunces', serif; font-size: 20px; color: #3A6B47; font-weight: 500; }
+  .topbar-badge { font-size: 9px; font-weight: 700; letter-spacing: 1px; border: 1px solid #ccc; border-radius: 4px; padding: 2px 8px; margin-left: 12px; color: #666; }
+
+  /* Main layout */
+  .main { display: grid; grid-template-columns: 220px 1fr; flex: 1; overflow: hidden; }
+
+  /* Sidebar */
+  .sidebar { background: #fff; border-right: 1px solid #D9DDD2; padding: 22px 0; }
+  .sidebar-label { font-size: 10px; font-weight: 700; letter-spacing: 0.9px; color: #626B58; text-transform: uppercase; padding: 0 18px 10px; }
+  .stage { display: flex; align-items: center; padding: 10px 18px; gap: 11px; cursor: pointer; position: relative; }
+  .stage.active { background: #E8F0E9; }
+  .stage.active::before { content: ''; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; background: #3A6B47; border-radius: 0 2px 2px 0; }
+  .stage-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; font-family: 'Fraunces', serif; flex-shrink: 0; }
+  .stage.active .stage-num { background: #3A6B47; color: #fff; border: 1.5px solid #3A6B47; }
+  .stage:not(.active) .stage-num { border: 1.5px solid #BFC6B5; color: #626B58; }
+  .stage-info { flex: 1; }
+  .stage-name { font-size: 13px; font-weight: 500; color: #1C2118; display: block; }
+  .stage.active .stage-name { font-weight: 600; color: #3A6B47; }
+  .stage-status { font-size: 11px; color: #626B58; margin-top: 2px; display: block; }
+
+  /* Chat area */
+  .chat-area { display: flex; flex-direction: column; height: 100%; overflow: hidden; }
+
+  /* Chat header */
+  .chat-header { padding: 16px 40px; background: #fff; border-bottom: 1px solid #D9DDD2; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; }
+  .chat-header h1 { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 400; color: #1C2118; letter-spacing: -0.4px; margin: 0; }
+  .chat-header-left { display: flex; flex-direction: column; }
+  .chat-header-left p { font-size: 13px; color: #626B58; margin-top: 3px; }
+  .section-chips { display: flex; gap: 8px; }
+  .section-chip { padding: 8px 16px; border-radius: 8px; font-size: 12px; font-weight: 600; border: 1px solid #ddd; color: #999; background: #fff; cursor: default; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .section-chip.active { background: #3A6B47; color: #fff; border-color: #3A6B47; }
+  .section-chip.done { background: #fff; color: #333; border-color: #ccc; }
+
+  /* Messages */
+  .messages { flex: 1; overflow-y: auto; padding: 24px 40px; display: flex; flex-direction: column; gap: 16px; }
+
+  .msg { display: flex; gap: 12px; max-width: 640px; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .msg.ai { align-self: flex-start; }
+  .msg.user { align-self: flex-end; flex-direction: row-reverse; }
+
+  .msg-avatar { width: 32px; height: 32px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 600; }
+  .msg.ai .msg-avatar { background: #E8F0E9; color: #3A6B47; }
+  .msg.user .msg-avatar { background: #F0EDE8; color: #8B7355; }
+
+  .msg-bubble { padding: 12px 16px; border-radius: 16px; font-size: 14px; line-height: 1.55; }
+  .msg.ai .msg-bubble { background: #fff; border: 1px solid #D9DDD2; border-radius: 4px 16px 16px 16px; }
+  .msg.user .msg-bubble { background: #3A6B47; color: #fff; border-radius: 16px 4px 16px 16px; }
+
+  /* Chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .chip { padding: 7px 16px; border-radius: 20px; font-size: 13px; font-weight: 500; cursor: pointer; border: 1.5px solid #D1D9C9; background: #fff; color: #3A6B47; transition: all 0.15s; }
+  .chip:hover { background: #E8F0E9; border-color: #3A6B47; }
+  .chip.selected { background: #3A6B47; color: #fff; border-color: #3A6B47; }
+
+  /* Typing indicator */
+  .typing { display: flex; gap: 12px; align-self: flex-start; max-width: 640px; }
+  .typing-dots { display: flex; gap: 4px; padding: 14px 20px; background: #fff; border: 1px solid #D9DDD2; border-radius: 4px 16px 16px 16px; }
+  .typing-dot { width: 7px; height: 7px; border-radius: 50%; background: #BFC6B5; animation: bounce 1.4s infinite; }
+  .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+
+  /* Input bar */
+  .input-bar { padding: 14px 40px 20px; background: #fff; border-top: 1px solid #D9DDD2; flex-shrink: 0; }
+  .input-wrap { display: flex; align-items: center; gap: 10px; }
+  .input-wrap input { flex: 1; padding: 11px 16px; border-radius: 12px; border: 1.5px solid #D1D9C9; font-size: 14px; font-family: 'Nunito', system-ui, sans-serif; outline: none; transition: border-color 0.15s; }
+  .input-wrap input:focus { border-color: #3A6B47; }
+  .input-wrap input::placeholder { color: #BFC6B5; }
+  .send-btn { width: 42px; height: 42px; border-radius: 12px; background: #3A6B47; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.15s; }
+  .send-btn:hover { background: #2E5439; }
+  .send-btn svg { width: 18px; height: 18px; fill: none; stroke: #fff; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .send-btn:disabled { background: #BFC6B5; cursor: not-allowed; }
+
+  /* Phase indicator (inline, in chat) */
+  .phase-pill { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border-radius: 12px; font-size: 11px; font-weight: 600; color: #626B58; background: #EDEEE9; margin-bottom: 12px; }
+  .phase-pill .dot { width: 6px; height: 6px; border-radius: 50%; background: #3A6B47; }
+
+  /* Step nav bar */
+  .step-nav { display: flex; gap: 0; background: #fff; border-bottom: 1px solid #D9DDD2; flex-shrink: 0; padding: 0 24px; }
+  .step-item { flex: 1; display: flex; align-items: center; gap: 10px; padding: 12px 16px; position: relative; }
+  .step-item::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px; background: transparent; }
+  .step-item.active::after { background: #3A6B47; }
+  .step-item.done::after { background: #3A6B47; }
+  .step-num { width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 700; font-family: 'Fraunces', serif; flex-shrink: 0; }
+  .step-item.active .step-num { background: #3A6B47; color: #fff; border: 1.5px solid #3A6B47; }
+  .step-item.done .step-num { background: #E6F2EB; color: #2D6A4F; border: 1.5px solid #2D6A4F; }
+  .step-item.locked .step-num { border: 1.5px solid #D9DDD2; color: #BFC6B5; }
+  .step-label { font-size: 12px; font-weight: 600; }
+  .step-item.active .step-label { color: #3A6B47; }
+  .step-item.done .step-label { color: #1C2118; }
+  .step-item.locked .step-label { color: #BFC6B5; }
+  .step-check { width: 12px; height: 12px; stroke: #2D6A4F; stroke-width: 2.5; fill: none; }
+</style>
+</head>
+<body>
+
+<!-- Top bar -->
+<div class="topbar">
+  <span class="topbar-logo">Plotline</span>
+  <span class="topbar-badge">RESEARCH PREVIEW</span>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-label">Stages</div>
+    <div class="stage active">
+      <span class="stage-num">1</span>
+      <div class="stage-info"><span class="stage-name">Video Briefing</span><span class="stage-status">In progress</span></div>
+    </div>
+    <div class="stage">
+      <span class="stage-num">2</span>
+      <div class="stage-info"><span class="stage-name">Video Outline</span><span class="stage-status">Not started</span></div>
+    </div>
+    <div class="stage">
+      <span class="stage-num">3</span>
+      <div class="stage-info"><span class="stage-name">Storyboard Draft</span><span class="stage-status">Not started</span></div>
+    </div>
+    <div class="stage">
+      <span class="stage-num">4</span>
+      <div class="stage-info"><span class="stage-name">Review and Share</span><span class="stage-status">Not started</span></div>
+    </div>
+  </nav>
+
+  <!-- Chat -->
+  <div class="chat-area">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <h1>Video Briefing</h1>
+        <p>Let's shape your video together through a quick conversation.</p>
+      </div>
+      <div class="section-chips">
+        <span class="section-chip done">Core Intent</span>
+        <span class="section-chip active">Delivery</span>
+        <span class="section-chip">Content Spine</span>
+        <span class="section-chip">Review</span>
+      </div>
+    </div>
+
+
+    <div class="messages" id="messages">
+
+      <div class="msg ai">
+        <div class="msg-avatar">P</div>
+        <div class="msg-bubble">
+          Hi! I've got your topic and audience from the previous step. Let me ask a few quick questions to shape the brief.<br><br>
+          <strong>What do you want people to know, do, or believe by the end of watching this video?</strong>
+        </div>
+      </div>
+      <div class="msg user">
+        <div class="msg-avatar">Q</div>
+        <div class="msg-bubble">I want viewers to understand how to use multi-agent workflows to break down complex analytical tasks, and feel confident enough to try building one themselves.</div>
+      </div>
+
+      <div class="msg ai">
+        <div class="msg-avatar">P</div>
+        <div class="msg-bubble">
+          Great outcome — both a "know" and a "do". Now:<br><br>
+          <strong>How familiar is your audience with this topic?</strong>
+        </div>
+      </div>
+      <div class="msg user">
+        <div class="msg-avatar">Q</div>
+        <div class="msg-bubble"><span class="chip selected" style="display:inline-flex;margin:0;cursor:default;">Intermediate</span></div>
+      </div>
+
+      <div class="msg ai">
+        <div class="msg-avatar">P</div>
+        <div class="msg-bubble"><strong>How time-sensitive is this content?</strong></div>
+      </div>
+
+
+      <div class="msg ai">
+        <div class="msg-avatar">P</div>
+        <div class="msg-bubble">
+          Now let's dig into your unique angle. You're teaching multi-agent workflows to intermediate data analysts.<br><br>
+          <strong>What's your point of view on this?</strong> What do you know about multi-agent systems that most tutorials or articles get wrong — or skip entirely?
+        </div>
+      </div>
+      <div class="msg user">
+        <div class="msg-avatar">Q</div>
+        <div class="msg-bubble">Most people think of agents as chatbots. But the real power is in specialization — each agent is a narrow expert, and the orchestration layer is where the magic happens. Nobody talks about how to design the handoff between agents.</div>
+      </div>
+      <div class="msg ai">
+        <div class="msg-avatar">P</div>
+        <div class="msg-bubble">
+          That's a strong angle — "agents aren't chatbots, they're specialists." The handoff design is the non-obvious part most people miss.<br><br>
+          A few talking points I'm hearing:<br>
+          1. <strong>The specialization principle</strong> — why narrow agents beat one general agent<br>
+          2. <strong>Orchestration is the hard part</strong> — designing handoffs, state passing, error recovery<br>
+          3. <strong>A concrete example</strong> — walk through a real multi-step analysis<br><br>
+          What's the common misconception you want to bust? Is it "just use one big prompt" or something else?
+        </div>
+      </div>
+      <div class="msg user">
+        <div class="msg-avatar">Q</div>
+        <div class="msg-bubble">Yes exactly — the misconception is that you can solve complex tasks with a single long prompt. People keep making prompts longer instead of breaking the task into agent-sized pieces.</div>
+      </div>
+      <div class="msg ai">
+        <div class="msg-avatar">P</div>
+        <div class="msg-bubble">
+          Got it. Here's your content spine:<br><br>
+          <div style="background:#F5F7F2;border-radius:10px;padding:14px 16px;margin-top:8px;border:1px solid #D1D9C9;">
+            <div style="font-size:12px;font-weight:600;color:#626B58;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:10px;">Content Spine</div>
+            <div style="margin-bottom:10px;">
+              <div style="font-size:11px;color:#626B58;margin-bottom:2px;">Point of view</div>
+              <div style="font-size:13px;">Agents aren't chatbots — they're narrow specialists. The real skill is designing the orchestration and handoffs between them.</div>
+            </div>
+            <div style="margin-bottom:10px;">
+              <div style="font-size:11px;color:#626B58;margin-bottom:2px;">Key talking points</div>
+              <div style="font-size:13px;">1. The specialization principle<br>2. Orchestration as the hard part<br>3. A concrete walkthrough</div>
+            </div>
+            <div>
+              <div style="font-size:11px;color:#626B58;margin-bottom:2px;">Misconception to address</div>
+              <div style="font-size:13px;">"Just make the prompt longer" — why single-prompt approaches break down on complex tasks</div>
+            </div>
+          </div>
+          <br>Does this capture it? I can adjust anything, or we can move to the full brief review.
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-wrap">
+        <input type="text" id="chatInput" placeholder="Type your answer..." style="flex: 0 1 400px;" />
+        <button class="send-btn" id="sendBtn">
+          <svg viewBox="0 0 24 24"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+        </button>
+        <div class="chips" style="margin-top: 0; margin-left: 8px;">
+          <span class="chip">Evergreen</span>
+          <span class="chip">Current-year</span>
+          <span class="chip">Fast-changing</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// Wire up chip clicks
+document.querySelectorAll('.chip:not(.selected)').forEach(chip => {
+  chip.addEventListener('click', () => {
+    chip.parentElement.querySelectorAll('.chip').forEach(c => c.classList.remove('selected'));
+    chip.classList.add('selected');
+  });
+});
+// Scroll to bottom
+const messagesEl = document.getElementById('messages');
+messagesEl.scrollTop = messagesEl.scrollHeight;
+</script>
+</body>
+</html>
