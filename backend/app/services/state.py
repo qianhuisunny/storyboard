@@ -104,6 +104,9 @@ class StateManager:
         ("brief_round3", "round3_confirm"): "brief_review",           # Section 3 confirmed -> Final review
         ("brief_review", "brief_approve"): "gate1",                # Final review -> Gate 1 (locked)
         ("brief_review", "edit_brief"): "brief_round1",            # Go back to editing
+        ("brief_round1", "chat_brief_approve"): "brief_review",
+        ("brief_round2", "chat_brief_approve"): "brief_review",
+        ("brief_round3", "chat_brief_approve"): "brief_review",
 
         # Go back transitions
         ("gate2", "go_back_gate1"): "gate1",      # From outline review -> brief review

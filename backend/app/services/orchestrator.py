@@ -123,6 +123,10 @@ class StoryboardOrchestrator:
             ("brief_round3", "round3_confirm"): self._handle_round3_confirm,
             ("brief_review", "brief_approve"): self._handle_brief_approve,
             ("brief_review", "edit"): self._handle_edit_brief,
+            ("brief_round1", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_round2", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_round3", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_review", "chat_brief_approve"): self._handle_chat_brief_approve,
         }
         return handlers.get((phase, event))
 
@@ -762,6 +766,54 @@ class StoryboardOrchestrator:
         result["message"] = "Returned to editing mode. All sections editable."
         result["brief_fields"] = state.story_brief.get("fields", {}) if state.story_brief else {}
         result["round"] = 1
+
+        return state, result
+
+    async def _handle_chat_brief_approve(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Handle chat-based brief approval.
+        Accepts all fields at once, batch-transitions through rounds, then runs Director.
+        """
+        all_fields = payload.get("all_fields", {})
+        if not all_fields:
+            raise ValueError("all_fields is required in payload")
+
+        # Store all fields in state
+        state.confirmed_fields = all_fields
+        if not state.story_brief:
+            state.story_brief = {"round": "review", "fields": all_fields}
+        else:
+            state.story_brief["round"] = "review"
+            state.story_brief["fields"] = {
+                **state.story_brief.get("fields", {}),
+                **all_fields,
+            }
+
+        # Force phase to brief_review for the approve transition
+        state.phase = "brief_review"
+
+        # Lock the brief
+        state = manager.lock_brief(state)
+
+        # Transition to gate1
+        state = manager.transition(state, "brief_approve")
+
+        # Immediately run Director (combining brief_approve + gate1_approve)
+        state = manager.transition(state, "approve")  # gate1 → outline
+        screen_outline = self.agents["director"].run(state)
+        state.screen_outline = screen_outline
+        state = manager.transition(state, "outline_ready")  # outline → gate2
+
+        result["message"] = "Screen Outline ready for review"
+        result["story_brief"] = state.story_brief
+        result["brief_locked"] = True
+        result["screen_outline"] = screen_outline
 
         return state, result
 
