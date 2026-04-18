@@ -932,6 +932,7 @@ export default function StageContent({
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
         <DraftBuilder
           draftData={currentDraft}
+          projectId={projectId || ""}
           outlineSummary={outlineSummary}
           previousStageOutput={previousStageOutput}
           processingLog={draftProcessingLog}

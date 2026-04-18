@@ -12,6 +12,7 @@ import { QualityScore } from "../../QualityScore";
  */
 export default function UserView({
   screens,
+  projectId,
   outlineSummary,
   onScreensChange,
   onConfirm,
@@ -207,6 +208,8 @@ export default function UserView({
                         <PanelCard
                           key={`${screen.screen_number}-${globalIndex}`}
                           screen={screen}
+                          screenIndex={globalIndex}
+                          projectId={projectId}
                           isExpanded={expandedIndex === globalIndex}
                           onToggleExpand={() =>
                             setExpandedIndex(expandedIndex === globalIndex ? null : globalIndex)
@@ -230,6 +233,8 @@ export default function UserView({
                 <PanelCard
                   key={`${screen.screen_number}-${index}`}
                   screen={screen}
+                  screenIndex={index}
+                  projectId={projectId}
                   isExpanded={expandedIndex === index}
                   onToggleExpand={() =>
                     setExpandedIndex(expandedIndex === index ? null : index)

@@ -77,6 +77,7 @@ export interface DraftProcessingEntry {
 // Main component props
 export interface DraftBuilderProps {
   draftData: ProductionScreen[];
+  projectId: string;
   outlineSummary?: {
     total_screens?: number;
     target_duration?: string;
@@ -99,6 +100,7 @@ export interface TabToggleProps {
 // UserView props
 export interface UserViewProps {
   screens: ProductionScreen[];
+  projectId: string;
   outlineSummary?: DraftBuilderProps["outlineSummary"];
   onScreensChange: (screens: ProductionScreen[]) => void;
   onConfirm: () => void;
@@ -109,6 +111,8 @@ export interface UserViewProps {
 // PanelCard props
 export interface PanelCardProps {
   screen: ProductionScreen;
+  screenIndex: number;
+  projectId: string;
   isExpanded: boolean;
   onToggleExpand: () => void;
   onChange: (screen: ProductionScreen) => void;

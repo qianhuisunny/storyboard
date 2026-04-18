@@ -7,6 +7,7 @@ import type { DraftBuilderProps } from "./types";
  */
 export default function DraftBuilder({
   draftData,
+  projectId,
   outlineSummary,
   onDraftUpdate,
   onConfirm,
@@ -17,6 +18,7 @@ export default function DraftBuilder({
     <div className="draft-builder h-full flex flex-col">
       <UserView
         screens={draftData}
+        projectId={projectId}
         outlineSummary={outlineSummary}
         onScreensChange={onDraftUpdate}
         onConfirm={onConfirm}
