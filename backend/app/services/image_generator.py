@@ -37,7 +37,7 @@ class ImageGenerator:
                     "model": "flux-schnell",
                     "prompt": full_prompt,
                     "width": 1024,
-                    "height": 1024,
+                    "height": 576,
                     "num_inference_steps": 20,
                     "guidance_scale": 7,
                     "n": 1,

@@ -164,8 +164,8 @@ export default function PanelCard({
       {isExpanded && (
         <div className="border-t border-border">
           <div className="grid grid-cols-[300px_1fr]">
-            {/* Left: Visual Preview */}
-            <div className="relative bg-muted/30 border-r border-border overflow-hidden rounded-bl-lg">
+            {/* Left: Visual Preview (16:9) */}
+            <div className="relative bg-muted/30 border-r border-border overflow-hidden rounded-bl-lg" style={{ aspectRatio: "16 / 9" }}>
               <div className={cn(
                 "absolute inset-0 flex items-center justify-center",
                 isGenerating && "visual-shimmer"
