@@ -4,7 +4,8 @@ import { type Stage } from "./StageNavigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, RefreshCw, Loader2 } from "lucide-react";
-import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type BriefRound, KnowledgeShareBriefBuilder, type ProcessingLogEntry as LegacyProcessingLogEntry } from "./BriefBuilder";
+import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type BriefRound, KnowledgeShareBriefBuilder as _KnowledgeShareBriefBuilder, type ProcessingLogEntry as LegacyProcessingLogEntry } from "./BriefBuilder";
+import { ChatBriefBuilder } from "./ChatBriefBuilder";
 import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
 import { type OnboardingData, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
 import { OutlineBuilder, type EvidenceResearch, type SectionResearch } from "./OutlineBuilder";
@@ -121,7 +122,7 @@ export default function StageContent({
 
   // Knowledge Share 3-round flow state
   const [knowledgeShareFields, setKnowledgeShareFields] = useState<Record<string, BriefField>>({});
-  const [knowledgeShareRound, setKnowledgeShareRound] = useState<BriefRound>(1);
+  const [_knowledgeShareRound, setKnowledgeShareRound] = useState<BriefRound>(1);
   const [knowledgeShareInitialized, setKnowledgeShareInitialized] = useState(false);
   // Track if brief is already approved on backend (past brief stage)
   const [isBriefAlreadyApproved, setIsBriefAlreadyApproved] = useState(false);
@@ -366,7 +367,7 @@ export default function StageContent({
   // Handle round confirmation for Knowledge Share
   // RESEARCH DISABLED: Round 1 no longer triggers perspective generation.
   // It sends round1_confirm which now directly transitions to Round 2 on the backend.
-  const handleKnowledgeShareRoundConfirm = useCallback(
+  const _handleKnowledgeShareRoundConfirm = useCallback(
     async (round: number, confirmedFields: Record<string, BriefField>): Promise<Record<string, BriefField>> => {
       // Map round numbers to event names
       const eventTypeMap: Record<number, string> = {
@@ -407,7 +408,7 @@ export default function StageContent({
   // which is now skipped. Round 1 confirm goes directly to Round 2.
 
   // Handle generating content spine from a point of view
-  const handleGenerateContentSpine = useCallback(
+  const _handleGenerateContentSpine = useCallback(
     async (pov: string, feedback?: string): Promise<Record<string, BriefField>> => {
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
@@ -426,6 +427,12 @@ export default function StageContent({
     },
     [projectId]
   );
+
+  // TODO: Clean up in later task — suppress unused-variable errors after ChatBriefBuilder swap
+  void _KnowledgeShareBriefBuilder;
+  void _knowledgeShareRound;
+  void _handleKnowledgeShareRoundConfirm;
+  void _handleGenerateContentSpine;
 
   // Handle brief approval for Knowledge Share
   const handleKnowledgeShareBriefApprove = useCallback(
@@ -865,20 +872,14 @@ export default function StageContent({
     );
   }
 
-  // For Stage 1 (Brief), use KnowledgeShareBriefBuilder for Knowledge Share videos
+  // For Stage 1 (Brief), use ChatBriefBuilder for Knowledge Share videos
   if (stage.id === 1 && USE_KNOWLEDGE_SHARE_FLOW && isKnowledgeShare && projectId) {
     return (
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
-        {/* RESEARCH DISABLED: Single-panel layout (was split 60/40 with TabbedResearchPanel) */}
-        <KnowledgeShareBriefBuilder
+        <ChatBriefBuilder
           projectId={projectId}
           initialFields={knowledgeShareFields}
-          initialRound={knowledgeShareRound}
-          researchComplete={true}
-          isResearchRunning={false}
           isAlreadyApproved={isBriefAlreadyApproved}
-          onRoundConfirm={handleKnowledgeShareRoundConfirm}
-          onGenerateContentSpine={handleGenerateContentSpine}
           onBriefApprove={handleKnowledgeShareBriefApprove}
           onEditBrief={handleKnowledgeShareEditBrief}
         />
