@@ -883,6 +883,26 @@ export default function StageContent({
     );
   }
 
+  // Stage 2 or 3 generating: show centered spinner
+  if ((stage.id === 2 && !currentOutlineText && isGenerating) ||
+      (stage.id === 3 && currentDraft.length === 0 && isGenerating)) {
+    const label = stage.id === 2 ? "Generating outline..." : "Generating storyboard...";
+    return (
+      <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
+        <div className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border shrink-0">
+          <h2 className="text-xl font-semibold">{stage.id === 2 ? "Video Outline" : "Storyboard Draft"}</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">{label}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Render OutlineBuilder for the Outline stage (stage 2)
   if (stage.id === 2 && currentOutlineText) {
     return (
