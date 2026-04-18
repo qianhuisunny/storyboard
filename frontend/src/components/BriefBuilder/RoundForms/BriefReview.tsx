@@ -24,8 +24,7 @@ const SECTION_1_FIELDS = [
 ];
 
 const SECTION_2_FIELDS = [
-  // [HACKATHON Apr18] hidden: "on_camera_presence", "broll_type"
-  "delivery_tone",
+  // [HACKATHON Apr18] hidden: "on_camera_presence", "broll_type", "delivery_tone"
   "freshness_expectation",
 ];
 

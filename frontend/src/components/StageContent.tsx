@@ -4,7 +4,7 @@ import { type Stage } from "./StageNavigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, RefreshCw, Loader2 } from "lucide-react";
-import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type BriefRound, KnowledgeShareBriefBuilder as _KnowledgeShareBriefBuilder, type ProcessingLogEntry as LegacyProcessingLogEntry } from "./BriefBuilder";
+import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type ProcessingLogEntry as LegacyProcessingLogEntry } from "./BriefBuilder";
 import { ChatBriefBuilder } from "./ChatBriefBuilder";
 import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
 import { type OnboardingData, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
@@ -122,7 +122,6 @@ export default function StageContent({
 
   // Knowledge Share 3-round flow state
   const [knowledgeShareFields, setKnowledgeShareFields] = useState<Record<string, BriefField>>({});
-  const [_knowledgeShareRound, setKnowledgeShareRound] = useState<BriefRound>(1);
   const [knowledgeShareInitialized, setKnowledgeShareInitialized] = useState(false);
   // Track if brief is already approved on backend (past brief stage)
   const [isBriefAlreadyApproved, setIsBriefAlreadyApproved] = useState(false);
@@ -190,7 +189,6 @@ export default function StageContent({
             if (isAlreadyApproved && Object.keys(briefFields).length > 0) {
               console.log("[KS] Stage already approved, restoring fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setKnowledgeShareRound("review");
               setResearchStatus("complete");
               setIsBriefAlreadyApproved(true); // Mark as already approved on backend
               return;
@@ -200,26 +198,22 @@ export default function StageContent({
             if (stateData.phase === "brief_round2") {
               console.log("[KS] Restoring round 2 state, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setKnowledgeShareRound(2);
               setResearchStatus("complete");
               return;
             } else if (stateData.phase === "brief_round3") {
               console.log("[KS] Restoring round 3 state, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setKnowledgeShareRound(3);
               setResearchStatus("complete");
               return;
             } else if (stateData.phase === "angle_selection") {
               // Legacy: projects stuck in angle_selection get restored to round 3
               console.log("[KS] Restoring angle_selection as round 3, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setKnowledgeShareRound(3);
               setResearchStatus("complete");
               return;
             } else if (stateData.phase === "brief_round1") {
               console.log("[KS] Restoring round 1 state, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setKnowledgeShareRound(1);
               setResearchStatus("idle");
               return;
             }
@@ -229,7 +223,6 @@ export default function StageContent({
               console.log("[KS] Project already past brief stage, phase:", stateData.phase, "fields:", Object.keys(briefFields));
               if (Object.keys(briefFields).length > 0) {
                 setKnowledgeShareFields(briefFields);
-                setKnowledgeShareRound("review"); // Show as completed/locked
                 setResearchStatus("complete");
                 setIsBriefAlreadyApproved(true); // Mark as already approved on backend
               }
@@ -272,7 +265,6 @@ export default function StageContent({
 
             if (data.brief_fields) {
               setKnowledgeShareFields(data.brief_fields);
-              setKnowledgeShareRound(1);
               if (data.research_status === "complete") {
                 setResearchStatus("complete");
               }
@@ -365,75 +357,6 @@ export default function StageContent({
   // const addChatMessage = useCallback((...) => { ... }, []);
 
   // Handle round confirmation for Knowledge Share
-  // RESEARCH DISABLED: Round 1 no longer triggers perspective generation.
-  // It sends round1_confirm which now directly transitions to Round 2 on the backend.
-  const _handleKnowledgeShareRoundConfirm = useCallback(
-    async (round: number, confirmedFields: Record<string, BriefField>): Promise<Record<string, BriefField>> => {
-      // Map round numbers to event names
-      const eventTypeMap: Record<number, string> = {
-        1: "round1_confirm",
-        2: "round2_confirm",
-        3: "round3_confirm",
-      };
-
-      const response = await fetch(`/api/project/${projectId}/event`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: eventTypeMap[round],
-          payload: { confirmed_fields: confirmedFields },
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to confirm round ${round}`);
-      }
-
-      const data = await response.json();
-
-      // Update research status from response
-      if (data.research_status === "complete") {
-        setResearchStatus("complete");
-      } else if (data.research_status === "failed") {
-        setResearchStatus("error");
-      }
-
-      return data.brief_fields || data.fields || {};
-    },
-    [projectId]
-  );
-
-  // RESEARCH DISABLED: handleSelectPerspective and handleConfirmTalkingPoints removed
-  // These handlers managed the perspective → talking points → research flow
-  // which is now skipped. Round 1 confirm goes directly to Round 2.
-
-  // Handle generating content spine from a point of view
-  const _handleGenerateContentSpine = useCallback(
-    async (pov: string, feedback?: string): Promise<Record<string, BriefField>> => {
-      const response = await fetch(`/api/project/${projectId}/event`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          event: "generate_content_spine",
-          payload: { point_of_view: pov, ...(feedback ? { feedback } : {}) },
-        }),
-      });
-      if (!response.ok) throw new Error("Failed to generate content spine");
-      const data = await response.json();
-      const newFields = data.brief_fields || data.fields || {};
-      // Merge generated fields into local state
-      setKnowledgeShareFields(prev => ({ ...prev, ...newFields }));
-      return newFields;
-    },
-    [projectId]
-  );
-
-  // TODO: Clean up in later task — suppress unused-variable errors after ChatBriefBuilder swap
-  void _KnowledgeShareBriefBuilder;
-  void _knowledgeShareRound;
-  void _handleKnowledgeShareRoundConfirm;
-  void _handleGenerateContentSpine;
-
   // Handle brief approval for Knowledge Share
   const handleKnowledgeShareBriefApprove = useCallback(
     async (allFields: Record<string, BriefField>): Promise<void> => {
@@ -443,7 +366,7 @@ export default function StageContent({
 
       const url = `/api/project/${projectId}/event`;
       const body = {
-        event: "brief_approve",
+        event: "chat_brief_approve",
         payload: { all_fields: allFields },
       };
       console.log("[KS StageContent] Fetching URL:", url);
@@ -497,7 +420,7 @@ export default function StageContent({
 
   // Handle edit brief for Knowledge Share
   const handleKnowledgeShareEditBrief = useCallback(() => {
-    setKnowledgeShareRound(1);
+    // ChatBriefBuilder manages its own edit state internally
   }, []);
 
   // For Brief stage, parse the AI content into a StoryBrief object
