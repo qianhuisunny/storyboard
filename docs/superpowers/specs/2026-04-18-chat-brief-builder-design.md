@@ -58,10 +58,14 @@ Renders existing `BriefReview` component inline. User approves or edits. On appr
 - Locked: white background, `#999` text, `#ddd` border
 - Sections unlock progressively as previous section completes
 
+### Quick-Reply Chips
+- Appear directly under the AI message bubble that asks the question
+- Part of the chat thread, not the input bar
+- Disappear (replaced by user bubble with selected value) when user picks one
+- User can also type a freeform answer instead of picking a chip
+
 ### Chat Input Bar
-- Text input on the left, send button next to it
-- Quick-reply chips on the right side of the same row (when current question has chip options)
-- Chips disappear when question is answered or during Phase 2 freeform input
+- Text input + send button only. Nothing else in the input bar.
 
 ### Message Bubbles
 - AI: left-aligned, `P` avatar (sage green circle), white bubble with `#D9DDD2` border, top-left square corner
