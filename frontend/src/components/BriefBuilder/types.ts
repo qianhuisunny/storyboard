@@ -99,8 +99,7 @@ export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
     "duration",
   ],
   2: [
-    "on_camera_presence",
-    "broll_type",
+    // [HACKATHON Apr18] hidden: "on_camera_presence", "broll_type"
     "delivery_tone",
     "freshness_expectation",
   ],

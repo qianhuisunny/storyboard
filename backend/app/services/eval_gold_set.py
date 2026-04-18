@@ -37,14 +37,13 @@ FILLER_PHRASES = [
 
 
 def get_current_prompt_versions() -> dict:
-    """Return current prompt filenames used by Director, Writer, and EvidenceResearcher."""
+    """Return current prompt filenames used by Director and Writer."""
     from app.services.agents.storyboard_director import StoryboardDirector
     from app.services.agents.storyboard_writer import StoryboardWriter
-    from app.services.agents.evidence_researcher import EvidenceResearcher
     return {
         "director": StoryboardDirector.prompt_file,
         "writer": StoryboardWriter.prompt_file,
-        "evidence_researcher": EvidenceResearcher.prompt_file,
+        # [HACKATHON Apr18] evidence_researcher removed
     }
 
 
@@ -165,13 +164,8 @@ def _run_writer(outline_text: str, story_brief: dict, model: str = None,
 
 def _run_evidence_research(outline_text: str, story_brief: dict,
                            model: str = None) -> tuple[dict, dict]:
-    """Run EvidenceResearcher on an outline to generate LLM-based evidence."""
-    from app.services.agents.evidence_researcher import EvidenceResearcher
-    researcher = EvidenceResearcher()
-    if model:
-        researcher.default_model = model
-    result = researcher.research(outline_text, story_brief, model=model)
-    return result, dict(researcher.total_usage)
+    """[HACKATHON Apr18] EvidenceResearcher removed. Returns empty evidence."""
+    return {}, {}
 
 
 # ---------------------------------------------------------------------------

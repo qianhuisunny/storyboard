@@ -11,7 +11,6 @@ from app.services.agents import (
     BriefBuilder,
     StoryboardDirector,
     StoryboardWriter,
-    EvidenceResearcher,
 )
 
 
@@ -23,10 +22,9 @@ class StoryboardOrchestrator:
     1. intake -> brief (BriefBuilder) -> brief confirmation is gate1
     2. gate1 -> outline (StoryboardDirector)
     3. outline -> gate2 (Human Review)
-    4. gate2 -> evidence research (EvidenceResearcher)
-    5. evidence -> write (StoryboardWriter)
-    6. write -> review (Optional refinements)
-    7. review -> done
+    4. gate2 -> write (StoryboardWriter)
+    5. write -> review (Optional refinements)
+    6. review -> done
 
     Events:
     - submit: Start the pipeline with the intake form
@@ -46,7 +44,6 @@ class StoryboardOrchestrator:
             "brief_builder": BriefBuilder(),
             "director": StoryboardDirector(),
             "writer": StoryboardWriter(),
-            "evidence_researcher": EvidenceResearcher(),
         }
 
     async def process_event(
@@ -108,12 +105,9 @@ class StoryboardOrchestrator:
             ("gate1", "approve"): self._handle_gate1_approve,
             ("gate1", "edit"): self._handle_gate1_edit,
             ("gate2", "approve"): self._handle_gate2_approve,
-            ("gate2", "run_research"): self._handle_gate2_run_research,
             ("gate2", "regenerate_section"): self._handle_regenerate_section,
             ("gate2", "refine_outline"): self._handle_refine_outline,
             ("gate2", "edit"): self._handle_gate2_edit,
-            ("outline_research", "run_research"): self._handle_rerun_research,
-            ("outline_research", "approve"): self._handle_outline_research_approve,
             ("review", "approve"): self._handle_review_approve,
             ("review", "edit"): self._handle_review_edit,
             ("done", "restart"): self._handle_restart,
@@ -298,39 +292,6 @@ class StoryboardOrchestrator:
 
         return state, result
 
-    async def _handle_gate2_run_research(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """Handle 'Approve & Run Research Plan' — locks outline, runs evidence research."""
-        if not state.screen_outline:
-            raise ValueError("Cannot run research: Outline is empty")
-
-        if isinstance(state.screen_outline, str) and len(state.screen_outline.strip()) < 50:
-            raise ValueError("Cannot run research: Outline is too short")
-
-        # Lock the outline
-        state = manager.lock_outline(state)
-        state = manager.transition(state, "run_research")
-        result["message"] = "Running evidence research..."
-
-        # Prefer frontend's current outline (includes user edits) over backend state
-        outline_text = payload.get("current_outline") or (state.screen_outline if isinstance(state.screen_outline, str) else "")
-        evidence_research = self.agents["evidence_researcher"].research(
-            outline_text=outline_text,
-            story_brief=state.story_brief or {},
-            project_id=state.project_id,
-        )
-
-        state.evidence_research = evidence_research
-        result["message"] = "Evidence research complete. Review results."
-        result["evidence_research"] = evidence_research
-
-        return state, result
-
     async def _handle_regenerate_section(
         self,
         state: StoryboardState,
@@ -389,49 +350,6 @@ class StoryboardOrchestrator:
         state.screen_outline = new_outline
         result["message"] = "Outline regenerated."
         result["screen_outline"] = new_outline
-        return state, result
-
-    async def _handle_rerun_research(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """Re-run evidence research on the approved outline."""
-        state = manager.transition(state, "run_research")
-        result["message"] = "Re-running evidence research..."
-
-        outline_text = state.screen_outline if isinstance(state.screen_outline, str) else ""
-        evidence_research = self.agents["evidence_researcher"].research(
-            outline_text=outline_text,
-            story_brief=state.story_brief or {},
-            project_id=state.project_id,
-        )
-
-        state.evidence_research = evidence_research
-        result["message"] = "Evidence research complete. Review results."
-        result["evidence_research"] = evidence_research
-        return state, result
-
-    async def _handle_outline_research_approve(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """Handle approval after evidence research — runs StoryboardWriter."""
-        state = manager.transition(state, "approve")
-        result["message"] = "Research approved, generating storyboard..."
-
-        # Run Storyboard Writer
-        storyboard = self.agents["writer"].run(state)
-        state.storyboard = storyboard
-        state = manager.transition(state, "storyboard_ready")
-        result["message"] = "Storyboard complete! Review and optionally refine."
-        result["storyboard"] = storyboard
-
         return state, result
 
     async def _handle_review_approve(

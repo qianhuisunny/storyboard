@@ -14,10 +14,10 @@ export interface Stage {
 interface StageNavigationProps {
   stages: Stage[];
   currentStageId: number;
-  activeAnchor?: string | null;
-  evidenceStatus?: StageStatus;
+  activeAnchor?: string | null;       // [HACKATHON Apr18] kept for interface compat
+  evidenceStatus?: StageStatus;       // [HACKATHON Apr18] kept for interface compat
   onStageSelect: (stageId: number) => void;
-  onAnchorSelect?: (stageId: number, anchor: string) => void;
+  onAnchorSelect?: (stageId: number, anchor: string) => void;  // [HACKATHON Apr18] kept for interface compat
 }
 
 const statusLabels: Record<StageStatus, string> = {
@@ -40,24 +40,19 @@ interface VisualStage {
 export default function StageNavigation({
   stages,
   currentStageId,
-  activeAnchor = null,
-  evidenceStatus = "not_started",
+  activeAnchor: _activeAnchor = null,
+  evidenceStatus: _evidenceStatus = "not_started",
   onStageSelect,
-  onAnchorSelect,
+  onAnchorSelect: _onAnchorSelect,
 }: StageNavigationProps) {
-  // Build 5 visual stages from 4 internal stages + Evidence Research
+  // Build 4 visual stages from 4 internal stages
   // Internal stages: 1=Brief, 2=Outline, 3=Draft, 4=Review
-  // Visual stages:   1=Brief, 2=Outline, 3=Evidence, 4=Draft, 5=Review
   const internalStage = (id: number) => stages.find((s) => s.id === id);
 
   const brief = internalStage(1);
   const outline = internalStage(2);
   const draft = internalStage(3);
   const review = internalStage(4);
-
-  const isOutlineClickable = outline
-    ? outline.status !== "not_started" || 2 <= currentStageId
-    : false;
 
   const visualStages: VisualStage[] = [
     {
@@ -72,20 +67,12 @@ export default function StageNavigation({
       visualNumber: 2,
       name: "Video Outline",
       status: outline?.status ?? "not_started",
-      isActive: currentStageId === 2 && activeAnchor !== "evidence",
-      isClickable: isOutlineClickable,
+      isActive: currentStageId === 2,
+      isClickable: outline ? outline.status !== "not_started" || 2 <= currentStageId : false,
       onClick: () => onStageSelect(2),
     },
     {
       visualNumber: 3,
-      name: "Evidence Research",
-      status: evidenceStatus,
-      isActive: currentStageId === 2 && activeAnchor === "evidence",
-      isClickable: isOutlineClickable,
-      onClick: () => onAnchorSelect?.(2, "evidence"),
-    },
-    {
-      visualNumber: 4,
       name: "Storyboard Draft",
       status: draft?.status ?? "not_started",
       isActive: currentStageId === 3,
@@ -93,7 +80,7 @@ export default function StageNavigation({
       onClick: () => onStageSelect(3),
     },
     {
-      visualNumber: 5,
+      visualNumber: 4,
       name: "Review and Share",
       status: review?.status ?? "not_started",
       isActive: currentStageId === 4,

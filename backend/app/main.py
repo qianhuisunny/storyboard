@@ -582,82 +582,8 @@ async def process_pipeline_event(project_id: str, request: EventRequest):
         raise HTTPException(status_code=500, detail=f"Error processing event: {str(e)}")
 
 
-@app.post("/api/project/{project_id}/rerun-research")
-async def rerun_evidence_research(project_id: str, request: Request):
-    """
-    Re-run evidence research on the project's outline.
-    Bypasses the state machine — works from any phase as long as an outline exists.
-    Prefers current_outline from request body (frontend's edited version) over backend state.
-    Updates state.evidence_research in place.
-    """
-    from app.services.state import StateManager
-    from app.services.agents import EvidenceResearcher
-
-    body = {}
-    try:
-        body = await request.json()
-    except Exception:
-        pass
-
-    manager = StateManager(project_id)
-    state = manager.load()
-
-    # Prefer frontend's current outline (user may have edited it)
-    outline_text = body.get("current_outline") or (state.screen_outline if isinstance(state.screen_outline, str) else "")
-    if not outline_text or len(outline_text.strip()) < 50:
-        raise HTTPException(status_code=400, detail="No outline available for research")
-
-    researcher = EvidenceResearcher()
-    evidence_research = researcher.research(
-        outline_text=outline_text,
-        story_brief=state.story_brief or {},
-        project_id=state.project_id,
-    )
-
-    state.evidence_research = evidence_research
-    manager.save(state)
-
-    return {"success": True, "evidence_research": evidence_research}
-
-
-@app.post("/api/project/{project_id}/research-section")
-async def research_single_section(project_id: str, request: Request):
-    """
-    Research a single outline section. Stateless — no state machine transition.
-    Frontend calls this N times in parallel (one per section) for progressive display.
-    """
-    from app.services.state import StateManager
-    from app.services.agents import EvidenceResearcher
-
-    body = await request.json()
-
-    section_text = body.get("section_text", "")
-    full_outline = body.get("full_outline", "")
-    section_index = body.get("section_index", 0)
-
-    if not section_text or not section_text.strip():
-        raise HTTPException(status_code=400, detail="section_text is required")
-
-    if not full_outline or not full_outline.strip():
-        raise HTTPException(status_code=400, detail="full_outline is required")
-
-    # Load state for story_brief and project_id (read-only, no state mutation)
-    manager = StateManager(project_id)
-    state = manager.load()
-
-    researcher = EvidenceResearcher()
-    section_research = researcher.research_section(
-        section_text=section_text,
-        full_outline=full_outline,
-        story_brief=state.story_brief or {},
-        project_id=state.project_id,
-    )
-
-    return {
-        "success": True,
-        "section_index": section_index,
-        "section_research": section_research,
-    }
+# [HACKATHON Apr18] Removed /rerun-research and /research-section endpoints —
+# research agent deleted. Frontend calls to these will 404.
 
 
 @app.post("/api/project/{project_id}/start")
