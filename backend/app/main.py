@@ -629,18 +629,23 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
 
 Respond with the next JSON message."""
 
-        # Direct Anthropic API call
-        import anthropic
-        client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
-        response = client.messages.create(
-            model="claude-sonnet-4-6-20250514",
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
+        # IonRouter API call (OpenAI-compatible, uses $50 free credits)
+        from openai import OpenAI
+        client = OpenAI(
+            api_key=os.getenv("IONROUTER_API_KEY"),
+            base_url="https://api.ionrouter.io/v1",
+        )
+        response = client.chat.completions.create(
+            model="qwen3-30b-a3b",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
             temperature=0.7,
             max_tokens=1000,
         )
 
-        response_text = response.content[0].text
+        response_text = response.choices[0].message.content
 
         # Parse JSON from response
         import re
