@@ -12,6 +12,7 @@ from app.services.agents import (
     StoryboardDirector,
     StoryboardWriter,
 )
+from app.services.quality_gate import QualityGate
 
 
 class StoryboardOrchestrator:
@@ -45,6 +46,7 @@ class StoryboardOrchestrator:
             "director": StoryboardDirector(),
             "writer": StoryboardWriter(),
         }
+        self.quality_gate = QualityGate()
 
     async def process_event(
         self,
@@ -200,14 +202,20 @@ class StoryboardOrchestrator:
         state = manager.transition(state, "approve")
         result["message"] = "Story Brief approved, creating outline..."
 
-        # Run Storyboard Director — returns plain text outline
-        screen_outline = self.agents["director"].run(state)
+        # Run Storyboard Director with quality gate
+        screen_outline, outline_grade = await self.quality_gate.run_with_gate(
+            agent=self.agents["director"],
+            state=state,
+            stage="outline",
+        )
         state.screen_outline = screen_outline
+        state.outline_grade = outline_grade.to_dict()
         state = manager.transition(state, "outline_ready")
         result["message"] = "Outline ready for review at Gate 2"
 
         # Include outline in result
         result["screen_outline"] = screen_outline
+        result["outline_grade"] = state.outline_grade
 
         return state, result
 
@@ -252,14 +260,33 @@ class StoryboardOrchestrator:
         state = manager.transition(state, "approve")
         result["message"] = "Outline approved, generating storyboard..."
 
-        # Run Storyboard Writer
-        storyboard = self.agents["writer"].run(state)
+        # Run Storyboard Writer with quality gate
+        storyboard, storyboard_grade = await self.quality_gate.run_with_gate(
+            agent=self.agents["writer"],
+            state=state,
+            stage="storyboard",
+        )
         state.storyboard = storyboard
+        state.storyboard_grade = storyboard_grade.to_dict()
+
+        # Cross-stage check
+        cross_grade = await self.quality_gate.evaluate(
+            stage="cross_stage",
+            brief=state.story_brief or {},
+            output=storyboard,
+            outline=state.screen_outline,
+        )
+        cross_grade.attempt = 1
+        cross_grade.total_attempts = 1
+        state.cross_stage_grade = cross_grade.to_dict()
+
         state = manager.transition(state, "storyboard_ready")
         result["message"] = "Storyboard complete! Review and optionally refine."
 
         # Include storyboard in result
         result["storyboard"] = storyboard
+        result["storyboard_grade"] = state.storyboard_grade
+        result["cross_stage_grade"] = state.cross_stage_grade
 
         return state, result
 
@@ -468,6 +495,9 @@ class StoryboardOrchestrator:
             "confirmed_fields": state.confirmed_fields,
             "research_complete": getattr(state, 'research_complete', False),
             "has_evidence_research": state.evidence_research is not None,
+            "outline_grade": state.outline_grade,
+            "storyboard_grade": state.storyboard_grade,
+            "cross_stage_grade": state.cross_stage_grade,
         }
 
     # =========================================================================
@@ -735,16 +765,22 @@ class StoryboardOrchestrator:
         # Transition to gate1
         state = manager.transition(state, "brief_approve")
 
-        # Immediately run Director (combining brief_approve + gate1_approve)
+        # Immediately run Director with quality gate (combining brief_approve + gate1_approve)
         state = manager.transition(state, "approve")  # gate1 → outline
-        screen_outline = self.agents["director"].run(state)
+        screen_outline, outline_grade = await self.quality_gate.run_with_gate(
+            agent=self.agents["director"],
+            state=state,
+            stage="outline",
+        )
         state.screen_outline = screen_outline
+        state.outline_grade = outline_grade.to_dict()
         state = manager.transition(state, "outline_ready")  # outline → gate2
 
         result["message"] = "Screen Outline ready for review"
         result["story_brief"] = state.story_brief
         result["brief_locked"] = True
         result["screen_outline"] = screen_outline
+        result["outline_grade"] = state.outline_grade
 
         return state, result
 
@@ -804,16 +840,22 @@ class StoryboardOrchestrator:
         # Transition to gate1
         state = manager.transition(state, "brief_approve")
 
-        # Immediately run Director (combining brief_approve + gate1_approve)
+        # Immediately run Director with quality gate (combining brief_approve + gate1_approve)
         state = manager.transition(state, "approve")  # gate1 → outline
-        screen_outline = self.agents["director"].run(state)
+        screen_outline, outline_grade = await self.quality_gate.run_with_gate(
+            agent=self.agents["director"],
+            state=state,
+            stage="outline",
+        )
         state.screen_outline = screen_outline
+        state.outline_grade = outline_grade.to_dict()
         state = manager.transition(state, "outline_ready")  # outline → gate2
 
         result["message"] = "Screen Outline ready for review"
         result["story_brief"] = state.story_brief
         result["brief_locked"] = True
         result["screen_outline"] = screen_outline
+        result["outline_grade"] = state.outline_grade
 
         return state, result
 

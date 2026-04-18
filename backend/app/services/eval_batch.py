@@ -32,7 +32,7 @@ _PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
 # ---------------------------------------------------------------------------
 
 def _load_judge_prompt() -> str:
-    path = _PROMPTS_DIR / "EVAL_JUDGE_PROMPT.md"
+    path = _PROMPTS_DIR / "archive" / "EVAL_JUDGE_PROMPT.md"
     return path.read_text()
 
 

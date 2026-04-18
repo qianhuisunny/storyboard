@@ -10,6 +10,8 @@ export default function DraftBuilder({
   outlineSummary,
   onDraftUpdate,
   onConfirm,
+  storyboardGrade,
+  crossStageGrade,
 }: DraftBuilderProps) {
   return (
     <div className="draft-builder h-full flex flex-col">
@@ -18,6 +20,8 @@ export default function DraftBuilder({
         outlineSummary={outlineSummary}
         onScreensChange={onDraftUpdate}
         onConfirm={onConfirm}
+        storyboardGrade={storyboardGrade}
+        crossStageGrade={crossStageGrade}
       />
     </div>
   );

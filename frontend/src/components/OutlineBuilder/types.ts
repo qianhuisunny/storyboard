@@ -61,4 +61,5 @@ export interface OutlineBuilderProps {
   isRegenerating?: boolean;
   researchResults?: EvidenceResearch | null;
   researchProgress?: { completed: number; total: number } | null;
+  outlineGrade?: import("../QualityScore").GradeResult | null;
 }

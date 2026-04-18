@@ -38,7 +38,7 @@ QualityGate("cross_stage")
 Show user: output + scores + feedback
 ```
 
-Max 3 attempts per gate (1 initial + 2 retries). If still below threshold after 3 attempts, show the best-scoring attempt with its scores.
+Max 2 attempts per gate (1 initial + 1 retry). If still below threshold after 2 attempts, show the best-scoring attempt with its scores. The user never sees a failed attempt — output is hidden until quality check passes or best attempt is selected.
 
 Cross-stage gate receives both outline AND storyboard as input — it evaluates whether the Writer faithfully realized the Director's outline.
 
@@ -84,7 +84,7 @@ When a gate fails, the feedback is injected into the generation prompt:
 ```
 [Original system prompt]
 
---- QUALITY REVIEW FEEDBACK (attempt 2 of 3) ---
+--- QUALITY REVIEW FEEDBACK (attempt 2 of 2) ---
 Your previous output scored 6.2/10. A senior reviewer provided this feedback:
 
 [Watchability - 5/10]: "I'd probably skip this — the opening reads like a 
@@ -103,7 +103,7 @@ The generator (Director/Writer) receives its original system prompt + the feedba
 
 ### Best-Attempt Selection
 
-If all 3 attempts fail the threshold, show the attempt with the highest composite score.
+If both attempts fail the threshold, show the attempt with the highest composite score. The user never sees intermediate failed attempts — only the final result.
 
 **Composite score formula** (used for both threshold check and best-attempt selection): `(gut_check_score + avg_dimension_scores) / 2`. A gut-check-only failure (Tier 2 never ran) uses just the gut check score as composite.
 
@@ -134,7 +134,7 @@ If all 3 attempts fail the threshold, show the attempt with the highest composit
 
 ```python
 class QualityGate:
-    def __init__(self, model="claude-sonnet-4-6", threshold=7.0, max_attempts=3):
+    def __init__(self, model="claude-sonnet-4-6", threshold=7.0, max_attempts=2):
         ...
 
     async def run_with_gate(self, agent, state, stage) -> tuple[Any, GradeResult]:
@@ -181,11 +181,30 @@ Single overall threshold: average of (gut check + all dimension scores) must be 
 
 ## Frontend Display
 
-Collapsible QualityScore card above content in OutlineBuilder and DraftBuilder:
+### Generation Progress (empty screen with spinner)
+
+While generating + grading, the outline/storyboard area is blank. A centered spinner shows step-by-step progress:
+
+```
+                    ◌ Generating outline...
+
+Progress sequence:
+  ◷ "Generating outline..."
+  ◷ "Reviewing quality..."
+  ◷ "Score 5.8 — refining with feedback..."   (amber, only if retry needed)
+  ◷ "Reviewing revised outline..."             (only if retry needed)
+  ◷ "Quality check passed: 7.8/10" → show outline
+```
+
+The footer button also shows the current step (e.g., "Generating outline..." with spinner). User sees NO content until the quality gate passes or best attempt is selected.
+
+### QualityScore Card (shown after generation completes)
+
+Collapsible card on the right side of the description text, between description and VIDEO OUTLINE container:
 
 ```
 ┌─────────────────────────────────────────────┐
-│ ▾ Quality Score: 8.1/10 (attempt 1 of 1)   │
+│ ▾ Quality Score: 8.1/10                     │
 │                                              │
 │ Watchability: 8/10                           │
 │ "Clear hook — I'd want to know why my       │
@@ -201,8 +220,7 @@ Collapsible QualityScore card above content in OutlineBuilder and DraftBuilder:
 
 - Collapsed by default: composite score + watchability one-liner
 - Expand for dimension scores + per-dimension 2-3 sentence feedback
-- Shows final attempt's scores only
-- During generation: progress text "Reviewing quality..." → "Score: 6.4, refining (attempt 2)..." → "Quality check passed: 8.1/10"
+- Shows final attempt's scores only (user never sees failed attempts)
 
 ## Deterministic Checks
 

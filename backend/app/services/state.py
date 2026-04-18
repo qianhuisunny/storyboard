@@ -55,6 +55,11 @@ class StoryboardState(BaseModel):
     research_details: Optional[dict] = None  # Detailed research for StoryboardWriter
     evidence_research: Optional[dict] = None  # Evidence research results from outline
 
+    # Quality gate grades (auto-grader results)
+    outline_grade: Optional[dict] = None
+    storyboard_grade: Optional[dict] = None
+    cross_stage_grade: Optional[dict] = None
+
     # Revision tracking
     revision_history: List[RevisionRecord] = Field(default_factory=list)
     revision_count_gate1: int = 0

@@ -13,6 +13,7 @@ import { Check, Search, Loader2, PanelRight, RefreshCw, Sparkles } from "lucide-
 import { cn } from "@/lib/utils";
 import OutlineGrid from "./OutlineGrid";
 import AiOriginalDrawer from "./AiOriginalDrawer";
+import { QualityScore } from "../QualityScore";
 import { RegenPopover } from "./RegenPopover";
 import { parseOutline, serializeOutline } from "./outlineParser";
 import type {
@@ -36,6 +37,7 @@ export default function OutlineBuilder({
   isRegenerating: _isRegenerating = false,
   researchResults = null,
   researchProgress = null,
+  outlineGrade = null,
 }: OutlineBuilderProps) {
   const [isContinuing, setIsContinuing] = useState(false);
   const [isRerunningResearch, setIsRerunningResearch] = useState(false);
@@ -247,9 +249,16 @@ export default function OutlineBuilder({
           className="flex-1 overflow-y-auto px-6 sm:px-10 py-6 min-w-0"
         >
           <div className="w-full max-w-5xl space-y-6">
-          <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-            Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.
-          </p>
+          <div className="flex items-start gap-4 mb-5">
+            <p className="text-sm text-muted-foreground leading-relaxed flex-1">
+              Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.
+            </p>
+            {outlineGrade && (
+              <div className="w-72 shrink-0">
+                <QualityScore grade={outlineGrade} />
+              </div>
+            )}
+          </div>
 
           {/* Section: Video Outline */}
           <div id="outline">
