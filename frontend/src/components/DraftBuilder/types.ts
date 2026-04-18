@@ -6,48 +6,33 @@
 // Tab types for the four-tab system (standardized order: user, input, processing, output)
 export type TabKey = "user" | "input" | "processing" | "output";
 
-// Screen types for production (visual format — matches broll_type values from briefing)
+// Screen types for production (visual format)
 export type ProductionScreenType =
-  | "screen_recording"
-  | "slides"
-  | "whiteboard_animation"
-  | "code_editor"
-  | "stock_footage"
-  | "real_world"
   | "talking_head"
-  | "talking_head_with_split_screens";
+  | "slides"
+  | "stock_footage"
+  | "real_world";
 
 // Visual style for screen type badges
 export const SCREEN_TYPE_CONFIG: Record<
   string,
   { label: string; color: string; icon: string }
 > = {
-  // Primary production screen types
-  screen_recording: { label: "Screen Recording", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "monitor" },
-  slides: { label: "Slides", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "presentation" },
-  whiteboard_animation: { label: "Whiteboard / Animation", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "edit-3" },
-  whiteboard: { label: "Whiteboard", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "edit-3" },  // legacy
-  code_editor: { label: "Code Editor", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "code" },
-  stock_footage: { label: "Stock Footage", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "video" },
-  real_world: { label: "Real-World", color: "bg-[#E8F0E9] text-[#5A6352] border-[#D9DDD2]", icon: "camera" },
+  // Active screen types
   talking_head: { label: "Talking Head", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "user" },
-  talking_head_with_split_screens: { label: "Talking Head + Split", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "layout" },
-  talking_head_left_with_notes: { label: "Talking Head + Notes", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "layout" },
+  slides: { label: "Slides / Animation", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "presentation" },
+  stock_footage: { label: "Stock Video", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "video" },
+  real_world: { label: "Real Recording", color: "bg-[#E8F0E9] text-[#5A6352] border-[#D9DDD2]", icon: "camera" },
   // Legacy fallbacks for existing project data
+  whiteboard_animation: { label: "Slides / Animation", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "presentation" },
+  whiteboard: { label: "Slides / Animation", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "presentation" },
+  screen_recording: { label: "Real Recording", color: "bg-[#E8F0E9] text-[#5A6352] border-[#D9DDD2]", icon: "camera" },
+  code_editor: { label: "Real Recording", color: "bg-[#E8F0E9] text-[#5A6352] border-[#D9DDD2]", icon: "camera" },
+  talking_head_with_split_screens: { label: "Talking Head", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "user" },
+  talking_head_left_with_notes: { label: "Talking Head", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "user" },
   stock_video: { label: "Stock Video", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "video" },
-  screencast: { label: "Screencast", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "monitor" },
-  slide: { label: "Slide", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "presentation" },
-  text_overlay: { label: "Text Overlay", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "type" },
-  // Fallbacks for outline screen types
-  hook: { label: "Hook", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "zap" },
-  problem: { label: "Problem", color: "bg-[#FBEAE8] text-[#A63228] border-[#A63228]/20", icon: "alert-circle" },
-  solution: { label: "Solution", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "check-circle" },
-  benefit: { label: "Benefit", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "star" },
-  social_proof: { label: "Social Proof", color: "bg-[#E8F0E9] text-[#3A6B47] border-[#D9DDD2]", icon: "users" },
-  step: { label: "Step", color: "bg-[#E6F2EB] text-[#3A6B47] border-[#2D6A4F]/20", icon: "list-ordered" },
-  tip: { label: "Tip", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "lightbulb" },
-  warning: { label: "Warning", color: "bg-[#FBEAE8] text-[#A63228] border-[#A63228]/20", icon: "alert-triangle" },
-  recap: { label: "Recap", color: "bg-muted text-muted-foreground border-border", icon: "repeat" },
+  screencast: { label: "Real Recording", color: "bg-[#E8F0E9] text-[#5A6352] border-[#D9DDD2]", icon: "camera" },
+  slide: { label: "Slides / Animation", color: "bg-[#F7F0E0] text-[#7A5C1E] border-[#7A5C1E]/20", icon: "presentation" },
 };
 
 // Individual production screen in the storyboard

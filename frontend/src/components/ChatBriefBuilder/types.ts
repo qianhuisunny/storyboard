@@ -18,7 +18,7 @@ export const PHASE1_QUESTIONS: Phase1Question[] = [
   {
     fieldKey: "viewer_outcome",
     aiMessage:
-      "What do you want people to know, do, or believe by the end of watching this video?",
+      "That's a great video to work on! What do you want people to know, do, or believe by the end of watching this video? That helps me frame your messaging to achieve your goal!",
   },
   {
     fieldKey: "audience_level",

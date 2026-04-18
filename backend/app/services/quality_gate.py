@@ -6,7 +6,7 @@ from pathlib import Path
 from statistics import mean
 from typing import Any, Optional
 
-import anthropic
+from openai import OpenAI
 
 
 PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
@@ -77,16 +77,14 @@ class GradeResult:
 class QualityGate:
     def __init__(
         self,
-        model: str = "claude-sonnet-4-6-20250514",
+        model: str = "gpt-4o",
         threshold: float = 7.0,
         max_attempts: int = 2,
     ):
         self.model = model
         self.threshold = threshold
         self.max_attempts = max_attempts
-        self.client = anthropic.Anthropic(
-            api_key=os.getenv("ANTHROPIC_API_KEY")
-        )
+        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.system_prompt = self._load_prompt()
 
     def _load_prompt(self) -> str:
@@ -112,14 +110,16 @@ class QualityGate:
         )
 
     def _call_judge(self, user_prompt: str) -> dict:
-        response = self.client.messages.create(
+        response = self.client.chat.completions.create(
             model=self.model,
-            system=self.system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
+            messages=[
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
             temperature=0.2,
             max_tokens=500,
         )
-        text = response.content[0].text.strip()
+        text = response.choices[0].message.content.strip()
         if "```json" in text:
             text = text.split("```json")[1].split("```")[0].strip()
         elif "```" in text:

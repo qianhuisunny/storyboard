@@ -98,6 +98,71 @@ function getOnboardingDataFromSession(): OnboardingData | null {
   }
 }
 
+const OUTLINE_STEPS = [
+  { label: "Generating outline...", delay: 0 },
+  { label: "Reviewing quality...", delay: 8000 },
+  { label: "Refining with feedback...", delay: 16000 },
+  { label: "Reviewing revised outline...", delay: 22000 },
+  { label: "Quality check passed — preparing outline", delay: 28000 },
+];
+
+const DRAFT_STEPS = [
+  { label: "Generating storyboard panels...", delay: 0 },
+  { label: "Writing voiceover scripts...", delay: 6000 },
+  { label: "Adding visual direction...", delay: 12000 },
+  { label: "Reviewing quality...", delay: 18000 },
+  { label: "Finalizing storyboard", delay: 24000 },
+];
+
+function GeneratingProgress({ stageId }: { stageId: number }) {
+  const steps = stageId === 2 ? OUTLINE_STEPS : DRAFT_STEPS;
+  const [activeStep, setActiveStep] = useState(0);
+
+  useEffect(() => {
+    const timers = steps.slice(1).map((step, idx) =>
+      setTimeout(() => setActiveStep(idx + 1), step.delay)
+    );
+    return () => timers.forEach(clearTimeout);
+  }, []);
+
+  return (
+    <div className="flex flex-col items-center gap-6" style={{ maxWidth: 360 }}>
+      <Loader2 className="w-8 h-8 animate-spin text-[#3A6B47]" />
+      <div className="flex flex-col gap-2 w-full">
+        {steps.map((step, idx) => {
+          const isDone = idx < activeStep;
+          const isCurrent = idx === activeStep;
+          const isFuture = idx > activeStep;
+          return (
+            <div
+              key={idx}
+              className="flex items-center gap-3 transition-opacity duration-500"
+              style={{ opacity: isFuture ? 0.3 : 1 }}
+            >
+              {isDone ? (
+                <Check className="w-4 h-4 text-[#3A6B47] flex-shrink-0" />
+              ) : isCurrent ? (
+                <Loader2 className="w-4 h-4 animate-spin text-[#3A6B47] flex-shrink-0" />
+              ) : (
+                <div className="w-4 h-4 rounded-full border border-[#D9DDD2] flex-shrink-0" />
+              )}
+              <span
+                className="text-sm"
+                style={{
+                  color: isDone ? "#626B58" : isCurrent ? "#1C2118" : "#999",
+                  fontWeight: isCurrent ? 600 : 400,
+                }}
+              >
+                {step.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export default function StageContent({
   stage,
   aiContent,
@@ -703,35 +768,32 @@ export default function StageContent({
     console.log("[Outline] handleResearchContinue called, projectId:", projectId);
     if (!projectId) return;
     try {
-      // Check current backend phase before sending event
       const stateResp = await fetch(`/api/project/${projectId}/pipeline-state`);
       if (!stateResp.ok) return;
       const stateData = await stateResp.json();
+      const phase = stateData.phase;
+      console.log("[Outline] Current backend phase:", phase);
 
-      console.log("[Outline] Current backend phase:", stateData.phase);
-      // If project already past outline_research, advance frontend using existing storyboard
-      if (stateData.phase !== "outline_research") {
+      // If already past writer (has storyboard), skip to frontend advance
+      if (phase !== "gate2" && phase !== "outline_research") {
         if (stateData.data?.storyboard_grade) setStoryboardGrade(stateData.data.storyboard_grade);
         if (stateData.data?.cross_stage_grade) setCrossStageGrade(stateData.data.cross_stage_grade);
         const storyboard = stateData.data?.storyboard;
-        // Validate: must be an array with screen objects (not just wrapped outline text)
         const isValidStoryboard = Array.isArray(storyboard) &&
           storyboard.length >= 3 &&
           storyboard[0]?.screen_type != null;
-        console.log("[Outline] storyboard exists:", !!storyboard, "isValid:", isValidStoryboard);
         if (isValidStoryboard) {
           onApprove(currentOutlineText, {
             skipNextGeneration: true,
             nextStageContent: JSON.stringify(storyboard, null, 2),
           });
         } else {
-          // Storyboard missing or invalid — advance without it, let stage 3 regenerate
-          console.log("[Outline] No valid storyboard, advancing with currentOutlineText length:", currentOutlineText?.length);
           onApprove(currentOutlineText);
         }
         return;
       }
 
+      // At gate2 or outline_research — send approve event to trigger writer
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -796,7 +858,7 @@ export default function StageContent({
     }
   };
 
-  if (isGenerating) {
+  if (isGenerating && stage.id !== 2 && stage.id !== 3) {
     return (
       <div className="flex-1 flex items-center justify-center p-4" style={{ minHeight: "300px" }}>
         <div className="text-center">
@@ -883,21 +945,18 @@ export default function StageContent({
     );
   }
 
-  // Stage 2 or 3 generating: show centered spinner
+  // Stage 2 or 3 generating: show progress sequence
   if ((stage.id === 2 && !currentOutlineText && isGenerating) ||
       (stage.id === 3 && currentDraft.length === 0 && isGenerating)) {
-    const label = stage.id === 2 ? "Generating outline..." : "Generating storyboard...";
+    const stageTitle = stage.id === 2 ? "Video Outline" : "Storyboard Draft";
     return (
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
         <div className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border shrink-0">
-          <h2 className="text-xl font-semibold">{stage.id === 2 ? "Video Outline" : "Storyboard Draft"}</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">{label}</p>
+          <h2 className="text-xl font-semibold">{stageTitle}</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Generating your {stageTitle.toLowerCase()}...</p>
         </div>
         <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">{label}</span>
-          </div>
+          <GeneratingProgress stageId={stage.id} />
         </div>
       </div>
     );
@@ -951,6 +1010,7 @@ export default function StageContent({
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
         <ReviewBuilder
           screens={currentReview}
+          projectId={projectId || ""}
           projectTitle="Video Storyboard"
           previousStageOutput={previousStageOutput}
           onScreensUpdate={handleReviewUpdate}

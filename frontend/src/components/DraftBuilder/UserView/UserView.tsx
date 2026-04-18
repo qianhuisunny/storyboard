@@ -17,7 +17,6 @@ export default function UserView({
   onScreensChange,
   onConfirm,
   storyboardGrade,
-  crossStageGrade,
 }: UserViewProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
 
@@ -156,7 +155,6 @@ export default function UserView({
       <div className="flex-1 overflow-auto px-6 sm:px-10 py-6">
         <div className="w-full max-w-5xl space-y-3">
           {storyboardGrade && <QualityScore grade={storyboardGrade} />}
-          {crossStageGrade && <QualityScore grade={crossStageGrade} />}
           {screens.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <Film className="w-12 h-12 mx-auto mb-3 opacity-30" />

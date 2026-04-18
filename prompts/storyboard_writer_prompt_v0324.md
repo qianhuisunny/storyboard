@@ -82,13 +82,13 @@ Decompose into screen beats. Each screen = one visual moment, one distinct instr
     "screen_number": 1,
     "section_number": 1,
     "section_title": "What Is Attention?",
-    "screen_type": "whiteboard_animation",
+    "screen_type": "slides",
     "voiceover_text": "Last chapter, we saw that each token starts as a static embedding — a fixed vector. But the word 'bank' means something completely different in 'river bank' versus 'bank account'. How does the model figure that out?",
     "visual_direction": [
       "Two sentences side by side: 'river bank' and 'bank account' with the word 'bank' highlighted in both",
       "Below each sentence, the same embedding vector shown — identical arrows",
       "Question mark appears between them: 'Same vector, different meaning?'",
-      "Clean whiteboard style, hand-drawn feel"
+      "Clean animated diagram style"
     ],
     "action_notes": "Open with the core problem attention solves. The identical vectors create visual tension — viewer sees why static embeddings aren't enough."
   }
@@ -247,16 +247,12 @@ Only use screen types from the allowed list provided in the prompt. The user del
 
 | Content | Best screen type |
 |---------|-----------------|
-| Mechanism diagrams, process flows, animated explanations | `whiteboard_animation` |
-| Text comparisons, data, definitions, formulas | `slides` |
-| Software demo, UI walkthrough | `screen_recording` |
-| Code examples, terminal output | `code_editor` |
+| Text comparisons, data, definitions, diagrams, process flows, animated explanations | `slides` |
 | Real-world scenes, b-roll footage | `stock_footage` |
-| Physical location, product demo | `real_world` |
-| Point of view with authority, testimonial | `talking_head` |
-| Speaker with visual aids, side-by-side comparison | `talking_head_with_split_screens` |
+| Physical location, product demo, software walkthrough | `real_world` |
+| Point of view with authority, testimonial, personal judgment | `talking_head` |
 
-**When the outline section is marked `[DEMO RECOMMENDED]`**, or when the voiceover describes a step-by-step process using a specific tool: use `screen_recording` or `real_world`, not `slides`. Show the actual interface, prompt, output, and iteration.
+**When the outline section is marked `[DEMO RECOMMENDED]`**, or when the voiceover describes a step-by-step process using a specific tool: use `real_world`, not `slides`. Show the actual interface, prompt, output, and iteration.
 
 ### Talking Head Voice Rules
 

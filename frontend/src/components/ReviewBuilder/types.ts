@@ -32,6 +32,7 @@ export interface ReviewProcessingEntry {
 // Main component props
 export interface ReviewBuilderProps {
   screens: ProductionScreen[];
+  projectId: string;
   projectTitle?: string;
   previousStageOutput?: Record<string, unknown> | null; // Stage 3 production screens
   processingLog?: ReviewProcessingEntry[];
@@ -48,6 +49,7 @@ export interface TabToggleProps {
 // UserView props (main review interface)
 export interface UserViewProps {
   screens: ProductionScreen[];
+  projectId: string;
   projectTitle?: string;
   onScreensUpdate: (screens: ProductionScreen[]) => void;
   onExport: () => void;

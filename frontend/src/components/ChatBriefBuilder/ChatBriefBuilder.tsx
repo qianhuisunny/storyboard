@@ -26,11 +26,11 @@ function sectionForPhase(phase: Phase, _questionIndex: number): ActiveSection {
   return "review";
 }
 
-function SectionChips({ active }: { active: ActiveSection }) {
+function SectionChips({ active, onNavigate }: { active: ActiveSection; onNavigate?: (section: ActiveSection) => void }) {
   const sections: { key: ActiveSection; label: string }[] = [
-    { key: "core_intent", label: "Core Intent" },
-    { key: "content_spine", label: "Content Spine" },
-    { key: "review", label: "Review" },
+    { key: "core_intent", label: "1. Core Intent" },
+    { key: "content_spine", label: "2. Key Narrative" },
+    { key: "review", label: "3. Review Your Briefing" },
   ];
 
   const activeIdx = sections.findIndex((s) => s.key === active);
@@ -40,16 +40,19 @@ function SectionChips({ active }: { active: ActiveSection }) {
       {sections.map((s, idx) => {
         const isActive = s.key === active;
         const isDone = idx < activeIdx;
+        const canClick = isDone && onNavigate;
 
         return (
           <span
             key={s.key}
+            onClick={canClick ? () => onNavigate(s.key) : undefined}
             style={{
               padding: "4px 12px",
               borderRadius: 8,
               fontSize: 12,
               fontWeight: 600,
               fontFamily: "'Nunito', system-ui, -apple-system, sans-serif",
+              cursor: canClick ? "pointer" : "default",
               ...(isActive
                 ? { backgroundColor: "#3A6B47", color: "#fff" }
                 : isDone
@@ -78,6 +81,22 @@ function nextId(): string {
   return `msg-${++msgIdCounter}-${Date.now()}`;
 }
 
+const STORAGE_KEY = (id: string) => `chat-brief-${id}`;
+
+function saveSession(projectId: string, data: { messages: ChatMessage[]; phase: Phase; questionIndex: number; fields: Record<string, BriefField> }) {
+  try {
+    sessionStorage.setItem(STORAGE_KEY(projectId), JSON.stringify(data));
+  } catch { /* quota exceeded — ignore */ }
+}
+
+function loadSession(projectId: string): { messages: ChatMessage[]; phase: Phase; questionIndex: number; fields: Record<string, BriefField> } | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_KEY(projectId));
+    if (raw) return JSON.parse(raw);
+  } catch { /* corrupted — ignore */ }
+  return null;
+}
+
 export default function ChatBriefBuilder({
   projectId,
   initialFields,
@@ -85,20 +104,40 @@ export default function ChatBriefBuilder({
   onBriefApprove,
   onEditBrief,
 }: ChatBriefBuilderProps) {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [phase, setPhase] = useState<Phase>(isAlreadyApproved ? 3 : 1);
+  const cached = isAlreadyApproved ? null : loadSession(projectId);
+
+  const [messages, setMessages] = useState<ChatMessage[]>(cached?.messages ?? []);
+  const [phase, setPhase] = useState<Phase>(isAlreadyApproved ? 3 : cached?.phase ?? 1);
   const [fields, setFields] = useState<Record<string, BriefField>>(() => {
-    if (initialFields && Object.keys(initialFields).length > 0) {
-      return initialFields;
-    }
+    if (cached?.fields && Object.keys(cached.fields).length > 0) return cached.fields;
+    if (initialFields && Object.keys(initialFields).length > 0) return initialFields;
     return {};
   });
   const [isLlmLoading, setIsLlmLoading] = useState(false);
-  const [questionIndex, setQuestionIndex] = useState(0);
+  const [questionIndex, setQuestionIndex] = useState(cached?.questionIndex ?? 0);
   const [error, setError] = useState<string | null>(null);
-  const initialized = useRef(false);
+  const initialized = useRef(cached !== null);
 
-  // Seed the first AI message on mount
+  const handleSectionNavigate = useCallback((section: ActiveSection) => {
+    const phaseMap: Record<ActiveSection, Phase> = {
+      core_intent: 1,
+      content_spine: 2,
+      review: 3,
+    };
+    const targetPhase = phaseMap[section];
+    if (targetPhase < phase) {
+      setPhase(targetPhase);
+    }
+  }, [phase]);
+
+  // Persist chat state to sessionStorage on every change
+  useEffect(() => {
+    if (!isAlreadyApproved) {
+      saveSession(projectId, { messages, phase, questionIndex, fields });
+    }
+  }, [messages, phase, questionIndex, fields, projectId, isAlreadyApproved]);
+
+  // Seed the first AI message on mount (only if no cached session)
   useEffect(() => {
     if (initialized.current || isAlreadyApproved) return;
     initialized.current = true;
@@ -116,10 +155,22 @@ export default function ChatBriefBuilder({
     ]);
   }, [isAlreadyApproved]);
 
-  // Update fields when initialFields changes
+  // Merge initialFields on change, but never overwrite user-provided values with empty ones
   useEffect(() => {
     if (initialFields && Object.keys(initialFields).length > 0) {
-      setFields((prev) => ({ ...prev, ...initialFields }));
+      setFields((prev) => {
+        const merged = { ...prev };
+        for (const [key, field] of Object.entries(initialFields)) {
+          const existing = merged[key];
+          const hasExisting = existing && existing.value && (
+            Array.isArray(existing.value) ? existing.value.length > 0 : String(existing.value).trim() !== ""
+          );
+          if (!hasExisting) {
+            merged[key] = field;
+          }
+        }
+        return merged;
+      });
     }
   }, [initialFields]);
 
@@ -186,7 +237,23 @@ export default function ChatBriefBuilder({
               confirmed: false,
             };
           }
-          setFields((prev) => ({ ...prev, ...extractedFields }));
+          // Merge without overwriting Phase 1 fields that already have values
+          setFields((prev) => {
+            const merged = { ...prev };
+            for (const [key, field] of Object.entries(extractedFields)) {
+              const existing = merged[key];
+              const hasExisting = existing && existing.value && (
+                Array.isArray(existing.value) ? existing.value.length > 0 : String(existing.value).trim() !== ""
+              );
+              const hasNew = field.value && (
+                Array.isArray(field.value) ? field.value.length > 0 : String(field.value).trim() !== ""
+              );
+              if (!hasExisting || hasNew) {
+                merged[key] = field;
+              }
+            }
+            return merged;
+          });
 
           // Show summary card
           setTimeout(() => {
@@ -345,12 +412,13 @@ export default function ChatBriefBuilder({
   }, [fields, onBriefApprove]);
 
   const handleEdit = useCallback(() => {
+    sessionStorage.removeItem(STORAGE_KEY(projectId));
     setPhase(1);
     setQuestionIndex(0);
     setMessages([]);
     initialized.current = false;
     onEditBrief();
-  }, [onEditBrief]);
+  }, [projectId, onEditBrief]);
 
   const activeSection = sectionForPhase(phase, questionIndex);
 
@@ -363,18 +431,23 @@ export default function ChatBriefBuilder({
           className="flex-shrink-0 flex items-center justify-between border-b border-[#D9DDD2]"
           style={{ padding: "14px 32px" }}
         >
-          <h2
-            style={{
-              fontSize: 18,
-              fontWeight: 700,
-              fontFamily: "'Fraunces', serif",
-              color: "#1C2118",
-              margin: 0,
-            }}
-          >
-            Video Briefing
-          </h2>
-          <SectionChips active="review" />
+          <div>
+            <h2
+              style={{
+                fontSize: 18,
+                fontWeight: 700,
+                fontFamily: "'Fraunces', serif",
+                color: "#1C2118",
+                margin: 0,
+              }}
+            >
+              Video Briefing
+            </h2>
+            <p style={{ fontSize: 13, color: "#626B58", margin: 0 }}>
+              Chat to refine your requirements to get to a video briefing
+            </p>
+          </div>
+          <SectionChips active="review" onNavigate={handleSectionNavigate} />
         </div>
 
         {/* Chat thread (collapsed) + Review */}
@@ -416,18 +489,23 @@ export default function ChatBriefBuilder({
         className="flex-shrink-0 flex items-center justify-between border-b border-[#D9DDD2]"
         style={{ padding: "14px 32px" }}
       >
-        <h2
-          style={{
-            fontSize: 18,
-            fontWeight: 700,
-            fontFamily: "'Fraunces', serif",
-            color: "#1C2118",
-            margin: 0,
-          }}
-        >
-          Video Briefing
-        </h2>
-        <SectionChips active={activeSection} />
+        <div>
+          <h2
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              fontFamily: "'Fraunces', serif",
+              color: "#1C2118",
+              margin: 0,
+            }}
+          >
+            Video Briefing
+          </h2>
+          <p style={{ fontSize: 13, color: "#626B58", margin: 0 }}>
+            Chat to refine your requirements to get to a video briefing
+          </p>
+        </div>
+        <SectionChips active={activeSection} onNavigate={handleSectionNavigate} />
       </div>
 
       {/* Chat thread */}

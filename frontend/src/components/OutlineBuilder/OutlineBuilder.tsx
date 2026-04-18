@@ -9,7 +9,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Check, Search, Loader2, PanelRight, RefreshCw, Sparkles } from "lucide-react";
+import { Check, Loader2, PanelRight, RefreshCw, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import OutlineGrid from "./OutlineGrid";
 import AiOriginalDrawer from "./AiOriginalDrawer";
@@ -28,7 +28,7 @@ export default function OutlineBuilder({
   content,
   aiContent,
   onChange,
-  onRunResearch,
+  onRunResearch: _onRunResearch,
   onRerunResearch,
   onContinue,
   onRegenerateSection,
@@ -249,16 +249,10 @@ export default function OutlineBuilder({
           className="flex-1 overflow-y-auto px-6 sm:px-10 py-6 min-w-0"
         >
           <div className="w-full max-w-5xl space-y-6">
-          <div className="flex items-start gap-4 mb-5">
-            <p className="text-sm text-muted-foreground leading-relaxed flex-1">
-              Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.
-            </p>
-            {outlineGrade && (
-              <div className="w-72 shrink-0">
-                <QualityScore grade={outlineGrade} />
-              </div>
-            )}
-          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed mb-5">
+            Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.
+          </p>
+          {outlineGrade && <QualityScore grade={outlineGrade} />}
 
           {/* Section: Video Outline */}
           <div id="outline">
@@ -378,36 +372,22 @@ export default function OutlineBuilder({
       {/* Action Footer */}
       <div className="px-6 sm:px-10 py-3 sm:py-4 border-t border-border bg-muted/20 shrink-0">
         <div className="w-full flex justify-end gap-3">
-          {hasResearch ? (
-            <Button
-              onClick={async () => {
-                setIsContinuing(true);
-                try {
-                  await onContinue(getFilteredEvidence());
-                } finally { setIsContinuing(false); }
-              }}
-              disabled={isContinuing || isRerunningResearch}
-            >
-              {isContinuing ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Check className="w-4 h-4 mr-2" />
-              )}
-              {isContinuing ? "Generating storyboard..." : "Continue to Storyboard Draft"}
-            </Button>
-          ) : (
-            <Button
-              onClick={onRunResearch}
-              disabled={sections.length === 0 || isResearching}
-            >
-              {isResearching ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Search className="w-4 h-4 mr-2" />
-              )}
-              Approve & Run Research Plan
-            </Button>
-          )}
+          <Button
+            onClick={async () => {
+              setIsContinuing(true);
+              try {
+                await onContinue(hasResearch ? getFilteredEvidence() : null);
+              } finally { setIsContinuing(false); }
+            }}
+            disabled={isContinuing || sections.length === 0}
+          >
+            {isContinuing ? (
+              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            ) : (
+              <Check className="w-4 h-4 mr-2" />
+            )}
+            {isContinuing ? "Generating storyboard..." : "Approve & Generate Storyboard"}
+          </Button>
         </div>
       </div>
     </div>

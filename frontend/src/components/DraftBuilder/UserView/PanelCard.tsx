@@ -8,7 +8,6 @@ import {
   Clock,
   MessageSquare,
   Eye,
-  Image,
   Sparkles,
   RefreshCw,
   Video,
@@ -34,6 +33,19 @@ import { cn } from "@/lib/utils";
 import type { PanelCardProps } from "../types";
 import { SCREEN_TYPE_CONFIG, getVisualDirectionArray } from "../types";
 import "./panel-card.css";
+
+const PLACEHOLDER_IMAGES: Record<string, string> = {
+  screen_recording: "/placeholders/screen_recording.png",
+  slides: "/placeholders/slides_and_diagrams.png",
+  whiteboard_animation: "/placeholders/whiteboard.png",
+  whiteboard: "/placeholders/whiteboard.png",
+  code_editor: "/placeholders/code_editor.png",
+  stock_footage: "/placeholders/stock_footage.png",
+  real_world: "/placeholders/real_world.png",
+  talking_head: "/placeholders/talking_head.png",
+  talking_head_with_split_screens: "/placeholders/talking_head.png",
+  talking_head_left_with_notes: "/placeholders/talking_head.png",
+};
 
 const SCREEN_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   video: Video,
@@ -88,6 +100,8 @@ export default function PanelCard({
   };
 
   const hasGeneratedVisual = screen.on_screen_visual?.startsWith("/generated/") || screen.on_screen_visual?.startsWith("http");
+  const placeholderSrc = PLACEHOLDER_IMAGES[screen.screen_type] || "/placeholders/slides_and_diagrams.png";
+  const visualSrc = hasGeneratedVisual ? screen.on_screen_visual! : placeholderSrc;
 
   const handleGenerateVisual = async () => {
     setIsGenerating(true);
@@ -136,6 +150,12 @@ export default function PanelCard({
           <IconComponent className="w-4 h-4" />
           <span>{config.label}</span>
         </div>
+        <img
+          src={visualSrc}
+          alt=""
+          className="flex-shrink-0 w-14 h-10 object-cover rounded border border-border/50"
+          onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+        />
         <div className="flex-1 min-w-0">
           <p className="text-base text-foreground truncate">
             {screen.voiceover_text || "(No voiceover)"}
@@ -163,38 +183,31 @@ export default function PanelCard({
       {/* Expanded Content — Two-column layout */}
       {isExpanded && (
         <div className="border-t border-border">
-          <div className="grid grid-cols-[300px_1fr]">
-            {/* Left: Visual Preview (16:9) */}
-            <div className="relative bg-muted/30 border-r border-border overflow-hidden rounded-bl-lg" style={{ aspectRatio: "16 / 9" }}>
+          <div className="flex">
+            {/* Left: Visual Preview — fixed 320px width, 16:9 aspect */}
+            <div className="relative bg-muted/30 border-r border-border overflow-hidden rounded-bl-lg flex-shrink-0 w-[320px]">
               <div className={cn(
-                "absolute inset-0 flex items-center justify-center",
+                "relative w-full aspect-video",
                 isGenerating && "visual-shimmer"
               )}>
-                {hasGeneratedVisual ? (
-                  <>
-                    <img
-                      src={screen.on_screen_visual}
-                      alt="Screen visual"
-                      className="w-full h-full object-cover"
-                      onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-                    />
-                    {!isGenerating && (
-                      <div className="absolute inset-0 bg-black/35 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-                        <button
-                          onClick={(e) => { e.stopPropagation(); handleGenerateVisual(); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 rounded-md text-xs font-semibold text-foreground"
-                        >
-                          <RefreshCw className="w-3.5 h-3.5" />
-                          Regenerate
-                        </button>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <Image className="w-12 h-12 text-muted-foreground/30" />
+                <img
+                  src={visualSrc}
+                  alt="Screen visual"
+                  className="w-full h-full object-cover"
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                />
+                {hasGeneratedVisual && !isGenerating && (
+                  <div className="absolute inset-0 bg-black/35 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleGenerateVisual(); }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-white/95 rounded-md text-xs font-semibold text-foreground"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Regenerate
+                    </button>
+                  </div>
                 )}
               </div>
-              {/* Generate button — overlaid at bottom */}
               {!hasGeneratedVisual && (
                 <button
                   onClick={(e) => { e.stopPropagation(); handleGenerateVisual(); }}
@@ -213,7 +226,7 @@ export default function PanelCard({
             </div>
 
             {/* Right: Content + Footer */}
-            <div className="flex flex-col">
+            <div className="flex flex-col flex-1 min-w-0">
               <div className="p-5 space-y-4 flex-1">
                 {/* Voiceover Script */}
                 <div>

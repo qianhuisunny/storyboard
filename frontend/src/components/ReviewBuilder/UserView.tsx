@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import {
   Download,
   Share2,
@@ -10,23 +10,43 @@ import {
   Film,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import ReviewCard from "./ReviewCard";
 import type { UserViewProps, ProductionScreen } from "./types";
-import { calculateTotalDuration, formatDuration } from "./types";
+import { SCREEN_TYPE_CONFIG, calculateTotalDuration, formatDuration } from "./types";
 
-/**
- * UserView - Main review interface for Stage 4.
- * Shows all panels as non-collapsible cards with hover-to-edit.
- * Supports PDF download and sharing.
- */
+const PLACEHOLDER_IMAGES: Record<string, string> = {
+  screen_recording: "/placeholders/screen_recording.png",
+  slides: "/placeholders/slides_and_diagrams.png",
+  whiteboard_animation: "/placeholders/whiteboard.png",
+  whiteboard: "/placeholders/whiteboard.png",
+  code_editor: "/placeholders/code_editor.png",
+  stock_footage: "/placeholders/stock_footage.png",
+  real_world: "/placeholders/real_world.png",
+  talking_head: "/placeholders/talking_head.png",
+  talking_head_with_split_screens: "/placeholders/talking_head.png",
+  talking_head_left_with_notes: "/placeholders/talking_head.png",
+};
+
+const TYPE_BADGE_COLORS: Record<string, string> = {
+  talking_head: "bg-[#E6F2EB] text-[#3A6B47]",
+  talking_head_with_split_screens: "bg-[#E6F2EB] text-[#3A6B47]",
+  talking_head_left_with_notes: "bg-[#E6F2EB] text-[#3A6B47]",
+  slides: "bg-[#F7F0E0] text-[#7A5C1E]",
+  stock_footage: "bg-[#E8F0E9] text-[#3A6B47]",
+  real_world: "bg-[#E8F0E9] text-[#3A6B47]",
+  screen_recording: "bg-[#E8EEF5] text-[#3A5A7A]",
+  code_editor: "bg-[#E8EEF5] text-[#3A5A7A]",
+  whiteboard_animation: "bg-[#F5F0E8] text-[#6B5A3A]",
+  whiteboard: "bg-[#F5F0E8] text-[#6B5A3A]",
+};
+
 export default function UserView({
   screens,
+  projectId: _projectId,
   projectTitle = "Storyboard",
-  onScreensUpdate,
+  onScreensUpdate: _onScreensUpdate,
   onExport,
 }: UserViewProps) {
   const [isExporting, setIsExporting] = useState(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
   const contentRef = useRef<HTMLDivElement>(null);
 
   const totalDuration = calculateTotalDuration(screens);
@@ -35,152 +55,35 @@ export default function UserView({
     0
   );
 
-  const handleScreenChange = useCallback((index: number, updatedScreen: ProductionScreen) => {
-    const newScreens = [...screens];
-    newScreens[index] = updatedScreen;
-    onScreensUpdate(newScreens);
-  }, [screens, onScreensUpdate]);
-
-  const handleSave = useCallback(() => {
-    setSaveStatus("saving");
-    // The auto-save in StageLayout will handle the actual save
-    setTimeout(() => {
-      setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 2000);
-    }, 500);
-  }, []);
-
   const handleDownloadPDF = async () => {
     setIsExporting(true);
-
     try {
-      // Dynamic import for PDF libraries
       const { pdf, Document, Page, Text, View, StyleSheet } = await import("@react-pdf/renderer");
 
-      // Create styles for PDF
       const styles = StyleSheet.create({
-        page: {
-          padding: 40,
-          fontFamily: "Helvetica",
-          backgroundColor: "#ffffff",
-        },
-        header: {
-          marginBottom: 30,
-          borderBottom: "2px solid #D9DDD2",
-          paddingBottom: 15,
-        },
-        title: {
-          fontSize: 24,
-          fontWeight: "bold",
-          color: "#1C2118",
-          marginBottom: 8,
-        },
-        subtitle: {
-          fontSize: 12,
-          color: "#5A6352",
-        },
-        statsRow: {
-          flexDirection: "row",
-          gap: 20,
-          marginTop: 10,
-        },
-        stat: {
-          fontSize: 10,
-          color: "#5A6352",
-        },
-        card: {
-          marginBottom: 20,
-          border: "1px solid #D9DDD2",
-          borderRadius: 8,
-          overflow: "hidden",
-        },
-        cardHeader: {
-          flexDirection: "row",
-          alignItems: "center",
-          padding: 12,
-          backgroundColor: "#E8F0E9",
-          borderBottom: "1px solid #D9DDD2",
-        },
-        screenNumber: {
-          width: 28,
-          height: 28,
-          borderRadius: 14,
-          backgroundColor: "#3A6B47",
-          color: "#ffffff",
-          fontSize: 14,
-          fontWeight: "bold",
-          textAlign: "center",
-          lineHeight: 28,
-          marginRight: 10,
-        },
-        screenType: {
-          fontSize: 10,
-          fontWeight: "bold",
-          color: "#3A6B47",
-          textTransform: "uppercase",
-        },
-        duration: {
-          marginLeft: "auto",
-          fontSize: 10,
-          color: "#5A6352",
-        },
-        cardBody: {
-          padding: 15,
-        },
-        section: {
-          marginBottom: 12,
-        },
-        sectionLabel: {
-          fontSize: 8,
-          fontWeight: "bold",
-          color: "#5A6352",
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          marginBottom: 4,
-        },
-        sectionContent: {
-          fontSize: 11,
-          color: "#1C2118",
-          lineHeight: 1.5,
-        },
-        voiceoverBox: {
-          backgroundColor: "#E8F0E9",
-          padding: 10,
-          borderRadius: 4,
-        },
-        visualDirection: {
-          backgroundColor: "#E8F0E9",
-          padding: 10,
-          borderRadius: 4,
-        },
-        bulletPoint: {
-          flexDirection: "row",
-          marginBottom: 4,
-        },
-        bullet: {
-          width: 15,
-          fontSize: 11,
-          color: "#3A6B47",
-        },
-        bulletText: {
-          flex: 1,
-          fontSize: 11,
-          color: "#1C2118",
-        },
-        footer: {
-          position: "absolute",
-          bottom: 30,
-          left: 40,
-          right: 40,
-          textAlign: "center",
-          fontSize: 9,
-          color: "#5A6352",
-          borderTop: "1px solid #D9DDD2",
-          paddingTop: 10,
-        },
+        page: { padding: 40, fontFamily: "Helvetica", backgroundColor: "#ffffff" },
+        header: { marginBottom: 30, borderBottom: "2px solid #D9DDD2", paddingBottom: 15 },
+        title: { fontSize: 24, fontWeight: "bold", color: "#1C2118", marginBottom: 8 },
+        subtitle: { fontSize: 12, color: "#5A6352" },
+        statsRow: { flexDirection: "row", gap: 20, marginTop: 10 },
+        stat: { fontSize: 10, color: "#5A6352" },
+        card: { marginBottom: 20, border: "1px solid #D9DDD2", borderRadius: 8, overflow: "hidden" },
+        cardHeader: { flexDirection: "row", alignItems: "center", padding: 12, backgroundColor: "#E8F0E9", borderBottom: "1px solid #D9DDD2" },
+        screenNumber: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#3A6B47", color: "#ffffff", fontSize: 14, fontWeight: "bold", textAlign: "center", lineHeight: 28, marginRight: 10 },
+        screenType: { fontSize: 10, fontWeight: "bold", color: "#3A6B47", textTransform: "uppercase" },
+        duration: { marginLeft: "auto", fontSize: 10, color: "#5A6352" },
+        cardBody: { padding: 15 },
+        section: { marginBottom: 12 },
+        sectionLabel: { fontSize: 8, fontWeight: "bold", color: "#5A6352", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
+        sectionContent: { fontSize: 11, color: "#1C2118", lineHeight: 1.5 },
+        voiceoverBox: { backgroundColor: "#E8F0E9", padding: 10, borderRadius: 4 },
+        visualDirection: { backgroundColor: "#E8F0E9", padding: 10, borderRadius: 4 },
+        bulletPoint: { flexDirection: "row", marginBottom: 4 },
+        bullet: { width: 15, fontSize: 11, color: "#3A6B47" },
+        bulletText: { flex: 1, fontSize: 11, color: "#1C2118" },
+        footer: { position: "absolute", bottom: 30, left: 40, right: 40, textAlign: "center", fontSize: 9, color: "#5A6352", borderTop: "1px solid #D9DDD2", paddingTop: 10 },
       });
 
-      // Helper to get visual directions as array
       const getVisuals = (direction: string | string[]): string[] => {
         if (Array.isArray(direction)) return direction;
         if (typeof direction === "string" && direction.trim()) {
@@ -189,11 +92,9 @@ export default function UserView({
         return [];
       };
 
-      // Create PDF document
       const MyDocument = () => (
         <Document>
           <Page size="A4" style={styles.page}>
-            {/* Header */}
             <View style={styles.header}>
               <Text style={styles.title}>{projectTitle}</Text>
               <Text style={styles.subtitle}>Video Storyboard</Text>
@@ -203,8 +104,6 @@ export default function UserView({
                 <Text style={styles.stat}>{totalWords} Words</Text>
               </View>
             </View>
-
-            {/* Cards */}
             {screens.map((screen, index) => (
               <View key={index} style={styles.card} wrap={false}>
                 <View style={styles.cardHeader}>
@@ -213,17 +112,12 @@ export default function UserView({
                   <Text style={styles.duration}>{screen.duration}s</Text>
                 </View>
                 <View style={styles.cardBody}>
-                  {/* Voiceover */}
                   <View style={styles.section}>
                     <Text style={styles.sectionLabel}>Voiceover Script</Text>
                     <View style={styles.voiceoverBox}>
-                      <Text style={styles.sectionContent}>
-                        "{screen.voiceover_text || "No voiceover"}"
-                      </Text>
+                      <Text style={styles.sectionContent}>"{screen.voiceover_text || "No voiceover"}"</Text>
                     </View>
                   </View>
-
-                  {/* Visual Direction */}
                   <View style={styles.section}>
                     <Text style={styles.sectionLabel}>Visual Direction</Text>
                     <View style={styles.visualDirection}>
@@ -236,15 +130,11 @@ export default function UserView({
                         ))
                       ) : (
                         <Text style={styles.sectionContent}>
-                          {typeof screen.visual_direction === "string"
-                            ? screen.visual_direction
-                            : "No visual direction"}
+                          {typeof screen.visual_direction === "string" ? screen.visual_direction : "No visual direction"}
                         </Text>
                       )}
                     </View>
                   </View>
-
-                  {/* Text Overlay */}
                   {screen.text_overlay && (
                     <View style={styles.section}>
                       <Text style={styles.sectionLabel}>Text Overlay</Text>
@@ -254,16 +144,11 @@ export default function UserView({
                 </View>
               </View>
             ))}
-
-            {/* Footer */}
-            <Text style={styles.footer}>
-              Generated by Plotline • {new Date().toLocaleDateString()}
-            </Text>
+            <Text style={styles.footer}>Generated by Plotline • {new Date().toLocaleDateString()}</Text>
           </Page>
         </Document>
       );
 
-      // Generate and download PDF
       const blob = await pdf(<MyDocument />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -273,7 +158,6 @@ export default function UserView({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-
     } catch (error) {
       console.error("Failed to generate PDF:", error);
       alert("Failed to generate PDF. Please try again.");
@@ -283,7 +167,6 @@ export default function UserView({
   };
 
   const handleShare = async () => {
-    // Copy shareable link or data to clipboard
     const shareData = JSON.stringify(screens, null, 2);
     try {
       await navigator.clipboard.writeText(shareData);
@@ -293,103 +176,137 @@ export default function UserView({
     }
   };
 
+  const getTypeBadgeColor = (screenType: string) =>
+    TYPE_BADGE_COLORS[screenType] || "bg-muted text-muted-foreground";
+
+  const getTypeLabel = (screenType: string) => {
+    const config = SCREEN_TYPE_CONFIG[screenType];
+    return config?.label || screenType.replace(/_/g, " ");
+  };
+
+  const getVisualSrc = (screen: ProductionScreen) => {
+    const hasGenerated = screen.on_screen_visual?.startsWith("/generated/") || screen.on_screen_visual?.startsWith("http");
+    if (hasGenerated) return screen.on_screen_visual!;
+    return PLACEHOLDER_IMAGES[screen.screen_type] || "/placeholders/slides_and_diagrams.png";
+  };
+
   return (
     <div className="h-full flex flex-col bg-muted/10">
       {/* Header */}
       <header className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border bg-background">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-semibold text-foreground mb-1">
-              Review & Share
-            </h2>
+            <h2 className="text-xl font-semibold text-foreground mb-1">Review & Share</h2>
             <p className="text-sm text-muted-foreground">
-              Review your storyboard. Hover over any field to edit. Changes auto-save.
+              Review your storyboard. Export or share when ready.
             </p>
           </div>
-
-          {/* Action Buttons */}
           <div className="flex items-center gap-3">
-            {/* Save Status */}
-            {saveStatus !== "idle" && (
-              <span className={cn(
-                "text-xs px-2 py-1 rounded flex items-center gap-1",
-                saveStatus === "saving" && "text-muted-foreground",
-                saveStatus === "saved" && "text-[#3A6B47] bg-[#E6F2EB]"
-              )}>
-                {saveStatus === "saving" && <Loader2 className="w-3 h-3 animate-spin" />}
-                {saveStatus === "saved" && <Check className="w-3 h-3" />}
-                {saveStatus === "saving" ? "Saving..." : "Saved"}
-              </span>
-            )}
-
+            <div className="flex items-center gap-4 mr-4">
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span>{formatDuration(totalDuration)}</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <Layers className="w-4 h-4" />
+                <span>{screens.length} panels</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                <FileText className="w-4 h-4" />
+                <span>{totalWords} words</span>
+              </div>
+            </div>
             <button
               onClick={handleShare}
-              className="flex items-center gap-2 px-4 py-2 text-sm bg-muted hover:bg-muted/80 rounded-lg transition-colors"
+              className="flex items-center gap-2 px-4 py-2 text-sm bg-background border border-border hover:bg-muted/50 rounded-lg transition-colors"
             >
               <Share2 className="w-4 h-4" />
               Share
             </button>
-
             <button
               onClick={handleDownloadPDF}
               disabled={isExporting}
               className={cn(
-                "flex items-center gap-2 px-4 py-2 text-sm bg-primary text-primary-foreground rounded-lg transition-colors",
-                isExporting ? "opacity-70 cursor-not-allowed" : "hover:bg-primary/90"
+                "flex items-center gap-2 px-4 py-2 text-sm bg-[#2D6A4F] text-white rounded-lg transition-colors",
+                isExporting ? "opacity-70 cursor-not-allowed" : "hover:bg-[#2D6A4F]/90"
               )}
             >
               {isExporting ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Exporting...
-                </>
+                <><Loader2 className="w-4 h-4 animate-spin" />Exporting...</>
               ) : (
-                <>
-                  <Download className="w-4 h-4" />
-                  Download PDF
-                </>
+                <><Download className="w-4 h-4" />Download PDF</>
               )}
             </button>
           </div>
         </div>
-
-        {/* Stats Row */}
-        <div className="flex items-center gap-4 mt-4">
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
-            <Clock className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{formatDuration(totalDuration)}</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
-            <Layers className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{screens.length} panels</span>
-          </div>
-          <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
-            <FileText className="w-4 h-4 text-muted-foreground" />
-            <span className="text-sm font-medium">{totalWords} words</span>
-          </div>
-        </div>
       </header>
 
-      {/* Cards Grid */}
+      {/* Table */}
       <div ref={contentRef} className="flex-1 overflow-auto px-6 sm:px-10 py-6">
-        <div className="w-full max-w-5xl space-y-6">
-          {screens.length === 0 ? (
-            <div className="text-center py-16 text-muted-foreground">
-              <Film className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg">No storyboard panels to display.</p>
-              <p className="text-sm mt-2">Complete the previous stages to see your storyboard here.</p>
-            </div>
-          ) : (
-            screens.map((screen, index) => (
-              <ReviewCard
-                key={`${screen.screen_number}-${index}`}
-                screen={screen}
-                onChange={(updated) => handleScreenChange(index, updated)}
-                onSave={handleSave}
-              />
-            ))
-          )}
-        </div>
+        {screens.length === 0 ? (
+          <div className="text-center py-16 text-muted-foreground">
+            <Film className="w-16 h-16 mx-auto mb-4 opacity-30" />
+            <p className="text-lg">No storyboard panels to display.</p>
+            <p className="text-sm mt-2">Complete the previous stages to see your storyboard here.</p>
+          </div>
+        ) : (
+          <div className="w-full bg-card border border-border rounded-lg overflow-hidden">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-muted/50 border-b border-border">
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-10">#</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-[110px]">Type</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Voiceover Script</th>
+                  <th className="px-4 py-2.5 text-center text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-14">Dur</th>
+                  <th className="px-4 py-2.5 text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground w-[180px]">Visual</th>
+                </tr>
+              </thead>
+              <tbody>
+                {screens.map((screen, index) => (
+                  <tr
+                    key={`${screen.screen_number}-${index}`}
+                    className={cn(
+                      "border-b border-border/50 transition-colors hover:bg-muted/30",
+                      index === screens.length - 1 && "border-b-0"
+                    )}
+                  >
+                    <td className="px-4 py-3 text-center font-bold text-muted-foreground align-top">
+                      {screen.screen_number}
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <span className={cn(
+                        "inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap",
+                        getTypeBadgeColor(screen.screen_type)
+                      )}>
+                        {getTypeLabel(screen.screen_type)}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-foreground leading-relaxed align-top">
+                      "{screen.voiceover_text || "..."}"
+                    </td>
+                    <td className="px-4 py-3 text-center text-muted-foreground align-top">
+                      {screen.duration || 0}s
+                    </td>
+                    <td className="px-4 py-3 align-top">
+                      <img
+                        src={getVisualSrc(screen)}
+                        alt={`Panel ${screen.screen_number} visual`}
+                        className="w-full aspect-video rounded-md object-cover border border-border/50"
+                        onError={(e) => {
+                          const el = e.target as HTMLImageElement;
+                          el.style.display = "none";
+                          const placeholder = document.createElement("div");
+                          placeholder.className = "w-full aspect-video rounded-md bg-muted/50 border border-border/50";
+                          el.parentNode?.appendChild(placeholder);
+                        }}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Footer */}
@@ -401,7 +318,7 @@ export default function UserView({
         </div>
         <button
           onClick={onExport}
-          className="px-4 py-2 bg-[#2D6A4F] text-white rounded-lg hover:bg-[#2D6A4F] transition-colors flex items-center gap-2"
+          className="px-4 py-2 bg-[#2D6A4F] text-white rounded-lg hover:bg-[#2D6A4F]/90 transition-colors flex items-center gap-2"
         >
           <Check className="w-4 h-4" />
           Mark as Complete

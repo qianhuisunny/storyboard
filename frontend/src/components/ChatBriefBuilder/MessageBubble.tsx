@@ -1,3 +1,4 @@
+import { useState, useEffect, useRef } from "react";
 import type { ChatMessage } from "./types";
 
 interface MessageBubbleProps {
@@ -25,14 +26,60 @@ function Avatar({ letter, isAi }: { letter: string; isAi: boolean }) {
   );
 }
 
+function useTypewriter(text: string, enabled: boolean, speed = 18) {
+  const [displayed, setDisplayed] = useState(enabled ? "" : text);
+  const [done, setDone] = useState(!enabled);
+  const indexRef = useRef(0);
+
+  useEffect(() => {
+    if (!enabled) {
+      setDisplayed(text);
+      setDone(true);
+      return;
+    }
+
+    indexRef.current = 0;
+    setDisplayed("");
+    setDone(false);
+
+    const timer = setInterval(() => {
+      indexRef.current += 1;
+      setDisplayed(text.slice(0, indexRef.current));
+      if (indexRef.current >= text.length) {
+        clearInterval(timer);
+        setDone(true);
+      }
+    }, speed);
+
+    return () => clearInterval(timer);
+  }, [text, enabled, speed]);
+
+  return { displayed, done };
+}
+
 export default function MessageBubble({
   message,
   onChipSelect,
   isLatest = false,
 }: MessageBubbleProps) {
   const isAi = message.role === "ai";
+  const hasAnimated = useRef(false);
+  const shouldAnimate = isAi && isLatest && !hasAnimated.current;
+
+  const { displayed, done } = useTypewriter(
+    message.content,
+    shouldAnimate,
+    18
+  );
+
+  useEffect(() => {
+    if (done && shouldAnimate) {
+      hasAnimated.current = true;
+    }
+  }, [done, shouldAnimate]);
+
   const showChips =
-    isAi && message.chips && !message.selectedChip && isLatest;
+    isAi && message.chips && !message.selectedChip && isLatest && done;
 
   return (
     <div
@@ -63,7 +110,26 @@ export default function MessageBubble({
                 }),
           }}
         >
-          {message.content}
+          {isAi ? displayed : message.content}
+          {isAi && !done && (
+            <span
+              style={{
+                display: "inline-block",
+                width: 2,
+                height: "1em",
+                backgroundColor: "#3A6B47",
+                marginLeft: 1,
+                verticalAlign: "text-bottom",
+                animation: "cursorBlink 0.8s step-end infinite",
+              }}
+            />
+          )}
+          <style>{`
+            @keyframes cursorBlink {
+              0%, 100% { opacity: 1; }
+              50% { opacity: 0; }
+            }
+          `}</style>
         </div>
 
         {showChips && (

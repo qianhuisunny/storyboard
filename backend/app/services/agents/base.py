@@ -36,7 +36,7 @@ class BaseAgent:
     """
 
     prompt_file: str = None  # Override in subclass
-    default_model: str = "claude-sonnet-4-20250514"  # Can be overridden per-instance
+    default_model: str = "gpt-4o"  # Can be overridden per-instance
 
     def __init__(self):
         self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))

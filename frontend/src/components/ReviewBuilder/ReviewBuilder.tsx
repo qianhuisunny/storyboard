@@ -7,6 +7,7 @@ import type { ReviewBuilderProps } from "./types";
  */
 export default function ReviewBuilder({
   screens,
+  projectId,
   projectTitle,
   onScreensUpdate,
   onExport,
@@ -15,6 +16,7 @@ export default function ReviewBuilder({
     <div className="review-builder h-full flex flex-col">
       <UserView
         screens={screens}
+        projectId={projectId}
         projectTitle={projectTitle}
         onScreensUpdate={onScreensUpdate}
         onExport={onExport}

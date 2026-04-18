@@ -53,7 +53,7 @@ export function QualityScore({ grade }: { grade: GradeResult }) {
       >
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-foreground">
-            Quality Score:{" "}
+            LLM as a Judge:{" "}
             <span className={scoreColor(grade.composite_score)}>
               {grade.composite_score}/10
             </span>

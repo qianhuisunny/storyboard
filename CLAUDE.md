@@ -31,8 +31,8 @@ User → Frontend (React/Vite :3000)
        Orchestrator → Agent Pipeline
          ├── BriefBuilder
          ├── StoryboardDirector
-         ├── EvidenceResearcher
-         └── StoryboardWriter
+         ├── StoryboardWriter
+         └── QualityGate (auto-grader, runs after Director & Writer)
          ↓
        SQLite (via SQLAlchemy async + aiosqlite)
 ```
@@ -61,7 +61,7 @@ User → Frontend (React/Vite :3000)
 - **Never install packages globally** — use `venv/` for Python, `npm` for frontend
 
 ### ⚠️ Be Careful
-- **Agent changes are coupled** — modifying one agent's output schema likely breaks the next agent's input expectations. Trace the full pipeline: BriefBuilder → Director → EvidenceResearcher → Writer
+- **Agent changes are coupled** — modifying one agent's output schema likely breaks the next agent's input expectations. Trace the full pipeline: BriefBuilder → Director → Writer
 - **State machine transitions** — `state.py` controls flow. Changing states requires updating both backend transitions AND frontend `StageNavigation.tsx`
 - **Timeout handling** — AI generation can take 2+ minutes. Don't reduce timeouts without testing
 - **Data schema changes** — any change to project/story JSON schema must be backwards-compatible with existing projects in `data/`
@@ -179,7 +179,7 @@ Terminal 2: `cd frontend && npm run dev`
 | `GET` | `/api/project/{id}/pipeline-state` | Get current pipeline phase + data |
 | `POST` | `/api/project/{id}/stages` | Auto-save stage data |
 | `GET` | `/api/project/{id}/stages` | Load stage data |
-| `POST` | `/api/project/{id}/research-section` | Research single outline section (progressive) |
+| `POST` | `/api/project/{id}/chat-brief` | Phase 2 chat-based content spine extraction |
 | `GET` | `/health` | Health check |
 
 ---
@@ -189,28 +189,31 @@ Terminal 2: `cd frontend && npm run dev`
 The storyboard generation pipeline runs sequentially. Each agent consumes the previous agent's output:
 
 ```
-BriefBuilder         → structures a creative brief from intake form
+BriefBuilder         → structures a creative brief from intake form (chat-based)
       ↓ brief
 StoryboardDirector   → determines scene structure and flow
       ↓ outline
-EvidenceResearcher   → generates evidence for outline sections (LLM knowledge + RAG)
-      ↓ evidence_research
-StoryboardWriter     → writes detailed screen-by-screen content (includes duration calculation + placeholder images)
+      [QualityGate]  → auto-grades outline (gut check + 5 dimensions), retries once if below 7.0
+      ↓ graded outline
+StoryboardWriter     → writes detailed screen-by-screen content (includes duration calculation)
+      ↓ storyboard
+      [QualityGate]  → auto-grades storyboard (5 dimensions) + cross-stage handoff check
       ↓ final_storyboard
 ```
 
+Note: EvidenceResearcher was removed (Apr 2026 hackathon). Outline approval goes directly to Writer.
 Note: Duration calculation (word_count / 130 * 60s) is now a utility function, not a separate agent.
-
-RAG pipeline: `backend/app/services/rag/` — handles PDF/URL upload, chunking, OpenAI embeddings, and similarity-based retrieval. The EvidenceResearcher queries RAG automatically when a project has uploaded documents.
+Note: All LLM calls use OpenAI gpt-4o (Anthropic API deactivated). Model set in `BaseAgent.default_model`.
 
 **Prompt ↔ Agent mapping:**
 
-| Agent File | Prompt File |
+| Agent / Service | Prompt File |
 |-----------|------------|
 | `agents/brief_builder.py` | `prompts/CONTENT_SPINE_PROMPT.md` (Round 3 only; Rounds 1-2 have no LLM call) |
 | `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0324.md` |
-| `agents/evidence_researcher.py` | `prompts/evidence_researcher_prompt_v0324.md` |
 | `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0324.md` |
+| `services/quality_gate.py` | `prompts/QUALITY_JUDGE_PROMPT.md` |
+| `main.py` (chat-brief endpoint) | `prompts/chat_brief_prompt.md` |
 
 ### Agent Structure Pattern
 
@@ -249,9 +252,8 @@ class MyAgent(BaseAgent):
 
 ### Backend (`backend/.env`)
 ```env
-OPENAI_API_KEY=sk-proj-...        # OpenAI (primary LLM)
-GEMINI_API_KEY=AIzaSy...          # Google Gemini (secondary)
-
+OPENAI_API_KEY=sk-proj-...        # OpenAI gpt-4o (primary — all agents + quality gate + chat-brief)
+GEMINI_API_KEY=AIzaSy...          # Google Gemini (unused, legacy)
 ```
 
 Never commit these. They're in `.gitignore`.
@@ -471,7 +473,7 @@ if (currentStatus?.status === "approved") {
 
 **Lesson:**
 - When a type enum mixes concerns, split into orthogonal fields
-- `screen_type` = what the viewer sees (7 visual formats)
+- `screen_type` = what the viewer sees (4 visual formats: talking_head, slides, stock_footage, real_world)
 - `narrative_role` = what the screen does in the story (hook, body sections, takeaway, cta)
 - Semi-structured approach: fixed skeleton (hook/takeaway/cta) + free-form body sections named from brief's `core_talking_points`
 - When removing a value from a type enum (like `cta`), add legacy mapping: if `screen_type === "cta"`, set `screen_type = "slides"` and `narrative_role = "cta"`

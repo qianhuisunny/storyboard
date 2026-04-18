@@ -629,14 +629,10 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
 
 Respond with the next JSON message."""
 
-        # IonRouter API call (OpenAI-compatible, uses $50 free credits)
         from openai import OpenAI
-        client = OpenAI(
-            api_key=os.getenv("IONROUTER_API_KEY"),
-            base_url="https://api.ionrouter.io/v1",
-        )
+        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         response = client.chat.completions.create(
-            model="qwen3-30b-a3b",
+            model="gpt-4o",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt},
@@ -645,7 +641,7 @@ Respond with the next JSON message."""
             max_tokens=1000,
         )
 
-        response_text = response.choices[0].message.content
+        response_text = response.choices[0].message.content or ""
 
         # Parse JSON from response
         import re
@@ -1029,13 +1025,14 @@ async def generate_visual(project_id: str, screen_index: int, db: AsyncSession =
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    # Draft stage = stage_id 4
-    snapshot = await repo.get_stage_snapshot(project_id, 4)
-    if not snapshot or not snapshot.human_version:
+    # Draft stage = stage_id 3
+    snapshot = await repo.get_stage_snapshot(project_id, 3)
+    raw_data = snapshot.human_version or snapshot.ai_version if snapshot else None
+    if not raw_data:
         raise HTTPException(status_code=404, detail="No storyboard draft found")
 
-    # human_version is stored as a JSON string in the DB
-    screens_data = json.loads(snapshot.human_version)
+    # human_version / ai_version are stored as JSON strings in the DB
+    screens_data = json.loads(raw_data)
     screens = screens_data if isinstance(screens_data, list) else screens_data.get("screens", [])
     if screen_index < 0 or screen_index >= len(screens):
         raise HTTPException(status_code=400, detail=f"Screen index {screen_index} out of range (0-{len(screens)-1})")
@@ -1062,7 +1059,7 @@ async def generate_visual(project_id: str, screen_index: int, db: AsyncSession =
     on_screen_visual = f"/generated/{project_id}/screen_{screen_index}.png"
     screens[screen_index]["on_screen_visual"] = on_screen_visual
     updated_data = json.dumps(screens if isinstance(screens_data, list) else {**screens_data, "screens": screens})
-    await repo.save_stage_snapshot(project_id, 4, human_version=updated_data)
+    await repo.save_stage_snapshot(project_id, 3, human_version=updated_data)
 
     return {"success": True, "on_screen_visual": on_screen_visual}
 
