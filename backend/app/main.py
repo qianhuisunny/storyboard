@@ -6,6 +6,7 @@ from app.services.orchestrator import orchestrator
 from app.services.edit_tracker import edit_tracker
 from app.services.analytics import analytics_tracker
 from app.services.processing_log import get_store as get_processing_log_store
+from app.services.image_generator import ImageGenerator
 
 from app.utils.json_extractor import extract_json_from_text, convert_to_story_format
 from app.utils.file_extraction import extract_text_from_pdf, extract_text_from_docx, extract_text_from_html
@@ -632,7 +633,7 @@ Respond with the next JSON message."""
         import anthropic
         client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
         response = client.messages.create(
-            model="claude-sonnet-4-20250514",
+            model="claude-sonnet-4-6-20250514",
             system=system_prompt,
             messages=[{"role": "user", "content": user_prompt}],
             temperature=0.7,
@@ -1014,6 +1015,51 @@ async def load_stages(project_id: str, db: AsyncSession = Depends(get_db)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading stages: {str(e)}")
+
+
+@app.post("/api/project/{project_id}/screen/{screen_index}/generate-visual")
+async def generate_visual(project_id: str, screen_index: int, db: AsyncSession = Depends(get_db)):
+    repo = ProjectRepository(db)
+    project = await repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    # Draft stage = stage_id 4
+    snapshot = await repo.get_stage_snapshot(project_id, 4)
+    if not snapshot or not snapshot.human_version:
+        raise HTTPException(status_code=404, detail="No storyboard draft found")
+
+    # human_version is stored as a JSON string in the DB
+    screens_data = json.loads(snapshot.human_version)
+    screens = screens_data if isinstance(screens_data, list) else screens_data.get("screens", [])
+    if screen_index < 0 or screen_index >= len(screens):
+        raise HTTPException(status_code=400, detail=f"Screen index {screen_index} out of range (0-{len(screens)-1})")
+
+    screen = screens[screen_index]
+    visual_direction = screen.get("visual_direction", [])
+    if isinstance(visual_direction, str):
+        visual_direction = [d.strip() for d in visual_direction.split(",") if d.strip()]
+    screen_type = screen.get("screen_type", "slides")
+
+    generator = ImageGenerator()
+    try:
+        image_bytes = await generator.generate(visual_direction, screen_type)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Image generation failed: {str(e)}")
+
+    # Save to frontend/public/generated/
+    output_dir = Path(__file__).parent.parent.parent / "frontend" / "public" / "generated" / project_id
+    output_dir.mkdir(parents=True, exist_ok=True)
+    output_path = output_dir / f"screen_{screen_index}.png"
+    output_path.write_bytes(image_bytes)
+
+    # Update screen's on_screen_visual in the snapshot
+    on_screen_visual = f"/generated/{project_id}/screen_{screen_index}.png"
+    screens[screen_index]["on_screen_visual"] = on_screen_visual
+    updated_data = json.dumps(screens if isinstance(screens_data, list) else {**screens_data, "screens": screens})
+    await repo.save_stage_snapshot(project_id, 4, human_version=updated_data)
+
+    return {"success": True, "on_screen_visual": on_screen_visual}
 
 
 def _scan_legacy_projects(data_dir: Path, user_id: str, exclude_ids: set) -> list:
