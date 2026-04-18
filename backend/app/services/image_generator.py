@@ -41,7 +41,10 @@ class ImageGenerator:
             result = response.json()["data"][0]
             if "b64_json" in result:
                 return base64.b64decode(result["b64_json"])
-            # IonRouter returns a URL — download the image
-            img_response = await client.get(result["url"])
+            # IonRouter returns a relative path — prepend base
+            url = result["url"]
+            if url.startswith("/"):
+                url = "https://api.ionrouter.io" + url
+            img_response = await client.get(url)
             img_response.raise_for_status()
             return img_response.content
