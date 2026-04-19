@@ -73,11 +73,19 @@ frontend/test-results/
 frontend/playwright-report/
 frontend/blob-report/
 
+# Superpowers / Task Master
+.superpowers/
+.taskmaster/
+
+# Backend temp files
+backend/*.log
+backend/plotline.db
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
-.DS_Store
+*.DS_Store
 *.suo
 *.ntvs*
 *.njsproj

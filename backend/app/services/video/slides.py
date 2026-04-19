@@ -408,8 +408,8 @@ def _distribute_elements_across_clip(
 # Path to the system prompt — 5 .parent calls: video → services → app → backend → repo root
 PROMPT_PATH = Path(__file__).parent.parent.parent.parent.parent / "prompts" / "SLIDE_GENERATOR_PROMPT.md"
 
-# Path to the remotion project
-REMOTION_DIR = Path(__file__).parent.parent.parent.parent.parent / "remotion"
+# Path to the remotion project (sibling directory)
+REMOTION_DIR = Path(__file__).parent / "remotion"
 
 
 _CACHED_SYSTEM_PROMPT: Optional[str] = None
