@@ -20,8 +20,16 @@ import httpx
 from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
+import sentry_sdk
 
 load_dotenv()
+
+if os.getenv("SENTRY_DSN"):
+    sentry_sdk.init(
+        dsn=os.getenv("SENTRY_DSN"),
+        traces_sample_rate=0.1,
+        environment=os.getenv("FLY_APP_NAME", "local"),
+    )
 
 
 @asynccontextmanager
@@ -870,9 +878,8 @@ async def get_pipeline_state(project_id: str):
                 "storyboard": state.storyboard,
                 "evidence_research": state.evidence_research,
                 # RESEARCH DISABLED: "research_details": state.research_details,
-                "outline_grade": state.outline_grade,
-                "storyboard_grade": state.storyboard_grade,
-                "cross_stage_grade": state.cross_stage_grade,
+                "outline_eval": state.outline_eval,
+                "storyboard_eval": state.storyboard_eval,
             },
             "revision_history": [r.model_dump() for r in state.revision_history],
         }

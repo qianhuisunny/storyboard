@@ -5,7 +5,7 @@
     "storyboard.StoryboardDirector": "gpt-4o",
     "storyboard.StoryboardWriter": "gpt-4o",
     "storyboard.chat_brief": "gpt-4o",
-    "storyboard.qg_gut_check": "gpt-4o",
+    "storyboard.qg_eval_gut": "gpt-4o",
     "storyboard.qg_flow_coherence": "gpt-4o-mini",
     "storyboard.qg_talking_point_sharpness": "gpt-4o-mini",
     "storyboard.qg_evidence_fitness": "gpt-4o-mini",
@@ -17,7 +17,7 @@
     "storyboard.qg_source_fidelity": "gpt-4o-mini",
     "storyboard.qg_redundancy": "gpt-4o-mini",
     "storyboard.qg_handoff_integrity": "gpt-4o-mini",
-    "eval.judge": "gpt-4o",
+    "offline_bench.judge": "gpt-4o",
     "video.slide_align": "gpt-4o",
     "video.slide_template": "gpt-4o",
     "video.stock_query": "gpt-4o-mini"
