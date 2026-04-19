@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Review & Share — Design A</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Fraunces:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Nunito', system-ui, sans-serif;
+    background: #F4F5F1;
+    color: #1C2118;
+    padding: 40px 60px;
+  }
+
+  .review-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: #fff;
+    border: 1px solid #D9DDD2;
+    border-radius: 10px 10px 0 0;
+    border-bottom: none;
+  }
+  .review-header h2 { font-size: 16px; font-weight: 700; }
+  .review-header .stats {
+    display: flex; gap: 16px; font-size: 12px; color: #626B58;
+  }
+  .actions { display: flex; gap: 8px; }
+  .actions button {
+    padding: 6px 14px; border-radius: 8px; font-size: 12px; font-weight: 600;
+    border: 1px solid #D9DDD2; background: #fff; color: #1C2118; cursor: pointer;
+  }
+  .actions button.primary {
+    background: #2D6A4F; color: #fff; border-color: #2D6A4F;
+  }
+
+  .table-a {
+    width: 100%;
+    border-collapse: collapse;
+    background: #fff;
+    border: 1px solid #D9DDD2;
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+    font-size: 13px;
+  }
+  .table-a thead th {
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+    color: #626B58;
+    background: #F8F8F6;
+    border-bottom: 1px solid #D9DDD2;
+  }
+  .table-a tbody tr {
+    border-bottom: 1px solid #EAECE6;
+    transition: background 0.15s;
+  }
+  .table-a tbody tr:hover { background: #F8FAF6; }
+  .table-a tbody tr:last-child { border-bottom: none; }
+  .table-a td {
+    padding: 12px 14px;
+    vertical-align: top;
+    line-height: 1.5;
+  }
+  .cell-num {
+    font-weight: 700;
+    color: #626B58;
+    text-align: center;
+    width: 36px;
+  }
+  .cell-type { width: 110px; }
+  .type-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 20px; font-size: 11px; font-weight: 600;
+    white-space: nowrap;
+  }
+  .type-talking { background: #E6F2EB; color: #3A6B47; }
+  .type-slides { background: #F7F0E0; color: #7A5C1E; }
+  .type-stock { background: #E8F0E9; color: #3A6B47; }
+  .cell-vo { color: #1C2118; }
+  .cell-dur {
+    text-align: center; width: 54px; color: #626B58;
+  }
+  .cell-img { width: 180px; }
+  .img-thumb {
+    width: 100%; height: auto; aspect-ratio: 16/9; border-radius: 6px; object-fit: cover;
+    border: 1px solid #D9DDD2; display: block;
+  }
+  .img-placeholder {
+    width: 100%; aspect-ratio: 16/9; border-radius: 6px;
+    background: #F0F1EC; display: flex; align-items: center; justify-content: center;
+    color: #C4C9BC; font-size: 22px;
+  }
+</style>
+</head>
+<body>
+
+<div class="review-header">
+  <div><h2>Review & Share</h2></div>
+  <div class="stats">
+    <span>&#9202; 3:24</span>
+    <span>&#9638; 8 panels</span>
+    <span>&#9998; 612 words</span>
+  </div>
+  <div class="actions">
+    <button>Share</button>
+    <button class="primary">Download PDF</button>
+  </div>
+</div>
+<table class="table-a">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>Type</th>
+      <th>Voiceover Script</th>
+      <th>Dur</th>
+      <th>Visual</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td class="cell-num">1</td>
+      <td class="cell-type"><span class="type-badge type-talking">Talking Head</span></td>
+      <td class="cell-vo">"Welcome to our deep dive on how modern teams are rethinking onboarding. Forget the 40-page PDF nobody reads..."</td>
+      <td class="cell-dur">18s</td>
+      <td class="cell-img"><div class="img-placeholder">&#9633;</div></td>
+    </tr>
+    <tr>
+      <td class="cell-num">2</td>
+      <td class="cell-type"><span class="type-badge type-slides">Slides</span></td>
+      <td class="cell-vo">"Here's what the data tells us: 67% of new hires say their onboarding was 'overwhelming' in the first week."</td>
+      <td class="cell-dur">12s</td>
+      <td class="cell-img"><div class="img-placeholder">&#9633;</div></td>
+    </tr>
+    <tr>
+      <td class="cell-num">3</td>
+      <td class="cell-type"><span class="type-badge type-stock">Stock Video</span></td>
+      <td class="cell-vo">"Picture this: day one at a new job. You're handed a laptop, shown a desk, and left to figure out Slack channels on your own."</td>
+      <td class="cell-dur">15s</td>
+      <td class="cell-img"><div class="img-placeholder">&#9633;</div></td>
+    </tr>
+    <tr>
+      <td class="cell-num">4</td>
+      <td class="cell-type"><span class="type-badge type-talking">Talking Head</span></td>
+      <td class="cell-vo">"The fix isn't more content — it's better sequencing. We break the first 90 days into three learning sprints."</td>
+      <td class="cell-dur">14s</td>
+      <td class="cell-img"><div class="img-placeholder">&#9633;</div></td>
+    </tr>
+    <tr>
+      <td class="cell-num">5</td>
+      <td class="cell-type"><span class="type-badge type-slides">Slides</span></td>
+      <td class="cell-vo">"Sprint one: Context. Who are we, what do we do, and why does your role matter? Sprint two: Competence. The tools and workflows you need."</td>
+      <td class="cell-dur">20s</td>
+      <td class="cell-img"><div class="img-placeholder">&#9633;</div></td>
+    </tr>
+    <tr>
+      <td class="cell-num">6</td>
+      <td class="cell-type"><span class="type-badge type-stock">Stock Video</span></td>
+      <td class="cell-vo">"Sprint three: Connection. This is where peer mentoring, cross-team intros, and real projects replace slide decks."</td>
+      <td class="cell-dur">16s</td>
+      <td class="cell-img"><div class="img-placeholder">&#9633;</div></td>
+    </tr>
+    <tr>
+      <td class="cell-num">7</td>
+      <td class="cell-type"><span class="type-badge type-slides">Slides</span></td>
+      <td class="cell-vo">"Companies using sprint-based onboarding see 40% faster time-to-productivity and 2x higher retention at the 6-month mark."</td>
+      <td class="cell-dur">14s</td>
+      <td class="cell-img"><div class="img-placeholder">&#9633;</div></td>
+    </tr>
+    <tr>
+      <td class="cell-num">8</td>
+      <td class="cell-type"><span class="type-badge type-talking">Talking Head</span></td>
+      <td class="cell-vo">"Start small — pick one team, run the 90-day sprint, measure the difference. Link in the description to our template. See you next week."</td>
+      <td class="cell-dur">15s</td>
+      <td class="cell-img"><div class="img-placeholder">&#9633;</div></td>
+    </tr>
+  </tbody>
+</table>
+
+</body>
+</html>

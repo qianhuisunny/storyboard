@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Video Outline — Loading State</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&family=Fraunces:wght@500;600;700&display=swap" rel="stylesheet" />
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Nunito', system-ui, sans-serif;
+    background: #F4F5F1;
+    color: #1C2118;
+  }
+
+  .page {
+    max-width: 960px;
+    margin: 0 auto;
+    background: #fff;
+    min-height: 100vh;
+    border-left: 1px solid #D9DDD2;
+    border-right: 1px solid #D9DDD2;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    padding: 20px 32px;
+    border-bottom: 1px solid #D9DDD2;
+  }
+  .header h2 {
+    font-family: 'Fraunces', serif;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1C2118;
+  }
+  .header p {
+    font-size: 13px;
+    color: #626B58;
+    margin-top: 2px;
+  }
+
+  /* Main area */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 32px 100px;
+    gap: 32px;
+  }
+
+  /* Spinner + status text */
+  .status-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid #D9DDD2;
+    border-top-color: #3A6B47;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .status-text {
+    font-size: 15px;
+    font-weight: 600;
+    color: #1C2118;
+    min-height: 22px;
+  }
+
+  /* Progress steps */
+  .progress-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    border-left: 2px solid #D9DDD2;
+    padding-left: 20px;
+    margin-top: 8px;
+  }
+
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    font-size: 13px;
+    color: #626B58;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.4s ease, transform 0.4s ease;
+  }
+  .step.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .step.active {
+    color: #1C2118;
+    font-weight: 600;
+  }
+  .step.done {
+    color: #626B58;
+  }
+  .step.retry {
+    color: #B8860B;
+  }
+  .step.success {
+    color: #3A6B47;
+    font-weight: 600;
+  }
+
+  .step-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Mini spinner for active step */
+  .step-icon .mini-spin {
+    width: 14px;
+    height: 14px;
+    border: 2px solid #D9DDD2;
+    border-top-color: #3A6B47;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  /* Checkmark */
+  .step-icon .check {
+    color: #3A6B47;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  /* Warning icon */
+  .step-icon .warn {
+    color: #B8860B;
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  .step-note {
+    font-size: 11px;
+    font-style: italic;
+    color: #B8860B;
+    margin-left: 2px;
+  }
+
+  /* Footer button area */
+  .footer {
+    padding: 16px 32px;
+    border-top: 1px solid #D9DDD2;
+    display: flex;
+    justify-content: flex-end;
+  }
+
+  .btn-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 24px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    background: #3A6B47;
+    color: #fff;
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+  .btn-loading .btn-spin {
+    width: 14px;
+    height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+</style>
+</head>
+<body>
+
+<div class="page">
+  <div class="header">
+    <h2>Video Outline</h2>
+    <p id="header-subtitle">Generating your outline...</p>
+  </div>
+
+  <div class="main">
+    <div class="status-area">
+      <div class="spinner"></div>
+      <div class="status-text" id="status-text">Generating outline...</div>
+    </div>
+
+    <div class="progress-steps" id="steps">
+      <!-- Steps injected by JS -->
+    </div>
+  </div>
+
+  <div class="footer">
+    <button class="btn-loading" disabled>
+      <div class="btn-spin"></div>
+      <span id="btn-text">Generating outline...</span>
+    </button>
+  </div>
+</div>
+
+<script>
+const STEPS = [
+  { id: "gen",     text: "Generating outline...",                    type: "normal" },
+  { id: "review",  text: "Reviewing quality...",                     type: "normal" },
+  { id: "retry",   text: "Score 5.8 — refining with feedback...",    type: "retry",  note: "(retry needed)" },
+  { id: "review2", text: "Reviewing revised outline...",             type: "normal" },
+  { id: "pass",    text: "Quality check passed: 7.8/10",            type: "success" },
+];
+
+const TIMINGS = [0, 2500, 5000, 8000, 10500];
+
+const stepsEl = document.getElementById("steps");
+const statusEl = document.getElementById("status-text");
+const btnTextEl = document.getElementById("btn-text");
+const subtitleEl = document.getElementById("header-subtitle");
+
+// Create step DOM elements
+STEPS.forEach((step) => {
+  const div = document.createElement("div");
+  div.className = "step";
+  div.id = `step-${step.id}`;
+  div.innerHTML = `
+    <div class="step-icon" id="icon-${step.id}"></div>
+    <span>${step.text}</span>
+    ${step.note ? `<span class="step-note">${step.note}</span>` : ""}
+  `;
+  stepsEl.appendChild(div);
+});
+
+function setStepState(id, state) {
+  const stepEl = document.getElementById(`step-${id}`);
+  const iconEl = document.getElementById(`icon-${id}`);
+  if (!stepEl || !iconEl) return;
+
+  stepEl.classList.add("visible");
+  stepEl.classList.remove("active", "done", "retry", "success");
+
+  if (state === "active") {
+    stepEl.classList.add("active");
+    iconEl.innerHTML = '<div class="mini-spin"></div>';
+  } else if (state === "done") {
+    stepEl.classList.add("done");
+    iconEl.innerHTML = '<span class="check">&#10003;</span>';
+  } else if (state === "retry-active") {
+    stepEl.classList.add("retry", "active");
+    iconEl.innerHTML = '<div class="mini-spin" style="border-top-color:#B8860B"></div>';
+  } else if (state === "retry-done") {
+    stepEl.classList.add("retry");
+    iconEl.innerHTML = '<span class="warn">&#9888;</span>';
+  } else if (state === "success") {
+    stepEl.classList.add("success");
+    iconEl.innerHTML = '<span class="check">&#10003;</span>';
+  }
+}
+
+function runSequence() {
+  // Step 1: Generating outline
+  setTimeout(() => {
+    setStepState("gen", "active");
+    statusEl.textContent = "Generating outline...";
+    btnTextEl.textContent = "Generating outline...";
+  }, TIMINGS[0]);
+
+  // Step 2: Reviewing quality
+  setTimeout(() => {
+    setStepState("gen", "done");
+    setStepState("review", "active");
+    statusEl.textContent = "Reviewing quality...";
+    btnTextEl.textContent = "Reviewing quality...";
+  }, TIMINGS[1]);
+
+  // Step 3: Retry — score too low
+  setTimeout(() => {
+    setStepState("review", "done");
+    setStepState("retry", "retry-active");
+    statusEl.textContent = "Score 5.8 — refining with feedback...";
+    btnTextEl.textContent = "Refining outline...";
+  }, TIMINGS[2]);
+
+  // Step 4: Reviewing revised outline
+  setTimeout(() => {
+    setStepState("retry", "retry-done");
+    setStepState("review2", "active");
+    statusEl.textContent = "Reviewing revised outline...";
+    btnTextEl.textContent = "Reviewing quality...";
+  }, TIMINGS[3]);
+
+  // Step 5: Passed
+  setTimeout(() => {
+    setStepState("review2", "done");
+    setStepState("pass", "success");
+    statusEl.textContent = "Quality check passed: 7.8/10";
+    btnTextEl.textContent = "Done!";
+    subtitleEl.textContent = "Your outline is ready for review.";
+  }, TIMINGS[4]);
+
+  // Restart loop
+  setTimeout(() => {
+    // Reset all steps
+    document.querySelectorAll(".step").forEach(el => {
+      el.classList.remove("visible", "active", "done", "retry", "success");
+    });
+    document.querySelectorAll(".step-icon").forEach(el => {
+      el.innerHTML = "";
+    });
+    statusEl.textContent = "Generating outline...";
+    btnTextEl.textContent = "Generating outline...";
+    subtitleEl.textContent = "Generating your outline...";
+    runSequence();
+  }, TIMINGS[4] + 3000);
+}
+
+runSequence();
+</script>
+
+</body>
+</html>

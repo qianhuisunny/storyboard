@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quality Score — Right-side + Retry Flow</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #F5F5F3;
+    color: #1a1a1a;
+    display: flex;
+    height: 100vh;
+  }
+
+  /* ---- Sidebar ---- */
+  .sidebar {
+    width: 200px;
+    background: #fff;
+    border-right: 1px solid #e5e5e3;
+    padding: 20px 0;
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .sidebar-brand {
+    padding: 0 16px 20px;
+    font-size: 18px;
+    font-weight: 700;
+    color: #1C2118;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .sidebar-brand .badge {
+    font-size: 9px; font-weight: 600; color: #666;
+    border: 1px solid #ddd; padding: 2px 6px; border-radius: 3px;
+    text-transform: uppercase; letter-spacing: 0.03em;
+  }
+  .sidebar-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: #999; padding: 0 16px 8px;
+  }
+  .sidebar-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 16px; font-size: 13px; color: #333;
+    border-left: 3px solid transparent;
+  }
+  .sidebar-item.active { background: #f5f5f3; border-left-color: #2D6A4F; font-weight: 600; }
+  .check {
+    width: 22px; height: 22px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; flex-shrink: 0;
+  }
+  .check.green { background: #2D6A4F; color: #fff; }
+  .check.gray { background: #e5e5e3; color: #888; }
+  .stage-info { display: flex; flex-direction: column; }
+  .stage-status { font-size: 11px; color: #888; font-weight: 400; }
+  .sidebar-bottom { margin-top: auto; padding: 16px; font-size: 12px; color: #888; }
+
+  /* ---- Main ---- */
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .topnav {
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 12px 24px; gap: 20px; font-size: 13px; color: #666;
+    border-bottom: 1px solid #f0f0ee; background: #fff;
+  }
+  .stage-area { flex: 1; display: flex; flex-direction: column; background: #fff; overflow: hidden; }
+
+  /* Stage header */
+  .stage-header {
+    padding: 20px 40px 12px;
+    display: flex; justify-content: space-between; align-items: flex-start;
+  }
+  .stage-header h2 { font-size: 22px; font-weight: 600; color: #1C2118; }
+  .stage-header .subtitle { font-size: 14px; color: #888; margin-top: 2px; }
+  .view-ai-btn {
+    display: flex; align-items: center; gap: 6px;
+    padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px;
+    font-size: 13px; color: #555; cursor: pointer; background: #fff;
+  }
+
+  /* Stage body */
+  .stage-body { flex: 1; overflow-y: auto; padding: 0 40px 24px; }
+
+  /* ---- Description row + Score on right ---- */
+  .desc-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .desc-text {
+    flex: 1;
+    font-size: 14px;
+    color: #888;
+    line-height: 1.6;
+  }
+
+  /* ---- Quality Score (right side, compact) ---- */
+  .qc {
+    flex-shrink: 0;
+    border: 1px solid #e5e5e3;
+    border-radius: 8px;
+    width: 280px;
+    font-size: 12px;
+    overflow: hidden;
+    transition: all 0.2s;
+  }
+  .qc .qc-header {
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 8px;
+    cursor: pointer;
+    transition: background 0.1s;
+  }
+  .qc .qc-header:hover { background: #fafaf8; }
+  .qc .qc-score { font-size: 13px; font-weight: 600; color: #333; white-space: nowrap; }
+  .qc .qc-gut {
+    flex: 1; font-size: 11px; color: #777; font-style: italic;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .qc .qc-chevron { color: #bbb; font-size: 11px; transition: transform 0.2s; }
+
+  .qc .qc-body { border-top: 1px solid #f0f0ee; padding: 10px 12px; }
+  .qc .qc-gut-full { font-size: 12px; color: #555; font-style: italic; line-height: 1.5; margin-bottom: 10px; }
+
+  .qc .dim-row {
+    display: flex; align-items: baseline; gap: 6px;
+    font-size: 11px; padding: 2px 0;
+  }
+  .qc .dim-name { color: #666; flex: 1; }
+  .qc .dim-score { font-weight: 600; width: 24px; text-align: right; }
+  .qc .dim-feedback-block { margin-top: 8px; padding-top: 8px; border-top: 1px solid #f0f0ee; }
+  .qc .dim-fb-item { margin-bottom: 6px; }
+  .qc .dim-fb-item .fb-label { font-weight: 600; color: #333; font-size: 11px; }
+  .qc .dim-fb-item .fb-text { color: #777; font-size: 11px; line-height: 1.4; margin-top: 1px; }
+
+  .sg { color: #2d7a3a; }
+  .sy { color: #b8860b; }
+  .sr { color: #c53030; }
+
+  /* Loading state for score */
+  .qc-loading {
+    flex-shrink: 0;
+    border: 1px solid #e5e5e3;
+    border-radius: 8px;
+    width: 280px;
+    padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: #888;
+  }
+  .spinner {
+    width: 14px; height: 14px;
+    border: 2px solid #e5e5e3; border-top-color: #2D6A4F;
+    border-radius: 50%; animation: spin 0.8s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Refining state */
+  .qc-refining {
+    flex-shrink: 0;
+    border: 1px solid #e5d5a0;
+    background: #fefcf3;
+    border-radius: 8px;
+    width: 280px;
+    padding: 10px 12px;
+    font-size: 12px;
+  }
+  .qc-refining .refine-header {
+    display: flex; align-items: center; gap: 8px; color: #92400e;
+    font-weight: 500; margin-bottom: 4px;
+  }
+  .qc-refining .refine-detail { color: #b8860b; font-size: 11px; font-style: italic; }
+
+  /* ---- Outline container ---- */
+  .outline-container {
+    border: 1px solid #e5e5e3; border-radius: 10px; overflow: hidden;
+  }
+  .outline-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 20px; border-bottom: 1px solid #e5e5e3;
+  }
+  .outline-header h3 {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.04em; color: #999;
+  }
+  .outline-header .sparkle { color: #bbb; cursor: pointer; font-size: 16px; }
+  .section-row { padding: 20px; border-bottom: 1px solid #f0f0ee; }
+  .section-row:last-child { border-bottom: none; }
+  .sec-top { display: flex; align-items: baseline; gap: 12px; margin-bottom: 4px; }
+  .sec-num { font-size: 22px; font-weight: 300; color: #ccc; }
+  .sec-title { font-size: 16px; font-weight: 600; color: #1C2118; }
+  .sec-dur { font-size: 13px; color: #999; font-family: monospace; margin-top: 2px; margin-left: 34px; }
+  .sec-purpose { font-size: 14px; color: #555; line-height: 1.5; margin-top: 6px; margin-left: 34px; }
+  .sec-tps { font-size: 13px; color: #666; line-height: 1.6; margin-top: 6px; margin-left: 34px; }
+
+  /* Footer */
+  .stage-footer {
+    padding: 12px 40px; border-top: 1px solid #e5e5e3;
+    background: #fafaf8; display: flex; justify-content: flex-end;
+  }
+  .btn-primary {
+    display: flex; align-items: center; gap: 6px;
+    padding: 9px 18px; background: #2D6A4F; color: #fff;
+    border: none; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer;
+  }
+
+  /* ---- Scenario selector ---- */
+  .scenario-bar {
+    position: fixed; top: 12px; right: 24px; z-index: 100;
+    display: flex; gap: 4px; background: #1C2118;
+    padding: 4px; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .sc-btn {
+    padding: 6px 12px; font-size: 11px; font-weight: 600;
+    color: #999; border: none; background: none;
+    border-radius: 5px; cursor: pointer; transition: all 0.15s;
+  }
+  .sc-btn:hover { color: #fff; }
+  .sc-btn.active { background: #2D6A4F; color: #fff; }
+
+  .scenario-content { display: none; }
+  .scenario-content.active { display: block; }
+</style>
+</head>
+<body>
+
+<div class="scenario-bar">
+  <button class="sc-btn active" onclick="showScenario('pass')">① Pass</button>
+  <button class="sc-btn" onclick="showScenario('grading')">② Grading...</button>
+  <button class="sc-btn" onclick="showScenario('refining')">③ Refining...</button>
+  <button class="sc-btn" onclick="showScenario('retried')">④ Pass after retry</button>
+  <button class="sc-btn" onclick="showScenario('failed')">⑤ All failed</button>
+</div>
+
+<!-- Sidebar -->
+<div class="sidebar">
+  <div class="sidebar-brand">Plotline <span class="badge">Research Preview</span></div>
+  <div class="sidebar-label">Stages</div>
+  <div class="sidebar-item">
+    <div class="check green">✓</div>
+    <div class="stage-info"><span>Video Briefing</span><span class="stage-status">Approved</span></div>
+  </div>
+  <div class="sidebar-item active">
+    <div class="check green">✓</div>
+    <div class="stage-info"><span>Video Outline</span><span class="stage-status">Approved</span></div>
+  </div>
+  <div class="sidebar-item">
+    <div class="check green">✓</div>
+    <div class="stage-info"><span>Storyboard Draft</span><span class="stage-status">Approved</span></div>
+  </div>
+  <div class="sidebar-item">
+    <div class="check gray">4</div>
+    <div class="stage-info"><span>Review and Share</span><span class="stage-status">Needs review</span></div>
+  </div>
+  <div class="sidebar-bottom">📋 My Projects</div>
+</div>
+
+<div class="main">
+  <div class="topnav">
+    <a href="#" style="text-decoration:none; color:#666;">My Projects</a>
+    <a href="#" style="text-decoration:none; color:#666;">📊 Analytics</a>
+    <a href="#" style="text-decoration:none; color:#666;">🧪 Eval</a>
+    <span style="width:28px; height:28px; background:#ddd; border-radius:50%; display:inline-block;"></span>
+  </div>
+
+  <div class="stage-area">
+    <div class="stage-header">
+      <div>
+        <h2>Video Outline</h2>
+        <div class="subtitle">Review the evidence research results, then continue.</div>
+      </div>
+      <button class="view-ai-btn">☐ View AI Original</button>
+    </div>
+
+    <div class="stage-body">
+
+      <!-- ====== SCENARIO: PASS ====== -->
+      <div class="scenario-content active" id="sc-pass">
+        <div class="desc-row">
+          <p class="desc-text">Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.</p>
+          <div class="qc">
+            <div class="qc-header" onclick="toggleBody(this)">
+              <span class="qc-score">Quality: <span class="sg">8.1</span>/10</span>
+              <span class="qc-gut">"I'd choose this over a generic explainer."</span>
+              <span class="qc-chevron">▸</span>
+            </div>
+            <div class="qc-body" style="display:none;">
+              <div class="qc-gut-full">"Clear hook — I'd choose this over a generic explainer on the same topic. The progression from problem to mechanism to application feels like the video respects my time."</div>
+              <div class="dim-row"><span class="dim-name">Flow Coherence</span><span class="dim-score sg">9</span></div>
+              <div class="dim-row"><span class="dim-name">Talking Point Sharpness</span><span class="dim-score sy">7</span></div>
+              <div class="dim-row"><span class="dim-name">Evidence Fitness</span><span class="dim-score sg">8</span></div>
+              <div class="dim-row"><span class="dim-name">POV Alignment</span><span class="dim-score sg">8</span></div>
+              <div class="dim-row"><span class="dim-name">Section Necessity</span><span class="dim-score sg">9</span></div>
+              <div class="dim-feedback-block">
+                <div class="dim-fb-item">
+                  <span class="fb-label">Sharpness <span class="sy">7</span></span>
+                  <div class="fb-text">Section 4's talking points read like topic labels, not explanatory steps.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== SCENARIO: GRADING (loading) ====== -->
+      <div class="scenario-content" id="sc-grading">
+        <div class="desc-row">
+          <p class="desc-text">Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.</p>
+          <div class="qc-loading">
+            <span class="spinner"></span>
+            <span>Reviewing quality...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== SCENARIO: REFINING (failed, retrying) ====== -->
+      <div class="scenario-content" id="sc-refining">
+        <div class="desc-row">
+          <p class="desc-text">Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.</p>
+          <div class="qc-refining">
+            <div class="refine-header">
+              <span class="spinner" style="border-top-color:#b8860b;"></span>
+              Refining... scored 5.8, improving
+            </div>
+            <div class="refine-detail">"Opening feels like a syllabus — regenerating with feedback"</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== SCENARIO: PASSED AFTER RETRY ====== -->
+      <div class="scenario-content" id="sc-retried">
+        <div class="desc-row">
+          <p class="desc-text">Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.</p>
+          <div class="qc">
+            <div class="qc-header" onclick="toggleBody(this)">
+              <span class="qc-score">Quality: <span class="sy">7.2</span>/10</span>
+              <span class="qc-gut" style="font-size:10px;">attempt 2 · "Clearer after revision"</span>
+              <span class="qc-chevron">▸</span>
+            </div>
+            <div class="qc-body" style="display:none;">
+              <div class="qc-gut-full">"The revised version is clearer — I'd watch it, though Section 3 still packs too much. The hook and payoff are strong."</div>
+              <div class="dim-row"><span class="dim-name">Flow Coherence</span><span class="dim-score sg">8</span></div>
+              <div class="dim-row"><span class="dim-name">Talking Point Sharpness</span><span class="dim-score sy">6</span></div>
+              <div class="dim-row"><span class="dim-name">Evidence Fitness</span><span class="dim-score sy">7</span></div>
+              <div class="dim-row"><span class="dim-name">POV Alignment</span><span class="dim-score sg">8</span></div>
+              <div class="dim-row"><span class="dim-name">Section Necessity</span><span class="dim-score sy">7</span></div>
+              <div class="dim-feedback-block">
+                <div class="dim-fb-item">
+                  <span class="fb-label">Sharpness <span class="sy">6</span></span>
+                  <div class="fb-text">Section 4 still uses generic labels. "Benefits" is a label, not a claim.</div>
+                </div>
+                <div class="dim-fb-item">
+                  <span class="fb-label">Necessity <span class="sy">7</span></span>
+                  <div class="fb-text">Sections 3 and 4 could potentially merge without losing value.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== SCENARIO: ALL FAILED ====== -->
+      <div class="scenario-content" id="sc-failed">
+        <div class="desc-row">
+          <p class="desc-text">Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.</p>
+          <div class="qc" style="border-color: #e8c4c4;">
+            <div class="qc-header" onclick="toggleBody(this)">
+              <span class="qc-score">Quality: <span class="sr">5.4</span>/10</span>
+              <span class="qc-gut" style="font-size:10px;">best of 3 · "Feels like a syllabus"</span>
+              <span class="qc-chevron">▸</span>
+            </div>
+            <div class="qc-body" style="display:none;">
+              <div class="qc-gut-full">"The opening feels like a course syllabus, not something I'd choose over a competitor's take. The sections list topics rather than building an argument."</div>
+              <div class="dim-row"><span class="dim-name">Flow Coherence</span><span class="dim-score sr">5</span></div>
+              <div class="dim-row"><span class="dim-name">Talking Point Sharpness</span><span class="dim-score sr">4</span></div>
+              <div class="dim-row"><span class="dim-name">Evidence Fitness</span><span class="dim-score sy">6</span></div>
+              <div class="dim-row"><span class="dim-name">POV Alignment</span><span class="dim-score sy">7</span></div>
+              <div class="dim-row"><span class="dim-name">Section Necessity</span><span class="dim-score sr">5</span></div>
+              <div class="dim-feedback-block">
+                <div class="dim-fb-item">
+                  <span class="fb-label">Sharpness <span class="sr">4</span></span>
+                  <div class="fb-text">Most talking points are topic labels. "Overview of X" appears 3 times.</div>
+                </div>
+                <div class="dim-fb-item">
+                  <span class="fb-label">Flow <span class="sr">5</span></span>
+                  <div class="fb-text">Sections 2-4 could be in any order. No cognitive progression.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ====== OUTLINE (shared across all scenarios) ====== -->
+      <div class="outline-container">
+        <div class="outline-header">
+          <h3>Video Outline</h3>
+          <span class="sparkle">✨</span>
+        </div>
+        <div class="section-row">
+          <div class="sec-top">
+            <span class="sec-num">1</span>
+            <span class="sec-title">The Invisible Career Ceiling</span>
+          </div>
+          <div class="sec-dur">0:45–1:15</div>
+          <div class="sec-purpose">Establish that female tech leaders face a specific type of professional isolation that creates career barriers invisible to male colleagues and traditional diversity initiatives.</div>
+          <div class="sec-tps">
+            - Women in tech leadership often find themselves as the only woman in critical meetings, lacking peers who share similar navigation experiences<br>
+            - Traditional mentorship and skill development programs miss gender-specific workplace dynamics that significantly impact career trajectory<br>
+            - This isolation compounds normal leadership challenges, creating barriers that remain invisible to male colleagues and standard diversity metrics
+          </div>
+        </div>
+        <div class="section-row">
+          <div class="sec-top">
+            <span class="sec-num">2</span>
+            <span class="sec-title">What Male Allies Can AND Cannot Do</span>
+          </div>
+          <div class="sec-dur">1:15–2:00</div>
+          <div class="sec-purpose">Challenge the assumption that gender-neutral mentorship and skill development can address women's leadership advancement, revealing the irreplaceable value of female peer networks.</div>
+          <div class="sec-tps" style="opacity:0.4;">
+            - Open up opportunities and sponsorships, highlight female leaders...<br>
+            - Some negotiation barriers (e.g., pregnancy, assertiveness, etc.)...
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage-footer">
+      <button class="btn-primary">✓ Continue to Storyboard Draft</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function showScenario(id) {
+  document.querySelectorAll('.scenario-content').forEach(el => el.classList.remove('active'));
+  document.getElementById('sc-' + id).classList.add('active');
+  document.querySelectorAll('.sc-btn').forEach(btn => btn.classList.remove('active'));
+  event.target.classList.add('active');
+}
+function toggleBody(header) {
+  const body = header.nextElementSibling;
+  const chevron = header.querySelector('.qc-chevron');
+  if (body.style.display === 'none') {
+    body.style.display = 'block';
+    chevron.textContent = '▾';
+  } else {
+    body.style.display = 'none';
+    chevron.textContent = '▸';
+  }
+}
+</script>
+
+</body>
+</html>
