@@ -51,7 +51,7 @@ class GutScore:
 
 
 @dataclass
-class GradeResult:
+class QualityEvalResult:
     passed: bool
     gut: GutScore
     dimensions: Optional[list[DimensionScore]]
@@ -107,7 +107,7 @@ class QualityGate:
             f"Point of view: {point_of_view}"
         )
 
-    def _call_judge(self, user_prompt: str, label: str = "judge") -> dict:
+    def _call_eval(self, user_prompt: str, label: str = "eval") -> dict:
         return llm.chat_json(
             category="storyboard",
             label=f"qg_{label}",
@@ -118,8 +118,8 @@ class QualityGate:
             max_tokens=500,
         )
 
-    async def _async_call_judge(self, user_prompt: str, label: str = "judge") -> dict:
-        return await asyncio.to_thread(self._call_judge, user_prompt, label)
+    async def _async_call_eval(self, user_prompt: str, label: str = "eval") -> dict:
+        return await asyncio.to_thread(self._call_eval, user_prompt, label)
 
     def _format_output(self, stage: str, output: Any) -> str:
         if isinstance(output, list):
@@ -146,13 +146,13 @@ class QualityGate:
             f"## Brief Context\n{brief_ctx}\n\n"
             f"{content_block}"
         )
-        result = await self._async_call_judge(prompt, label="gut_check")
+        result = await self._async_call_eval(prompt, label="eval_gut")
         return GutScore(
             score=float(result.get("score", 5)),
             feedback=result.get("feedback", ""),
         )
 
-    async def _judge_dimension(
+    async def _eval_dimension(
         self,
         stage: str,
         brief: dict,
@@ -179,7 +179,7 @@ class QualityGate:
             f"## Brief Context\n{brief_ctx}\n\n"
             f"{content_block}"
         )
-        result = await self._async_call_judge(prompt, label=dim_name)
+        result = await self._async_call_eval(prompt, label=dim_name)
         return DimensionScore(
             dimension=dim_name,
             score=float(result.get("score", 5)),
@@ -192,11 +192,11 @@ class QualityGate:
         brief: dict,
         output: Any,
         outline: Any = None,
-    ) -> GradeResult:
+    ) -> QualityEvalResult:
         gut = await self._gut_check(stage, brief, output, outline=outline)
 
         if gut.score < self.threshold:
-            return GradeResult(
+            return QualityEvalResult(
                 passed=False,
                 gut=gut,
                 dimensions=None,
@@ -207,7 +207,7 @@ class QualityGate:
 
         dimensions_def = STAGE_DIMENSIONS[stage]
         dim_scores = await asyncio.gather(*[
-            self._judge_dimension(
+            self._eval_dimension(
                 stage, brief, output, name, desc, outline=outline
             )
             for name, desc in dimensions_def
@@ -216,7 +216,7 @@ class QualityGate:
         avg_dim = mean([d.score for d in dim_scores])
         composite = (gut.score + avg_dim) / 2
 
-        return GradeResult(
+        return QualityEvalResult(
             passed=composite >= self.threshold,
             gut=gut,
             dimensions=dim_scores,
@@ -225,15 +225,15 @@ class QualityGate:
             total_attempts=0,
         )
 
-    def format_feedback_for_retry(self, grade: GradeResult, attempt: int) -> str:
+    def format_feedback_for_retry(self, result: QualityEvalResult, attempt: int) -> str:
         lines = [
             f"--- QUALITY REVIEW FEEDBACK (attempt {attempt + 1} of {self.max_attempts}) ---",
-            f"Your previous output scored {grade.composite_score}/10. A senior reviewer provided this feedback:",
+            f"Your previous output scored {result.composite_score}/10. A senior reviewer provided this feedback:",
             "",
-            f"[Watchability - {grade.gut.score:.0f}/10]: \"{grade.gut.feedback}\"",
+            f"[Watchability - {result.gut.score:.0f}/10]: \"{result.gut.feedback}\"",
         ]
-        if grade.dimensions:
-            for d in grade.dimensions:
+        if result.dimensions:
+            for d in result.dimensions:
                 lines.append(f"[{d.dimension} - {d.score:.0f}/10]: \"{d.feedback}\"")
         lines.append("")
         lines.append("Please revise your output addressing this feedback.")
@@ -245,10 +245,10 @@ class QualityGate:
         state: Any,
         stage: str,
         outline_for_cross_stage: Any = None,
-    ) -> tuple[Any, GradeResult]:
+    ) -> tuple[Any, QualityEvalResult]:
         brief = state.story_brief or {}
         best_output = None
-        best_grade = None
+        best_result = None
         feedback_block = ""
 
         for attempt in range(self.max_attempts):
@@ -261,19 +261,19 @@ class QualityGate:
                 output = agent.run(state)
 
             outline_ref = outline_for_cross_stage if stage == "cross_stage" else None
-            grade = await self.evaluate(stage, brief, output, outline=outline_ref)
-            grade.attempt = attempt + 1
-            grade.total_attempts = self.max_attempts
+            eval_result = await self.evaluate(stage, brief, output, outline=outline_ref)
+            eval_result.attempt = attempt + 1
+            eval_result.total_attempts = self.max_attempts
 
-            if best_grade is None or grade.composite_score > best_grade.composite_score:
+            if best_result is None or eval_result.composite_score > best_result.composite_score:
                 best_output = output
-                best_grade = grade
+                best_result = eval_result
 
-            if grade.passed:
-                return output, grade
+            if eval_result.passed:
+                return output, eval_result
 
             if attempt < self.max_attempts - 1:
-                feedback_block = self.format_feedback_for_retry(grade, attempt)
+                feedback_block = self.format_feedback_for_retry(eval_result, attempt)
 
-        best_grade.passed = False
-        return best_output, best_grade
+        best_result.passed = False
+        return best_output, best_result
