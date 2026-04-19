@@ -52,6 +52,12 @@ async def health_check():
     return {"status": "healthy", "service": "backend"}
 
 
+@app.get("/api/llm-stats")
+async def llm_stats():
+    from app.infra.llm_gateway import llm
+    return {"summary": llm.summary(), "stats": llm._stats}
+
+
 @app.get("/api/test")
 async def test_endpoint():
     return {
@@ -629,19 +635,16 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
 
 Respond with the next JSON message."""
 
-        from openai import OpenAI
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        response = client.chat.completions.create(
+        from app.infra.llm_gateway import llm
+        response_text = llm.chat(
+            category="storyboard",
+            label="chat_brief",
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
             model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
             temperature=0.7,
             max_tokens=1000,
         )
-
-        response_text = response.choices[0].message.content or ""
 
         # Parse JSON from response
         import re

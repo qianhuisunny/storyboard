@@ -3,17 +3,16 @@ Base Agent - Foundation class for all storyboard agents.
 Handles prompt loading and LLM calls with timing capture for analytics.
 """
 
-import os
 import json
 import re
 import time
 from pathlib import Path
 from typing import Optional, Any, Tuple, Dict
-from openai import OpenAI
 from dotenv import load_dotenv
-import anthropic
 
 load_dotenv()
+
+from app.infra.llm_gateway import llm
 
 # Import analytics tracker (optional - may not exist in all environments)
 try:
@@ -39,10 +38,7 @@ class BaseAgent:
     default_model: str = "gpt-4o"  # Can be overridden per-instance
 
     def __init__(self):
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        self.anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY") or "dummy")
         self.system_prompt = self._load_prompt()
-        # Accumulated token usage across all call_llm() invocations
         self.total_usage = {"input_tokens": 0, "output_tokens": 0}
 
     def _load_prompt(self) -> str:
@@ -70,51 +66,24 @@ class BaseAgent:
         max_tokens: int = 4000,
         system_prompt_override: str = "",
     ) -> str:
-        """
-        Make a call to the LLM with the system prompt and user message.
+        model = model or self.default_model
+        sys_prompt = system_prompt_override if system_prompt_override else self.system_prompt
+        label = self.__class__.__name__
 
-        Args:
-            user_prompt: The user message/input
-            model: OpenAI model to use
-            temperature: Sampling temperature
-            max_tokens: Maximum tokens in response
-            system_prompt_override: If provided, use this instead of the agent's default system prompt
-
-        Returns:
-            The assistant's response text
-        """
-        try:
-            model = model or self.default_model
-            sys_prompt = system_prompt_override if system_prompt_override else self.system_prompt
-
-            if model.startswith("claude"):
-                response = self.anthropic_client.messages.create(
-                    model=model,
-                    system=sys_prompt,
-                    messages=[{"role": "user", "content": user_prompt}],
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-                if hasattr(response, "usage") and response.usage:
-                    self.total_usage["input_tokens"] += response.usage.input_tokens
-                    self.total_usage["output_tokens"] += response.usage.output_tokens
-                return response.content[0].text
-            else:
-                response = self.client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": sys_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                )
-                if hasattr(response, "usage") and response.usage:
-                    self.total_usage["input_tokens"] += response.usage.prompt_tokens
-                    self.total_usage["output_tokens"] += response.usage.completion_tokens
-                return response.choices[0].message.content or ""
-        except Exception as e:
-            raise RuntimeError(f"LLM call failed in {self.__class__.__name__}: {str(e)}")
+        usage = {}
+        text = llm.chat(
+            category="storyboard",
+            label=label,
+            system_prompt=sys_prompt,
+            user_prompt=user_prompt,
+            model=model,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            usage_out=usage,
+        )
+        self.total_usage["input_tokens"] += usage.get("input_tokens", 0)
+        self.total_usage["output_tokens"] += usage.get("output_tokens", 0)
+        return text
 
     def call_llm_with_timing(
         self,
@@ -158,7 +127,7 @@ class BaseAgent:
             # Use streaming to capture first token timing
             response_chunks = []
 
-            stream = self.client.chat.completions.create(
+            stream = llm.client.chat.completions.create(
                 model=model,
                 messages=[
                     {"role": "system", "content": self.system_prompt},
@@ -200,7 +169,10 @@ class BaseAgent:
             return full_response, timing_metrics
 
         except Exception as e:
-            raise RuntimeError(f"LLM call failed in {self.__class__.__name__}: {str(e)}")
+            err_str = str(e)
+            if "429" in err_str or "rate" in err_str.lower():
+                print(f"[RATE LIMIT] {self.__class__.__name__}: {err_str}")
+            raise RuntimeError(f"LLM call failed in {self.__class__.__name__}: {err_str}")
 
     def run(self, state: Any, **kwargs) -> Any:
         """

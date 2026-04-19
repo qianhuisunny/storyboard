@@ -1,12 +1,11 @@
 import asyncio
 import json
-import os
 from dataclasses import dataclass
 from pathlib import Path
 from statistics import mean
 from typing import Any, Optional
 
-from openai import OpenAI
+from app.infra.llm_gateway import llm
 
 
 PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
@@ -84,7 +83,6 @@ class QualityGate:
         self.model = model
         self.threshold = threshold
         self.max_attempts = max_attempts
-        self.client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
         self.system_prompt = self._load_prompt()
 
     def _load_prompt(self) -> str:
@@ -109,25 +107,19 @@ class QualityGate:
             f"Point of view: {point_of_view}"
         )
 
-    def _call_judge(self, user_prompt: str) -> dict:
-        response = self.client.chat.completions.create(
+    def _call_judge(self, user_prompt: str, label: str = "judge") -> dict:
+        return llm.chat_json(
+            category="storyboard",
+            label=f"qg_{label}",
+            system_prompt=self.system_prompt,
+            user_prompt=user_prompt,
             model=self.model,
-            messages=[
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
             temperature=0.2,
             max_tokens=500,
         )
-        text = response.choices[0].message.content.strip()
-        if "```json" in text:
-            text = text.split("```json")[1].split("```")[0].strip()
-        elif "```" in text:
-            text = text.split("```")[1].split("```")[0].strip()
-        return json.loads(text)
 
-    async def _async_call_judge(self, user_prompt: str) -> dict:
-        return await asyncio.to_thread(self._call_judge, user_prompt)
+    async def _async_call_judge(self, user_prompt: str, label: str = "judge") -> dict:
+        return await asyncio.to_thread(self._call_judge, user_prompt, label)
 
     def _format_output(self, stage: str, output: Any) -> str:
         if isinstance(output, list):
@@ -154,7 +146,7 @@ class QualityGate:
             f"## Brief Context\n{brief_ctx}\n\n"
             f"{content_block}"
         )
-        result = await self._async_call_judge(prompt)
+        result = await self._async_call_judge(prompt, label="gut_check")
         return GutScore(
             score=float(result.get("score", 5)),
             feedback=result.get("feedback", ""),
@@ -187,7 +179,7 @@ class QualityGate:
             f"## Brief Context\n{brief_ctx}\n\n"
             f"{content_block}"
         )
-        result = await self._async_call_judge(prompt)
+        result = await self._async_call_judge(prompt, label=dim_name)
         return DimensionScore(
             dimension=dim_name,
             score=float(result.get("score", 5)),

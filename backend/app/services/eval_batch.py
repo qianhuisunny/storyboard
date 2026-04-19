@@ -48,26 +48,16 @@ def _get_llm_model() -> str:
 
 def _call_judge_llm(system_prompt: str, user_prompt: str) -> dict:
     """Call LLM for judge evaluation, return parsed JSON."""
-    from openai import OpenAI
-    import os
-
-    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-    response = client.chat.completions.create(
+    from app.infra.llm_gateway import llm
+    return llm.chat_json(
+        category="eval",
+        label="judge",
+        system_prompt=system_prompt,
+        user_prompt=user_prompt,
         model=_get_llm_model(),
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
         temperature=0.1,
         max_tokens=2000,
     )
-    text = response.choices[0].message.content.strip()
-    # Extract JSON from potential markdown blocks
-    if "```json" in text:
-        text = text.split("```json")[1].split("```")[0].strip()
-    elif "```" in text:
-        text = text.split("```")[1].split("```")[0].strip()
-    return json.loads(text)
 
 
 def run_llm_judge_outline(gold: dict, ai_director_output: str) -> dict:

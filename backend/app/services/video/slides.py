@@ -205,20 +205,29 @@ def align_elements_to_audio(
         f"Return the JSON object mapping element IDs to start_seconds."
     )
 
-    if client is None:
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
     try:
-        response = client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": _ALIGN_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.2,
-            max_tokens=500,
-        )
-        raw = response.choices[0].message.content.strip()
+        if client is not None:
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {"role": "system", "content": _ALIGN_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ],
+                temperature=0.2,
+                max_tokens=500,
+            )
+            raw = response.choices[0].message.content.strip()
+        else:
+            from app.infra.llm_gateway import llm
+            raw = llm.chat(
+                category="video",
+                label="slide_align",
+                system_prompt=_ALIGN_SYSTEM_PROMPT,
+                user_prompt=user_prompt,
+                model="gpt-4o",
+                temperature=0.2,
+                max_tokens=500,
+            ).strip()
         if raw.startswith("```"):
             raw = raw.split("\n", 1)[1].rsplit("```", 1)[0]
         parsed = json.loads(raw)
@@ -415,19 +424,28 @@ def _load_system_prompt() -> str:
 
 def call_llm(user_prompt: str, client: Optional[OpenAI] = None) -> str:
     """Call LLM to translate visual direction into Remotion props."""
-    if client is None:
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    if client is not None:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": _load_system_prompt()},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.3,
+            max_tokens=1000,
+        )
+        return response.choices[0].message.content.strip()
 
-    response = client.chat.completions.create(
+    from app.infra.llm_gateway import llm
+    return llm.chat(
+        category="video",
+        label="slide_template",
+        system_prompt=_load_system_prompt(),
+        user_prompt=user_prompt,
         model="gpt-4o",
-        messages=[
-            {"role": "system", "content": _load_system_prompt()},
-            {"role": "user", "content": user_prompt},
-        ],
         temperature=0.3,
         max_tokens=1000,
-    )
-    return response.choices[0].message.content.strip()
+    ).strip()
 
 
 def map_visual_direction_to_props(

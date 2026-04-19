@@ -1,16 +1,25 @@
 {
-  "config_list": [
-    {
-      "model": "gpt-4o",
-      "api_key": "ENV:OPENAI_API_KEY",
-      "api_type": "openai"
-    },
-    {
-      "model": "gemini-1.5-flash",
-      "api_key": "ENV:GEMINI_API_KEY",
-      "api_type": "google"
-    }
-  ],
-  "temperature": 0.1,
-  "cache_seed": 42
+  "default_model": "gpt-4o",
+  "routes": {
+    "storyboard.BriefBuilder": "gpt-4o",
+    "storyboard.StoryboardDirector": "gpt-4o",
+    "storyboard.StoryboardWriter": "gpt-4o",
+    "storyboard.chat_brief": "gpt-4o",
+    "storyboard.qg_gut_check": "gpt-4o",
+    "storyboard.qg_flow_coherence": "gpt-4o-mini",
+    "storyboard.qg_talking_point_sharpness": "gpt-4o-mini",
+    "storyboard.qg_evidence_fitness": "gpt-4o-mini",
+    "storyboard.qg_brief_pov_alignment": "gpt-4o-mini",
+    "storyboard.qg_section_necessity": "gpt-4o-mini",
+    "storyboard.qg_instructional_progression": "gpt-4o-mini",
+    "storyboard.qg_context_rot": "gpt-4o-mini",
+    "storyboard.qg_specificity_retention": "gpt-4o-mini",
+    "storyboard.qg_source_fidelity": "gpt-4o-mini",
+    "storyboard.qg_redundancy": "gpt-4o-mini",
+    "storyboard.qg_handoff_integrity": "gpt-4o-mini",
+    "eval.judge": "gpt-4o",
+    "video.slide_align": "gpt-4o",
+    "video.slide_template": "gpt-4o",
+    "video.stock_query": "gpt-4o-mini"
+  }
 }

@@ -81,25 +81,35 @@ def generate_pexels_query(
     adjectives and per-panel context that would otherwise need to be
     hand-filtered.
     """
-    if client is None:
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
     user_prompt = (
         "Visual direction bullets:\n"
         + "\n".join(f"- {line}" for line in visual_direction)
         + "\n\nReturn the search query only, no explanation."
     )
 
-    response = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": _KEYWORD_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        temperature=0.2,
-        max_tokens=30,
-    )
-    query = response.choices[0].message.content.strip().strip('"').strip("'").lower()
+    if client is not None:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": _KEYWORD_SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
+            temperature=0.2,
+            max_tokens=30,
+        )
+        query = response.choices[0].message.content.strip().strip('"').strip("'").lower()
+    else:
+        from app.infra.llm_gateway import llm
+        raw = llm.chat(
+            category="video",
+            label="stock_query",
+            system_prompt=_KEYWORD_SYSTEM_PROMPT,
+            user_prompt=user_prompt,
+            model="gpt-4o",
+            temperature=0.2,
+            max_tokens=30,
+        )
+        query = raw.strip().strip('"').strip("'").lower()
     # Defensive cleanup in case the model ignored the no-punctuation rule
     for ch in (".", ",", ";", ":", "!", "?"):
         query = query.replace(ch, "")
