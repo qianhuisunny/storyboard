@@ -12,7 +12,7 @@ import {
   type CitationAnalysis,
   type EvidenceResearch,
   type TokenUsage,
-} from "./eval-components";
+} from "./bench-components";
 
 // ============================================================================
 // Tab pill component (reused for top-level and result sub-tabs)
@@ -54,7 +54,7 @@ function TabPills<T extends string>({
 // Main Page
 // ============================================================================
 
-export default function GoldSetEval() {
+export default function GoldSetBench() {
   // Top-level tab state
   const [activeTab, setActiveTab] = useState<"single" | "batch">(() => {
     return window.location.hash === "#batch" ? "batch" : "single";
@@ -84,13 +84,13 @@ export default function GoldSetEval() {
 
   // Fetch gold set list + available models
   useEffect(() => {
-    fetch("/api/eval/gold-sets")
+    fetch("/api/offline-prompt-bench/gold-sets")
       .then(r => r.json())
       .then(j => {
         if (j.gold_sets) setGoldSets(j.gold_sets);
       })
       .catch(() => {});
-    fetch("/api/eval/models")
+    fetch("/api/offline-prompt-bench/models")
       .then(r => r.json())
       .then(j => {
         if (j.models) setModels(j.models);
@@ -110,8 +110,8 @@ export default function GoldSetEval() {
     setError(null);
     try {
       const url = model
-        ? `/api/eval/gold-set/${goldSetName}?model=${model}`
-        : `/api/eval/gold-set/${goldSetName}`;
+        ? `/api/offline-prompt-bench/gold-set/${goldSetName}?model=${model}`
+        : `/api/offline-prompt-bench/gold-set/${goldSetName}`;
       const res = await fetch(url);
       const json = await res.json();
       if (json.success) {
@@ -174,7 +174,7 @@ export default function GoldSetEval() {
     prevStagesRef.current = 0;
     setData(prev => prev ? { ...prev, director_output: undefined, writer_output_path_b: undefined, writer_output_path_a: undefined, evidence_research: undefined, citation_analysis: undefined, analysis: undefined } as EvalData : prev);
     try {
-      const res = await fetch(`/api/eval/gold-set/${goldSetName}`, {
+      const res = await fetch(`/api/offline-prompt-bench/gold-set/${goldSetName}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ model: modelToRun }),
@@ -187,7 +187,7 @@ export default function GoldSetEval() {
       }
       const poll = setInterval(async () => {
         try {
-          const statusRes = await fetch(`/api/eval/gold-set/${goldSetName}/status?model=${modelToRun}`);
+          const statusRes = await fetch(`/api/offline-prompt-bench/gold-set/${goldSetName}/status?model=${modelToRun}`);
           const statusJson = await statusRes.json();
           const stages: string[] = statusJson.completed_stages || [];
           setCompletedStages(stages);
@@ -809,7 +809,7 @@ function BatchTab() {
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
 
   useEffect(() => {
-    fetch("/api/eval/batch/report")
+    fetch("/api/offline-prompt-bench/batch/report")
       .then(r => r.json())
       .then(j => { if (j.success) setReport(j.report); })
       .catch(() => {});
@@ -819,19 +819,19 @@ function BatchTab() {
     setRunning(true);
     setError(null);
     try {
-      const res = await fetch("/api/eval/batch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const res = await fetch("/api/offline-prompt-bench/batch", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
       const json = await res.json();
       if (!json.success) { setError(json.detail || "Failed to start"); setRunning(false); return; }
 
       const poll = setInterval(async () => {
         try {
-          const sr = await fetch("/api/eval/batch/status");
+          const sr = await fetch("/api/offline-prompt-bench/batch/status");
           const sj = await sr.json();
           setProgress({ completed: sj.completed || 0, total: sj.total || 0 });
           if (sj.status === "done") {
             clearInterval(poll);
             setRunning(false);
-            const rr = await fetch("/api/eval/batch/report");
+            const rr = await fetch("/api/offline-prompt-bench/batch/report");
             const rj = await rr.json();
             if (rj.success) setReport(rj.report);
           } else if (sj.status === "error") {
@@ -871,7 +871,7 @@ function BatchTab() {
             {running ? "Running..." : "Run Batch"}
           </Button>
           {report && (
-            <Link to="/admin/gold-set-eval/diffs" className="text-sm text-blue-600 hover:underline">
+            <Link to="/admin/prompt-bench/diffs" className="text-sm text-blue-600 hover:underline">
               View Diffs &rarr;
             </Link>
           )}

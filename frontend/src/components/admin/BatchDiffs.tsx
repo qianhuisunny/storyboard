@@ -8,7 +8,7 @@ import {
   SectionDiff,
   StoryboardDiff,
   type EvalData,
-} from "./eval-components";
+} from "./bench-components";
 
 interface BatchReport {
   gold_sets_run: string[];
@@ -27,7 +27,7 @@ function DiffRow({ name }: DiffRowProps) {
   const toggle = () => {
     if (!expanded && !data) {
       setLoading(true);
-      fetch(`/api/eval/gold-set/${name}`)
+      fetch(`/api/offline-prompt-bench/gold-set/${name}`)
         .then(r => r.json())
         .then(j => { if (j.success) setData(j.data); })
         .catch(() => {})
@@ -143,7 +143,7 @@ export default function BatchDiffs() {
   const [report, setReport] = useState<BatchReport | null>(null);
 
   useEffect(() => {
-    fetch("/api/eval/batch/report")
+    fetch("/api/offline-prompt-bench/batch/report")
       .then(r => r.json())
       .then(j => { if (j.success) setReport(j.report); })
       .catch(() => {});
@@ -152,7 +152,7 @@ export default function BatchDiffs() {
   return (
     <div className="max-w-7xl mx-auto p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Link to="/admin/gold-set-eval#batch" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        <Link to="/admin/prompt-bench#batch" className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-4 w-4" /> Back to Batch
         </Link>
         <h1 className="text-2xl font-semibold">

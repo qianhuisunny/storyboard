@@ -1,7 +1,7 @@
 """
 Batch evaluation: LLM-as-judge, batch runner, aggregate report.
 
-Depends on eval_gold_set.py for per-video eval and data loading.
+Depends on offline_prompt_bench_gold.py for per-video eval and data loading.
 """
 
 import json
@@ -10,7 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-from app.services.eval_gold_set import (
+from app.services.offline_prompt_bench_gold import (
     GOLD_SETS_DIR,
     get_current_prompt_versions,
     gold_outline_to_director_text,
@@ -32,7 +32,7 @@ _PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
 # ---------------------------------------------------------------------------
 
 def _load_judge_prompt() -> str:
-    path = _PROMPTS_DIR / "archive" / "EVAL_JUDGE_PROMPT.md"
+    path = _PROMPTS_DIR / "archive" / "OFFLINE_BENCH_JUDGE.md"
     return path.read_text()
 
 

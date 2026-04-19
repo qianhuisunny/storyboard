@@ -16,7 +16,7 @@ import OnboardingPage from "@/components/OnboardingPage";
 import LandingPage from "@/components/LandingPage";
 import ProjectsPage from "@/components/ProjectsPage";
 import AdminDashboard from "@/components/admin/AdminDashboard";
-import GoldSetEval from "@/components/admin/GoldSetEval";
+import GoldSetBench from "@/components/admin/GoldSetBench";
 import BatchDiffs from "@/components/admin/BatchDiffs";
 import DriftDetailPage from "@/components/admin/drift/DriftDetailPage";
 import { BarChart3, FlaskConical } from "lucide-react";
@@ -65,13 +65,13 @@ function AppHeader() {
                 <span className="hidden sm:inline">Analytics</span>
               </Link>
               <Link
-                to="/admin/gold-set-eval"
+                to="/admin/prompt-bench"
                 className="flex items-center gap-1.5 text-[13px] font-normal text-[#5A6352] rounded-md transition-all hover:bg-[#EEF1E9] hover:text-[#1C2118]"
                 style={{ padding: "6px 11px" }}
-                title="Gold Set Eval"
+                title="Prompt Bench"
               >
                 <FlaskConical className="h-4 w-4" />
-                <span className="hidden sm:inline">Eval</span>
+                <span className="hidden sm:inline">Bench</span>
               </Link>
             </>
           )}
@@ -108,8 +108,8 @@ function App() {
                 element={<StageLayout />}
               />
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
-              <Route path="/admin/gold-set-eval" element={<GoldSetEval />} />
-              <Route path="/admin/gold-set-eval/diffs" element={<BatchDiffs />} />
+              <Route path="/admin/prompt-bench" element={<GoldSetBench />} />
+              <Route path="/admin/prompt-bench/diffs" element={<BatchDiffs />} />
               <Route path="/admin/drift/:stageName" element={<DriftDetailPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

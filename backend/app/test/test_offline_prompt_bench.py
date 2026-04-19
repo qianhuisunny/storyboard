@@ -2,7 +2,7 @@
 
 
 def test_parse_duration_midpoint():
-    from app.services.eval_batch import _parse_duration_midpoint
+    from app.services.offline_prompt_bench import _parse_duration_midpoint
 
     assert _parse_duration_midpoint("1:30–2:00") == 105  # (90+120)/2
     assert _parse_duration_midpoint("3:00") == 180
@@ -12,7 +12,7 @@ def test_parse_duration_midpoint():
 
 
 def test_compute_batch_report_empty():
-    from app.services.eval_batch import compute_batch_report
+    from app.services.offline_prompt_bench import compute_batch_report
 
     report = compute_batch_report([], [])
     assert report["videos_completed"] == 0
@@ -23,9 +23,9 @@ def test_compute_batch_report_empty():
 def test_compute_batch_report_with_data(tmp_path, monkeypatch):
     """Test aggregation with mocked cached eval data."""
     import json
-    from app.services.eval_batch import compute_batch_report, GOLD_SETS_DIR
-    from app.services import eval_gold_set
-    import app.services.eval_batch as eb
+    from app.services.offline_prompt_bench import compute_batch_report, GOLD_SETS_DIR
+    from app.services import offline_prompt_bench_gold
+    import app.services.offline_prompt_bench as eb
 
     # Create fake gold set dirs with cached evals
     fake_dir = tmp_path / "gold_sets"
@@ -58,7 +58,7 @@ def test_compute_batch_report_with_data(tmp_path, monkeypatch):
         (d / "cached_eval.json").write_text(json.dumps(cached))
 
     # Monkeypatch GOLD_SETS_DIR and get_cached_eval
-    monkeypatch.setattr(eval_gold_set, "GOLD_SETS_DIR", fake_dir)
+    monkeypatch.setattr(offline_prompt_bench_gold, "GOLD_SETS_DIR", fake_dir)
     monkeypatch.setattr(eb, "GOLD_SETS_DIR", fake_dir)
     monkeypatch.setattr(eb, "BATCH_REPORT_PATH", fake_dir / "batch_report.json")
 

@@ -3,7 +3,7 @@ import pytest
 
 
 def test_strip_sponsor_sections():
-    from app.services.eval_gold_set import _strip_sponsor_sections
+    from app.services.offline_prompt_bench_gold import _strip_sponsor_sections
 
     outline = [
         {"section_number": 1, "purpose": "Introduce topic", "duration_sec": 60},
@@ -27,7 +27,7 @@ def test_strip_sponsor_sections():
 
 
 def test_strip_sponsor_cta_keywords():
-    from app.services.eval_gold_set import _strip_sponsor_sections
+    from app.services.offline_prompt_bench_gold import _strip_sponsor_sections
 
     cases = [
         {"section_number": 1, "purpose": "CTA and call to action", "duration_sec": 20},
@@ -40,7 +40,7 @@ def test_strip_sponsor_cta_keywords():
 
 
 def test_auto_compute_meta_short_linear_story():
-    from app.services.eval_gold_set import auto_compute_meta
+    from app.services.offline_prompt_bench_gold import auto_compute_meta
 
     outline = [
         {
@@ -64,7 +64,7 @@ def test_auto_compute_meta_short_linear_story():
 
 
 def test_auto_compute_meta_medium_problem():
-    from app.services.eval_gold_set import auto_compute_meta
+    from app.services.offline_prompt_bench_gold import auto_compute_meta
 
     outline = [
         {
@@ -81,7 +81,7 @@ def test_auto_compute_meta_medium_problem():
 
 
 def test_auto_compute_meta_long_direct():
-    from app.services.eval_gold_set import auto_compute_meta
+    from app.services.offline_prompt_bench_gold import auto_compute_meta
 
     outline = [
         {
@@ -98,7 +98,7 @@ def test_auto_compute_meta_long_direct():
 
 
 def test_slugify():
-    from app.services.eval_gold_set import _slugify
+    from app.services.offline_prompt_bench_gold import _slugify
 
     assert _slugify("How to Study Way More Effectively | The Feynman Technique") == "how_to_study_way_more_effectively_the_feynman_technique"
     assert _slugify("Ali Abdaal's Top 10 Tips!") == "ali_abdaals_top_10_tips"

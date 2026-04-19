@@ -2019,14 +2019,14 @@ async def get_prompt_signals(
 _eval_jobs: dict = {}
 
 
-@app.get("/api/eval/gold-sets")
+@app.get("/api/offline-prompt-bench/gold-sets")
 async def list_gold_sets():
     """List available gold sets."""
-    from app.services.eval_gold_set import list_gold_sets as _list
+    from app.services.offline_prompt_bench_gold import list_gold_sets as _list
     return {"gold_sets": _list()}
 
 
-@app.get("/api/eval/models")
+@app.get("/api/offline-prompt-bench/models")
 async def list_eval_models():
     """List available models for eval. Only shows models with configured API keys."""
     import os
@@ -2036,10 +2036,10 @@ async def list_eval_models():
     return {"models": models}
 
 
-@app.get("/api/eval/gold-set/{name}")
+@app.get("/api/offline-prompt-bench/gold-set/{name}")
 async def get_gold_set_eval(name: str, model: str = None):
     """Get cached gold set evaluation result."""
-    from app.services.eval_gold_set import get_cached_eval, load_gold_set, list_cached_models
+    from app.services.offline_prompt_bench_gold import get_cached_eval, load_gold_set, list_cached_models
 
     available = list_cached_models(name)
 
@@ -2060,7 +2060,7 @@ async def get_gold_set_eval(name: str, model: str = None):
         raise HTTPException(status_code=404, detail=f"Gold set '{name}' not found")
 
 
-@app.get("/api/eval/gold-set/{name}/status")
+@app.get("/api/offline-prompt-bench/gold-set/{name}/status")
 async def get_eval_status(name: str, model: str = None):
     """Poll eval job status. Returns completed stages for progressive loading."""
     job_key = f"{name}:{model or 'gpt-4o'}"
@@ -2070,11 +2070,11 @@ async def get_eval_status(name: str, model: str = None):
     return job
 
 
-@app.post("/api/eval/gold-set/{name}")
+@app.post("/api/offline-prompt-bench/gold-set/{name}")
 async def run_gold_set_eval(name: str, request: Request):
     """Start gold set evaluation in background thread. Poll /status for progress."""
     import asyncio
-    from app.services.eval_gold_set import run_eval, load_gold_set
+    from app.services.offline_prompt_bench_gold import run_eval, load_gold_set
     try:
         load_gold_set(name)
     except FileNotFoundError:
@@ -2127,7 +2127,7 @@ async def run_gold_set_eval(name: str, request: Request):
     return {"success": True, "message": "Eval started"}
 
 
-@app.post("/api/eval/gold-set/ingest")
+@app.post("/api/offline-prompt-bench/gold-set/ingest")
 async def ingest_gold_set_endpoint(request: Request):
     """Ingest raw Gemini JSON as a new gold set."""
     try:
@@ -2144,7 +2144,7 @@ async def ingest_gold_set_endpoint(request: Request):
             )
 
     try:
-        from app.services.eval_gold_set import ingest_gold_set
+        from app.services.offline_prompt_bench_gold import ingest_gold_set
         result = ingest_gold_set(raw_json)
         return {"success": True, "slug": result["slug"], "gold_set": result["gold_set"]}
     except Exception as e:
@@ -2153,10 +2153,10 @@ async def ingest_gold_set_endpoint(request: Request):
 
 # --- Batch eval endpoints ---
 
-@app.post("/api/eval/batch")
+@app.post("/api/offline-prompt-bench/batch")
 async def start_batch_eval(request: Request):
     """Kick off batch evaluation in background."""
-    from app.services.eval_batch import get_batch_status, run_batch_eval
+    from app.services.offline_prompt_bench import get_batch_status, run_batch_eval
     import asyncio
 
     status = get_batch_status()
@@ -2178,17 +2178,17 @@ async def start_batch_eval(request: Request):
     return {"success": True, "message": "Batch eval started"}
 
 
-@app.get("/api/eval/batch/status")
+@app.get("/api/offline-prompt-bench/batch/status")
 async def batch_eval_status():
     """Poll batch eval progress."""
-    from app.services.eval_batch import get_batch_status
+    from app.services.offline_prompt_bench import get_batch_status
     return get_batch_status()
 
 
-@app.get("/api/eval/batch/report")
+@app.get("/api/offline-prompt-bench/batch/report")
 async def batch_eval_report():
     """Return latest batch report."""
-    from app.services.eval_batch import get_batch_report
+    from app.services.offline_prompt_bench import get_batch_report
     report = get_batch_report()
     if report is None:
         return {"success": False, "detail": "No batch report available"}
