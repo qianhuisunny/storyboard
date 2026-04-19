@@ -1,9 +1,0 @@
-{
-  "screen_number": 1,
-  "voiceover_text": "Introducing [Product Name], the next evolution in [industry or solution]!",
-  "target_duration_sec": 5,
-  "screen_type": "slides/text overlay",
-  "on_screen_visual_keywords": "Company logo animation, product name reveal, dynamic background, brand colors, modern font",
-  "action_notes": "Logo animates in, product name appears with a subtle glow effect",
-  "image_url": "https://cdn.zoviz.com/blog/image/690e8d14b4d6ea4b.jpg"
-}

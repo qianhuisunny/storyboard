@@ -1,9 +1,0 @@
-{
-  "screen_number": 4,
-  "voiceover_text": "With features like [Feature 1], [Feature 2], and [Feature 3], you can [benefit statement].",
-  "target_duration_sec": 12,
-  "screen_type": "screencast",
-  "on_screen_visual_keywords": "Animated highlights of dashboard, automation, analytics, feature icons",
-  "action_notes": "Features animate in one by one, UI highlights key actions",
-  "image_url": null
-}

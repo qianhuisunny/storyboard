@@ -1,9 +1,0 @@
-{
-  "screen_number": 5,
-  "voiceover_text": "Assign tasks instantly and keep everyone aligned, no matter where they work.",
-  "target_duration_sec": 6,
-  "screen_type": "screencast",
-  "on_screen_visual_keywords": "task assignment UI, remote team avatars, notifications",
-  "action_notes": "User assigns a task, team members receive notifications",
-  "image_url": null
-}

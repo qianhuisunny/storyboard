@@ -1,9 +1,0 @@
-{
-  "screen_number": 15,
-  "voiceover_text": "Automatic fallback ensures your message is always delivered\u2014via SMS, MMS, or WhatsApp if RCS isn\u2019t available.",
-  "target_duration_sec": 8,
-  "screen_type": "slides/text overlay",
-  "on_screen_visual_keywords": "fallback arrows, SMS/MMS/WhatsApp icons, delivery checkmarks",
-  "action_notes": "Animated fallback sequence",
-  "image_url": null
-}

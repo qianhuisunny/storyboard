@@ -1,9 +1,0 @@
-{
-  "screen_number": 30,
-  "voiceover_text": "Visit the Twilio Console to enable RCS and start building rich messaging experiences today.",
-  "target_duration_sec": 7,
-  "screen_type": "cta",
-  "on_screen_visual_keywords": "Twilio logo, RCS icon, call-to-action button",
-  "action_notes": "End slide, upbeat music, clear CTA",
-  "image_url": null
-}

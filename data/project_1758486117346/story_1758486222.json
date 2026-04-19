@@ -1,9 +1,0 @@
-{
-  "screen_number": 4,
-  "voiceover_text": "Twilio\u2019s Rich Context Service keeps every interaction connected\u2014no matter where the conversation starts or ends.",
-  "target_duration_sec": 10,
-  "screen_type": "screencast",
-  "on_screen_visual_keywords": "Twilio dashboard, unified conversation timeline, customer profile with history from SMS, WhatsApp, voice, and web chat",
-  "action_notes": "Cursor highlights unified timeline, context cards update in real time",
-  "image_url": "https://getvoip.com/uploads/Twilio-Flex-Customer-Profile.jpg"
-}

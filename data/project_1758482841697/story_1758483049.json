@@ -1,9 +1,0 @@
-{
-  "screen_number": 25,
-  "voiceover_text": "Enable RCS in the Twilio Console with no code changes required.",
-  "target_duration_sec": 7,
-  "screen_type": "cta",
-  "on_screen_visual_keywords": "Twilio Console UI, registration steps, green checkmark",
-  "action_notes": "Screen recording, highlight onboarding steps",
-  "image_url": null
-}

@@ -1,9 +1,0 @@
-{
-  "screen_number": 7,
-  "voiceover_text": "Ready to experience the future? Visit [website] or scan to schedule your demo today!",
-  "target_duration_sec": 11,
-  "screen_type": "cta",
-  "on_screen_visual_keywords": "Website URL, QR code, 'Book a demo' button, company logo, brand colors",
-  "action_notes": "QR code pulses, CTA button animates, logo holds at end",
-  "image_url": null
-}

@@ -1,9 +1,0 @@
-{
-  "screen_number": 10,
-  "voiceover_text": "Getting started is simple: Log in, create a project, and invite your team in seconds.",
-  "target_duration_sec": 6,
-  "screen_type": "screencast",
-  "on_screen_visual_keywords": "login screen, new project creation, invite dialog",
-  "action_notes": "Step-by-step UI walkthrough of onboarding process",
-  "image_url": "https://docs.cypress.io/img/cloud/users/invite-user-dialog.jpg"
-}

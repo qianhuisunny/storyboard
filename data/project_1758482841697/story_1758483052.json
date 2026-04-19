@@ -1,9 +1,0 @@
-{
-  "screen_number": 28,
-  "voiceover_text": "Register, verify, and launch your RCS sender via our UI-based flow.",
-  "target_duration_sec": 7,
-  "screen_type": "cta",
-  "on_screen_visual_keywords": "Twilio Console UI, verification steps, launch button",
-  "action_notes": "Screen recording, highlight verification",
-  "image_url": null
-}

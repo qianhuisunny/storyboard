@@ -1,9 +1,0 @@
-{
-  "screen_number": 1,
-  "voiceover_text": "Introducing [Product Name], the breakthrough solution for [main problem or industry].",
-  "target_duration_sec": 6,
-  "screen_type": "slides/text overlay",
-  "on_screen_visual_keywords": "Product logo, animated reveal, brand colors, modern font",
-  "action_notes": "Logo animates in, product name appears with a dynamic effect",
-  "image_url": "https://cdn.zoviz.com/blog/image/690e8d14b4d6ea4b.jpg"
-}
