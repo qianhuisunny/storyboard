@@ -6,6 +6,7 @@ import { PHASE1_QUESTIONS } from "./types";
 import ChatThread from "./ChatThread";
 import ChatInput from "./ChatInput";
 import BriefReview from "../BriefBuilder/RoundForms/BriefReview";
+import OutlineLoadingView from "../OutlineLoadingView";
 import type { BriefField } from "../BriefBuilder/types";
 
 interface ChatBriefBuilderProps {
@@ -116,6 +117,7 @@ export default function ChatBriefBuilder({
   const [isLlmLoading, setIsLlmLoading] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(cached?.questionIndex ?? 0);
   const [error, setError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
   const initialized = useRef(cached !== null);
 
   const handleSectionNavigate = useCallback((section: ActiveSection) => {
@@ -393,18 +395,16 @@ export default function ChatBriefBuilder({
   // Handle brief approval — fires batch state machine events
   const handleApprove = useCallback(async () => {
     try {
-      // Batch-fire state machine events:
-      // round1_confirm → round2_confirm → generate_content_spine → round3_confirm → brief_approve
-      // We send all fields accumulated from the chat to each event.
+      setIsGenerating(true);
       const allFields: Record<string, BriefField> = { ...fields };
 
-      // Ensure all fields are marked confirmed
       for (const key of Object.keys(allFields)) {
         allFields[key] = { ...allFields[key], confirmed: true };
       }
 
       await onBriefApprove(allFields);
     } catch (err) {
+      setIsGenerating(false);
       setError(
         err instanceof Error ? err.message : "Failed to approve brief"
       );
@@ -441,27 +441,33 @@ export default function ChatBriefBuilder({
                 margin: 0,
               }}
             >
-              Video Briefing
+              {isGenerating ? "Video Outline" : "Video Briefing"}
             </h2>
             <p style={{ fontSize: 13, color: "#626B58", margin: 0 }}>
-              Chat to refine your requirements to get to a video briefing
+              {isGenerating
+                ? "Generating your outline..."
+                : "Chat to refine your requirements to get to a video briefing"}
             </p>
           </div>
-          <SectionChips active="review" onNavigate={handleSectionNavigate} />
+          {!isGenerating && <SectionChips active="review" onNavigate={handleSectionNavigate} />}
         </div>
 
-        {/* Chat thread (collapsed) + Review */}
+        {/* Chat thread (collapsed) + Review or Loading */}
         <div
           className="flex-1 overflow-y-auto"
           style={{ padding: "24px 32px" }}
         >
-          <BriefReview
-            fields={fields}
-            onEditBrief={handleEdit}
-            onApproveBrief={handleApprove}
-            disabled={false}
-            isAlreadyApproved={isAlreadyApproved}
-          />
+          {isGenerating ? (
+            <OutlineLoadingView />
+          ) : (
+            <BriefReview
+              fields={fields}
+              onEditBrief={handleEdit}
+              onApproveBrief={handleApprove}
+              disabled={false}
+              isAlreadyApproved={isAlreadyApproved}
+            />
+          )}
         </div>
 
         {error && (

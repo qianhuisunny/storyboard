@@ -15,6 +15,7 @@ import OutlineGrid from "./OutlineGrid";
 import AiOriginalDrawer from "./AiOriginalDrawer";
 import { QualityScore } from "../QualityScore";
 import { RegenPopover } from "./RegenPopover";
+import OutlineLoadingView from "../OutlineLoadingView";
 import { parseOutline, serializeOutline } from "./outlineParser";
 import type {
   OutlineBuilderProps,
@@ -218,9 +219,13 @@ export default function OutlineBuilder({
       <div className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border shrink-0">
         <div className="flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-semibold">Video Outline</h2>
+            <h2 className="text-xl font-semibold">
+              {isContinuing ? "Storyboard Draft" : "Video Outline"}
+            </h2>
             <p className="text-sm text-muted-foreground mt-0.5">
-              {hasResearch
+              {isContinuing
+                ? "Generating your storyboard..."
+                : hasResearch
                 ? "Review the evidence research results, then continue."
                 : "Edit sections inline. Drag to reorder. Then run the research plan."}
             </p>
@@ -248,6 +253,9 @@ export default function OutlineBuilder({
         <div
           className="flex-1 overflow-y-auto px-6 sm:px-10 py-6 min-w-0"
         >
+          {isContinuing ? (
+            <OutlineLoadingView stage="storyboard" />
+          ) : (
           <div className="w-full max-w-5xl space-y-6">
           <p className="text-sm text-muted-foreground leading-relaxed mb-5">
             Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.
@@ -357,6 +365,7 @@ export default function OutlineBuilder({
             </div>
           )}
         </div>
+          )}
         </div>
 
         {/* AI Original Drawer */}
