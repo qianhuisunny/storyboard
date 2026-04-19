@@ -24,16 +24,17 @@ STORYBOARD_DIMENSIONS = [
     ("specificity_retention", "Does the writing preserve concrete, topic-specific substance, or flatten into generic language? Did specific examples, numbers, or references get replaced with vague generalities?"),
     ("source_fidelity", "Does the storyboard stay within the supported claims and evidence, without invention or overreach? Did the AI fabricate facts, statistics, quotes, or claims?"),
     ("redundancy", "Do screens add distinct instructional value, or repeat the same point in different words across screens?"),
-]
-
-CROSS_STAGE_DIMENSIONS = [
     ("handoff_integrity", "Does the storyboard faithfully realize the outline's intended teaching job, section thesis, and required content, without drift, omission, or simplification into weaker material?"),
 ]
 
 STAGE_DIMENSIONS = {
     "outline": OUTLINE_DIMENSIONS,
     "storyboard": STORYBOARD_DIMENSIONS,
-    "cross_stage": CROSS_STAGE_DIMENSIONS,
+}
+
+STAGE_PROMPTS = {
+    "outline": "OUTLINE_EVAL_PROMPT.md",
+    "storyboard": "STORYBOARD_EVAL_PROMPT.md",
 }
 
 
@@ -83,11 +84,14 @@ class QualityGate:
         self.model = model
         self.threshold = threshold
         self.max_attempts = max_attempts
-        self.system_prompt = self._load_prompt()
+        self._prompts: dict[str, str] = {}
 
-    def _load_prompt(self) -> str:
-        path = PROMPTS_DIR / "QUALITY_JUDGE_PROMPT.md"
-        return path.read_text(encoding="utf-8")
+    def _get_prompt(self, stage: str) -> str:
+        if stage not in self._prompts:
+            filename = STAGE_PROMPTS[stage]
+            path = PROMPTS_DIR / filename
+            self._prompts[stage] = path.read_text(encoding="utf-8")
+        return self._prompts[stage]
 
     def _extract_brief_field(self, story_brief: dict, field_name: str, default=""):
         if "fields" in story_brief:
@@ -107,19 +111,19 @@ class QualityGate:
             f"Point of view: {point_of_view}"
         )
 
-    def _call_eval(self, user_prompt: str, label: str = "eval") -> dict:
+    def _call_eval(self, stage: str, user_prompt: str, label: str = "eval") -> dict:
         return llm.chat_json(
             category="storyboard",
             label=f"qg_{label}",
-            system_prompt=self.system_prompt,
+            system_prompt=self._get_prompt(stage),
             user_prompt=user_prompt,
             model=self.model,
             temperature=0.2,
             max_tokens=500,
         )
 
-    async def _async_call_eval(self, user_prompt: str, label: str = "eval") -> dict:
-        return await asyncio.to_thread(self._call_eval, user_prompt, label)
+    async def _async_call_eval(self, stage: str, user_prompt: str, label: str = "eval") -> dict:
+        return await asyncio.to_thread(self._call_eval, stage, user_prompt, label)
 
     def _format_output(self, stage: str, output: Any) -> str:
         if isinstance(output, list):
@@ -132,7 +136,7 @@ class QualityGate:
         brief_ctx = self._build_brief_context(brief)
         output_text = self._format_output(stage, output)
 
-        if stage == "cross_stage":
+        if stage == "storyboard" and outline:
             content_block = (
                 f"## Outline\n{self._format_output('outline', outline)}\n\n"
                 f"## Storyboard\n{output_text}"
@@ -146,7 +150,7 @@ class QualityGate:
             f"## Brief Context\n{brief_ctx}\n\n"
             f"{content_block}"
         )
-        result = await self._async_call_eval(prompt, label="eval_gut")
+        result = await self._async_call_eval(stage, prompt, label="eval_gut")
         return GutScore(
             score=float(result.get("score", 5)),
             feedback=result.get("feedback", ""),
@@ -164,7 +168,7 @@ class QualityGate:
         brief_ctx = self._build_brief_context(brief)
         output_text = self._format_output(stage, output)
 
-        if stage == "cross_stage":
+        if stage == "storyboard" and outline:
             content_block = (
                 f"## Outline\n{self._format_output('outline', outline)}\n\n"
                 f"## Storyboard\n{output_text}"
@@ -179,7 +183,7 @@ class QualityGate:
             f"## Brief Context\n{brief_ctx}\n\n"
             f"{content_block}"
         )
-        result = await self._async_call_eval(prompt, label=dim_name)
+        result = await self._async_call_eval(stage, prompt, label=dim_name)
         return DimensionScore(
             dimension=dim_name,
             score=float(result.get("score", 5)),
@@ -260,7 +264,7 @@ class QualityGate:
             else:
                 output = agent.run(state)
 
-            outline_ref = outline_for_cross_stage if stage == "cross_stage" else None
+            outline_ref = outline_for_cross_stage if stage == "storyboard" else None
             eval_result = await self.evaluate(stage, brief, output, outline=outline_ref)
             eval_result.attempt = attempt + 1
             eval_result.total_attempts = self.max_attempts
