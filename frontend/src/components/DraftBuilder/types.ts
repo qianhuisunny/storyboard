@@ -72,8 +72,7 @@ export interface DraftBuilderProps {
   processingLog: DraftProcessingEntry[];
   onDraftUpdate: (screens: ProductionScreen[]) => void;
   onConfirm: () => void;
-  storyboardGrade?: import("../QualityScore").GradeResult | null;
-  crossStageGrade?: import("../QualityScore").GradeResult | null;
+  storyboardEval?: import("../QualityScore").QualityEvalResult | null;
 }
 
 // TabToggle props
@@ -89,8 +88,7 @@ export interface UserViewProps {
   outlineSummary?: DraftBuilderProps["outlineSummary"];
   onScreensChange: (screens: ProductionScreen[]) => void;
   onConfirm: () => void;
-  storyboardGrade?: import("../QualityScore").GradeResult | null;
-  crossStageGrade?: import("../QualityScore").GradeResult | null;
+  storyboardEval?: import("../QualityScore").QualityEvalResult | null;
 }
 
 // PanelCard props

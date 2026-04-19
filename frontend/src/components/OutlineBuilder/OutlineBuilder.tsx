@@ -38,7 +38,7 @@ export default function OutlineBuilder({
   isRegenerating: _isRegenerating = false,
   researchResults = null,
   researchProgress = null,
-  outlineGrade = null,
+  outlineEval = null,
 }: OutlineBuilderProps) {
   const [isContinuing, setIsContinuing] = useState(false);
   const [isRerunningResearch, setIsRerunningResearch] = useState(false);
@@ -260,7 +260,7 @@ export default function OutlineBuilder({
           <p className="text-sm text-muted-foreground leading-relaxed mb-5">
             Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.
           </p>
-          {outlineGrade && <QualityScore grade={outlineGrade} />}
+          {outlineEval && <QualityScore eval={outlineEval} />}
 
           {/* Section: Video Outline */}
           <div id="outline">

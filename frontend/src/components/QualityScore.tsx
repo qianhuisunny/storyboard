@@ -13,7 +13,7 @@ interface GutScore {
   feedback: string;
 }
 
-export interface GradeResult {
+export interface QualityEvalResult {
   passed: boolean;
   gut: GutScore;
   dimensions: DimensionScore[] | null;
@@ -42,7 +42,7 @@ function scoreColor(score: number): string {
   return "text-red-700";
 }
 
-export function QualityScore({ grade }: { grade: GradeResult }) {
+export function QualityScore({ eval: evalResult }: { eval: QualityEvalResult }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -54,13 +54,13 @@ export function QualityScore({ grade }: { grade: GradeResult }) {
         <div className="flex items-center gap-3">
           <span className="text-sm font-medium text-foreground">
             LLM as a Judge:{" "}
-            <span className={scoreColor(grade.composite_score)}>
-              {grade.composite_score}/10
+            <span className={scoreColor(evalResult.composite_score)}>
+              {evalResult.composite_score}/10
             </span>
           </span>
-          {grade.total_attempts > 1 && (
+          {evalResult.total_attempts > 1 && (
             <span className="text-xs text-muted-foreground">
-              (attempt {grade.attempt} of {grade.total_attempts})
+              (attempt {evalResult.attempt} of {evalResult.total_attempts})
             </span>
           )}
         </div>
@@ -78,18 +78,18 @@ export function QualityScore({ grade }: { grade: GradeResult }) {
               <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Watchability
               </span>
-              <span className={`text-sm font-medium ${scoreColor(grade.gut.score)}`}>
-                {grade.gut.score}/10
+              <span className={`text-sm font-medium ${scoreColor(evalResult.gut.score)}`}>
+                {evalResult.gut.score}/10
               </span>
             </div>
             <p className="text-sm text-foreground/80 italic">
-              &ldquo;{grade.gut.feedback}&rdquo;
+              &ldquo;{evalResult.gut.feedback}&rdquo;
             </p>
           </div>
 
-          {grade.dimensions && (
+          {evalResult.dimensions && (
             <div className="flex flex-wrap gap-x-3 gap-y-1">
-              {grade.dimensions.map((d) => (
+              {evalResult.dimensions.map((d) => (
                 <span key={d.dimension} className="text-xs text-muted-foreground">
                   {DIMENSION_LABELS[d.dimension] || d.dimension}:{" "}
                   <span className={`font-medium ${scoreColor(d.score)}`}>
@@ -100,13 +100,13 @@ export function QualityScore({ grade }: { grade: GradeResult }) {
             </div>
           )}
 
-          {grade.dimensions && (
+          {evalResult.dimensions && (
             <details className="group">
               <summary className="text-xs font-medium text-muted-foreground cursor-pointer hover:text-foreground">
                 Detailed feedback
               </summary>
               <div className="mt-2 space-y-2 pl-2 border-l-2 border-border">
-                {grade.dimensions.map((d) => (
+                {evalResult.dimensions.map((d) => (
                   <div key={d.dimension}>
                     <span className="text-xs font-medium text-foreground">
                       {DIMENSION_LABELS[d.dimension] || d.dimension}{" "}

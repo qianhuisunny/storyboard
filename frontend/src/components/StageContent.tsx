@@ -11,7 +11,7 @@ import { type OnboardingData, type ProcessingLogEntry } from "./BriefBuilder/Spl
 import { OutlineBuilder, type EvidenceResearch, type SectionResearch } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
-import type { GradeResult } from "./QualityScore";
+import type { QualityEvalResult } from "./QualityScore";
 
 // Feature flag for new split-screen brief builder
 const USE_SPLIT_BRIEF_BUILDER = true;
@@ -463,7 +463,7 @@ export default function StageContent({
         ? JSON.stringify(data.story_brief, null, 2)
         : JSON.stringify(allFields, null, 2);
 
-      if (data.outline_grade) setOutlineGrade(data.outline_grade);
+      if (data.outline_eval) setOutlineEval(data.outline_eval);
 
       if (data.screen_outline) {
         console.log("[KS StageContent] Got screen_outline, calling onApprove with nextStageContent");
@@ -544,10 +544,9 @@ export default function StageContent({
   // Track review updates for the Review stage
   const [localReview, setLocalReview] = useState<ProductionScreen[] | null>(null);
 
-  // Quality gate grades
-  const [outlineGrade, setOutlineGrade] = useState<GradeResult | null>(null);
-  const [storyboardGrade, setStoryboardGrade] = useState<GradeResult | null>(null);
-  const [crossStageGrade, setCrossStageGrade] = useState<GradeResult | null>(null);
+  // Quality gate evals
+  const [outlineEval, setOutlineEval] = useState<QualityEvalResult | null>(null);
+  const [storyboardEval, setStoryboardEval] = useState<QualityEvalResult | null>(null);
 
   // Use local brief if edited, otherwise use parsed AI brief
   const currentBrief = localBrief ?? briefData;
@@ -573,9 +572,8 @@ export default function StageContent({
           setOutlineResearchResults(data.data.evidence_research);
           onAnchorChange?.("evidence");
         }
-        if (data.data?.outline_grade) setOutlineGrade(data.data.outline_grade);
-        if (data.data?.storyboard_grade) setStoryboardGrade(data.data.storyboard_grade);
-        if (data.data?.cross_stage_grade) setCrossStageGrade(data.data.cross_stage_grade);
+        if (data.data?.outline_eval) setOutlineEval(data.data.outline_eval);
+        if (data.data?.storyboard_eval) setStoryboardEval(data.data.storyboard_eval);
       } catch {
         // Silently fail
       }
@@ -776,8 +774,7 @@ export default function StageContent({
 
       // If already past writer (has storyboard), skip to frontend advance
       if (phase !== "gate2" && phase !== "outline_research") {
-        if (stateData.data?.storyboard_grade) setStoryboardGrade(stateData.data.storyboard_grade);
-        if (stateData.data?.cross_stage_grade) setCrossStageGrade(stateData.data.cross_stage_grade);
+        if (stateData.data?.storyboard_eval) setStoryboardEval(stateData.data.storyboard_eval);
         const storyboard = stateData.data?.storyboard;
         const isValidStoryboard = Array.isArray(storyboard) &&
           storyboard.length >= 3 &&
@@ -807,8 +804,7 @@ export default function StageContent({
       });
       if (response.ok) {
         const data = await response.json();
-        if (data.storyboard_grade) setStoryboardGrade(data.storyboard_grade);
-        if (data.cross_stage_grade) setCrossStageGrade(data.cross_stage_grade);
+        if (data.storyboard_eval) setStoryboardEval(data.storyboard_eval);
         if (data.storyboard) {
           onApprove(currentOutlineText, {
             skipNextGeneration: true,
@@ -979,7 +975,7 @@ export default function StageContent({
           isRegenerating={isRegeneratingOutline}
           researchResults={outlineResearchResults}
           researchProgress={researchProgress}
-          outlineGrade={outlineGrade}
+          outlineEval={outlineEval}
         />
       </div>
     );
@@ -997,8 +993,7 @@ export default function StageContent({
           processingLog={draftProcessingLog}
           onDraftUpdate={handleDraftUpdate}
           onConfirm={handleDraftConfirm}
-          storyboardGrade={storyboardGrade}
-          crossStageGrade={crossStageGrade}
+          storyboardEval={storyboardEval}
         />
       </div>
     );
