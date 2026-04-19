@@ -15,3 +15,6 @@ lxml==6.0.2
 sqlalchemy[asyncio]>=2.0
 aiosqlite>=0.20
 alembic>=1.13
+sentry-sdk[fastapi]>=2.0
+pytest>=9.0
+pytest-asyncio>=0.23
