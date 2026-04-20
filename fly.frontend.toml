@@ -5,6 +5,9 @@ primary_region = "sjc"
   dockerfile = "frontend/Dockerfile"
   [build.args]
     VITE_CLERK_PUBLISHABLE_KEY = "pk_test_bm90ZWQtcmFiYml0LTI5LmNsZXJrLmFjY291bnRzLmRldiQ"
+    VITE_SENTRY_DSN = "https://2bde32e79b79cd05f93faa65448ac8de@o4511248930963456.ingest.us.sentry.io/4511248975921152"
+    VITE_POSTHOG_KEY = "phc_De5QSrcubabeU542kebV9jRMJ3tZvAD5Wo2d9iiCwz4c"
+    VITE_POSTHOG_HOST = "https://us.i.posthog.com"
 
 [env]
   BACKEND_URL = "https://plotline-eval-api.fly.dev"
