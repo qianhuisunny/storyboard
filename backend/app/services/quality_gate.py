@@ -125,6 +125,29 @@ class QualityGate:
     async def _async_call_eval(self, stage: str, user_prompt: str, label: str = "eval") -> dict:
         return await asyncio.to_thread(self._call_eval, stage, user_prompt, label)
 
+    def _log_eval_event(self, stage, brief, output, result, outline=None):
+        try:
+            from app.infra.quality_log import qlog
+            prompt_ref = STAGE_PROMPTS.get(stage, "unknown")
+            brief_ctx = self._build_brief_context(brief)
+            output_text = self._format_output(stage, output)
+            if outline:
+                ctx = f"{brief_ctx}\n\nOutline:\n{self._format_output('outline', outline)}\n\nStoryboard:\n{output_text}"
+            else:
+                ctx = f"{brief_ctx}\n\n{output_text}"
+            qlog.log_eval(
+                project_id=brief.get("project_id", "unknown"),
+                stage=stage,
+                scope="full",
+                model=self.model,
+                prompt_ref=prompt_ref,
+                context=ctx,
+                raw_response="",
+                scores=result.to_dict(),
+            )
+        except Exception:
+            pass
+
     def _format_output(self, stage: str, output: Any) -> str:
         if isinstance(output, list):
             return json.dumps(output, indent=2, ensure_ascii=False)
@@ -200,7 +223,7 @@ class QualityGate:
         gut = await self._gut_check(stage, brief, output, outline=outline)
 
         if gut.score < self.threshold:
-            return QualityEvalResult(
+            result = QualityEvalResult(
                 passed=False,
                 gut=gut,
                 dimensions=None,
@@ -208,6 +231,8 @@ class QualityGate:
                 attempt=0,
                 total_attempts=0,
             )
+            self._log_eval_event(stage, brief, output, result, outline)
+            return result
 
         dimensions_def = STAGE_DIMENSIONS[stage]
         dim_scores = await asyncio.gather(*[
@@ -220,7 +245,7 @@ class QualityGate:
         avg_dim = mean([d.score for d in dim_scores])
         composite = (gut.score + avg_dim) / 2
 
-        return QualityEvalResult(
+        result = QualityEvalResult(
             passed=composite >= self.threshold,
             gut=gut,
             dimensions=dim_scores,
@@ -228,6 +253,8 @@ class QualityGate:
             attempt=0,
             total_attempts=0,
         )
+        self._log_eval_event(stage, brief, output, result, outline)
+        return result
 
     def format_feedback_for_retry(self, result: QualityEvalResult, attempt: int) -> str:
         lines = [
