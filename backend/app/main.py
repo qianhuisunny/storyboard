@@ -2012,6 +2012,54 @@ async def get_prompt_signals(
 
 
 # ============================================================================
+# Quality Log API
+# ============================================================================
+
+@app.get("/api/quality-log/{project_id}")
+async def get_quality_log(project_id: str):
+    import sqlite3
+    from app.infra.quality_log import qlog
+
+    conn = sqlite3.connect(qlog._db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT * FROM quality_log WHERE project_id = ? ORDER BY id",
+        (project_id,),
+    ).fetchall()
+    conn.close()
+
+    entries = []
+    for r in rows:
+        entry = dict(r)
+        for json_field in ("parsed_output", "scores"):
+            if entry.get(json_field):
+                try:
+                    entry[json_field] = json.loads(entry[json_field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        entries.append(entry)
+
+    return {"project_id": project_id, "entries": entries}
+
+
+@app.get("/api/quality-log/stats/overrides")
+async def get_override_stats():
+    import sqlite3
+    from app.infra.quality_log import qlog
+
+    conn = sqlite3.connect(qlog._db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT stage, scope, COUNT(*) as count "
+        "FROM quality_log WHERE event = 'override' "
+        "GROUP BY stage, scope ORDER BY count DESC",
+    ).fetchall()
+    conn.close()
+
+    return {"overrides": [dict(r) for r in rows]}
+
+
+# ============================================================================
 # Gold Set Evaluation Endpoints (dev tool)
 # ============================================================================
 
