@@ -11,7 +11,6 @@ from typing import Any, Optional
 
 from .base import BaseAgent
 from .duration_calculator import DurationCalculator
-from ..processing_log import log_llm_request, log_llm_response
 
 
 # Placeholder images per screen type, served from frontend/public/placeholders/
@@ -92,21 +91,6 @@ class StoryboardWriter(BaseAgent):
             target_duration=target_duration,
         )
 
-        # Log full LLM context for debugging
-        if project_id:
-            log_llm_request(
-                project_id=project_id,
-                phase="storyboard_writer_full",
-                input_fields={
-                    "sections": len(sections),
-                    "target_duration": target_duration,
-                    "allowed_types": allowed_types,
-                },
-                system_prompt=self.system_prompt or "",
-                user_prompt=user_prompt,
-                max_tokens=16000,
-            )
-
         # Call LLM
         all_screens = self._call_storyboard_llm(user_prompt, project_id)
 
@@ -128,40 +112,9 @@ class StoryboardWriter(BaseAgent):
         response = self.call_llm(user_prompt, max_tokens=16000, temperature=0.7)
         parsed = self._extract_json(response)
 
-        # Log response
-        if project_id:
-            log_llm_response(
-                project_id=project_id,
-                phase="storyboard_writer_full",
-                raw_response=response or "",
-                parsed_result={
-                    "screens_generated": len(parsed) if isinstance(parsed, list) else 0,
-                },
-            )
-
         if not parsed or not isinstance(parsed, list):
-            # Retry once with lower temperature
-            if project_id:
-                log_llm_request(
-                    project_id=project_id,
-                    phase="storyboard_writer_full_retry",
-                    input_fields={"reason": "first call returned unparseable response", "temperature": 0.4},
-                    system_prompt=self.system_prompt or "",
-                    user_prompt=user_prompt,
-                    max_tokens=16000,
-                )
             response = self.call_llm(user_prompt, max_tokens=16000, temperature=0.4)
             parsed = self._extract_json(response)
-            if project_id:
-                log_llm_response(
-                    project_id=project_id,
-                    phase="storyboard_writer_full_retry",
-                    raw_response=response or "",
-                    parsed_result={
-                        "screens_generated": len(parsed) if isinstance(parsed, list) else 0,
-                        "gave_up": not parsed or not isinstance(parsed, list),
-                    },
-                )
             if not parsed or not isinstance(parsed, list):
                 return []
 

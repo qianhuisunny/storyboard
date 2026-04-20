@@ -5,7 +5,6 @@ from fastapi.responses import JSONResponse
 from app.services.orchestrator import orchestrator
 from app.services.analytics import analytics_tracker
 from app.infra.quality_log import qlog
-from app.services.processing_log import get_store as get_processing_log_store
 from app.services.image_generator import ImageGenerator
 
 from app.utils.json_extractor import extract_json_from_text, convert_to_story_format
@@ -407,53 +406,6 @@ async def regenerate_stage(project_id: str, stage: str, request: RunStageRequest
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error regenerating stage: {str(e)}")
-
-
-# ============================================================
-# PROCESSING LOG ENDPOINT
-# ============================================================
-
-
-@app.get("/api/project/{project_id}/processing-logs")
-async def get_processing_logs(project_id: str, since_id: Optional[str] = None):
-    """
-    Get processing logs (LLM requests/responses) for a project.
-
-    Args:
-        project_id: The project ID
-        since_id: Optional entry ID to get logs since (for polling)
-
-    Returns:
-        List of processing log entries
-    """
-    try:
-        store = get_processing_log_store()
-        entries = store.get_entries(project_id, since_id)
-        return {
-            "success": True,
-            "data": entries,
-            "count": len(entries),
-        }
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error getting processing logs: {str(e)}"
-        )
-
-
-@app.delete("/api/project/{project_id}/processing-logs")
-async def clear_processing_logs(project_id: str):
-    """
-    Clear all processing logs for a project.
-    Called when starting a fresh session to avoid accumulation from old attempts.
-    """
-    try:
-        store = get_processing_log_store()
-        store.clear(project_id)
-        return {"success": True, "message": "Processing logs cleared"}
-    except Exception as e:
-        raise HTTPException(
-            status_code=500, detail=f"Error clearing processing logs: {str(e)}"
-        )
 
 
 # ============================================================

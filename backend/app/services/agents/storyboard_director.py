@@ -8,7 +8,6 @@ No JSON, no revision mode. Output is human-readable and editable.
 from typing import Any
 
 from .base import BaseAgent
-from ..processing_log import log_llm_request, log_llm_response
 
 
 class StoryboardDirector(BaseAgent):
@@ -54,21 +53,6 @@ class StoryboardDirector(BaseAgent):
         # Build the user prompt
         user_prompt = self._build_prompt(story_brief)
 
-        # Log request
-        if project_id:
-            log_llm_request(
-                project_id=project_id,
-                phase="storyboard_director",
-                input_fields={
-                    "viewer_outcome": str(self._extract_brief_field(story_brief, "viewer_outcome") or ""),
-                    "duration": str(self._extract_brief_field(story_brief, "duration") or ""),
-                    "target_audience": str(self._extract_brief_field(story_brief, "target_audience") or ""),
-                },
-                system_prompt=self.system_prompt,
-                user_prompt=user_prompt,
-                max_tokens=8000,
-            )
-
         # Call LLM — return raw text, no parsing
         response = self.call_llm(user_prompt, max_tokens=8000, temperature=0.7)
 
@@ -82,15 +66,6 @@ class StoryboardDirector(BaseAgent):
             if lines and lines[-1].strip() == "```":
                 lines = lines[:-1]
             text = "\n".join(lines).strip()
-
-        # Log response
-        if project_id:
-            log_llm_response(
-                project_id=project_id,
-                phase="storyboard_director",
-                raw_response=response,
-                parsed_result={"type": "text", "length": len(text)},
-            )
 
         return text
 

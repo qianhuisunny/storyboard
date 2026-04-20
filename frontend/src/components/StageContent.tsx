@@ -4,10 +4,10 @@ import { type Stage } from "./StageNavigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, RefreshCw, Loader2 } from "lucide-react";
-import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type ProcessingLogEntry as LegacyProcessingLogEntry } from "./BriefBuilder";
+import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField } from "./BriefBuilder";
 import { ChatBriefBuilder } from "./ChatBriefBuilder";
 import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
-import { type OnboardingData, type ProcessingLogEntry } from "./BriefBuilder/SplitBriefBuilder/types";
+import { type OnboardingData } from "./BriefBuilder/SplitBriefBuilder/types";
 import { OutlineBuilder, type EvidenceResearch, type SectionResearch } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
@@ -198,14 +198,6 @@ export default function StageContent({
   // RESEARCH DISABLED
   const isResearchChatLoading = false;
 
-  // Processing logs state for the Processing tab
-  const [, setProcessingLogs] = useState<ProcessingLogEntry[]>([]);
-  const [, setIsPollingLogs] = useState(false);
-  // Use ref for lastLogId to avoid triggering re-renders/re-polls
-  const lastLogIdRef = useRef<string | null>(null);
-  // Track if we've cleared logs for this session
-  const hasInitializedLogs = useRef(false);
-
   // Check if this is a Knowledge Share project
   // Priority: session storage onboarding data → saved brief content (for existing projects)
   const isKnowledgeShare = useMemo(() => {
@@ -359,65 +351,6 @@ export default function StageContent({
   //   const interval = setInterval(pollResearch, 2000);
   //   return () => clearInterval(interval);
   // }, [isKnowledgeShare, projectId, researchStatus]);
-
-  // Clear processing logs on mount (fresh session)
-  useEffect(() => {
-    if (!isKnowledgeShare || !projectId || hasInitializedLogs.current) return;
-    hasInitializedLogs.current = true;
-
-    // Clear logs on backend for fresh session
-    fetch(`/api/project/${projectId}/processing-logs`, { method: "DELETE" }).catch(() => {
-      // Silently fail - non-critical
-    });
-    // Reset frontend state
-    setProcessingLogs([]);
-    lastLogIdRef.current = null;
-  }, [isKnowledgeShare, projectId]);
-
-  // Poll for processing logs (for the Processing tab)
-  useEffect(() => {
-    if (!projectId) return;
-
-    const pollLogs = async () => {
-      try {
-        const url = lastLogIdRef.current
-          ? `/api/project/${projectId}/processing-logs?since_id=${lastLogIdRef.current}`
-          : `/api/project/${projectId}/processing-logs`;
-        const response = await fetch(url);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.success && data.data && data.data.length > 0) {
-            // Deduplicate by ID when adding new logs
-            setProcessingLogs((prev) => {
-              const existingIds = new Set(prev.map((log) => log.id));
-              const newLogs = data.data.filter((log: ProcessingLogEntry) => !existingIds.has(log.id));
-              return [...prev, ...newLogs];
-            });
-            // Track the last log ID for incremental polling (using ref to avoid re-renders)
-            const lastEntry = data.data[data.data.length - 1];
-            if (lastEntry) {
-              lastLogIdRef.current = lastEntry.id;
-            }
-          }
-        }
-      } catch {
-        // Silently fail polling
-      }
-    };
-
-    // Poll while any research/generation is happening (Stage 1 research OR Stage 2/3 generation)
-    const isActive = isResearchChatLoading || researchStatus === "running" || isGenerating;
-    setIsPollingLogs(isActive);
-
-    if (isActive) {
-      const interval = setInterval(pollLogs, 1000);
-      pollLogs(); // Initial poll
-      return () => clearInterval(interval);
-    } else {
-      // Final poll when done
-      pollLogs();
-    }
-  }, [projectId, isResearchChatLoading, researchStatus, isGenerating]);
 
   // RESEARCH DISABLED: addChatMessage helper removed
   // const addChatMessage = useCallback((...) => { ... }, []);
