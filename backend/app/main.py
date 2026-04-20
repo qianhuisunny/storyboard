@@ -3,8 +3,8 @@ from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File as
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.services.orchestrator import orchestrator
-from app.services.edit_tracker import edit_tracker
 from app.services.analytics import analytics_tracker
+from app.infra.quality_log import qlog
 from app.services.processing_log import get_store as get_processing_log_store
 from app.services.image_generator import ImageGenerator
 
@@ -314,24 +314,14 @@ async def run_stage(project_id: str, stage: str, request: RunStageRequest):
             project_id=project_id,
         )
 
-        # Record the AI generation in edit tracker
-        # Convert ai_content to string if it's a dict
         ai_content = result["ai_content"]
         if isinstance(ai_content, dict) or isinstance(ai_content, list):
             ai_content = json.dumps(ai_content, indent=2)
 
-        edit_tracker.record_ai_generation(
-            project_id=project_id,
-            stage=stage,
-            ai_content=ai_content,
-            sources=result.get("sources", []),
-            user_id=request.user_id,
-        )
-
         return {
             "success": True,
             "stage": stage,
-            "ai_content": ai_content,  # Use the stringified version
+            "ai_content": ai_content,
             "sources": result.get("sources", []),
         }
 
@@ -343,12 +333,7 @@ async def run_stage(project_id: str, stage: str, request: RunStageRequest):
 async def approve_stage(project_id: str, stage: str, request: ApproveStageRequest):
     """Approve a stage and record the final content."""
     try:
-        # Record the approval
-        edit_tracker.record_approval(
-            project_id=project_id,
-            stage=stage,
-            approved_content=request.content,
-        )
+        qlog.log_approve(project_id=project_id, stage=stage)
 
         return {
             "success": True,
@@ -366,17 +351,16 @@ async def approve_stage(project_id: str, stage: str, request: ApproveStageReques
 async def record_edit(project_id: str, stage: str, request: RecordEditRequest):
     """Record a human edit to a stage."""
     try:
-        edit_summary = edit_tracker.record_human_edit(
+        qlog.log_override(
             project_id=project_id,
             stage=stage,
-            human_content=request.content,
-            edit_time_seconds=request.edit_time_seconds,
+            scope="user_edit",
+            after_content=request.content if isinstance(request.content, str) else json.dumps(request.content),
         )
 
         return {
             "success": True,
             "stage": stage,
-            "edit_summary": edit_summary.model_dump(),
         }
 
     except ValueError as e:
@@ -405,13 +389,12 @@ async def regenerate_stage(project_id: str, stage: str, request: RunStageRequest
         if isinstance(ai_content, dict) or isinstance(ai_content, list):
             ai_content = json.dumps(ai_content, indent=2)
 
-        # Record the regeneration
-        edit_tracker.record_regeneration(
+        qlog.log_override(
             project_id=project_id,
             stage=stage,
-            feedback=request.feedback,
-            new_ai_content=ai_content,
-            sources=result.get("sources", []),
+            scope="regenerate",
+            instruction=request.feedback,
+            after_content=ai_content,
         )
 
         return {
@@ -424,69 +407,6 @@ async def regenerate_stage(project_id: str, stage: str, request: RunStageRequest
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error regenerating stage: {str(e)}")
-
-
-@app.get("/api/project/{project_id}/stage/{stage}")
-async def get_stage_data(project_id: str, stage: str):
-    """Get the current data for a specific stage."""
-    try:
-        edit_log = edit_tracker.load_edit_log(project_id)
-
-        if not edit_log or stage not in edit_log.stages:
-            return {
-                "success": True,
-                "stage": stage,
-                "data": None,
-                "message": "No data for this stage yet",
-            }
-
-        stage_data = edit_log.stages[stage]
-
-        return {
-            "success": True,
-            "stage": stage,
-            "data": stage_data,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting stage data: {str(e)}")
-
-
-@app.get("/api/project/{project_id}/edit-log")
-async def get_edit_log(project_id: str):
-    """Get the complete edit log for analytics."""
-    try:
-        edit_log = edit_tracker.load_edit_log(project_id)
-
-        if not edit_log:
-            return {
-                "success": True,
-                "data": None,
-                "message": "No edit log found for this project",
-            }
-
-        return {
-            "success": True,
-            "data": edit_log.model_dump(),
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting edit log: {str(e)}")
-
-
-@app.get("/api/project/{project_id}/analytics")
-async def get_project_analytics(project_id: str):
-    """Get analytics summary for prompt improvement."""
-    try:
-        summary = edit_tracker.get_analytics_summary(project_id)
-
-        return {
-            "success": True,
-            "analytics": summary,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting analytics: {str(e)}")
 
 
 # ============================================================
@@ -1782,235 +1702,6 @@ async def get_admin_all_stages(
         raise HTTPException(status_code=500, detail=f"Error getting stage snapshots: {str(e)}")
 
 
-# ============================================================
-# OBSERVABILITY ENDPOINTS (Harness Engineering Inspired)
-# ============================================================
-
-from app.services.observability import get_observability_service
-
-
-class EditEventRequest(BaseModel):
-    """Request body for logging an edit event."""
-    stage: str  # brief, outline, draft
-    edit_type: str  # field_edit, screen_add, screen_delete, regenerate, approve
-    field_name: str
-    screen_number: Optional[int] = None
-    before_value: Optional[str] = None
-    after_value: Optional[str] = None
-    stage_round: int = 1
-    time_since_generation_sec: Optional[float] = None
-
-
-class SnapshotRequest(BaseModel):
-    """Request body for creating a snapshot."""
-    stage: str
-    trigger: str  # ai_generation, human_save, stage_approval
-    content: dict
-
-
-@app.post("/api/project/{project_id}/edit-event")
-async def log_edit_event(project_id: str, request: EditEventRequest):
-    """
-    Log a granular edit event for observability.
-
-    Used by frontend to track every field-level change.
-    """
-    try:
-        obs_service = get_observability_service()
-
-        if request.edit_type == "field_edit":
-            event = obs_service.log_field_edit(
-                project_id=project_id,
-                stage=request.stage,
-                field_name=request.field_name,
-                before_value=request.before_value,
-                after_value=request.after_value,
-                screen_number=request.screen_number,
-                stage_round=request.stage_round,
-                time_since_generation_sec=request.time_since_generation_sec,
-            )
-        elif request.edit_type == "screen_delete":
-            event = obs_service.log_screen_delete(
-                project_id=project_id,
-                stage=request.stage,
-                screen_number=request.screen_number or 0,
-                screen_content={"deleted": True},
-            )
-        elif request.edit_type == "screen_add":
-            event = obs_service.log_screen_add(
-                project_id=project_id,
-                stage=request.stage,
-                screen_number=request.screen_number or 0,
-                screen_content={"added": True},
-            )
-        elif request.edit_type == "regenerate":
-            event = obs_service.log_regenerate(
-                project_id=project_id,
-                stage=request.stage,
-                feedback=request.after_value,
-            )
-        elif request.edit_type == "approve":
-            event = obs_service.log_approval(
-                project_id=project_id,
-                stage=request.stage,
-            )
-        else:
-            raise HTTPException(status_code=400, detail=f"Unknown edit_type: {request.edit_type}")
-
-        return {
-            "success": True,
-            "event_id": event.event_id,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error logging edit event: {str(e)}")
-
-
-@app.post("/api/project/{project_id}/snapshot")
-async def create_snapshot(project_id: str, request: SnapshotRequest):
-    """
-    Create a snapshot of stage content.
-
-    Called on AI generation and stage approval to enable diffing.
-    """
-    try:
-        obs_service = get_observability_service()
-
-        snapshot = obs_service.create_snapshot(
-            project_id=project_id,
-            stage=request.stage,
-            trigger=request.trigger,
-            content=request.content,
-        )
-
-        return {
-            "success": True,
-            "snapshot_id": snapshot.snapshot_id,
-            "version": snapshot.version,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error creating snapshot: {str(e)}")
-
-
-@app.get("/api/project/{project_id}/edit-history")
-async def get_edit_history(project_id: str, stage: Optional[str] = None):
-    """
-    Get all edit events for a project.
-
-    Query params:
-    - stage: Filter by stage (brief, outline, draft)
-    """
-    try:
-        obs_service = get_observability_service()
-        events = obs_service.get_edit_events(project_id, stage=stage)
-
-        return {
-            "success": True,
-            "events": events,
-            "count": len(events),
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting edit history: {str(e)}")
-
-
-@app.get("/api/project/{project_id}/diff/{stage}")
-async def get_stage_diff(project_id: str, stage: str):
-    """
-    Get diff between AI-generated and human-edited version.
-
-    Returns first (AI) snapshot, last (human) snapshot, and all edit events.
-    """
-    try:
-        obs_service = get_observability_service()
-        diff = obs_service.get_stage_diff(project_id, stage)
-
-        if not diff:
-            return {
-                "success": True,
-                "diff": None,
-                "message": "Not enough snapshots for diff (need at least 2)",
-            }
-
-        return {
-            "success": True,
-            "diff": diff,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting diff: {str(e)}")
-
-
-@app.get("/api/project/{project_id}/snapshots")
-async def get_snapshots(project_id: str, stage: Optional[str] = None):
-    """Get all snapshots for a project."""
-    try:
-        obs_service = get_observability_service()
-        snapshots = obs_service.get_snapshots(project_id, stage=stage)
-
-        return {
-            "success": True,
-            "snapshots": snapshots,
-            "count": len(snapshots),
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting snapshots: {str(e)}")
-
-
-@app.get("/api/analytics/field-patterns")
-async def get_field_patterns(
-    range: str = "7d",
-    user_id: Optional[str] = Header(None, alias="X-User-Id"),
-):
-    """
-    Get aggregated field edit patterns across all projects.
-
-    For populating the "Field Edit Patterns" dashboard card.
-    """
-    try:
-        obs_service = get_observability_service()
-        analytics = obs_service.compute_cross_project_analytics(time_range=range)
-
-        return {
-            "success": True,
-            "time_range": range,
-            "total_projects": analytics.total_projects,
-            "stage_edit_rates": analytics.stage_edit_rates,
-            "field_edit_frequency": analytics.field_edit_frequency,
-            "semantic_patterns": analytics.semantic_patterns,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting field patterns: {str(e)}")
-
-
-@app.get("/api/analytics/prompt-signals")
-async def get_prompt_signals(
-    range: str = "7d",
-    user_id: Optional[str] = Header(None, alias="X-User-Id"),
-):
-    """
-    Get prompt improvement recommendations based on edit patterns.
-
-    Returns actionable signals for improving agent prompts.
-    """
-    try:
-        obs_service = get_observability_service()
-        analytics = obs_service.compute_cross_project_analytics(time_range=range)
-
-        return {
-            "success": True,
-            "time_range": range,
-            "signals": [s.to_dict() for s in analytics.prompt_improvement_signals],
-            "revision_metrics": analytics.revision_metrics,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error getting prompt signals: {str(e)}")
-
-
 # ============================================================================
 # Quality Log API
 # ============================================================================
@@ -2018,7 +1709,6 @@ async def get_prompt_signals(
 @app.get("/api/quality-log/{project_id}")
 async def get_quality_log(project_id: str):
     import sqlite3
-    from app.infra.quality_log import qlog
 
     conn = sqlite3.connect(qlog._db_path)
     conn.row_factory = sqlite3.Row
@@ -2045,7 +1735,6 @@ async def get_quality_log(project_id: str):
 @app.get("/api/quality-log/stats/overrides")
 async def get_override_stats():
     import sqlite3
-    from app.infra.quality_log import qlog
 
     conn = sqlite3.connect(qlog._db_path)
     conn.row_factory = sqlite3.Row
