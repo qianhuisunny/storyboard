@@ -118,7 +118,7 @@ class TestGateTransitions:
             }},
             brief_locked=True,
         )
-        manager.save(state)
+        await manager.save(state)
         result = await orch.process_event("test-project", "approve", {})
         assert result["success"] is True
         assert result["phase"] == "gate2"
@@ -137,7 +137,7 @@ class TestGateTransitions:
             screen_outline=MOCK_OUTLINE,
             brief_locked=True,
         )
-        manager.save(state)
+        await manager.save(state)
         result = await orch.process_event("test-project", "approve", {})
         assert result["success"] is True
         assert result["phase"] == "review"
@@ -155,7 +155,7 @@ class TestGateTransitions:
             brief_locked=True,
             outline_locked=True,
         )
-        manager.save(state)
+        await manager.save(state)
         result = await orch.process_event("test-project", "edit", {"target": "gate1"})
         assert result["success"] is True
         assert result["phase"] == "gate1"
@@ -174,7 +174,7 @@ class TestGateTransitions:
             brief_locked=True,
             outline_locked=True,
         )
-        manager.save(state)
+        await manager.save(state)
         result = await orch.process_event("test-project", "edit", {"target": "gate2"})
         assert result["success"] is True
         assert result["phase"] == "gate2"
@@ -189,7 +189,7 @@ class TestInvalidTransitions:
         orch = make_orchestrator()
         manager = StateManager("test-project")
         state = make_state(phase="outline")
-        manager.save(state)
+        await manager.save(state)
         result = await orch.process_event("test-project", "brief_approve", {})
         assert result["success"] is False
         assert "Invalid" in result.get("error", "") or "Invalid" in result.get("message", "")

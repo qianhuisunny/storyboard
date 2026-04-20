@@ -15,20 +15,24 @@ const INITIAL_STAGES: Stage[] = [
   { id: 4, name: "Review and Share", description: "Final review and export", status: "not_started" },
 ];
 
-// Map stage IDs to API-compatible stage names
-const STAGE_API_NAMES: Record<number, string> = {
-  1: "brief",
-  2: "outline",
-  3: "draft",
-  4: "polish",
-};
-
 interface StageData {
   aiVersion: string | null;
   humanVersion: string | null;
 }
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+function stringifyForStageData(content: unknown): string {
+  return typeof content === "string" ? content : JSON.stringify(content, null, 2);
+}
+
+function parseMaybeJson(content: string): unknown {
+  try {
+    return JSON.parse(content);
+  } catch {
+    return content;
+  }
+}
 
 export default function StageLayout() {
   const { projectId } = useParams<{ projectId: string }>();
@@ -47,8 +51,6 @@ export default function StageLayout() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isLoadingStages, setIsLoadingStages] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
-  const [researchDetails, setResearchDetails] = useState<Record<string, unknown> | null>(null);
-  const [activeAnchor, setActiveAnchor] = useState<string | null>(null);
   const hasLoadedStages = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousStageIdRef = useRef<number | null>(null);
@@ -159,27 +161,6 @@ export default function StageLayout() {
     loadSavedStages();
   }, [projectId]);
 
-  // Fetch research details from pipeline-state when on stage 2+
-  useEffect(() => {
-    const fetchResearchDetails = async () => {
-      if (!projectId || currentStageId < 2) return;
-
-      try {
-        const response = await fetch(`/api/project/${projectId}/pipeline-state`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.data?.research_details) {
-            setResearchDetails(data.data.research_details);
-          }
-        }
-      } catch (error) {
-        console.error("Failed to fetch research details:", error);
-      }
-    };
-
-    fetchResearchDetails();
-  }, [projectId, currentStageId]);
-
   // Save stages function
   const saveStages = useCallback(async () => {
     if (!projectId || Object.keys(stageData).length === 0) return;
@@ -257,32 +238,51 @@ export default function StageLayout() {
     };
   }, [currentStageId, isLoadingStages, stages, analytics]);
 
+  const buildLegacyIntakeForm = useCallback((userInput: string, feedback?: string) => {
+    const videoType = sessionStorage.getItem("storyboardType") || "1";
+    const duration = sessionStorage.getItem("storyboardDuration") || "60";
+    const audience = sessionStorage.getItem("storyboardAudience") || "";
+    const videoTypeNames: Record<string, string> = {
+      "1": "Product Release",
+      "2": "Product Demo Video",
+      "3": "Knowledge Sharing",
+    };
+
+    return {
+      user_inputs: feedback ? `${userInput}\n\nRevision request:\n${feedback}` : userInput,
+      video_goal: "",
+      target_audience: audience,
+      company_or_brand_name: "",
+      tone_and_style: "professional",
+      format_or_platform: "general",
+      desired_length: duration,
+      show_face: "No",
+      cta: "",
+      video_type: videoTypeNames[videoType] || "Product Release",
+    };
+  }, []);
+
+  const setStageContentAndStatus = useCallback((stageId: number, content: string, status: StageStatus) => {
+    setStageData((prev) => ({
+      ...prev,
+      [stageId]: {
+        aiVersion: content,
+        humanVersion: null,
+      },
+    }));
+    updateStageStatus(stageId, status);
+  }, []);
+
   const generateStage = async (stageId: number, context?: string, feedback?: string) => {
+    if (stageId !== 1) {
+      console.warn(`[StageLayout] generateStage(${stageId}) is deprecated. Use /event-driven transitions instead.`);
+      return;
+    }
+
     setIsGenerating(true);
     updateStageStatus(stageId, "in_progress");
 
-    // Use API-compatible stage names
-    const stageName = STAGE_API_NAMES[stageId] || "unknown";
-
     try {
-      // Build previous stages data using API-compatible names
-      const previousStages: Record<string, string> = {};
-      for (let i = 1; i < stageId; i++) {
-        const prevStageName = STAGE_API_NAMES[i] || "";
-        const prevData = stageData[i];
-        if (prevData) {
-          previousStages[prevStageName] = prevData.humanVersion || prevData.aiVersion || "";
-        }
-      }
-
-      // Get video type from sessionStorage
-      const videoType = sessionStorage.getItem("storyboardType") || "1";
-      const videoTypeNames: Record<string, string> = {
-        "1": "Product Release",
-        "2": "Product Demo Video",
-        "3": "Knowledge Sharing",
-      };
-
       // Get additional context from uploaded sources (files, links, text)
       const sourceContext = sessionStorage.getItem("storyboardContext") || "";
 
@@ -292,15 +292,11 @@ export default function StageLayout() {
         fullUserInput = `${fullUserInput}\n\n--- Reference Materials ---\n\n${sourceContext}`;
       }
 
-      const response = await fetch(`/api/project/${projectId}/stage/${stageName}/run`, {
+      const response = await fetch(`/api/project/${projectId}/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          user_input: fullUserInput,
-          previous_stages: previousStages,
-          feedback: feedback,
-          user_id: user?.id,
-          video_type: videoTypeNames[videoType] || "Product Release",
+          intake_form: buildLegacyIntakeForm(fullUserInput, feedback),
         }),
       });
 
@@ -309,16 +305,12 @@ export default function StageLayout() {
       }
 
       const data = await response.json();
+      const briefContent = data.story_brief ? stringifyForStageData(data.story_brief) : null;
+      if (!briefContent) {
+        throw new Error("Brief generation returned no story_brief");
+      }
 
-      setStageData((prev) => ({
-        ...prev,
-        [stageId]: {
-          aiVersion: data.ai_content,
-          humanVersion: null,
-        },
-      }));
-
-      updateStageStatus(stageId, "needs_review");
+      setStageContentAndStatus(stageId, briefContent, "needs_review");
     } catch (error) {
       console.error("Failed to generate stage:", error);
       updateStageStatus(stageId, "not_started");
@@ -335,35 +327,15 @@ export default function StageLayout() {
 
   const handleStageSelect = (stageId: number) => {
     setCurrentStageId(stageId);
-    setActiveAnchor(null);
     setIsMobileMenuOpen(false);
-  };
-
-  const handleAnchorSelect = (stageId: number, anchor: string) => {
-    setCurrentStageId(stageId);
-    setActiveAnchor(anchor);
-    setIsMobileMenuOpen(false);
-    // Scroll to anchor
-    setTimeout(() => {
-      document.getElementById(anchor)?.scrollIntoView({ behavior: "smooth" });
-    }, 50);
   };
 
   const handleApprove = async (
     content: string,
     options?: { skipNextGeneration?: boolean; nextStageContent?: string }
   ) => {
-    console.log("[StageLayout] handleApprove called");
-    console.log("[StageLayout] currentStageId:", currentStageId);
-    console.log("[StageLayout] options:", options);
-    console.log("[StageLayout] content length:", content?.length);
-
     const currentStage = stages.find((s) => s.id === currentStageId);
     if (!currentStage) return;
-
-    // Use API-compatible stage name
-    const stageName = STAGE_API_NAMES[currentStageId] || "unknown";
-    console.log("[StageLayout] stageName:", stageName);
 
     // Save the approved content
     setStageData((prev) => ({
@@ -374,69 +346,88 @@ export default function StageLayout() {
       },
     }));
 
-    // Track the edit via API (skip for Knowledge Share which uses event-based flow)
-    if (!options?.skipNextGeneration) {
-      try {
-        const aiVersion = stageData[currentStageId]?.aiVersion || "";
-        if (content !== aiVersion) {
-          await fetch(`/api/project/${projectId}/stage/${stageName}/edit`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              stage: stageName,
-              content: content,
-            }),
-          });
-        }
+    const advanceToNextStage = (nextStageId: number, nextContent: string) => {
+      updateStageStatus(currentStageId, "approved");
+      setCurrentStageId(nextStageId);
+      setStageContentAndStatus(nextStageId, nextContent, "needs_review");
+    };
 
-        // Approve the stage
-        await fetch(`/api/project/${projectId}/stage/${stageName}/approve`, {
+    try {
+      if (currentStageId === 1) {
+        const response = await fetch(`/api/project/${projectId}/event`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            stage: stageName,
-            content: content,
-            user_id: user?.id,
+            event: "approve",
+            payload: {
+              current_story_brief: parseMaybeJson(content),
+            },
           }),
         });
-      } catch (error) {
-        console.error("Failed to save approval:", error);
+        if (!response.ok) throw new Error("Failed to approve brief");
+        const data = await response.json();
+        if (!data.screen_outline) throw new Error("Brief approval returned no outline");
+        advanceToNextStage(2, stringifyForStageData(data.screen_outline));
+        return;
       }
-    }
 
-    // Mark as approved
-    updateStageStatus(currentStageId, "approved");
+      if (currentStageId === 2) {
+        const nextContent = options?.nextStageContent;
+        if (!nextContent) {
+          const response = await fetch(`/api/project/${projectId}/event`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              event: "approve",
+              payload: {
+                current_outline: content,
+              },
+            }),
+          });
+          if (!response.ok) throw new Error("Failed to approve outline");
+          const data = await response.json();
+          if (!data.storyboard) throw new Error("Outline approval returned no storyboard");
+          advanceToNextStage(3, stringifyForStageData(data.storyboard));
+          return;
+        }
 
-    // Move to next stage or complete
-    const nextStageId = currentStageId + 1;
-    if (nextStageId <= 4) {
-      setCurrentStageId(nextStageId);
-
-      // If we have pre-generated content for the next stage (e.g., Knowledge Share),
-      // use it instead of generating
-      if (options?.nextStageContent) {
-        const nextContent = options.nextStageContent;
-        setStageData((prev) => ({
-          ...prev,
-          [nextStageId]: {
-            aiVersion: nextContent,
-            humanVersion: null,
-          },
-        }));
-        updateStageStatus(nextStageId, "needs_review");
-      } else if (!options?.skipNextGeneration) {
-        generateStage(nextStageId);
+        advanceToNextStage(3, nextContent);
+        return;
       }
-    } else {
-      // All stages complete - show rating modal before navigating
-      setShowRatingModal(true);
+
+      if (currentStageId === 3) {
+        advanceToNextStage(4, content);
+        return;
+      }
+
+      if (currentStageId === 4) {
+        const response = await fetch(`/api/project/${projectId}/event`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            event: "approve",
+            payload: {
+              current_storyboard: parseMaybeJson(content),
+            },
+          }),
+        });
+        if (!response.ok) throw new Error("Failed to finalize storyboard");
+        updateStageStatus(currentStageId, "approved");
+        setShowRatingModal(true);
+      }
+    } catch (error) {
+      console.error("Failed to approve stage:", error);
     }
   };
 
   const handleRegenerate = async (feedback: string) => {
     // Track regeneration for analytics
     analytics.trackRegeneration(currentStageId);
-    await generateStage(currentStageId, projectContext?.userInput, feedback);
+    if (currentStageId === 1) {
+      await generateStage(currentStageId, projectContext?.userInput, feedback);
+      return;
+    }
+    console.warn(`[StageLayout] Generic regenerate is not supported for stage ${currentStageId}; use stage-specific event actions.`);
   };
 
   const handleRatingSubmit = async (rating: number, feedback: string) => {
@@ -466,7 +457,7 @@ export default function StageLayout() {
   // Use humanVersion as fallback for Knowledge Share flow which writes to humanVersion
   const previousStageData = currentStageId > 1 ? stageData[currentStageId - 1] : null;
   const previousStageOutput = useMemo(() => {
-    const content = previousStageData?.aiVersion || previousStageData?.humanVersion;
+    const content = previousStageData?.humanVersion || previousStageData?.aiVersion;
     if (!content) return null;
     try {
       return typeof content === "string" ? JSON.parse(content) : content;
@@ -544,15 +535,7 @@ export default function StageLayout() {
         <StageNavigation
           stages={stages}
           currentStageId={currentStageId}
-          activeAnchor={activeAnchor}
-          evidenceStatus={
-            activeAnchor === "evidence" ? "needs_review"
-            : stages.find(s => s.id === 3)?.status !== "not_started" ? "approved"
-            : stages.find(s => s.id === 2)?.status === "approved" ? "in_progress"
-            : "not_started"
-          }
           onStageSelect={handleStageSelect}
-          onAnchorSelect={handleAnchorSelect}
         />
       </div>
 
@@ -568,12 +551,10 @@ export default function StageLayout() {
             aiContent={currentData.aiVersion}
             humanContent={currentData.humanVersion}
             previousStageOutput={previousStageOutput}
-            researchDetails={researchDetails}
             isGenerating={isGenerating}
             onApprove={handleApprove}
             onRegenerate={handleRegenerate}
             onContentChange={handleContentChange}
-            onAnchorChange={setActiveAnchor}
           />
         ) : null}
       </div>

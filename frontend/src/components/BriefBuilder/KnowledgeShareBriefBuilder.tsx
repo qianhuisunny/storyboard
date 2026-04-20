@@ -469,7 +469,6 @@ export default function KnowledgeShareBriefBuilder({
         {/* Current Form */}
         {renderCurrentForm()}
 
-        {/* RESEARCH DISABLED: Research Running Overlay removed */}
         </div>
       </div>
 

@@ -63,7 +63,7 @@ async def test_golden_path_knowledge_share(make_orchestrator, patch_state_manage
 
     # Verify final state integrity
     manager = StateManager("test-project")
-    final_state = manager.load()
+    final_state = await manager.load()
     assert final_state.phase == "review"
     assert final_state.story_brief is not None
     assert final_state.screen_outline is not None

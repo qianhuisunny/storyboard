@@ -114,7 +114,7 @@ class MockQualityGate:
 
 @pytest.fixture
 def tmp_data_dir(tmp_path):
-    """Temporary data directory for StateManager."""
+    """Temporary SQLite data directory for StateManager tests."""
     return tmp_path
 
 
@@ -162,7 +162,7 @@ def make_state(tmp_data_dir):
 
 @pytest.fixture
 def patch_state_manager(tmp_data_dir, monkeypatch):
-    """Patch StateManager to use tmp_data_dir instead of real data/."""
+    """Patch StateManager to use a temp SQLite file instead of the repo DB."""
     _original_init = StateManager.__init__
 
     def _patched_init(self, project_id, data_dir=None):

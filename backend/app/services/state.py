@@ -1,13 +1,19 @@
 """
-State Management for Storyboard Orchestrator.
-Manages project state through the multi-agent pipeline with gating points.
+State management for the storyboard orchestrator.
+
+State transitions live here; persistence goes through SQLite via SQLAlchemy.
+No pipeline state is written to `state.json`.
 """
 
-import json
 from datetime import datetime
 from pathlib import Path
 from typing import Optional, List, Literal, Union
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+
+from app.db.engine import AsyncSessionLocal
+from app.db.models import Base
+from app.db.repository import ProjectRepository
 
 
 class RevisionRecord(BaseModel):
@@ -23,7 +29,7 @@ class StoryboardState(BaseModel):
     project_id: str
     phase: Literal[
         "intake",         # Initial state, waiting for intake form
-        "research",       # Topic Researcher is running
+        "research",       # Reserved for future researcher reintroduction
         "brief",          # Brief Builder is running (legacy)
         "brief_round1",   # NEW: Editing Section 1 (Core Intent)
         "brief_round2",   # NEW: Editing Section 2 (Delivery & Format)
@@ -32,7 +38,7 @@ class StoryboardState(BaseModel):
         "gate1",          # Human review of Story Brief
         "outline",        # Storyboard Director is running
         "gate2",          # Human review of Screen Outline
-        "outline_research",  # Evidence research running on approved outline
+        "outline_research",  # Reserved for future outline research flow
         "write",          # Storyboard Writer is running
         "review",         # Final review (optional refinements)
         "done"            # Complete
@@ -51,9 +57,11 @@ class StoryboardState(BaseModel):
     research_results: Optional[dict] = None  # Research results when complete
     research_complete: bool = False  # True when research has finished
 
-    # NEW: Perspective-first research flow state
-    research_details: Optional[dict] = None  # Detailed research for StoryboardWriter
-    evidence_research: Optional[dict] = None  # Evidence research results from outline
+    # Reserved I/O slots for the deferred Researcher/EvidenceResearcher work.
+    # MVP does not populate them, but we keep the schema stable for a future
+    # reintroduction with an explicit contract.
+    research_details: Optional[dict] = None
+    evidence_research: Optional[dict] = None
 
     # Quality eval results (auto-grader)
     outline_eval: Optional[dict] = None
@@ -87,12 +95,12 @@ class StateManager:
         ("gate1", "reject"): "brief",  # Revision loop
         ("outline", "outline_ready"): "gate2",
         ("gate2", "approve"): "write",
-        ("gate2", "run_research"): "outline_research",  # Run evidence research
+        ("gate2", "run_research"): "outline_research",  # Reserved for future researcher flow
         ("gate2", "regenerate_section"): "gate2",  # Regen one section, stay at gate2
         ("gate2", "refine_outline"): "gate2",  # Regen full outline, stay at gate2
         ("gate2", "reject"): "outline",  # Revision loop
-        ("outline_research", "run_research"): "outline_research",  # Re-run research
-        ("outline_research", "approve"): "write",  # Approve research, run writer
+        ("outline_research", "run_research"): "outline_research",  # Reserved for future researcher flow
+        ("outline_research", "approve"): "write",  # Accept attached research and run writer
         ("write", "storyboard_ready"): "review",
         ("review", "approve"): "done",
         ("review", "refine"): "outline",  # Optional refinement
@@ -107,7 +115,8 @@ class StateManager:
         ("brief_round3", "generate_content_spine"): "brief_round3",   # POV submitted -> stay, generate fields
         ("brief_round3", "round3_confirm"): "brief_review",           # Section 3 confirmed -> Final review
         ("brief_review", "brief_approve"): "gate1",                # Final review -> Gate 1 (locked)
-        ("brief_review", "edit_brief"): "brief_round1",            # Go back to editing
+        ("brief_review", "edit"): "brief_round1",                  # Go back to editing
+        ("brief_review", "edit_brief"): "brief_round1",            # Legacy alias
         ("brief_round1", "chat_brief_approve"): "brief_review",
         ("brief_round2", "chat_brief_approve"): "brief_review",
         ("brief_round3", "chat_brief_approve"): "brief_review",
@@ -121,33 +130,86 @@ class StateManager:
 
     def __init__(self, project_id: str, data_dir: Optional[Path] = None):
         self.project_id = project_id
-        self.data_dir = data_dir or Path(__file__).parent.parent.parent.parent / "data"
-        self.project_dir = self.data_dir / f"project_{project_id}"
-        self.state_path = self.project_dir / "state.json"
+        self.data_dir = Path(data_dir) if data_dir is not None else None
+        self._owned_engine = None
+        if self.data_dir is None:
+            self._sessionmaker = AsyncSessionLocal
+        else:
+            db_path = self.data_dir / "plotline.db"
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            self._owned_engine = create_async_engine(
+                f"sqlite+aiosqlite:///{db_path}",
+                echo=False,
+            )
+            self._sessionmaker = async_sessionmaker(
+                self._owned_engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
+            )
 
-    def load(self) -> StoryboardState:
-        """Load state from disk, or create initial state if doesn't exist."""
-        if self.state_path.exists():
-            with open(self.state_path, "r") as f:
-                data = json.load(f)
+    async def _ensure_tables(self) -> None:
+        """Create tables for temp/test databases managed by this instance."""
+        if self._owned_engine is None:
+            return
+        async with self._owned_engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+
+    async def load(self) -> StoryboardState:
+        """Load state from SQLite, or create initial state if it doesn't exist."""
+        await self._ensure_tables()
+        async with self._sessionmaker() as session:
+            repo = ProjectRepository(session)
+            ps = await repo.get_pipeline_state(self.project_id)
+            if not ps:
+                return await self._create_initial_state()
+
+            data = repo.parse_state_data(ps)
+            if not data:
+                data = {}
+            data.setdefault("project_id", self.project_id)
+            data["phase"] = ps.phase or data.get("phase", "intake")
             return StoryboardState(**data)
-        return self._create_initial_state()
 
-    def _create_initial_state(self) -> StoryboardState:
+    async def _create_initial_state(self) -> StoryboardState:
         """Create a new initial state for the project."""
-        state = StoryboardState(
-            project_id=self.project_id,
-            phase="intake",
-        )
-        self.save(state)
+        state = StoryboardState(project_id=self.project_id, phase="intake")
+        async with self._sessionmaker() as session:
+            repo = ProjectRepository(session)
+            project = await repo.get_project(self.project_id)
+            if not project:
+                await repo.create_project(
+                    project_id=self.project_id,
+                    user_id="",
+                    title="",
+                )
+            await repo.update_pipeline_state(
+                project_id=self.project_id,
+                phase=state.phase,
+                status="pending",
+                state_data=state.model_dump(),
+            )
         return state
 
-    def save(self, state: StoryboardState) -> None:
-        """Save state to disk."""
+    async def save(self, state: StoryboardState) -> None:
+        """Persist state to SQLite."""
+        await self._ensure_tables()
         state.updated_at = datetime.now().isoformat()
-        self.project_dir.mkdir(parents=True, exist_ok=True)
-        with open(self.state_path, "w") as f:
-            json.dump(state.model_dump(), f, indent=2)
+        async with self._sessionmaker() as session:
+            repo = ProjectRepository(session)
+            project = await repo.get_project(self.project_id)
+            if not project:
+                await repo.create_project(
+                    project_id=self.project_id,
+                    user_id="",
+                    title="",
+                )
+            status = "completed" if state.phase == "done" else "pending"
+            await repo.update_pipeline_state(
+                project_id=self.project_id,
+                phase=state.phase,
+                status=status,
+                state_data=state.model_dump(),
+            )
 
     def transition(self, state: StoryboardState, event: str) -> StoryboardState:
         """

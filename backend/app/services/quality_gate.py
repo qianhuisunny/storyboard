@@ -16,6 +16,7 @@ OUTLINE_DIMENSIONS = [
     ("evidence_fitness", "Do the proposed evidence directions provide the right kind and strength of support for the claims? Would they actually strengthen the argument?"),
     ("brief_pov_alignment", "Does the outline clearly serve the brief's intended viewer outcome and defend the intended point of view? Has the AI drifted to a related but different topic?"),
     ("section_necessity", "Does each section have a distinct teaching job, or is it redundant, mergeable, or disposable? Could any sections be combined without losing value?"),
+    ("narrative_completeness", "Does the outline fully realize the promised arc from hook to closing? Check that the opening actually functions as a hook, the final section clearly lands the last core talking point as a closing/action/reframe, and the outline does not feel cut off or incomplete."),
 ]
 
 STORYBOARD_DIMENSIONS = [
@@ -33,7 +34,7 @@ STAGE_DIMENSIONS = {
 }
 
 STAGE_PROMPTS = {
-    "outline": "OUTLINE_EVAL_PROMPT.md",
+    "outline": "OUTLINE_EVAL_PROMPT_v0419.md",
     "storyboard": "STORYBOARD_EVAL_PROMPT.md",
 }
 
@@ -105,10 +106,31 @@ class QualityGate:
         target_audience = self._extract_brief_field(story_brief, "target_audience")
         audience_level = self._extract_brief_field(story_brief, "audience_level", "intermediate")
         point_of_view = self._extract_brief_field(story_brief, "point_of_view")
+        duration = self._extract_brief_field(story_brief, "duration")
+        misconceptions = self._extract_brief_field(story_brief, "misconceptions")
+        must_avoid = self._extract_brief_field(story_brief, "must_avoid", [])
+        core_talking_points = self._extract_brief_field(story_brief, "core_talking_points", [])
+
+        if isinstance(core_talking_points, str):
+            core_talking_points = [core_talking_points]
+        if isinstance(misconceptions, list):
+            misconceptions = "; ".join(str(item) for item in misconceptions if item)
+        if isinstance(must_avoid, str):
+            must_avoid = [must_avoid]
+
+        talking_points_text = "\n".join(
+            f"{idx}. {point}" for idx, point in enumerate(core_talking_points, start=1)
+        ) or "(none provided)"
+        must_avoid_text = "\n".join(f"- {item}" for item in must_avoid if item) or "(none)"
+
         return (
             f"Target audience: {target_audience} (level: {audience_level})\n"
             f"Viewer outcome: {viewer_outcome}\n"
-            f"Point of view: {point_of_view}"
+            f"Point of view: {point_of_view}\n"
+            f"Target duration (seconds): {duration}\n"
+            f"Core misconception: {misconceptions or '(none)'}\n"
+            f"Must avoid:\n{must_avoid_text}\n"
+            f"Core talking points in order:\n{talking_points_text}"
         )
 
     def _call_eval(self, stage: str, user_prompt: str, label: str = "eval") -> dict:

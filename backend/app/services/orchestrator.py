@@ -4,6 +4,7 @@ Manages state transitions, gating points, and revision loops.
 """
 
 from datetime import datetime
+import json
 from typing import Optional, Dict, Any
 
 from app.services.state import StateManager, StoryboardState, RevisionRecord
@@ -67,7 +68,7 @@ class StoryboardOrchestrator:
         """
         payload = payload or {}
         manager = StateManager(project_id)
-        state = manager.load()
+        state = await manager.load()
 
         result = {
             "phase": state.phase,
@@ -88,7 +89,7 @@ class StoryboardOrchestrator:
                     f"Valid events: {manager._valid_events_for_phase(state.phase)}"
                 )
 
-            manager.save(state)
+            await manager.save(state)
             result["phase"] = state.phase
             result["state"] = self._serialize_state(state)
 
@@ -117,9 +118,6 @@ class StoryboardOrchestrator:
             # Knowledge Share 3-Round Briefing Flow
             ("intake", "submit_knowledge_share"): self._handle_submit_knowledge_share,
             ("brief_round1", "round1_confirm"): self._handle_round1_confirm,
-            # RESEARCH DISABLED: these events are no longer used
-            # ("brief_round1", "select_perspective"): self._handle_select_perspective,
-            # ("brief_round1", "confirm_talking_points"): self._handle_confirm_talking_points,
             ("brief_round2", "round2_confirm"): self._handle_round2_confirm,
             ("brief_round3", "generate_content_spine"): self._handle_generate_content_spine,
             ("brief_round3", "round3_confirm"): self._handle_round3_confirm,
@@ -132,6 +130,37 @@ class StoryboardOrchestrator:
         }
         return handlers.get((phase, event))
 
+    def _raise_if_quality_gate_failed(self, stage_label: str, eval_result) -> None:
+        """Stop the pipeline when the quality gate rejects the output."""
+        if eval_result.passed:
+            return
+
+        parts = [
+            f"{stage_label} quality gate failed after {eval_result.total_attempts} attempt(s)",
+            f"(best score: {eval_result.composite_score}/10).",
+        ]
+
+        if eval_result.gut and eval_result.gut.feedback:
+            parts.append(f"Gut check: {eval_result.gut.feedback}")
+
+        if eval_result.dimensions:
+            weakest = min(eval_result.dimensions, key=lambda item: item.score)
+            if weakest.feedback:
+                parts.append(f"Weakest dimension ({weakest.dimension}): {weakest.feedback}")
+
+        raise ValueError(" ".join(parts))
+
+    def _coerce_json_payload(self, payload: Any, field_name: str) -> Any:
+        """Parse JSON strings from event payloads while accepting already-parsed objects."""
+        if payload is None:
+            return None
+        if isinstance(payload, str):
+            try:
+                return json.loads(payload)
+            except json.JSONDecodeError as exc:
+                raise ValueError(f"{field_name} must be valid JSON when provided as a string") from exc
+        return payload
+
     async def _handle_intake_submit(
         self,
         state: StoryboardState,
@@ -139,7 +168,7 @@ class StoryboardOrchestrator:
         payload: dict,
         result: dict
     ) -> tuple:
-        """Handle intake form submission - runs research and brief building."""
+        """Handle intake form submission for the legacy brief flow."""
         # Validate intake form
         intake_form = payload.get("intake_form")
         if not intake_form:
@@ -172,6 +201,13 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """Handle Gate 1 approval - locks brief and runs director."""
+        current_story_brief = self._coerce_json_payload(
+            payload.get("current_story_brief"),
+            "current_story_brief",
+        )
+        if current_story_brief is not None:
+            state.story_brief = current_story_brief
+
         # VALIDATION: Check story_brief exists and has content
         if not state.story_brief:
             raise ValueError("Cannot approve: Story Brief is empty")
@@ -208,6 +244,7 @@ class StoryboardOrchestrator:
             state=state,
             stage="outline",
         )
+        self._raise_if_quality_gate_failed("Outline", outline_eval)
         state.screen_outline = screen_outline
         state.outline_eval = outline_eval.to_dict()
         try:
@@ -262,6 +299,16 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """Handle Gate 2 approval - locks outline and runs writer."""
+        current_outline = self._coerce_json_payload(
+            payload.get("current_outline"),
+            "current_outline",
+        )
+        if current_outline is not None:
+            state.screen_outline = current_outline
+
+        if payload.get("evidence_research") is not None:
+            state.evidence_research = payload.get("evidence_research")
+
         # VALIDATION: Check screen_outline exists and is non-empty
         if not state.screen_outline:
             raise ValueError("Cannot approve: Outline is empty")
@@ -282,6 +329,7 @@ class StoryboardOrchestrator:
             stage="storyboard",
             outline_for_cross_stage=state.screen_outline,
         )
+        self._raise_if_quality_gate_failed("Storyboard", storyboard_eval)
         state.storyboard = storyboard
         state.storyboard_eval = storyboard_eval.to_dict()
         try:
@@ -410,6 +458,13 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """Handle final approval - mark as done."""
+        current_storyboard = self._coerce_json_payload(
+            payload.get("current_storyboard"),
+            "current_storyboard",
+        )
+        if current_storyboard is not None:
+            state.storyboard = current_storyboard
+
         # VALIDATION: Check storyboard exists and has screens
         if not state.storyboard:
             raise ValueError("Cannot approve: Storyboard is empty")
@@ -548,9 +603,8 @@ class StoryboardOrchestrator:
         state.intake_form = intake_form
         state.brief_round = 1
 
-        # RESEARCH DISABLED: research is skipped entirely
         state.research_results = None
-        state.research_complete = True  # Mark as complete since we're skipping it
+        state.research_complete = True
 
         # Transition to brief_round1
         state = manager.transition(state, "submit_knowledge_share")
@@ -570,7 +624,7 @@ class StoryboardOrchestrator:
         result["message"] = "Knowledge Share brief started. Review Section 1: Core Intent."
         result["brief_fields"] = round1_result.get("fields", {})
         result["round"] = 1
-        result["research_status"] = "complete"  # RESEARCH DISABLED: always complete
+        result["research_status"] = "complete"
 
         print(f"[KS] _handle_submit_knowledge_share completed in {(time.time() - start_time)*1000:.0f}ms")
         return state, result
@@ -584,7 +638,9 @@ class StoryboardOrchestrator:
     ) -> tuple:
         """
         Handle Round 1 confirmation (Section 1: Core Intent).
-        RESEARCH DISABLED: Skips perspective generation, transitions directly to Round 2.
+
+        The MVP flows directly to Round 2. Researcher-generated perspectives are
+        deferred until the researcher I/O contract is reintroduced.
         """
         confirmed_fields = payload.get("confirmed_fields", {})
 
@@ -790,6 +846,7 @@ class StoryboardOrchestrator:
             state=state,
             stage="outline",
         )
+        self._raise_if_quality_gate_failed("Outline", outline_eval)
         state.screen_outline = screen_outline
         state.outline_eval = outline_eval.to_dict()
         try:
@@ -829,7 +886,7 @@ class StoryboardOrchestrator:
         Goes back to Round 1 for editing.
         """
         # Transition back to brief_round1
-        state = manager.transition(state, "edit_brief")
+        state = manager.transition(state, "edit")
         state.brief_round = 1
 
         result["message"] = "Returned to editing mode. All sections editable."
@@ -880,6 +937,7 @@ class StoryboardOrchestrator:
             state=state,
             stage="outline",
         )
+        self._raise_if_quality_gate_failed("Outline", outline_eval)
         state.screen_outline = screen_outline
         state.outline_eval = outline_eval.to_dict()
         try:
@@ -906,126 +964,5 @@ class StoryboardOrchestrator:
         result["outline_eval"] = state.outline_eval
 
         return state, result
-
-    # =========================================================================
-    # Legacy API support (for backward compatibility with existing endpoints)
-    # =========================================================================
-
-    async def run_stage(
-        self,
-        stage: str,
-        user_input: str,
-        previous_stages: dict,
-        feedback: Optional[str] = None,
-        video_type: Optional[str] = "Product Release",
-        project_id: Optional[str] = None,
-    ) -> dict:
-        """
-        Legacy method for backward compatibility with existing stage-based API.
-
-        Maps old stage names to new event-based flow.
-        """
-        import json
-
-        # Use provided project_id or create a temporary one
-        if not project_id:
-            project_id = f"legacy_{id(previous_stages)}"
-
-        # For non-brief stages, we need to run the agents directly
-        # since the state machine approach requires proper state setup
-        if stage == "brief":
-            # Combine user input with video type for display
-            combined_input = f"{user_input} + {video_type}"
-            payload = {
-                "intake_form": {
-                    "user_inputs": combined_input,
-                    "video_goal": "",
-                    "target_audience": "",
-                    "company_or_brand_name": "",
-                    "tone_and_style": "professional",
-                    "format_or_platform": "general",
-                    "desired_length": "60",
-                    "show_face": "No",
-                    "cta": "",
-                    "video_type": video_type,
-                }
-            }
-            # Run through event system for brief
-            result = await self.process_event(project_id, "submit", payload)
-            return {
-                "ai_content": result.get("story_brief") or "",
-                "sources": [{"type": "ai_generated", "reference": "Generated via brief stage"}],
-            }
-
-        elif stage == "outline":
-            # For outline, we need the story brief from previous stages
-            brief_json = previous_stages.get("brief", "{}")
-            try:
-                story_brief = json.loads(brief_json) if isinstance(brief_json, str) else brief_json
-            except json.JSONDecodeError:
-                story_brief = {"raw_content": brief_json}
-
-            # Create a mock state for the StoryboardDirector
-            class MockState:
-                def __init__(self, brief):
-                    self.story_brief = brief
-                    self.intake_form = {"video_type": video_type}
-
-            mock_state = MockState(story_brief)
-
-            # Run StoryboardDirector directly
-            screen_outline = self.agents["director"].run(
-                mock_state,
-                mode="revision" if feedback else "initial",
-                revision_request=feedback
-            )
-
-            return {
-                "ai_content": screen_outline,
-                "sources": [{"type": "ai_generated", "reference": "Generated via outline stage"}],
-            }
-
-        elif stage in ["panels", "draft"]:
-            # For panels/draft, we need the screen outline
-            outline_json = previous_stages.get("outline", "[]")
-            try:
-                screen_outline = json.loads(outline_json) if isinstance(outline_json, str) else outline_json
-            except json.JSONDecodeError:
-                screen_outline = []
-
-            brief_json = previous_stages.get("brief", "{}")
-            try:
-                story_brief = json.loads(brief_json) if isinstance(brief_json, str) else brief_json
-            except json.JSONDecodeError:
-                story_brief = {}
-
-            # Create a mock state for the StoryboardWriter
-            class MockState:
-                def __init__(self, brief, outline):
-                    self.story_brief = brief
-                    self.screen_outline = outline
-
-            mock_state = MockState(story_brief, screen_outline)
-
-            # Run StoryboardWriter directly
-            storyboard = self.agents["writer"].run(mock_state)
-
-            return {
-                "ai_content": storyboard,
-                "sources": [{"type": "ai_generated", "reference": f"Generated via {stage} stage"}],
-            }
-
-        elif stage == "polish":
-            # Polish stage - just return the existing storyboard
-            storyboard_json = previous_stages.get("draft", "[]")
-            return {
-                "ai_content": storyboard_json,
-                "sources": [{"type": "ai_generated", "reference": "Generated via polish stage"}],
-            }
-
-        else:
-            raise ValueError(f"Unknown stage: {stage}")
-
-
 # Singleton instance
 orchestrator = StoryboardOrchestrator()

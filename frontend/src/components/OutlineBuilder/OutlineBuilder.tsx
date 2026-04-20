@@ -1,7 +1,7 @@
 /**
  * OutlineBuilder — Two-phase structured outline editor.
- * Phase 1: Structured grid editor → "Approve & Run Research Plan"
- * Phase 2: Evidence results → "Continue to Storyboard Draft"
+ * Phase 1: Structured grid editor → "Approve & Generate Storyboard"
+ * Phase 2: Optional evidence review when research data already exists
  *
  * Parses Director's plain text into OutlineSection[] for visual editing,
  * serializes back to text for backend storage.
@@ -29,7 +29,6 @@ export default function OutlineBuilder({
   content,
   aiContent,
   onChange,
-  onRunResearch: _onRunResearch,
   onRerunResearch,
   onContinue,
   onRegenerateSection,
@@ -227,7 +226,7 @@ export default function OutlineBuilder({
                 ? "Generating your storyboard..."
                 : hasResearch
                 ? "Review the evidence research results, then continue."
-                : "Edit sections inline. Drag to reorder. Then run the research plan."}
+                : "Edit sections inline, drag to reorder, then approve to generate the storyboard."}
             </p>
           </div>
           {hasAiOriginal && (
@@ -258,7 +257,7 @@ export default function OutlineBuilder({
           ) : (
           <div className="w-full max-w-5xl space-y-6">
           <p className="text-sm text-muted-foreground leading-relaxed mb-5">
-            Review each section before moving on. What you confirm here shapes everything the researcher and writer produce downstream.
+            Review each section before moving on. What you confirm here shapes everything the writer produces downstream.
           </p>
           {outlineEval && <QualityScore eval={outlineEval} />}
 

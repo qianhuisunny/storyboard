@@ -1,14 +1,14 @@
-import { useState, useMemo, useCallback, useEffect, useRef } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { type Stage } from "./StageNavigation";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Check, RefreshCw, Loader2 } from "lucide-react";
-import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField } from "./BriefBuilder";
+import { BriefBuilder, normalizeBrief, type StoryBrief, type BriefField, type ProcessingLogEntry } from "./BriefBuilder";
 import { ChatBriefBuilder } from "./ChatBriefBuilder";
 import { SplitBriefBuilder } from "./BriefBuilder/SplitBriefBuilder";
 import { type OnboardingData } from "./BriefBuilder/SplitBriefBuilder/types";
-import { OutlineBuilder, type EvidenceResearch, type SectionResearch } from "./OutlineBuilder";
+import { OutlineBuilder, type EvidenceResearch } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
 import type { QualityEvalResult } from "./QualityScore";
@@ -18,9 +18,6 @@ const USE_SPLIT_BRIEF_BUILDER = true;
 
 // Feature flag for new Knowledge Share 3-round flow
 const USE_KNOWLEDGE_SHARE_FLOW = true;
-
-// RESEARCH DISABLED: types kept for residual state references
-type ResearchStatus = "idle" | "running" | "complete" | "error";
 
 interface ApproveOptions {
   skipNextGeneration?: boolean;
@@ -32,12 +29,10 @@ interface StageContentProps {
   aiContent: string | null;
   humanContent: string | null;
   previousStageOutput?: Record<string, unknown> | null;
-  researchDetails?: Record<string, unknown> | null;
   isGenerating: boolean;
   onApprove: (content: string, options?: ApproveOptions) => void;
   onRegenerate: (feedback: string) => void;
   onContentChange: (content: string) => void;
-  onAnchorChange?: (anchor: string | null) => void;
 }
 
 // Helper to get onboarding data from session storage
@@ -168,12 +163,10 @@ export default function StageContent({
   aiContent,
   humanContent,
   previousStageOutput,
-  researchDetails: _researchDetails,
   isGenerating,
   onApprove,
   onRegenerate,
   onContentChange,
-  onAnchorChange,
 }: StageContentProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [feedback, setFeedback] = useState("");
@@ -191,12 +184,7 @@ export default function StageContent({
   const [knowledgeShareInitialized, setKnowledgeShareInitialized] = useState(false);
   // Track if brief is already approved on backend (past brief stage)
   const [isBriefAlreadyApproved, setIsBriefAlreadyApproved] = useState(false);
-  // RESEARCH DISABLED: research state variables
-  const [researchStatus, setResearchStatus] = useState<ResearchStatus>("complete");
   const [, setResearchError] = useState<string | null>(null);
-
-  // RESEARCH DISABLED
-  const isResearchChatLoading = false;
 
   // Check if this is a Knowledge Share project
   // Priority: session storage onboarding data → saved brief content (for existing projects)
@@ -247,7 +235,6 @@ export default function StageContent({
             if (isAlreadyApproved && Object.keys(briefFields).length > 0) {
               console.log("[KS] Stage already approved, restoring fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setResearchStatus("complete");
               setIsBriefAlreadyApproved(true); // Mark as already approved on backend
               return;
             }
@@ -256,23 +243,19 @@ export default function StageContent({
             if (stateData.phase === "brief_round2") {
               console.log("[KS] Restoring round 2 state, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setResearchStatus("complete");
               return;
             } else if (stateData.phase === "brief_round3") {
               console.log("[KS] Restoring round 3 state, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setResearchStatus("complete");
               return;
             } else if (stateData.phase === "angle_selection") {
               // Legacy: projects stuck in angle_selection get restored to round 3
               console.log("[KS] Restoring angle_selection as round 3, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setResearchStatus("complete");
               return;
             } else if (stateData.phase === "brief_round1") {
               console.log("[KS] Restoring round 1 state, fields:", Object.keys(briefFields));
               setKnowledgeShareFields(briefFields);
-              setResearchStatus("idle");
               return;
             }
             // If phase is set but not brief_round*, project may have progressed past brief stage
@@ -281,7 +264,6 @@ export default function StageContent({
               console.log("[KS] Project already past brief stage, phase:", stateData.phase, "fields:", Object.keys(briefFields));
               if (Object.keys(briefFields).length > 0) {
                 setKnowledgeShareFields(briefFields);
-                setResearchStatus("complete");
                 setIsBriefAlreadyApproved(true); // Mark as already approved on backend
               }
               return;
@@ -294,8 +276,6 @@ export default function StageContent({
             duration: onboardingData?.duration,
             audience: onboardingData?.audience,
           });
-
-          setResearchStatus("idle");
 
           const response = await fetch(`/api/project/${projectId}/event`, {
             method: "POST",
@@ -323,9 +303,6 @@ export default function StageContent({
 
             if (data.brief_fields) {
               setKnowledgeShareFields(data.brief_fields);
-              if (data.research_status === "complete") {
-                setResearchStatus("complete");
-              }
             } else if (data.error) {
               setResearchError(data.error);
             }
@@ -343,17 +320,6 @@ export default function StageContent({
       initializeKnowledgeShare();
     }
   }, [isKnowledgeShare, projectId, stage.id, stage.status, knowledgeShareInitialized, aiContent, onboardingData]);
-
-  // RESEARCH DISABLED: Research polling removed
-  // useEffect(() => {
-  //   if (!isKnowledgeShare || !projectId || researchStatus !== "running") return;
-  //   const pollResearch = async () => { ... };
-  //   const interval = setInterval(pollResearch, 2000);
-  //   return () => clearInterval(interval);
-  // }, [isKnowledgeShare, projectId, researchStatus]);
-
-  // RESEARCH DISABLED: addChatMessage helper removed
-  // const addChatMessage = useCallback((...) => { ... }, []);
 
   // Handle round confirmation for Knowledge Share
   // Handle brief approval for Knowledge Share
@@ -465,10 +431,11 @@ export default function StageContent({
 
   // Track outline text updates for the Outline stage
   const [localOutlineText, setLocalOutlineText] = useState<string | null>(null);
-  // Evidence research state for outline stage
+  // Reserved UI state for future evidence research payloads that may already
+  // exist on a project, even though the MVP does not trigger research.
   const [outlineResearchResults, setOutlineResearchResults] = useState<EvidenceResearch | null>(null);
-  const [isResearchingEvidence, setIsResearchingEvidence] = useState(false);
-  const [researchProgress, setResearchProgress] = useState<{ completed: number; total: number } | null>(null);
+  const [isResearchingEvidence] = useState(false);
+  const [researchProgress] = useState<{ completed: number; total: number } | null>(null);
   const [isRegeneratingOutline, setIsRegeneratingOutline] = useState(false);
 
   // Track draft updates for the Draft stage
@@ -493,7 +460,8 @@ export default function StageContent({
   // Use local review if edited, otherwise use parsed AI review
   const currentReview = localReview ?? reviewData;
 
-  // Restore evidence research on page load (if outline_research phase)
+  // If evidence research already exists from a future or offline flow,
+  // surface it here for review. The MVP does not trigger research itself.
   useEffect(() => {
     if (stage.id !== 2 || !projectId || outlineResearchResults) return;
     const restoreResearch = async () => {
@@ -503,7 +471,6 @@ export default function StageContent({
         const data = await resp.json();
         if (data.data?.evidence_research) {
           setOutlineResearchResults(data.data.evidence_research);
-          onAnchorChange?.("evidence");
         }
         if (data.data?.outline_eval) setOutlineEval(data.data.outline_eval);
         if (data.data?.storyboard_eval) setStoryboardEval(data.data.storyboard_eval);
@@ -515,7 +482,7 @@ export default function StageContent({
   }, [stage.id, projectId, outlineResearchResults]);
 
   // Processing log for child components (legacy BriefBuilder)
-  const processingLog: LegacyProcessingLogEntry[] = [];
+  const processingLog: ProcessingLogEntry[] = [];
   const draftProcessingLog: DraftProcessingEntry[] = [];
 
   // Processing logs for outline stage (currently unused by simplified OutlineBuilder)
@@ -549,99 +516,6 @@ export default function StageContent({
     setLocalOutlineText(text);
     onContentChange(text);
   };
-
-  const handleRunResearch = useCallback(async () => {
-    if (!projectId || !currentOutlineText.trim()) return;
-
-    // Parse outline into individual section texts for parallel per-section calls
-    const { parseOutline, serializeOutline } = await import("./OutlineBuilder/outlineParser");
-    const sections = parseOutline(currentOutlineText);
-
-    if (sections.length === 0) return;
-
-    setIsResearchingEvidence(true);
-    setOutlineResearchResults({ sections: [] });
-    setResearchProgress({ completed: 0, total: sections.length });
-    onAnchorChange?.("evidence");
-    setTimeout(() => {
-      document.getElementById("evidence")?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
-
-    // Fire the state machine event in the background (locks outline + transitions phase).
-    // This also runs full research on the backend — redundant but needed for state transition.
-    // By the time the user reviews evidence and clicks approve, this will have completed.
-    fetch(`/api/project/${projectId}/event`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        event: "run_research",
-        payload: { current_outline: currentOutlineText },
-      }),
-    }).catch(() => { /* non-critical */ });
-
-    // Track results in a local array — state updates are batched per-resolve
-    const results: Array<SectionResearch | null> = new Array(sections.length).fill(null);
-    let completedCount = 0;
-
-    const promises = sections.map(async (section, index) => {
-      const sectionText = serializeOutline([section]);
-
-      try {
-        const response = await fetch(`/api/project/${projectId}/research-section`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            section_text: sectionText,
-            full_outline: currentOutlineText,
-            section_index: index,
-          }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          results[index] = data.section_research;
-        }
-      } catch (err) {
-        console.error(`[Outline] Research failed for section ${index}:`, err);
-      }
-
-      // Update UI progressively as each section completes
-      completedCount++;
-      const orderedSections: SectionResearch[] = results.filter(
-        (r): r is SectionResearch => r !== null
-      );
-      setOutlineResearchResults({ sections: orderedSections });
-      setResearchProgress({ completed: completedCount, total: sections.length });
-    });
-
-    await Promise.allSettled(promises);
-
-    setIsResearchingEvidence(false);
-    setResearchProgress(null);
-  }, [projectId, currentOutlineText, onAnchorChange]);
-
-  const handleRerunResearch = useCallback(async () => {
-    if (!projectId) return;
-    setOutlineResearchResults(null);
-    setIsResearchingEvidence(true);
-    try {
-      const response = await fetch(`/api/project/${projectId}/rerun-research`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ current_outline: currentOutlineText }),
-      });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.evidence_research) {
-          setOutlineResearchResults(data.evidence_research);
-        }
-      }
-    } catch (err) {
-      console.error("[Outline] Re-run research failed:", err);
-    } finally {
-      setIsResearchingEvidence(false);
-    }
-  }, [projectId, currentOutlineText]);
 
   const handleRegenerateSection = useCallback(async (sectionNumber: number, instruction: string) => {
     if (!projectId) return;
@@ -705,7 +579,8 @@ export default function StageContent({
       const phase = stateData.phase;
       console.log("[Outline] Current backend phase:", phase);
 
-      // If already past writer (has storyboard), skip to frontend advance
+      // If storyboard already exists, skip straight to the frontend advance.
+      // This can happen when evidence research was attached outside the MVP flow.
       if (phase !== "gate2" && phase !== "outline_research") {
         if (stateData.data?.storyboard_eval) setStoryboardEval(stateData.data.storyboard_eval);
         const storyboard = stateData.data?.storyboard;
@@ -723,7 +598,8 @@ export default function StageContent({
         return;
       }
 
-      // At gate2 or outline_research — send approve event to trigger writer
+      // At gate2 or outline_research — send approve event to trigger writer.
+      // If future research data exists, pass the filtered evidence through.
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -899,8 +775,6 @@ export default function StageContent({
           content={currentOutlineText}
           aiContent={aiContent}
           onChange={handleOutlineTextChange}
-          onRunResearch={handleRunResearch}
-          onRerunResearch={handleRerunResearch}
           onContinue={handleResearchContinue}
           onRegenerateSection={handleRegenerateSection}
           onRefineOutline={handleRefineOutline}

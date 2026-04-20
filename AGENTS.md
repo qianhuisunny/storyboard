@@ -1,6 +1,6 @@
-# CLAUDE.md — Plotline Operating Manual
+# AGENTS.md — Plotline Operating Manual
 
-> This file governs how Claude Code operates in this repository.
+> This file governs how Codex operates in this repository.
 > Read this **before** doing anything.
 
 ---

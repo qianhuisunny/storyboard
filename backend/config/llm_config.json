@@ -11,6 +11,7 @@
     "storyboard.qg_evidence_fitness": "gpt-4o-mini",
     "storyboard.qg_brief_pov_alignment": "gpt-4o-mini",
     "storyboard.qg_section_necessity": "gpt-4o-mini",
+    "storyboard.qg_narrative_completeness": "gpt-4o-mini",
     "storyboard.qg_instructional_progression": "gpt-4o-mini",
     "storyboard.qg_context_rot": "gpt-4o-mini",
     "storyboard.qg_specificity_retention": "gpt-4o-mini",

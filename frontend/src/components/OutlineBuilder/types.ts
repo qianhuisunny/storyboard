@@ -15,7 +15,8 @@ export interface OutlineSection {
   evidenceNeeded?: string[];  // Legacy — no longer produced by Director v0323+
 }
 
-// Evidence Research types (from EvidenceResearcher agent)
+// Evidence research types. These are retained as the intended I/O shape for a
+// future Researcher/EvidenceResearcher reintroduction.
 
 export interface ResearchBlock {
   research_question: string;
@@ -52,7 +53,6 @@ export interface OutlineBuilderProps {
   content: string;
   aiContent?: string | null;  // AI original version for drawer comparison
   onChange: (content: string) => void;
-  onRunResearch: () => void;
   onRerunResearch?: () => Promise<void>;
   onContinue: (filteredEvidence?: EvidenceResearch | null) => void | Promise<void>;
   onRegenerateSection?: (sectionNumber: number, instruction: string) => Promise<void>;

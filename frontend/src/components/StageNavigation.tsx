@@ -14,10 +14,7 @@ export interface Stage {
 interface StageNavigationProps {
   stages: Stage[];
   currentStageId: number;
-  activeAnchor?: string | null;       // [HACKATHON Apr18] kept for interface compat
-  evidenceStatus?: StageStatus;       // [HACKATHON Apr18] kept for interface compat
   onStageSelect: (stageId: number) => void;
-  onAnchorSelect?: (stageId: number, anchor: string) => void;  // [HACKATHON Apr18] kept for interface compat
 }
 
 const statusLabels: Record<StageStatus, string> = {
@@ -40,10 +37,7 @@ interface VisualStage {
 export default function StageNavigation({
   stages,
   currentStageId,
-  activeAnchor: _activeAnchor = null,
-  evidenceStatus: _evidenceStatus = "not_started",
   onStageSelect,
-  onAnchorSelect: _onAnchorSelect,
 }: StageNavigationProps) {
   // Build 4 visual stages from 4 internal stages
   // Internal stages: 1=Brief, 2=Outline, 3=Draft, 4=Review

@@ -24,7 +24,7 @@ class TestFieldWritebackRegressions:
         result = await orch.process_event("test-project", "round1_confirm", {"confirmed_fields": confirmed})
         assert result["success"] is True
         manager = StateManager("test-project")
-        state = manager.load()
+        state = await manager.load()
         assert state.story_brief is not None
         assert state.story_brief["fields"]["topic"]["value"] == "User Edited Topic"
 
@@ -38,7 +38,7 @@ class TestFieldWritebackRegressions:
         result = await orch.process_event("test-project", "round2_confirm", {"confirmed_fields": r2_confirmed})
         assert result["success"] is True
         manager = StateManager("test-project")
-        state = manager.load()
+        state = await manager.load()
         assert state.story_brief["fields"]["format_style"]["value"] == "User Picked Workshop"
         assert state.story_brief["fields"]["topic"]["value"] == "ML"
 
@@ -56,7 +56,7 @@ class TestFieldWritebackRegressions:
         result = await orch.process_event("test-project", "round3_confirm", {"confirmed_fields": r3_confirmed})
         assert result["success"] is True
         manager = StateManager("test-project")
-        state = manager.load()
+        state = await manager.load()
         assert state.story_brief["fields"]["core_talking_points"]["value"] == ["A", "B"]
         assert "topic" in state.story_brief["fields"]
         assert "format_style" in state.story_brief["fields"]
@@ -80,11 +80,11 @@ class TestCascadeDeleteRegressions:
             brief_locked=True,
             outline_locked=True,
         )
-        manager.save(state)
+        await manager.save(state)
         result = await orch.process_event("test-project", "edit", {"target": "gate1"})
         assert result["success"] is True
         assert result["phase"] == "gate1"
-        loaded = manager.load()
+        loaded = await manager.load()
         assert loaded.screen_outline is None
         assert loaded.brief_locked is False
         assert loaded.outline_locked is False
@@ -100,11 +100,11 @@ class TestCascadeDeleteRegressions:
             brief_locked=True,
             outline_locked=True,
         )
-        manager.save(state)
+        await manager.save(state)
         result = await orch.process_event("test-project", "edit", {"target": "gate1"})
         assert result["success"] is True
         assert result["phase"] == "gate1"
-        loaded = manager.load()
+        loaded = await manager.load()
         assert loaded.storyboard is None
         assert loaded.screen_outline is None
         assert loaded.outline_locked is False

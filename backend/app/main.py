@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from app.services.orchestrator import orchestrator
 from app.services.analytics import analytics_tracker
+from app.services.state import StateManager
 from app.infra.quality_log import qlog
 from app.services.image_generator import ImageGenerator
 
@@ -74,6 +75,52 @@ async def test_endpoint():
     }
 
 
+def _project_root_dir(project_id: str) -> Path:
+    """Filesystem directory for project-owned raw files such as uploads and links."""
+    return Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
+
+
+async def _require_project(db: AsyncSession, project_id: str):
+    """Ensure a project exists in SQLite before running project-scoped operations."""
+    repo = ProjectRepository(db)
+    project = await repo.get_project(project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+async def _normalize_pipeline_event(project_id: str, event: str, payload: Optional[dict] = None) -> tuple[str, dict]:
+    """Normalize legacy convenience events to the current orchestrator contract."""
+    payload = payload or {}
+    if event not in {"reject", "refine"}:
+        return event, payload
+
+    manager = StateManager(project_id)
+    state = await manager.load()
+    feedback = payload.get("feedback") or payload.get("instruction")
+
+    if not feedback:
+        raise HTTPException(status_code=400, detail="feedback is required")
+
+    if state.phase == "gate2":
+        return "refine_outline", {
+            **payload,
+            "instruction": feedback,
+        }
+
+    if state.phase in {"gate1", "brief_review", "review"}:
+        return "edit", {
+            **payload,
+            "target": payload.get("target", "current"),
+            "feedback": feedback,
+        }
+
+    raise HTTPException(
+        status_code=400,
+        detail=f"Legacy event '{event}' is not valid for phase '{state.phase}'",
+    )
+
+
 class ProjectRequest(BaseModel):
     projectId: str
     typeId: int
@@ -116,46 +163,30 @@ async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get
 
 @app.get("/api/project/{project_id}")
 async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
-    """Get project data by ID — tries DB first, falls back to JSON for legacy projects."""
+    """Get project data by ID from SQLite, plus any raw story export files on disk."""
     try:
         repo = ProjectRepository(db)
         project = await repo.get_project(project_id)
-
-        if project:
-            # DB project
-            project_data = {
-                "id": project.id,
-                "userId": project.user_id,
-                "type": project.type_id,
-                "typeName": project.type_name,
-                "userInput": project.user_input,
-                "createdAt": project.created_at.isoformat() if project.created_at else None,
-                "lastUpdated": project.updated_at.isoformat() if project.updated_at else None,
-                "storyboard": None,
-            }
-            return {"success": True, "project": project_data, "stories": []}
-
-        # Fallback: legacy JSON project
-        project_dir = (
-            Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        )
-        if not project_dir.exists():
+        if not project:
             raise HTTPException(status_code=404, detail="Project not found")
 
-        project_files = list(project_dir.glob("project_type*.json"))
-        if not project_files:
-            raise HTTPException(status_code=404, detail="Project file not found")
-
-        with open(project_files[0], "r") as f:
-            project_data = json.load(f)
-
         stories = []
-        if "stories" in project_data and project_data["stories"]:
-            for story_name in project_data["stories"]:
-                story_file = project_dir / f"{story_name}.json"
-                if story_file.exists():
-                    with open(story_file, "r") as f:
-                        stories.append(json.load(f))
+        project_dir = _project_root_dir(project_id)
+        if project_dir.exists():
+            for story_file in sorted(project_dir.glob("story_*.json")):
+                with open(story_file, "r") as f:
+                    stories.append(json.load(f))
+
+        project_data = {
+            "id": project.id,
+            "userId": project.user_id,
+            "type": project.type_id,
+            "typeName": project.type_name,
+            "userInput": project.user_input,
+            "createdAt": project.created_at.isoformat() if project.created_at else None,
+            "lastUpdated": project.updated_at.isoformat() if project.updated_at else None,
+            "storyboard": None,
+        }
 
         return {"success": True, "project": project_data, "stories": stories}
 
@@ -220,15 +251,16 @@ class SaveStoriesRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/save-stories")
-async def save_stories_to_project(project_id: str, request: SaveStoriesRequest):
-    """Save extracted stories to a project"""
+async def save_stories_to_project(project_id: str, request: SaveStoriesRequest, db: AsyncSession = Depends(get_db)):
+    """Save extracted stories as raw files for an existing DB-backed project."""
     try:
-        # Find project directory
-        project_dir = (
-            Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        )
-        if not project_dir.exists():
+        repo = ProjectRepository(db)
+        project = await repo.get_project(project_id)
+        if not project:
             raise HTTPException(status_code=404, detail="Project not found")
+
+        project_dir = _project_root_dir(project_id)
+        project_dir.mkdir(parents=True, exist_ok=True)
 
         # Save stories to individual files
         story_files = []
@@ -241,18 +273,6 @@ async def save_stories_to_project(project_id: str, request: SaveStoriesRequest):
 
             story_files.append(story_filename)
 
-        # Update project file with story references
-        project_files = list(project_dir.glob("project_type*.json"))
-        if project_files:
-            with open(project_files[0], "r") as f:
-                project_data = json.load(f)
-
-            project_data["stories"] = story_files
-            project_data["lastUpdated"] = datetime.now().isoformat()
-
-            with open(project_files[0], "w") as f:
-                json.dump(project_data, f, indent=2)
-
         return {
             "success": True,
             "message": f"Saved {len(request.stories)} stories to project",
@@ -264,158 +284,13 @@ async def save_stories_to_project(project_id: str, request: SaveStoriesRequest):
 
 
 # ============================================================
-# NEW STAGE-BASED ENDPOINTS (Human-in-the-Loop Workflow)
-# ============================================================
-
-
-class RunStageRequest(BaseModel):
-    user_input: str
-    previous_stages: Optional[dict] = {}
-    feedback: Optional[str] = None
-    user_id: Optional[str] = None
-    video_type: Optional[str] = "Product Release"
-
-
-class ApproveStageRequest(BaseModel):
-    stage: str
-    content: str
-    user_id: Optional[str] = None
-
-
-class RecordEditRequest(BaseModel):
-    stage: str
-    content: str
-    edit_time_seconds: Optional[float] = None
-
-
-@app.post("/api/project/{project_id}/stage/{stage}/run")
-async def run_stage(project_id: str, stage: str, request: RunStageRequest):
-    """
-    Run a specific stage of the storyboard pipeline.
-
-    Stages: brief, outline, panels, draft, polish
-    """
-    try:
-        valid_stages = ["brief", "outline", "panels", "draft", "polish"]
-        if stage not in valid_stages:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Invalid stage. Must be one of: {valid_stages}"
-            )
-
-        # Run the stage through the orchestrator
-        result = await orchestrator.run_stage(
-            stage=stage,
-            user_input=request.user_input,
-            previous_stages=request.previous_stages or {},
-            feedback=request.feedback,
-            video_type=request.video_type,
-            project_id=project_id,
-        )
-
-        ai_content = result["ai_content"]
-        if isinstance(ai_content, dict) or isinstance(ai_content, list):
-            ai_content = json.dumps(ai_content, indent=2)
-
-        return {
-            "success": True,
-            "stage": stage,
-            "ai_content": ai_content,
-            "sources": result.get("sources", []),
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error running stage: {str(e)}")
-
-
-@app.post("/api/project/{project_id}/stage/{stage}/approve")
-async def approve_stage(project_id: str, stage: str, request: ApproveStageRequest):
-    """Approve a stage and record the final content."""
-    try:
-        qlog.log_approve(project_id=project_id, stage=stage)
-
-        return {
-            "success": True,
-            "stage": stage,
-            "message": f"Stage '{stage}' approved successfully",
-        }
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error approving stage: {str(e)}")
-
-
-@app.post("/api/project/{project_id}/stage/{stage}/edit")
-async def record_edit(project_id: str, stage: str, request: RecordEditRequest):
-    """Record a human edit to a stage."""
-    try:
-        qlog.log_override(
-            project_id=project_id,
-            stage=stage,
-            scope="user_edit",
-            after_content=request.content if isinstance(request.content, str) else json.dumps(request.content),
-        )
-
-        return {
-            "success": True,
-            "stage": stage,
-        }
-
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error recording edit: {str(e)}")
-
-
-@app.post("/api/project/{project_id}/stage/{stage}/regenerate")
-async def regenerate_stage(project_id: str, stage: str, request: RunStageRequest):
-    """Regenerate a stage with user feedback."""
-    try:
-        if not request.feedback:
-            raise HTTPException(status_code=400, detail="Feedback is required for regeneration")
-
-        # Run the stage with feedback
-        result = await orchestrator.run_stage(
-            stage=stage,
-            user_input=request.user_input,
-            previous_stages=request.previous_stages or {},
-            feedback=request.feedback,
-        )
-
-        # Convert ai_content to string if it's a dict
-        ai_content = result["ai_content"]
-        if isinstance(ai_content, dict) or isinstance(ai_content, list):
-            ai_content = json.dumps(ai_content, indent=2)
-
-        qlog.log_override(
-            project_id=project_id,
-            stage=stage,
-            scope="regenerate",
-            instruction=request.feedback,
-            after_content=ai_content,
-        )
-
-        return {
-            "success": True,
-            "stage": stage,
-            "ai_content": ai_content,
-            "sources": result.get("sources", []),
-            "regenerated": True,
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error regenerating stage: {str(e)}")
-
-
-# ============================================================
 # NEW EVENT-BASED ENDPOINTS (State Machine Pipeline)
 # ============================================================
 
 
 class EventRequest(BaseModel):
     """Request body for event-based pipeline."""
-    event: str  # submit, approve, reject, refine
+    event: str  # submit, submit_knowledge_share, approve, edit, refine_outline, regenerate_section, restart
     payload: Optional[dict] = None
 
 
@@ -432,20 +307,23 @@ class ChatBriefRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/event")
-async def process_pipeline_event(project_id: str, request: EventRequest):
+async def process_pipeline_event(project_id: str, request: EventRequest, db: AsyncSession = Depends(get_db)):
     """
     Process a state machine event for the storyboard pipeline.
 
-    Events:
-    - submit: Start pipeline with intake_form in payload
-    - approve: Approve current stage (Gate 1 or Gate 2)
-    - reject: Reject with feedback in payload
-    - refine: Request refinement with feedback in payload
+    Preferred events:
+    - submit / submit_knowledge_share: Start the pipeline
+    - approve: Approve the current gate
+    - edit: Unlock the current stage or go back
+    - refine_outline / regenerate_section: Regenerate outline content at Gate 2
 
     Example payloads:
     - submit: {"intake_form": {...}}
-    - reject: {"feedback": "Please add more detail about..."}
-    - refine: {"feedback": "Can we make screen 3 shorter?"}
+    - edit: {"target": "current"}
+    - refine_outline: {"instruction": "Make section 3 shorter", "current_outline": "..."}
+
+    Legacy compatibility:
+    - reject/refine are normalized to the current contract based on the project's phase
     """
     import logging
     import traceback
@@ -455,10 +333,16 @@ async def process_pipeline_event(project_id: str, request: EventRequest):
     logger.info(f"Processing event: project_id={project_id}, event={request.event}")
 
     try:
-        result = await orchestrator.process_event(
+        await _require_project(db, project_id)
+        normalized_event, normalized_payload = await _normalize_pipeline_event(
             project_id=project_id,
             event=request.event,
-            payload=request.payload
+            payload=request.payload,
+        )
+        result = await orchestrator.process_event(
+            project_id=project_id,
+            event=normalized_event,
+            payload=normalized_payload,
         )
 
         if not result.get("success", True):
@@ -476,8 +360,8 @@ async def process_pipeline_event(project_id: str, request: EventRequest):
         raise HTTPException(status_code=500, detail=f"Error processing event: {str(e)}")
 
 
-# [HACKATHON Apr18] Removed /rerun-research and /research-section endpoints —
-# research agent deleted. Frontend calls to these will 404.
+# Researcher endpoints are intentionally absent in the MVP.
+# Reintroduce them only after the research I/O contract is finalized.
 
 
 @app.post("/api/project/{project_id}/chat-brief")
@@ -546,7 +430,7 @@ Respond with the next JSON message."""
 
 
 @app.post("/api/project/{project_id}/start")
-async def start_pipeline(project_id: str, request: IntakeFormRequest):
+async def start_pipeline(project_id: str, request: IntakeFormRequest, db: AsyncSession = Depends(get_db)):
     """
     Start the storyboard pipeline with an intake form.
 
@@ -554,6 +438,7 @@ async def start_pipeline(project_id: str, request: IntakeFormRequest):
     After calling this, the project will be at gate1 ready for review.
     """
     try:
+        await _require_project(db, project_id)
         result = await orchestrator.process_event(
             project_id=project_id,
             event="submit",
@@ -572,13 +457,14 @@ async def start_pipeline(project_id: str, request: IntakeFormRequest):
 
 
 @app.post("/api/project/{project_id}/approve")
-async def approve_current_stage(project_id: str):
+async def approve_current_stage(project_id: str, db: AsyncSession = Depends(get_db)):
     """
     Approve the current stage (Gate 1, Gate 2, or Review).
 
     This is a convenience endpoint that sends an approve event.
     """
     try:
+        await _require_project(db, project_id)
         result = await orchestrator.process_event(
             project_id=project_id,
             event="approve",
@@ -602,18 +488,22 @@ class FeedbackRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/reject")
-async def reject_current_stage(project_id: str, request: FeedbackRequest):
+async def reject_current_stage(project_id: str, request: FeedbackRequest, db: AsyncSession = Depends(get_db)):
     """
-    Reject the current stage with feedback.
-
-    This triggers a revision loop. The agent will regenerate
-    based on the feedback and return to the same gate.
+    Legacy compatibility endpoint.
+    Normalizes old reject semantics to the current edit/refine contract.
     """
     try:
-        result = await orchestrator.process_event(
+        await _require_project(db, project_id)
+        normalized_event, normalized_payload = await _normalize_pipeline_event(
             project_id=project_id,
             event="reject",
-            payload={"feedback": request.feedback}
+            payload={"feedback": request.feedback},
+        )
+        result = await orchestrator.process_event(
+            project_id=project_id,
+            event=normalized_event,
+            payload=normalized_payload,
         )
 
         if not result.get("success", True):
@@ -628,17 +518,22 @@ async def reject_current_stage(project_id: str, request: FeedbackRequest):
 
 
 @app.post("/api/project/{project_id}/refine")
-async def refine_storyboard(project_id: str, request: FeedbackRequest):
+async def refine_storyboard(project_id: str, request: FeedbackRequest, db: AsyncSession = Depends(get_db)):
     """
-    Request optional refinement of the storyboard.
-
-    Only valid in the review phase (after storyboard generation).
+    Legacy compatibility endpoint.
+    Normalizes old refine semantics to the current edit/refine contract.
     """
     try:
-        result = await orchestrator.process_event(
+        await _require_project(db, project_id)
+        normalized_event, normalized_payload = await _normalize_pipeline_event(
             project_id=project_id,
             event="refine",
-            payload={"feedback": request.feedback}
+            payload={"feedback": request.feedback},
+        )
+        result = await orchestrator.process_event(
+            project_id=project_id,
+            event=normalized_event,
+            payload=normalized_payload,
         )
 
         if not result.get("success", True):
@@ -653,7 +548,7 @@ async def refine_storyboard(project_id: str, request: FeedbackRequest):
 
 
 @app.post("/api/project/{project_id}/go-back/{target}")
-async def go_back_to_stage(project_id: str, target: str):
+async def go_back_to_stage(project_id: str, target: str, db: AsyncSession = Depends(get_db)):
     """
     Go back to an earlier stage in the pipeline.
 
@@ -668,6 +563,7 @@ async def go_back_to_stage(project_id: str, target: str):
     - Going to intake: Clears all data
     """
     try:
+        await _require_project(db, project_id)
         event_map = {
             "gate1": "go_back_gate1",
             "gate2": "go_back_gate2",
@@ -698,7 +594,7 @@ async def go_back_to_stage(project_id: str, target: str):
 
 
 @app.get("/api/project/{project_id}/pipeline-state")
-async def get_pipeline_state(project_id: str):
+async def get_pipeline_state(project_id: str, db: AsyncSession = Depends(get_db)):
     """
     Get the current pipeline state for a project.
 
@@ -708,10 +604,9 @@ async def get_pipeline_state(project_id: str):
     - available_events: What events can be sent next
     """
     try:
-        from app.services.state import StateManager
-
+        await _require_project(db, project_id)
         manager = StateManager(project_id)
-        state = manager.load()
+        state = await manager.load()
 
         # Determine available events based on current phase
         available_events = {
@@ -719,11 +614,11 @@ async def get_pipeline_state(project_id: str):
             "brief_round1": ["round1_confirm"],
             "brief_round2": ["round2_confirm"],
             "brief_round3": ["generate_content_spine", "round3_confirm"],
-            "brief_review": ["brief_approve", "edit_brief"],
-            "gate1": ["approve", "reject"],
-            "gate2": ["approve", "run_research", "reject", "go_back_gate1"],
-            "outline_research": ["approve"],
-            "review": ["approve", "refine", "go_back_gate1", "go_back_gate2"],
+            "brief_review": ["brief_approve", "edit", "chat_brief_approve"],
+            "gate1": ["approve", "edit"],
+            "gate2": ["approve", "edit", "regenerate_section", "refine_outline"],
+            "outline_research": [],
+            "review": ["approve", "edit"],
             "done": ["restart"],
         }.get(state.phase, [])
 
@@ -749,7 +644,6 @@ async def get_pipeline_state(project_id: str):
                 "screen_outline": state.screen_outline,
                 "storyboard": state.storyboard,
                 "evidence_research": state.evidence_research,
-                # RESEARCH DISABLED: "research_details": state.research_details,
                 "outline_eval": state.outline_eval,
                 "storyboard_eval": state.storyboard_eval,
             },
@@ -787,56 +681,31 @@ async def save_stages(project_id: str, request: SaveStagesRequest, db: AsyncSess
     try:
         repo = ProjectRepository(db)
         project = await repo.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
-        if project:
-            # DB path: save each stage as a snapshot
-            for stage_id_str, stage_data in request.stages.items():
-                stage_id = int(stage_id_str)
-                ai_ver = stage_data.get("aiVersion") if isinstance(stage_data, dict) else None
-                human_ver = stage_data.get("humanVersion") if isinstance(stage_data, dict) else None
-                if ai_ver or human_ver:
-                    await repo.save_stage_snapshot(
-                        project_id=project_id,
-                        stage_id=stage_id,
-                        ai_version=ai_ver,
-                        human_version=human_ver,
-                    )
+        for stage_id_str, stage_data in request.stages.items():
+            stage_id = int(stage_id_str)
+            ai_ver = stage_data.get("aiVersion") if isinstance(stage_data, dict) else None
+            human_ver = stage_data.get("humanVersion") if isinstance(stage_data, dict) else None
+            if ai_ver or human_ver:
+                await repo.save_stage_snapshot(
+                    project_id=project_id,
+                    stage_id=stage_id,
+                    ai_version=ai_ver,
+                    human_version=human_ver,
+                )
 
-            # Save currentStageId and stageStatuses in pipeline_state's state_data
-            ps = await repo.get_pipeline_state(project_id)
-            if ps:
-                state_data = repo.parse_state_data(ps)
-                state_data["currentStageId"] = request.currentStageId
-                state_data["stageStatuses"] = [s.model_dump() for s in request.stageStatuses]
-                await repo.update_pipeline_state(project_id, ps.phase, ps.status, state_data)
+        ps = await repo.get_pipeline_state(project_id)
+        if ps:
+            state_data = repo.parse_state_data(ps)
+            state_data["currentStageId"] = request.currentStageId
+            state_data["stageStatuses"] = [s.model_dump() for s in request.stageStatuses]
+            await repo.update_pipeline_state(project_id, ps.phase, ps.status, state_data)
 
-            await repo.update_project_timestamp(project_id)
-            now = datetime.now().isoformat()
-            return {"success": True, "message": "Stages saved successfully", "lastSaved": now}
-
-        # Fallback: legacy JSON
-        project_dir = (
-            Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        )
-        if not project_dir.exists():
-            project_dir.mkdir(parents=True, exist_ok=True)
-
-        stages_data = {
-            "stages": request.stages,
-            "currentStageId": request.currentStageId,
-            "stageStatuses": [s.model_dump() for s in request.stageStatuses],
-            "lastSaved": datetime.now().isoformat(),
-        }
-
-        stages_file = project_dir / "stages.json"
-        with open(stages_file, "w") as f:
-            json.dump(stages_data, f, indent=2)
-
-        return {
-            "success": True,
-            "message": "Stages saved successfully",
-            "lastSaved": stages_data["lastSaved"],
-        }
+        await repo.update_project_timestamp(project_id)
+        now = datetime.now().isoformat()
+        return {"success": True, "message": "Stages saved successfully", "lastSaved": now}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving stages: {str(e)}")
@@ -848,52 +717,26 @@ async def load_stages(project_id: str, db: AsyncSession = Depends(get_db)):
     try:
         repo = ProjectRepository(db)
         project = await repo.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
 
-        if project:
-            # DB path
-            snapshots = await repo.get_all_snapshots(project_id)
-            ps = await repo.get_pipeline_state(project_id)
-            state_data = repo.parse_state_data(ps) if ps else {}
+        snapshots = await repo.get_all_snapshots(project_id)
+        ps = await repo.get_pipeline_state(project_id)
+        state_data = repo.parse_state_data(ps) if ps else {}
 
-            stages = {}
-            for snap in snapshots:
-                stages[str(snap.stage_id)] = {
-                    "aiVersion": snap.ai_version,
-                    "humanVersion": snap.human_version,
-                }
-
-            return {
-                "success": True,
-                "stages": stages if stages else None,
-                "currentStageId": state_data.get("currentStageId", 1),
-                "stageStatuses": state_data.get("stageStatuses"),
-                "lastSaved": project.updated_at.isoformat() if project.updated_at else None,
+        stages = {}
+        for snap in snapshots:
+            stages[str(snap.stage_id)] = {
+                "aiVersion": snap.ai_version,
+                "humanVersion": snap.human_version,
             }
-
-        # Fallback: legacy JSON
-        project_dir = (
-            Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        )
-        stages_file = project_dir / "stages.json"
-
-        if not stages_file.exists():
-            return {
-                "success": True,
-                "stages": None,
-                "currentStageId": 1,
-                "stageStatuses": None,
-                "lastSaved": None,
-            }
-
-        with open(stages_file, "r") as f:
-            stages_data = json.load(f)
 
         return {
             "success": True,
-            "stages": stages_data.get("stages"),
-            "currentStageId": stages_data.get("currentStageId", 1),
-            "stageStatuses": stages_data.get("stageStatuses"),
-            "lastSaved": stages_data.get("lastSaved"),
+            "stages": stages if stages else None,
+            "currentStageId": state_data.get("currentStageId", 1),
+            "stageStatuses": state_data.get("stageStatuses"),
+            "lastSaved": project.updated_at.isoformat() if project.updated_at else None,
         }
 
     except Exception as e:
@@ -945,63 +788,6 @@ async def generate_visual(project_id: str, screen_index: int, db: AsyncSession =
 
     return {"success": True, "on_screen_visual": on_screen_visual}
 
-
-def _scan_legacy_projects(data_dir: Path, user_id: str, exclude_ids: set) -> list:
-    """Scan filesystem for legacy JSON projects not yet in the DB."""
-    projects = []
-    if not data_dir.exists():
-        return projects
-
-    for project_dir in data_dir.iterdir():
-        if not project_dir.is_dir() or not project_dir.name.startswith("project_"):
-            continue
-
-        project_id = project_dir.name.replace("project_", "")
-        if project_id in exclude_ids:
-            continue
-
-        project_files = list(project_dir.glob("project_type*.json"))
-        if not project_files:
-            continue
-
-        try:
-            with open(project_files[0], "r") as f:
-                project_data = json.load(f)
-
-            if project_data.get("userId") != user_id:
-                continue
-
-            stages_file = project_dir / "stages.json"
-            current_stage = 1
-            progress = 0
-            last_updated = project_data.get("lastUpdated") or project_data.get("createdAt")
-
-            if stages_file.exists():
-                with open(stages_file, "r") as f:
-                    stages_data = json.load(f)
-                    current_stage = stages_data.get("currentStageId", 1)
-                    last_updated = stages_data.get("lastSaved") or last_updated
-                    stage_statuses = stages_data.get("stageStatuses", [])
-                    approved_count = sum(
-                        1 for s in stage_statuses if s.get("status") == "approved"
-                    )
-                    progress = int((approved_count / 4) * 100)
-
-            projects.append({
-                "id": project_data.get("id"),
-                "typeName": project_data.get("typeName"),
-                "userInput": project_data.get("userInput", "")[:100],
-                "createdAt": project_data.get("createdAt"),
-                "lastUpdated": last_updated,
-                "currentStage": current_stage,
-                "progress": progress,
-            })
-        except (json.JSONDecodeError, KeyError):
-            continue
-
-    return projects
-
-
 @app.get("/api/projects")
 async def list_user_projects(user_id: str, db: AsyncSession = Depends(get_db)):
     """List all projects for a specific user."""
@@ -1029,11 +815,6 @@ async def list_user_projects(user_id: str, db: AsyncSession = Depends(get_db)):
                 "progress": progress,
             })
 
-        # Also scan legacy JSON projects on filesystem
-        data_dir = Path(__file__).parent.parent.parent / "data"
-        db_project_ids = {p.id for p in db_projects}
-        projects.extend(_scan_legacy_projects(data_dir, user_id, db_project_ids))
-
         projects.sort(key=lambda p: p.get("lastUpdated") or "", reverse=True)
         return {"success": True, "projects": projects}
 
@@ -1048,29 +829,14 @@ async def delete_project(project_id: str, user_id: str, db: AsyncSession = Depen
         import shutil
         repo = ProjectRepository(db)
         project = await repo.get_project(project_id)
-
-        if project:
-            if project.user_id != user_id:
-                raise HTTPException(status_code=403, detail="Not authorized to delete this project")
-            await repo.delete_project(project_id)
-        else:
-            # Fallback: legacy JSON
-            project_dir = (
-                Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-            )
-            if not project_dir.exists():
-                raise HTTPException(status_code=404, detail="Project not found")
-            project_files = list(project_dir.glob("project_type*.json"))
-            if project_files:
-                with open(project_files[0], "r") as f:
-                    project_data = json.load(f)
-                    if project_data.get("userId") != user_id:
-                        raise HTTPException(status_code=403, detail="Not authorized to delete this project")
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        if project.user_id != user_id:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this project")
+        await repo.delete_project(project_id)
 
         # Also delete filesystem directory (uploads, links)
-        project_dir = (
-            Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        )
+        project_dir = _project_root_dir(project_id)
         if project_dir.exists():
             shutil.rmtree(project_dir)
 
@@ -1088,7 +854,7 @@ async def delete_project(project_id: str, user_id: str, db: AsyncSession = Depen
 
 
 @app.post("/api/project/{project_id}/upload")
-async def upload_file_to_project(project_id: str, file: UploadFile = FastAPIFile(...)):
+async def upload_file_to_project(project_id: str, file: UploadFile = FastAPIFile(...), db: AsyncSession = Depends(get_db)):
     """
     Upload a file to a project and extract its text content.
 
@@ -1096,10 +862,13 @@ async def upload_file_to_project(project_id: str, file: UploadFile = FastAPIFile
     Files are saved to data/project_{id}/uploads/
     """
     try:
+        repo = ProjectRepository(db)
+        project = await repo.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
         # Find or create project directory
-        project_dir = (
-            Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        )
+        project_dir = _project_root_dir(project_id)
         if not project_dir.exists():
             project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1135,26 +904,14 @@ async def upload_file_to_project(project_id: str, file: UploadFile = FastAPIFile
         text_file = file_path.with_suffix(".extracted.txt")
         with open(text_file, "w", encoding="utf-8") as f:
             f.write(extracted_text)
-
-        # Update project metadata with uploaded files
-        project_files = list(project_dir.glob("project_type*.json"))
-        if project_files:
-            with open(project_files[0], "r") as f:
-                project_data = json.load(f)
-
-            if "uploadedFiles" not in project_data:
-                project_data["uploadedFiles"] = []
-
-            project_data["uploadedFiles"].append({
-                "filename": file.filename,
-                "path": str(file_path.relative_to(project_dir)),
-                "uploadedAt": datetime.now().isoformat(),
-                "size": len(content),
-            })
-            project_data["lastUpdated"] = datetime.now().isoformat()
-
-            with open(project_files[0], "w") as f:
-                json.dump(project_data, f, indent=2)
+        await repo.create_upload(
+            project_id=project_id,
+            filename=file.filename or file_path.name,
+            file_path=str(file_path.relative_to(project_dir)),
+            content_type=file.content_type,
+            size_bytes=len(content),
+        )
+        await repo.update_project_timestamp(project_id)
 
         return {
             "success": True,
@@ -1174,17 +931,20 @@ class FetchLinkRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/fetch-link")
-async def fetch_link_content(project_id: str, request: FetchLinkRequest):
+async def fetch_link_content(project_id: str, request: FetchLinkRequest, db: AsyncSession = Depends(get_db)):
     """
     Fetch content from a URL and save it to the project.
 
     Extracts text content from web pages and saves metadata.
     """
     try:
+        repo = ProjectRepository(db)
+        project = await repo.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+
         # Find or create project directory
-        project_dir = (
-            Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
-        )
+        project_dir = _project_root_dir(project_id)
         if not project_dir.exists():
             project_dir.mkdir(parents=True, exist_ok=True)
 
@@ -1217,26 +977,14 @@ async def fetch_link_content(project_id: str, request: FetchLinkRequest):
             f.write(f"Title: {title}\n")
             f.write(f"Fetched: {datetime.now().isoformat()}\n")
             f.write(f"\n---\n\n{text_content}")
-
-        # Update project metadata
-        project_files = list(project_dir.glob("project_type*.json"))
-        if project_files:
-            with open(project_files[0], "r") as f:
-                project_data = json.load(f)
-
-            if "fetchedLinks" not in project_data:
-                project_data["fetchedLinks"] = []
-
-            project_data["fetchedLinks"].append({
-                "url": request.url,
-                "title": title,
-                "path": str(content_file.relative_to(project_dir)),
-                "fetchedAt": datetime.now().isoformat(),
-            })
-            project_data["lastUpdated"] = datetime.now().isoformat()
-
-            with open(project_files[0], "w") as f:
-                json.dump(project_data, f, indent=2)
+        await repo.create_upload(
+            project_id=project_id,
+            filename=title[:255],
+            file_path=str(content_file.relative_to(project_dir)),
+            content_type="text/link",
+            size_bytes=len(text_content.encode("utf-8")),
+        )
+        await repo.update_project_timestamp(project_id)
 
         return {
             "success": True,
