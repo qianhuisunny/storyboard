@@ -1,5 +1,6 @@
 import json
 import sqlite3
+import time
 from pathlib import Path
 
 _DB_PATH = Path(__file__).parent.parent.parent.parent / "data" / "plotline.db"
@@ -22,7 +23,7 @@ CREATE TABLE IF NOT EXISTS quality_log (
     before_content  TEXT,
     after_content   TEXT,
     parent_id       INTEGER REFERENCES quality_log(id),
-    created_at      REAL NOT NULL DEFAULT (unixepoch('subsec'))
+    created_at      REAL NOT NULL
 );
 """
 
@@ -49,6 +50,7 @@ class QualityLog:
             conn.close()
 
     def _insert(self, **fields) -> int:
+        fields.setdefault("created_at", time.time())
         cols = list(fields.keys())
         placeholders = ", ".join(["?"] * len(cols))
         col_names = ", ".join(cols)
