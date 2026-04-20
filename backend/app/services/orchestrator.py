@@ -210,6 +210,21 @@ class StoryboardOrchestrator:
         )
         state.screen_outline = screen_outline
         state.outline_eval = outline_eval.to_dict()
+        try:
+            from app.infra.quality_log import qlog
+            qlog.log_generate(
+                project_id=state.project_id,
+                stage="outline",
+                scope="full",
+                attempt=outline_eval.attempt,
+                model=self.quality_gate.model,
+                prompt_ref=self.agents["director"].prompt_file,
+                context=str(state.story_brief),
+                raw_response=str(screen_outline),
+                parsed_output=screen_outline if isinstance(screen_outline, (dict, list)) else None,
+            )
+        except Exception:
+            pass
         state = manager.transition(state, "outline_ready")
         result["message"] = "Outline ready for review at Gate 2"
 
@@ -269,6 +284,21 @@ class StoryboardOrchestrator:
         )
         state.storyboard = storyboard
         state.storyboard_eval = storyboard_eval.to_dict()
+        try:
+            from app.infra.quality_log import qlog
+            qlog.log_generate(
+                project_id=state.project_id,
+                stage="storyboard",
+                scope="full",
+                attempt=storyboard_eval.attempt,
+                model=self.quality_gate.model,
+                prompt_ref=self.agents["writer"].prompt_file,
+                context=f"brief: {state.story_brief}\noutline: {state.screen_outline}",
+                raw_response=str(storyboard),
+                parsed_output=storyboard if isinstance(storyboard, (dict, list)) else None,
+            )
+        except Exception:
+            pass
 
         state = manager.transition(state, "storyboard_ready")
         result["message"] = "Storyboard complete! Review and optionally refine."
@@ -762,6 +792,21 @@ class StoryboardOrchestrator:
         )
         state.screen_outline = screen_outline
         state.outline_eval = outline_eval.to_dict()
+        try:
+            from app.infra.quality_log import qlog
+            qlog.log_generate(
+                project_id=state.project_id,
+                stage="outline",
+                scope="full",
+                attempt=outline_eval.attempt,
+                model=self.quality_gate.model,
+                prompt_ref=self.agents["director"].prompt_file,
+                context=str(state.story_brief),
+                raw_response=str(screen_outline),
+                parsed_output=screen_outline if isinstance(screen_outline, (dict, list)) else None,
+            )
+        except Exception:
+            pass
         state = manager.transition(state, "outline_ready")  # outline → gate2
 
         result["message"] = "Screen Outline ready for review"
@@ -837,6 +882,21 @@ class StoryboardOrchestrator:
         )
         state.screen_outline = screen_outline
         state.outline_eval = outline_eval.to_dict()
+        try:
+            from app.infra.quality_log import qlog
+            qlog.log_generate(
+                project_id=state.project_id,
+                stage="outline",
+                scope="full",
+                attempt=outline_eval.attempt,
+                model=self.quality_gate.model,
+                prompt_ref=self.agents["director"].prompt_file,
+                context=str(state.story_brief),
+                raw_response=str(screen_outline),
+                parsed_output=screen_outline if isinstance(screen_outline, (dict, list)) else None,
+            )
+        except Exception:
+            pass
         state = manager.transition(state, "outline_ready")  # outline → gate2
 
         result["message"] = "Screen Outline ready for review"
