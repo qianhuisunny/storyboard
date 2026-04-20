@@ -1,5 +1,5 @@
 """
-SQLAlchemy ORM models — 4 tables.
+SQLAlchemy ORM models — 5 tables.
 """
 
 from datetime import datetime, timezone
@@ -79,3 +79,25 @@ class Upload(Base):
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
     project = relationship("Project", back_populates="uploads")
+
+
+class QualityLogEntry(Base):
+    __tablename__ = "quality_log"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    project_id = Column(Text, nullable=False, index=True)
+    event = Column(Text, nullable=False, index=True)
+    stage = Column(Text, nullable=False)
+    scope = Column(Text, nullable=True)
+    attempt = Column(Integer, nullable=True)
+    model = Column(Text, nullable=True)
+    prompt_ref = Column(Text, nullable=True)
+    context = Column(Text, nullable=True)
+    raw_response = Column(Text, nullable=True)
+    parsed_output = Column(Text, nullable=True)
+    scores = Column(Text, nullable=True)
+    instruction = Column(Text, nullable=True)
+    before_content = Column(Text, nullable=True)
+    after_content = Column(Text, nullable=True)
+    parent_id = Column(Integer, ForeignKey("quality_log.id"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
