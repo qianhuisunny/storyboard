@@ -36,7 +36,9 @@ class StoryboardWriter(BaseAgent):
     Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_v0324.md"
+    prompt_file = "storyboard_writer_prompt_v0421.md"
+    SECTION_DURATION_TOLERANCE = 0.20
+    MAX_SECTION_RETRY_ATTEMPTS = 1
 
     def __init__(self):
         super().__init__()
@@ -46,7 +48,8 @@ class StoryboardWriter(BaseAgent):
         """
         Process outline into production storyboard.
 
-        For text outlines: parse sections, single LLM call for full storyboard, post-process.
+        For text outlines: parse sections, compute word budgets, single LLM call,
+        post-process, validate per-section duration (±20%), retry individual sections.
         For legacy screen-lists: add duration + placeholder images.
         """
         if not state.screen_outline:
@@ -61,17 +64,18 @@ class StoryboardWriter(BaseAgent):
         evidence_research = getattr(state, "evidence_research", None) or {}
         project_id = getattr(state, "project_id", None)
 
-        # 1. Parse outline into sections
-        sections = self._parse_outline(outline_text)
-        if not sections:
-            raise ValueError("Could not parse any sections from outline")
+        # 1. Parse outline into sections (stores target_seconds on each section)
+        sections = self.validate_outline_contract(outline_text)
 
         # 2. Extract context from brief
         brief_context = self._extract_brief_context(story_brief)
         allowed_types = self._get_allowed_screen_types(story_brief)
         target_duration = self._get_target_duration(story_brief)
 
-        # 3. Gather all evidence across sections
+        # 3. Compute word budgets per section from target_seconds
+        self._compute_section_budgets(sections, allowed_types)
+
+        # 4. Gather all evidence across sections
         all_evidence = {}
         for section in sections:
             title = section.get("title", "")
@@ -81,7 +85,7 @@ class StoryboardWriter(BaseAgent):
             if section_evidence:
                 all_evidence[title] = section_evidence
 
-        # 4. Build full storyboard prompt and call LLM once
+        # 5. Generate full storyboard (single LLM call, no whole-storyboard retry)
         user_prompt = self._build_full_storyboard_prompt(
             sections=sections,
             all_evidence=all_evidence,
@@ -90,16 +94,18 @@ class StoryboardWriter(BaseAgent):
             allowed_types=allowed_types,
             target_duration=target_duration,
         )
-
-        # Call LLM
         all_screens = self._call_storyboard_llm(user_prompt, project_id)
+        if not all_screens:
+            raise ValueError("StoryboardWriter could not generate a valid storyboard")
 
-        # 5. Post-process: add duration + on_screen_visual
         all_screens = self._post_process_screens(all_screens, allowed_types)
 
-        # 6. Validate and adjust total duration
+        # 6. Per-section duration validation and retry
         if target_duration > 0:
-            all_screens = self._adjust_total_duration(all_screens, target_duration)
+            all_screens = self._validate_and_retry_sections(
+                all_screens, sections, all_evidence, brief_context,
+                allowed_types, project_id,
+            )
 
         # 7. Ensure sequential numbering
         for i, screen in enumerate(all_screens):
@@ -205,7 +211,7 @@ class StoryboardWriter(BaseAgent):
             if line.strip().startswith("-") or line.strip().startswith("*")
         ]
 
-    def _parse_duration_range(self, duration_str: str) -> tuple:
+    def _parse_duration_range(self, duration_str: str) -> Optional[tuple[int, int]]:
         """Parse duration ranges into (min_seconds, max_seconds).
 
         Handles formats:
@@ -214,32 +220,99 @@ class StoryboardWriter(BaseAgent):
         - '90–120' (seconds)
         - '2–2.5 min'
         """
-        if not duration_str:
-            return (120, 180)  # default 2-3 min
+        if not duration_str or not duration_str.strip():
+            return None
 
         # Check if "min" appears → values are in minutes
         is_minutes = "min" in duration_str.lower()
         clean = re.sub(r"\s*min(utes?)?\s*", "", duration_str, flags=re.IGNORECASE).strip()
 
-        parts = re.split(r"[—–\-]", clean)
+        parts = [part.strip() for part in re.split(r"[—–\-]", clean) if part.strip()]
+        if not parts:
+            return None
 
-        def to_seconds(t: str) -> int:
+        def to_seconds(t: str) -> Optional[int]:
             t = t.strip()
             if ":" in t:
                 pieces = t.split(":")
+                if len(pieces) != 2 or not all(piece.isdigit() for piece in pieces):
+                    return None
                 return int(pieces[0]) * 60 + int(pieces[1])
             try:
                 val = float(t)
+                if val <= 0:
+                    return None
                 return int(val * 60) if is_minutes else int(val)
             except ValueError:
-                return 120
+                return None
 
         if len(parts) >= 2:
-            return (to_seconds(parts[0]), to_seconds(parts[1]))
+            min_sec = to_seconds(parts[0])
+            max_sec = to_seconds(parts[1])
+            if min_sec is None or max_sec is None:
+                return None
+            return (min(min_sec, max_sec), max(min_sec, max_sec))
         elif len(parts) == 1:
-            s = to_seconds(parts[0])
-            return (s, s)
-        return (120, 180)
+            seconds = to_seconds(parts[0])
+            if seconds is None:
+                return None
+            return (seconds, seconds)
+        return None
+
+    def _parse_target_seconds(self, duration_str: str) -> Optional[int]:
+        """Parse Director's Duration field as a single target in seconds.
+
+        Handles: '90', '90 seconds', '90s'.
+        Falls back to range midpoint for legacy v0324 outlines (e.g. '1:30–2:00').
+        """
+        if not duration_str or not duration_str.strip():
+            return None
+        clean = re.sub(r"\s*(seconds?|s)\s*$", "", duration_str.strip(), flags=re.IGNORECASE)
+        try:
+            return int(float(clean))
+        except ValueError:
+            pass
+        parsed = self._parse_duration_range(duration_str)
+        if parsed:
+            return (parsed[0] + parsed[1]) // 2
+        return None
+
+    def validate_outline_contract(self, outline_text: str) -> list:
+        """
+        Validate the writer-facing outline contract before we commit to
+        storyboard generation. Bad or missing duration fields should fail fast
+        instead of silently defaulting to 120-180 seconds.
+
+        Stores parsed `target_seconds` on each section dict for downstream use.
+        """
+        sections = self._parse_outline(outline_text)
+        if not sections:
+            raise ValueError("Could not parse any sections from outline")
+
+        errors = []
+        for section in sections:
+            section_number = section.get("section_number", "?")
+            if not section.get("title", "").strip():
+                errors.append(f"Section {section_number} is missing a title")
+            if not section.get("purpose", "").strip():
+                errors.append(f"Section {section_number} is missing Purpose")
+            duration_raw = section.get("duration_range", "")
+            target_sec = self._parse_target_seconds(duration_raw)
+            if not duration_raw.strip():
+                errors.append(f"Section {section_number} is missing Duration")
+            elif target_sec is None:
+                errors.append(
+                    f"Section {section_number} has an invalid Duration value: {duration_raw!r}"
+                )
+            else:
+                section["target_seconds"] = target_sec
+            if not section.get("talking_points"):
+                errors.append(f"Section {section_number} must include at least one talking point")
+
+        if errors:
+            raise ValueError("Outline contract invalid: " + "; ".join(errors[:5]))
+
+        return sections
 
     # =========================================================================
     # Brief Context Extraction
@@ -307,6 +380,137 @@ class StoryboardWriter(BaseAgent):
             return float(duration)
         except (ValueError, TypeError):
             return 60.0
+
+    # =========================================================================
+    # Word Budget Computation & Per-Section Validation
+    # =========================================================================
+
+    def _compute_section_budgets(self, sections: list, allowed_types: list) -> None:
+        """Add word_budget to each section dict based on target_seconds."""
+        default_type = allowed_types[0] if allowed_types else "slides"
+        for section in sections:
+            target_sec = section.get("target_seconds", 0)
+            if target_sec > 0:
+                section["word_budget"] = self.duration_calculator.compute_word_budget(
+                    target_sec, default_type
+                )
+            else:
+                section["word_budget"] = 0
+
+    def _validate_and_retry_sections(
+        self, screens, sections, all_evidence, brief_context,
+        allowed_types, project_id,
+    ) -> list:
+        """Validate each section's duration; retry individual failing sections."""
+        screens_by_section: dict[int, list] = {}
+        for s in screens:
+            sec_num = s.get("section_number")
+            if sec_num is not None:
+                screens_by_section.setdefault(sec_num, []).append(s)
+
+        section_map = {s["section_number"]: s for s in sections}
+
+        for sec_num, sec_screens in list(screens_by_section.items()):
+            section = section_map.get(sec_num)
+            if not section:
+                continue
+            target_sec = section.get("target_seconds", 0)
+            if target_sec <= 0:
+                continue
+
+            validation = self.duration_calculator.validate_section_duration(
+                sec_screens, target_sec, self.SECTION_DURATION_TOLERANCE
+            )
+            if validation["is_valid"]:
+                continue
+
+            retry_screens = self._retry_section(
+                section, sec_screens, validation, all_evidence,
+                brief_context, allowed_types, project_id,
+            )
+            if retry_screens is not None:
+                screens_by_section[sec_num] = retry_screens
+            else:
+                # Retry failed — annotate original screens with warning
+                deviation = validation["deviation_percent"]
+                direction = validation["direction"]
+                for s in sec_screens:
+                    note = s.get("action_notes", "")
+                    s["action_notes"] = f"{note} [Duration warning: section {direction} target by {deviation:.0f}%]".strip()
+
+        result = []
+        for sec_num in sorted(screens_by_section.keys()):
+            result.extend(screens_by_section[sec_num])
+        return result
+
+    def _retry_section(
+        self, section, current_screens, validation, all_evidence,
+        brief_context, allowed_types, project_id,
+    ) -> Optional[list]:
+        """Retry generation for a single failing section. Returns new screens or None."""
+        title = section.get("title", "")
+        target_sec = section.get("target_seconds", 0)
+        word_budget = section.get("word_budget", 0)
+        direction = validation["direction"]
+        deviation = validation["deviation_percent"]
+
+        evidence = all_evidence.get(title, [])
+        evidence_text = self._format_evidence_for_prompt(evidence)
+        tp_text = "\n".join(f"- {tp}" for tp in section.get("talking_points", []))
+
+        if direction == "over":
+            adjust = "SHORTEN voiceover text — cut filler, tighten phrasing, remove redundant screens."
+        else:
+            adjust = "EXPAND voiceover text — add detail, examples, or split concepts across more screens."
+
+        prompt = f"""Rewrite ONLY the screens for Section {section['section_number']} — {title}.
+
+The current section is {deviation:.0f}% {direction} its {target_sec}s target.
+Word budget for this section: ~{word_budget} words.
+
+Section details:
+Purpose: {section.get('purpose', '')}
+Talking points:
+{tp_text}
+
+Evidence research:
+{evidence_text}
+
+Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
+Tone: {brief_context['delivery_tone']}
+
+{adjust}
+
+Return a JSON array of screens for this section only. Each element has exactly 7 fields:
+- screen_number (integer)
+- section_number ({section['section_number']})
+- section_title ("{title}")
+- screen_type (one of: {', '.join(allowed_types)})
+- voiceover_text
+- visual_direction (array of 2-4 elements)
+- action_notes"""
+
+        try:
+            response = self.call_llm(prompt, max_tokens=8000, temperature=0.5)
+            parsed = self._extract_json(response)
+        except Exception:
+            return None
+
+        if not parsed or not isinstance(parsed, list):
+            return None
+
+        retry_screens = self._post_process_screens(parsed, allowed_types)
+
+        retry_validation = self.duration_calculator.validate_section_duration(
+            retry_screens, target_sec, self.SECTION_DURATION_TOLERANCE
+        )
+        if retry_validation["is_valid"]:
+            for s in retry_screens:
+                s["section_number"] = section["section_number"]
+                s["section_title"] = title
+            return retry_screens
+
+        return None
 
     # =========================================================================
     # Evidence Research Integration
@@ -404,14 +608,14 @@ class StoryboardWriter(BaseAgent):
             evidence = all_evidence.get(title, [])
             evidence_text = self._format_evidence_for_prompt(evidence)
 
-            # Duration range for this section
-            min_sec, max_sec = self._parse_duration_range(section.get("duration_range", ""))
+            target_sec = section.get("target_seconds", 0)
+            word_budget = section.get("word_budget", 0)
 
             block = f"""### Section {section.get('section_number', '?')} — {title}
 Purpose: {section.get('purpose', '')}
 Entry assumption: {section.get('entry_assumption', 'None')}
 Exit state: {section.get('exit_state', '')}
-Duration range: {min_sec}–{max_sec} seconds
+Target duration: {target_sec}s — Word budget: ~{word_budget} words
 
 Talking points:
 {tp_text}
@@ -422,7 +626,7 @@ Evidence research:
 
         sections_text = "\n\n".join(section_blocks)
 
-        return f"""Generate the COMPLETE storyboard for this video — all sections, all screens, in one pass.
+        prompt = f"""Generate the COMPLETE storyboard for this video — all sections, all screens, in one pass.
 
 === STORY BRIEF ===
 Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
@@ -443,7 +647,7 @@ You may use any type from the allowed list as many times as needed. But do NOT d
 {sections_text}
 
 === INSTRUCTIONS ===
-**Duration constraint (hard):** The total video is {target_duration} seconds. Your storyboard's total voiceover word count must produce approximately this duration at ~130 words/minute (2.17 words/second). Use this to judge how many screens you need — NOT a fixed formula.
+**Word budget (hard):** Each section above has a word budget — the approximate number of voiceover words that will produce the target duration at ~2.2 words/second. Stay within ±20% of each section's word budget. This is the primary duration control mechanism.
 
 **Constraints:**
 - Every talking point from every section MUST appear in at least one screen's voiceover. Do not skip or vaguely paraphrase any talking point.
@@ -463,12 +667,15 @@ Return a JSON array. Each element has exactly 7 fields:
 
 Follow your system prompt rules strictly. Every sentence of voiceover must teach — no filler, no announcements, no motivation."""
 
+        return prompt
+
     # =========================================================================
     # Post-Processing
     # =========================================================================
 
     def _post_process_screens(self, screens: list, allowed_types: list) -> list:
-        """Add server-computed fields: duration and on_screen_visual."""
+        """Add server-computed fields and split screens that exceed max duration."""
+        processed = []
         for screen in screens:
             # Validate screen_type
             st = screen.get("screen_type", "slides")
@@ -478,49 +685,43 @@ Follow your system prompt rules strictly. Every sentence of voiceover must teach
 
             # Calculate duration from voiceover word count
             voiceover = screen.get("voiceover_text", "")
-            calc = self.duration_calculator.calculate(voiceover, st)
-            screen["duration"] = calc["duration"]
+            chunks = self.duration_calculator.split_voiceover(voiceover, st)
+            if not chunks:
+                chunks = [{
+                    "voiceover_text": "",
+                    "duration": self.duration_calculator.MIN_DURATION,
+                }]
 
-            # Assign placeholder image
-            screen["on_screen_visual"] = PLACEHOLDER_IMAGES.get(st, "/placeholders/slides_and_diagrams.png")
+            for chunk_index, chunk in enumerate(chunks, start=1):
+                chunk_screen = dict(screen)
+                chunk_screen["voiceover_text"] = chunk["voiceover_text"]
+                chunk_screen["duration"] = chunk["duration"]
 
-            # Ensure visual_direction is a list
-            vd = screen.get("visual_direction", [])
-            if isinstance(vd, str):
-                screen["visual_direction"] = [vd]
-            elif not isinstance(vd, list):
-                screen["visual_direction"] = []
+                # Assign placeholder image
+                chunk_screen["on_screen_visual"] = PLACEHOLDER_IMAGES.get(
+                    st, "/placeholders/slides_and_diagrams.png"
+                )
 
-            # Ensure action_notes exists
-            if "action_notes" not in screen:
-                screen["action_notes"] = ""
+                # Ensure visual_direction is a list
+                vd = chunk_screen.get("visual_direction", [])
+                if isinstance(vd, str):
+                    chunk_screen["visual_direction"] = [vd]
+                elif not isinstance(vd, list):
+                    chunk_screen["visual_direction"] = []
 
-        return screens
+                # Ensure action_notes exists
+                if "action_notes" not in chunk_screen:
+                    chunk_screen["action_notes"] = ""
 
-    def _adjust_total_duration(self, screens: list, target_seconds: float) -> list:
-        """Proportionally adjust durations if total is off by more than 5%."""
-        if not screens:
-            return screens
+                if len(chunks) > 1:
+                    note = "Auto-split from an overlong voiceover to keep spoken duration aligned with screen timing."
+                    chunk_screen["action_notes"] = (
+                        f"{chunk_screen['action_notes']} {note} Part {chunk_index} of {len(chunks)}."
+                    ).strip()
 
-        total = sum(s.get("duration", 0) for s in screens)
-        if total == 0:
-            return screens
+                processed.append(chunk_screen)
 
-        deviation = abs(total - target_seconds) / target_seconds
-        if deviation <= 0.05:
-            return screens  # Within 5%, no adjustment needed
-
-        # Scale proportionally
-        scale = target_seconds / total
-        for screen in screens:
-            original = screen.get("duration", 6.0)
-            adjusted = original * scale
-            # Round to nearest 0.5, apply min/max
-            adjusted = round(adjusted * 2) / 2
-            adjusted = max(4.0, min(90.0, adjusted))  # matches DurationCalculator.MIN_DURATION
-            screen["duration"] = adjusted
-
-        return screens
+        return processed
 
     # =========================================================================
     # Legacy Support

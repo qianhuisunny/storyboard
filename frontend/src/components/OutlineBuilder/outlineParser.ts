@@ -192,7 +192,7 @@ export function serializeOutline(sections: OutlineSection[]): string {
       }
 
       lines.push("Duration");
-      lines.push(s.duration || "0:00–0:00");
+      lines.push(s.duration || "0");
       lines.push("");
 
       lines.push("Talking points");
