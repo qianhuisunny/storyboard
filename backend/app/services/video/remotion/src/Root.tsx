@@ -6,6 +6,7 @@ import { SplitComparison } from "./components/SplitComparison";
 import { Timeline } from "./components/Timeline";
 import { ThreeColumn } from "./components/ThreeColumn";
 import { DataCard } from "./components/DataCard";
+import { KeyframeOverlay } from "./components/KeyframeOverlay";
 
 // 25 fps matches both HeyGen's native output and the stitcher's
 // canonical normalize target (see ../components/theme.ts FPS constant
@@ -65,6 +66,12 @@ const defaultThreeColumn = {
 const defaultDataCard = {
   title: "DataCard Preview",
   durationInSeconds: 18,
+};
+
+const defaultKeyframeOverlay = {
+  seedanceVideoPath: "",
+  durationSeconds: 10,
+  keyframes: [] as import("./types").Keyframe[],
 };
 
 const durationFrames = (seconds: number) => Math.ceil(seconds * FPS);
@@ -130,6 +137,22 @@ export const RemotionRoot: React.FC = () => {
         defaultProps={defaultDataCard}
         calculateMetadata={({ props }: { props: typeof defaultDataCard }) => ({
           durationInFrames: durationFrames(props.durationInSeconds ?? 19),
+        })}
+      />
+      <Composition
+        id="KeyframeOverlay"
+        component={KeyframeOverlay as any}
+        durationInFrames={durationFrames(defaultKeyframeOverlay.durationSeconds)}
+        fps={FPS}
+        width={1920}
+        height={1080}
+        defaultProps={defaultKeyframeOverlay}
+        calculateMetadata={({
+          props,
+        }: {
+          props: typeof defaultKeyframeOverlay;
+        }) => ({
+          durationInFrames: durationFrames(props.durationSeconds ?? 10),
         })}
       />
     </>
