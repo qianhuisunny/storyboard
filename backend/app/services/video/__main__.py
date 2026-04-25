@@ -85,6 +85,28 @@ def main():
         help="Comma-separated panel numbers to generate",
     )
     gen.add_argument(
+        "--talking-head-provider",
+        default="heygen",
+        choices=["heygen", "seedance"],
+        help="Video provider for talking-head panels (default: heygen)",
+    )
+    gen.add_argument(
+        "--seedance-ref-image",
+        type=str,
+        default=None,
+        help="Path to character reference image for Seedance lip sync",
+    )
+    gen.add_argument(
+        "--enable-keyframe-overlay",
+        action="store_true",
+        help="Render keyframe overlays on panel clips (auto-generates if missing)",
+    )
+    gen.add_argument(
+        "--skip-keyframe-gen",
+        action="store_true",
+        help="Use storyboard-provided keyframes only (don't auto-generate)",
+    )
+    gen.add_argument(
         "--dry-run",
         action="store_true",
         help="Preview fixture parse only — zero API calls, zero credits",
@@ -147,6 +169,10 @@ def main():
         skip_tts=args.skip_tts,
         skip_avatar=args.skip_avatar,
         only_panels=only_panels,
+        talking_head_provider=args.talking_head_provider,
+        seedance_ref_image=args.seedance_ref_image,
+        enable_keyframe_overlay=args.enable_keyframe_overlay,
+        skip_keyframe_gen=args.skip_keyframe_gen,
     )
 
     run_pipeline(config)

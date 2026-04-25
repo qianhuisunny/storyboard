@@ -53,6 +53,8 @@ from .stock_video import create_stock_video_panel
 from .public_upload import upload_file
 from .transcribe import transcribe_with_word_timestamps
 from .preview import enrich_manifest, write_preview
+from .overlay import render_keyframe_overlay
+from .keyframe_generator import generate_keyframes
 
 
 def _probe_audio_duration(audio_path: str) -> float:
@@ -140,6 +142,24 @@ def run_pipeline(config: PipelineConfig) -> str:
     else:
         print(f"\n[2/4] No panels to TTS")
 
+    # 2.5: Auto-generate keyframes for panels that don't have them
+    if config.enable_keyframe_overlay:
+        gen_count = 0
+        for panel in panels:
+            if panel.keyframes is None and not config.skip_keyframe_gen:
+                real_dur = _probe_audio_duration(panel.audio_path)
+                print(f"  [Panel {panel.panel_number:02d}] Generating keyframes...")
+                panel.keyframes = generate_keyframes(
+                    voiceover_script=panel.voiceover_script,
+                    visual_direction=panel.visual_direction,
+                    duration_seconds=real_dur,
+                    screen_type=panel.screen_type.value,
+                )
+                gen_count += 1
+                print(f"    → {len(panel.keyframes)} keyframes")
+        has_kf = sum(1 for p in panels if p.keyframes)
+        print(f"  Keyframes: {gen_count} auto-generated, {has_kf} total with keyframes")
+
     # 3. Generate video clips per panel
     print(f"\n[3/4] Generating video clips...")
     clips_dir = os.path.join(config.output_dir, "clips")
@@ -172,29 +192,50 @@ def run_pipeline(config: PipelineConfig) -> str:
                 panel_manifests.append(panel_info)
                 continue
 
-            print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → HeyGen ({config.heygen_avatar_id})")
-            # Step 3a: upload the TTS audio to litterbox so HeyGen can
-            # fetch it via audio_url. This is the voice-unification
-            # mechanism — HeyGen lip-syncs the avatar to OUR alloy audio
-            # instead of generating its own voice.
-            print(f"    uploading audio to public host for HeyGen fetch...")
-            audio_url = upload_file(panel.audio_path, expiry="12h")
-            print(f"    audio URL: {audio_url}")
+            if config.talking_head_provider == "seedance":
+                from .seedance import generate_seedance_video
+                print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → Seedance (lip sync)")
+                print(f"    uploading audio to public host for Seedance fetch...")
+                audio_url = upload_file(panel.audio_path, expiry="12h")
+                print(f"    audio URL: {audio_url}")
 
-            result = heygen_generate_avatar_video(
-                output_path=clip_path,
-                audio_url=audio_url,
-                avatar_id=config.heygen_avatar_id,
-                avatar_style=config.heygen_avatar_style,
-            )
-            panel.clip_path = clip_path
-            if result.get("duration"):
-                panel.duration_seconds = float(result["duration"])
-            panel_info.update({
-                "heygen_video_id": result.get("video_id"),
-                "heygen_audio_url": audio_url,
-                "duration": result.get("duration"),
-            })
+                real_dur = _probe_audio_duration(panel.audio_path)
+                result = generate_seedance_video(
+                    output_path=clip_path,
+                    prompt="@Image1 is speaking to camera, medium close-up, direct eye contact, "
+                           "natural head movement, professional office background",
+                    duration=min(15, int(real_dur) + 1),
+                    image_path=config.seedance_ref_image,
+                    audio_url=audio_url,
+                )
+                panel.clip_path = clip_path
+                panel.duration_seconds = real_dur
+                panel_info.update({
+                    "seedance_task_id": result.get("task_id"),
+                    "duration": real_dur,
+                    "provider": "seedance",
+                })
+            else:
+                print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → HeyGen ({config.heygen_avatar_id})")
+                print(f"    uploading audio to public host for HeyGen fetch...")
+                audio_url = upload_file(panel.audio_path, expiry="12h")
+                print(f"    audio URL: {audio_url}")
+
+                result = heygen_generate_avatar_video(
+                    output_path=clip_path,
+                    audio_url=audio_url,
+                    avatar_id=config.heygen_avatar_id,
+                    avatar_style=config.heygen_avatar_style,
+                )
+                panel.clip_path = clip_path
+                if result.get("duration"):
+                    panel.duration_seconds = float(result["duration"])
+                panel_info.update({
+                    "heygen_video_id": result.get("video_id"),
+                    "heygen_audio_url": audio_url,
+                    "duration": result.get("duration"),
+                    "provider": "heygen",
+                })
 
         elif panel.screen_type == ScreenType.SLIDES:
             print(f"  [Panel {panel.panel_number:02d}] SLIDES → LLM + Remotion")
@@ -324,6 +365,19 @@ def run_pipeline(config: PipelineConfig) -> str:
                 f"Unknown screen_type for panel {panel.panel_number}: "
                 f"{panel.screen_type!r}"
             )
+
+        # Post-render: apply keyframe overlay if enabled and keyframes exist
+        if config.enable_keyframe_overlay and panel.keyframes and panel.clip_path:
+            print(f"  [Panel {panel.panel_number:02d}] Applying keyframe overlay ({len(panel.keyframes)} keyframes)")
+            real_dur = panel_info.get("duration") or panel.duration_seconds
+            render_keyframe_overlay(
+                base_video_path=panel.clip_path,
+                keyframes=panel.keyframes,
+                duration_seconds=real_dur,
+                output_path=panel.clip_path,
+                audio_path=panel.audio_path,
+            )
+            panel_info["keyframe_count"] = len(panel.keyframes)
 
         panel_manifests.append(panel_info)
 

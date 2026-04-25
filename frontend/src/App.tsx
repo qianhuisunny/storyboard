@@ -19,6 +19,7 @@ import AdminDashboard from "@/components/admin/AdminDashboard";
 import GoldSetBench from "@/components/admin/GoldSetBench";
 import BatchDiffs from "@/components/admin/BatchDiffs";
 import DriftDetailPage from "@/components/admin/drift/DriftDetailPage";
+import QualityLogDashboard from "@/components/admin/QualityLogDashboard";
 import { BarChart3, FlaskConical } from "lucide-react";
 import "./App.css";
 
@@ -111,6 +112,7 @@ function App() {
               <Route path="/admin/prompt-bench" element={<GoldSetBench />} />
               <Route path="/admin/prompt-bench/diffs" element={<BatchDiffs />} />
               <Route path="/admin/drift/:stageName" element={<DriftDetailPage />} />
+              <Route path="/admin/quality-log/:projectId?" element={<QualityLogDashboard />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </SignedIn>

@@ -10,7 +10,7 @@ interface StatProps {
 export const Stat: React.FC<StatProps> = ({ kf, opacity }) => {
   const fontSize = kf.style?.fontSize ?? 96;
   const color = kf.style?.color ?? "#FFFFFF";
-  const scale = 0.9 + 0.1 * opacity; // 0.9 → 1.0 during fade-in
+  const slideUp = (1 - opacity) * 20;
 
   return (
     <div
@@ -21,12 +21,17 @@ export const Stat: React.FC<StatProps> = ({ kf, opacity }) => {
         width: "100%",
         height: "100%",
         display: "flex",
+        flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
+        gap: 16,
         opacity,
-        transform: `scale(${scale})`,
+        transform: `translateY(${slideUp}px)`,
       }}
     >
+      {kf.icon && (
+        <span style={{ fontSize: 96, lineHeight: 1 }}>{kf.icon}</span>
+      )}
       <span
         style={{
           fontFamily: FONT_FAMILY,

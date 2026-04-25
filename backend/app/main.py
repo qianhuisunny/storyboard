@@ -290,7 +290,7 @@ async def save_stories_to_project(project_id: str, request: SaveStoriesRequest, 
 
 class EventRequest(BaseModel):
     """Request body for event-based pipeline."""
-    event: str  # submit, submit_knowledge_share, approve, edit, refine_outline, regenerate_section, restart
+    event: str  # submit, submit_knowledge_share, approve/brief_approve, edit/edit_brief, refine_outline, regenerate_section, restart
     payload: Optional[dict] = None
 
 
@@ -614,11 +614,11 @@ async def get_pipeline_state(project_id: str, db: AsyncSession = Depends(get_db)
             "brief_round1": ["round1_confirm"],
             "brief_round2": ["round2_confirm"],
             "brief_round3": ["generate_content_spine", "round3_confirm"],
-            "brief_review": ["brief_approve", "edit", "chat_brief_approve"],
-            "gate1": ["approve", "edit"],
-            "gate2": ["approve", "edit", "regenerate_section", "refine_outline"],
+            "brief_review": ["approve", "brief_approve", "edit", "edit_brief", "chat_brief_approve"],
+            "gate1": ["approve", "edit", "reject", "refine"],
+            "gate2": ["approve", "edit", "regenerate_section", "refine_outline", "reject", "refine"],
             "outline_research": [],
-            "review": ["approve", "edit"],
+            "review": ["approve", "edit", "reject", "refine"],
             "done": ["restart"],
         }.get(state.phase, [])
 
@@ -1406,6 +1406,73 @@ async def get_admin_all_stages(
 # Quality Log API
 # ============================================================================
 
+@app.get("/api/quality-log/projects/list")
+async def get_quality_log_projects():
+    import sqlite3
+
+    conn = sqlite3.connect(qlog._db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT project_id, COUNT(*) as event_count "
+        "FROM quality_log GROUP BY project_id ORDER BY MAX(id) DESC",
+    ).fetchall()
+    conn.close()
+
+    return {"projects": [dict(r) for r in rows]}
+
+
+@app.get("/api/quality-log/stats/summary")
+async def get_quality_log_summary():
+    import sqlite3
+
+    conn = sqlite3.connect(qlog._db_path)
+    conn.row_factory = sqlite3.Row
+
+    # Total eval events and pass/fail counts
+    eval_rows = conn.execute(
+        "SELECT scores FROM quality_log WHERE event = 'eval'"
+    ).fetchall()
+
+    total_evals = len(eval_rows)
+    passed = 0
+    total_score = 0.0
+    scored_count = 0
+    for r in eval_rows:
+        if r["scores"]:
+            try:
+                scores = json.loads(r["scores"])
+                if scores.get("passed"):
+                    passed += 1
+                if scores.get("composite_score") is not None:
+                    total_score += scores["composite_score"]
+                    scored_count += 1
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+    # Retry rate: projects where outline or storyboard had attempt > 1
+    retry_rows = conn.execute(
+        "SELECT DISTINCT project_id FROM quality_log "
+        "WHERE event = 'generate' AND attempt > 1"
+    ).fetchall()
+    total_projects = conn.execute(
+        "SELECT COUNT(DISTINCT project_id) as cnt FROM quality_log"
+    ).fetchone()["cnt"]
+
+    conn.close()
+
+    pass_rate = (passed / total_evals) if total_evals > 0 else 0
+    avg_score = (total_score / scored_count) if scored_count > 0 else 0
+    retry_rate = (len(retry_rows) / total_projects) if total_projects > 0 else 0
+
+    return {
+        "pass_rate": round(pass_rate, 2),
+        "retry_rate": round(retry_rate, 2),
+        "avg_score": round(avg_score, 1),
+        "total_evals": total_evals,
+        "total_projects": total_projects,
+    }
+
+
 @app.get("/api/quality-log/{project_id}")
 async def get_quality_log(project_id: str):
     import sqlite3
@@ -1430,6 +1497,67 @@ async def get_quality_log(project_id: str):
         entries.append(entry)
 
     return {"project_id": project_id, "entries": entries}
+
+
+@app.get("/api/quality-log/{project_id}/chains")
+async def get_quality_log_chains(project_id: str):
+    import sqlite3
+
+    conn = sqlite3.connect(qlog._db_path)
+    conn.row_factory = sqlite3.Row
+    rows = conn.execute(
+        "SELECT * FROM quality_log WHERE project_id = ? ORDER BY id",
+        (project_id,),
+    ).fetchall()
+    conn.close()
+
+    entries_by_id: dict[int, dict] = {}
+    for r in rows:
+        entry = dict(r)
+        for json_field in ("parsed_output", "scores"):
+            if entry.get(json_field):
+                try:
+                    entry[json_field] = json.loads(entry[json_field])
+                except (json.JSONDecodeError, TypeError):
+                    pass
+        entries_by_id[entry["id"]] = entry
+
+    children_map: dict[int, list[int]] = {}
+    roots: list[int] = []
+    for eid, entry in entries_by_id.items():
+        pid = entry["parent_id"]
+        if pid is None:
+            roots.append(eid)
+        else:
+            children_map.setdefault(pid, []).append(eid)
+
+    def walk_chain(root_id: int) -> list[dict]:
+        result = [entries_by_id[root_id]]
+        for child_id in children_map.get(root_id, []):
+            result.extend(walk_chain(child_id))
+        return result
+
+    stage_chains: dict[str, list[list[dict]]] = {}
+    for root_id in roots:
+        chain = walk_chain(root_id)
+        stage = chain[0]["stage"]
+        stage_chains.setdefault(stage, []).append(chain)
+
+    stage_order = ["outline", "storyboard"]
+    ordered_stages = sorted(
+        stage_chains.keys(),
+        key=lambda s: stage_order.index(s) if s in stage_order else 999,
+    )
+
+    stages = []
+    for stage_name in ordered_stages:
+        chains = stage_chains[stage_name]
+        stages.append({
+            "stage": stage_name,
+            "chains": [{"root_id": c[0]["id"], "events": c} for c in chains],
+        })
+
+    return {"project_id": project_id, "stages": stages}
 
 
 @app.get("/api/quality-log/stats/overrides")

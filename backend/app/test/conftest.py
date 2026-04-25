@@ -90,6 +90,9 @@ class MockWriter:
     def run(self, state, **kwargs):
         return list(MOCK_STORYBOARD)
 
+    def validate_outline_contract(self, outline_text):
+        return True
+
 
 def _make_passing_grade():
     return QualityEvalResult(

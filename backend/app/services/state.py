@@ -115,6 +115,7 @@ class StateManager:
         ("brief_round3", "generate_content_spine"): "brief_round3",   # POV submitted -> stay, generate fields
         ("brief_round3", "round3_confirm"): "brief_review",           # Section 3 confirmed -> Final review
         ("brief_review", "brief_approve"): "gate1",                # Final review -> Gate 1 (locked)
+        ("brief_review", "approve"): "gate1",                      # Public alias for final brief approval
         ("brief_review", "edit"): "brief_round1",                  # Go back to editing
         ("brief_review", "edit_brief"): "brief_round1",            # Legacy alias
         ("brief_round1", "chat_brief_approve"): "brief_review",

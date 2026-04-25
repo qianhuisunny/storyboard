@@ -69,20 +69,27 @@ class StoryboardOrchestrator:
         payload = payload or {}
         manager = StateManager(project_id)
         state = await manager.load()
+        normalized_event, normalized_payload = self._normalize_event_alias(
+            phase=state.phase,
+            event=event,
+            payload=payload,
+        )
 
         result = {
             "phase": state.phase,
             "previous_phase": state.phase,
-            "event": event,
+            "event": normalized_event,
             "success": True,
             "message": "",
         }
+        if normalized_event != event:
+            result["requested_event"] = event
 
         try:
             # Route based on current phase and event
-            handler = self._get_handler(state.phase, event)
+            handler = self._get_handler(state.phase, normalized_event)
             if handler:
-                state, result = await handler(state, manager, payload, result)
+                state, result = await handler(state, manager, normalized_payload, result)
             else:
                 raise ValueError(
                     f"Invalid event '{event}' for phase '{state.phase}'. "
@@ -99,6 +106,45 @@ class StoryboardOrchestrator:
             result["error"] = str(e)
 
         return result
+
+    def _normalize_event_alias(
+        self,
+        phase: str,
+        event: str,
+        payload: Dict[str, Any],
+    ) -> tuple[str, Dict[str, Any]]:
+        """
+        Keep public event names stable even when internal handlers use a more
+        specific contract. This prevents frontend/API drift from turning into
+        Invalid event errors.
+        """
+        if phase == "brief_review" and event == "approve":
+            return "brief_approve", payload
+
+        if phase == "brief_review" and event == "edit_brief":
+            return "edit", payload
+
+        if event not in {"reject", "refine"}:
+            return event, payload
+
+        feedback = payload.get("feedback") or payload.get("instruction")
+        if not feedback:
+            raise ValueError("feedback is required")
+
+        if phase == "gate2":
+            return "refine_outline", {
+                **payload,
+                "instruction": feedback,
+            }
+
+        if phase in {"gate1", "brief_review", "review"}:
+            return "edit", {
+                **payload,
+                "target": payload.get("target", "current"),
+                "feedback": feedback,
+            }
+
+        return event, payload
 
     def _get_handler(self, phase: str, event: str):
         """Get the handler function for a phase/event combination."""
@@ -316,6 +362,8 @@ class StoryboardOrchestrator:
         # For text-based outlines, just check it's non-empty text
         if isinstance(state.screen_outline, str) and len(state.screen_outline.strip()) < 50:
             raise ValueError("Cannot approve: Outline is too short")
+        if isinstance(state.screen_outline, str):
+            self.agents["writer"].validate_outline_contract(state.screen_outline)
 
         # Lock the outline
         state = manager.lock_outline(state)

@@ -16,6 +16,7 @@ def parse_storyboard(path: str) -> Storyboard:
             visual_direction=p["visual_direction"],
             stock_title=p.get("stock_title"),
             stock_subtitle=p.get("stock_subtitle"),
+            keyframes=p.get("keyframes"),
         ))
     return Storyboard(
         title=raw["title"],

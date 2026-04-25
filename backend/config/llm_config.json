@@ -21,6 +21,7 @@
     "offline_bench.judge": "gpt-4o",
     "video.slide_align": "gpt-4o",
     "video.slide_template": "gpt-4o",
-    "video.stock_query": "gpt-4o-mini"
+    "video.stock_query": "gpt-4o-mini",
+    "video.keyframe_gen": "gpt-4o"
   }
 }

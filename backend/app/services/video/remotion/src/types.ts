@@ -7,12 +7,12 @@ export interface KeyframeStyle {
 export interface Keyframe {
   t: number;
   dur?: number;
-  type: "stat" | "badge" | "quote" | "label" | "divider" | "transition";
+  type: "stat" | "callout" | "quote" | "label" | "divider";
   text?: string;
   position?: string;
   style?: KeyframeStyle;
   accent_word?: string;
-  effect?: "scroll_up" | "fade" | "wipe";
+  icon?: string;
 }
 
 export interface KeyframeOverlayProps {

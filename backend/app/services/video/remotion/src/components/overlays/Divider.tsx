@@ -12,7 +12,7 @@ export const Divider: React.FC<DividerProps> = ({ kf, opacity }) => {
   const text = kf.text ?? "";
   const parts = text.split("|").map((s) => s.trim());
   const partLabel = parts[0] ?? "";
-  const title = parts[1] ?? text; // fallback to full text if no pipe
+  const title = parts[1] ?? text;
 
   return (
     <div
@@ -30,6 +30,20 @@ export const Divider: React.FC<DividerProps> = ({ kf, opacity }) => {
         opacity,
       }}
     >
+      {kf.icon && (
+        <div
+          style={{
+            fontSize: 120,
+            lineHeight: 1,
+            backgroundColor: "#FFFFFF",
+            borderRadius: 24,
+            padding: "20px 24px",
+            boxShadow: "0 2px 12px rgba(0,0,0,0.08)",
+          }}
+        >
+          {kf.icon}
+        </div>
+      )}
       {partLabel && (
         <div
           style={{
@@ -51,6 +65,7 @@ export const Divider: React.FC<DividerProps> = ({ kf, opacity }) => {
           fontWeight: 800,
           color: kf.style?.color ?? "#FFFFFF",
           textAlign: "center",
+          maxWidth: "80%",
         }}
       >
         {title}

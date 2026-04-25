@@ -68,10 +68,59 @@ const defaultDataCard = {
   durationInSeconds: 18,
 };
 
+// --- Per-type preview compositions (one keyframe each, isolated) ---
+const previewStat = {
+  seedanceVideoPath: "",
+  durationSeconds: 5,
+  keyframes: [
+    { t: 0.5, dur: 4, type: "stat", text: "1.7x", icon: "📈", style: { color: "#1E64C8", fontSize: 120 } },
+  ] as import("./types").Keyframe[],
+};
+
+const previewCallout = {
+  seedanceVideoPath: "",
+  durationSeconds: 6,
+  keyframes: [
+    { t: 0.5, dur: 5, type: "callout", text: "I'm not a coder", position: "left" },
+    { t: 1.0, dur: 4.5, type: "callout", text: "I'm not a developer", position: "right" },
+    { t: 2.0, dur: 3.5, type: "callout", text: "I can't use Claude Code", position: "bottom_center" },
+  ] as import("./types").Keyframe[],
+};
+
+const previewQuote = {
+  seedanceVideoPath: "",
+  durationSeconds: 5,
+  keyframes: [
+    { t: 0.5, dur: 4, type: "quote", text: "The gap widens when sponsorship is intentional", accent_word: "intentional", style: { color: "#333333", fontSize: 56 } },
+  ] as import("./types").Keyframe[],
+};
+
+const previewLabel = {
+  seedanceVideoPath: "",
+  durationSeconds: 5,
+  keyframes: [
+    { t: 0.5, dur: 4, type: "label", text: "Source: McKinsey 2024", position: "bottom_center", style: { color: "#666666" } },
+  ] as import("./types").Keyframe[],
+};
+
+const previewDivider = {
+  seedanceVideoPath: "",
+  durationSeconds: 5,
+  keyframes: [
+    { t: 0.5, dur: 4, type: "divider", text: "Part 1 | Prerequisites Before You Start Building", icon: "📋", style: { color: "#333333" } },
+  ] as import("./types").Keyframe[],
+};
+
+// --- Combined preview (full scene) ---
 const defaultKeyframeOverlay = {
   seedanceVideoPath: "",
   durationSeconds: 10,
-  keyframes: [] as import("./types").Keyframe[],
+  keyframes: [
+    { t: 0.5, dur: 4, type: "stat", text: "1.7x", style: { color: "#1E64C8", fontSize: 120 } },
+    { t: 1.5, dur: 3, type: "label", text: "promotion rate with sponsors", position: "bottom_center", style: { color: "#666666" } },
+    { t: 5.5, dur: 4, type: "callout", text: "Same pattern everywhere", position: "left" },
+    { t: 6.5, dur: 3.0, type: "callout", text: "Across every industry", position: "right" },
+  ] as import("./types").Keyframe[],
 };
 
 const durationFrames = (seconds: number) => Math.ceil(seconds * FPS);
@@ -153,6 +202,66 @@ export const RemotionRoot: React.FC = () => {
           props: typeof defaultKeyframeOverlay;
         }) => ({
           durationInFrames: durationFrames(props.durationSeconds ?? 10),
+        })}
+      />
+      <Composition
+        id="Overlay-Stat"
+        component={KeyframeOverlay as any}
+        durationInFrames={durationFrames(previewStat.durationSeconds)}
+        fps={FPS}
+        width={1920}
+        height={1080}
+        defaultProps={previewStat}
+        calculateMetadata={({ props }: { props: typeof previewStat }) => ({
+          durationInFrames: durationFrames(props.durationSeconds ?? 5),
+        })}
+      />
+      <Composition
+        id="Overlay-Callout"
+        component={KeyframeOverlay as any}
+        durationInFrames={durationFrames(previewCallout.durationSeconds)}
+        fps={FPS}
+        width={1920}
+        height={1080}
+        defaultProps={previewCallout}
+        calculateMetadata={({ props }: { props: typeof previewCallout }) => ({
+          durationInFrames: durationFrames(props.durationSeconds ?? 6),
+        })}
+      />
+      <Composition
+        id="Overlay-Quote"
+        component={KeyframeOverlay as any}
+        durationInFrames={durationFrames(previewQuote.durationSeconds)}
+        fps={FPS}
+        width={1920}
+        height={1080}
+        defaultProps={previewQuote}
+        calculateMetadata={({ props }: { props: typeof previewQuote }) => ({
+          durationInFrames: durationFrames(props.durationSeconds ?? 5),
+        })}
+      />
+      <Composition
+        id="Overlay-Label"
+        component={KeyframeOverlay as any}
+        durationInFrames={durationFrames(previewLabel.durationSeconds)}
+        fps={FPS}
+        width={1920}
+        height={1080}
+        defaultProps={previewLabel}
+        calculateMetadata={({ props }: { props: typeof previewLabel }) => ({
+          durationInFrames: durationFrames(props.durationSeconds ?? 5),
+        })}
+      />
+      <Composition
+        id="Overlay-Divider"
+        component={KeyframeOverlay as any}
+        durationInFrames={durationFrames(previewDivider.durationSeconds)}
+        fps={FPS}
+        width={1920}
+        height={1080}
+        defaultProps={previewDivider}
+        calculateMetadata={({ props }: { props: typeof previewDivider }) => ({
+          durationInFrames: durationFrames(props.durationSeconds ?? 5),
         })}
       />
     </>

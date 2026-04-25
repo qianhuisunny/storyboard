@@ -169,6 +169,119 @@
         "1.7x as the anchor — large, clear, center",
         "Industry row below: Tech / Finance / Legal / Healthcare — same pattern in each",
         "Intentional vs. accidental sponsorship: gap widens in the intentional column"
+      ],
+      "keyframes": [
+        {
+          "t": 0.5,
+          "dur": 7.0,
+          "type": "stat",
+          "text": "1.7x",
+          "icon": "📈",
+          "style": {
+            "color": "#FFFFFF",
+            "fontSize": 120
+          }
+        },
+        {
+          "t": 2.0,
+          "dur": 5.5,
+          "type": "label",
+          "text": "promotion rate with sponsors",
+          "position": "bottom_center",
+          "style": {
+            "color": "#CCCCCC",
+            "fontSize": 28
+          }
+        },
+        {
+          "t": 8.5,
+          "dur": 5.0,
+          "type": "callout",
+          "text": "Tech",
+          "icon": "💻",
+          "position": "row_1of4",
+          "style": {
+            "bg": "rgba(60,130,220,0.85)",
+            "color": "#FFFFFF",
+            "fontSize": 32
+          }
+        },
+        {
+          "t": 9.0,
+          "dur": 4.5,
+          "type": "callout",
+          "text": "Finance",
+          "icon": "💰",
+          "position": "row_2of4",
+          "style": {
+            "bg": "rgba(90,155,213,0.85)",
+            "color": "#FFFFFF",
+            "fontSize": 32
+          }
+        },
+        {
+          "t": 9.5,
+          "dur": 4.0,
+          "type": "callout",
+          "text": "Legal",
+          "icon": "⚖️",
+          "position": "row_3of4",
+          "style": {
+            "bg": "rgba(127,179,224,0.85)",
+            "color": "#FFFFFF",
+            "fontSize": 32
+          }
+        },
+        {
+          "t": 10.0,
+          "dur": 3.5,
+          "type": "callout",
+          "text": "Healthcare",
+          "icon": "🏥",
+          "position": "row_4of4",
+          "style": {
+            "bg": "rgba(164,203,232,0.85)",
+            "color": "#FFFFFF",
+            "fontSize": 32
+          }
+        },
+        {
+          "t": 15.5,
+          "dur": 6.0,
+          "type": "callout",
+          "text": "Deliberate & tracked",
+          "icon": "🎯",
+          "position": "left",
+          "style": {
+            "bg": "rgba(30,100,200,0.9)",
+            "color": "#FFFFFF",
+            "fontSize": 36
+          }
+        },
+        {
+          "t": 16.0,
+          "dur": 5.5,
+          "type": "callout",
+          "text": "Accidental",
+          "icon": "🎲",
+          "position": "right",
+          "style": {
+            "bg": "rgba(200,200,200,0.9)",
+            "color": "#666666",
+            "fontSize": 36
+          }
+        },
+        {
+          "t": 22.0,
+          "dur": 3.0,
+          "type": "quote",
+          "text": "What do you actually do with that?",
+          "accent_word": "do",
+          "style": {
+            "color": "#FFFFFF",
+            "fontSize": 56
+          }
+        }
       ]
     },
     {

@@ -3,7 +3,7 @@ import { interpolate } from "remotion";
 import { FADE_FRAMES, FPS } from "../../theme";
 import { Keyframe } from "../../types";
 import { Stat } from "./Stat";
-import { Badge } from "./Badge";
+import { Callout } from "./Callout";
 import { Label } from "./Label";
 import { Quote } from "./Quote";
 import { Divider } from "./Divider";
@@ -17,8 +17,6 @@ export const KeyframeElement: React.FC<KeyframeElementProps> = ({
   kf,
   currentFrame,
 }) => {
-  if (kf.type === "transition") return null;
-
   const startFrame = Math.round(kf.t * FPS);
 
   // Fade in
@@ -47,8 +45,8 @@ export const KeyframeElement: React.FC<KeyframeElementProps> = ({
   switch (kf.type) {
     case "stat":
       return <Stat kf={kf} opacity={opacity} />;
-    case "badge":
-      return <Badge kf={kf} opacity={opacity} />;
+    case "callout":
+      return <Callout kf={kf} opacity={opacity} />;
     case "label":
       return <Label kf={kf} opacity={opacity} />;
     case "quote":

@@ -3,7 +3,7 @@ Orchestrator state transition tests.
 Each test: given phase + event + payload → verify phase changed + data correct.
 """
 import pytest
-from app.services.state import StateManager
+from app.services.state import StateManager, StoryboardState
 from app.test.conftest import MOCK_INTAKE_FORM, MOCK_OUTLINE, MOCK_STORYBOARD
 
 
@@ -102,6 +102,40 @@ class TestKnowledgeShareTransitions:
         assert result.get("screen_outline") is not None
         assert result.get("brief_locked") is True
 
+    async def test_approve_alias_from_brief_review_routes_to_brief_approve(self, make_orchestrator, patch_state_manager):
+        orch = make_orchestrator()
+        manager = StateManager("test-project")
+        state = StoryboardState(
+            project_id="test-project",
+            phase="brief_review",
+            story_brief={"fields": {
+                "viewer_outcome": {"value": "Learn ML", "source": "extracted", "confirmed": True},
+                "target_audience": {"value": "Engineers", "source": "extracted", "confirmed": True},
+                "core_talking_points": {"value": ["Hook", "Body", "Closing"], "source": "generated", "confirmed": True},
+            }},
+        )
+        await manager.save(state)
+
+        result = await orch.process_event("test-project", "approve", {})
+        assert result["success"] is True
+        assert result["event"] == "brief_approve"
+        assert result["phase"] == "gate2"
+
+    async def test_edit_brief_alias_routes_to_edit(self, make_orchestrator, patch_state_manager):
+        orch = make_orchestrator()
+        manager = StateManager("test-project")
+        state = StoryboardState(
+            project_id="test-project",
+            phase="brief_review",
+            story_brief={"fields": {"topic": {"value": "ML", "source": "extracted", "confirmed": True}}},
+        )
+        await manager.save(state)
+
+        result = await orch.process_event("test-project", "edit_brief", {})
+        assert result["success"] is True
+        assert result["event"] == "edit"
+        assert result["phase"] == "brief_round1"
+
 
 @pytest.mark.asyncio
 class TestGateTransitions:
@@ -143,6 +177,27 @@ class TestGateTransitions:
         assert result["phase"] == "review"
         assert result.get("storyboard") is not None
         assert len(result["storyboard"]) >= 3
+
+    async def test_gate2_refine_alias_routes_to_refine_outline(self, make_orchestrator, make_state, patch_state_manager):
+        orch = make_orchestrator()
+        manager = StateManager("test-project")
+        state = make_state(
+            phase="gate2",
+            story_brief={"fields": {"topic": {"value": "ML"}}},
+            screen_outline=MOCK_OUTLINE,
+            brief_locked=True,
+        )
+        await manager.save(state)
+
+        result = await orch.process_event(
+            "test-project",
+            "refine",
+            {"feedback": "Make the ending sharper", "current_outline": MOCK_OUTLINE},
+        )
+        assert result["success"] is True
+        assert result["event"] == "refine_outline"
+        assert result["phase"] == "gate2"
+        assert "Refined Outline" in result["screen_outline"]
 
     async def test_gate2_go_back_clears_outline_and_storyboard(self, make_orchestrator, make_state, patch_state_manager):
         orch = make_orchestrator()

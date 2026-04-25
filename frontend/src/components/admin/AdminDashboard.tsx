@@ -23,6 +23,7 @@ import {
   TrendingUp,
   TrendingDown,
   AlertCircle,
+  ShieldCheck,
 } from "lucide-react";
 
 // Types
@@ -63,6 +64,13 @@ export function AdminDashboard() {
 
   const navigate = useNavigate();
   const [expandedStage, setExpandedStage] = useState<number | null>(null);
+  const [qualityStats, setQualityStats] = useState<{
+    pass_rate: number;
+    retry_rate: number;
+    avg_score: number;
+    total_evals: number;
+    total_projects: number;
+  } | null>(null);
 
   const setTimeRange = (range: TimeRange) => {
     setSearchParams({ range });
@@ -102,6 +110,13 @@ export function AdminDashboard() {
 
     fetchData();
   }, [timeRange, user?.id]);
+
+  useEffect(() => {
+    fetch("/api/quality-log/stats/summary")
+      .then((r) => r.ok ? r.json() : null)
+      .then((d) => d && setQualityStats(d))
+      .catch(() => {});
+  }, []);
 
   const handleRefresh = () => {
     setData(null);
@@ -357,6 +372,58 @@ export function AdminDashboard() {
                 </div>
               </Card>
             </div>
+
+            {/* AI Quality Gate */}
+            {qualityStats && qualityStats.total_evals > 0 && (
+              <Card className="p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <div className="p-1.5 rounded-lg bg-purple-500/10">
+                      <ShieldCheck className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <h3 className="text-lg font-semibold">AI Quality Gate</h3>
+                  </div>
+                  <button
+                    onClick={() => navigate("/admin/quality-log")}
+                    className="text-xs font-semibold text-[#7C3AED] hover:text-[#6D28D9] transition-colors"
+                  >
+                    View Quality Log →
+                  </button>
+                </div>
+                <div className="grid grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <div className={cn(
+                      "text-2xl font-bold",
+                      qualityStats.pass_rate >= 0.7 ? "text-[#3A6B47]" : qualityStats.pass_rate >= 0.5 ? "text-[#946B2D]" : "text-destructive",
+                    )}>
+                      {Math.round(qualityStats.pass_rate * 100)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Pass rate</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={cn(
+                      "text-2xl font-bold",
+                      qualityStats.retry_rate <= 0.3 ? "text-[#3A6B47]" : qualityStats.retry_rate <= 0.5 ? "text-[#946B2D]" : "text-destructive",
+                    )}>
+                      {Math.round(qualityStats.retry_rate * 100)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Retry rate</div>
+                  </div>
+                  <div className="text-center">
+                    <div className={cn(
+                      "text-2xl font-bold",
+                      qualityStats.avg_score >= 7.0 ? "text-[#3A6B47]" : qualityStats.avg_score >= 6.0 ? "text-[#946B2D]" : "text-destructive",
+                    )}>
+                      {qualityStats.avg_score.toFixed(1)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">Avg score</div>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground text-center mt-3">
+                  {qualityStats.total_evals} evals across {qualityStats.total_projects} projects
+                </p>
+              </Card>
+            )}
           </>
         ) : null}
       </main>

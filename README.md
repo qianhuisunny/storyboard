@@ -1,17 +1,23 @@
-# Plotline — AI-Powered Storyboard Creation Platform
+# Plotline — AI-Powered Storyboard & Video Creation Platform
 
-Plotline transforms briefs and documents into structured, production-ready video storyboards through a multi-agent AI pipeline with human-in-the-loop quality gates.
-
-Users upload a brief → a 3-round guided interview extracts intent, audience, and content spine → AI generates a section-level outline → quality gate scores and optionally retries → AI expands into screen-by-screen storyboard with voiceover, visual direction, and timing → user refines via direct editing.
+Plotline transforms briefs and documents into structured, production-ready video storyboards — and renders them into finished videos. A multi-agent AI pipeline handles everything from content extraction to screen-by-screen storyboarding to video generation with multiple providers.
 
 ## What It Does
 
-- **3-round guided briefing** — structured interview that extracts topic, audience, POV, talking points, and content spine. No blank-page problem.
-- **Multi-agent pipeline** — BriefBuilder → StoryboardDirector → QualityGate → StoryboardWriter → QualityGate. Each agent has a dedicated prompt and a single responsibility.
-- **Quality gate with auto-retry** — LLM-based evaluation scores outlines and storyboards on 6 dimensions (flow coherence, specificity retention, source fidelity, etc.). Below 7.0/10 triggers automatic retry with targeted feedback.
-- **Duration alignment** — DurationCalculator computes spoken duration from word count (130 wpm + screen-type complexity buffer). Writer retry loop ensures total duration stays within 10% of brief target. Overlong voiceovers are auto-split at sentence boundaries.
-- **Human-in-the-loop gating** — approve, edit, or send back at every stage. Outline and storyboard are fully editable before moving forward.
-- **Quality log** — every generation, evaluation, override, and approval is logged with causal chains (parent_id linking generate → eval → retry → approve).
+**Storyboard Generation**
+- 3-round guided briefing extracts topic, audience, POV, talking points, and content spine
+- Multi-agent pipeline: BriefBuilder → StoryboardDirector → QualityGate → StoryboardWriter → QualityGate
+- Quality gate auto-retry: LLM scores on 6 dimensions, retries below 7.0/10
+- Duration alignment: word count → spoken duration calculation with auto-split for overlong voiceovers
+- Human-in-the-loop gating at every stage — approve, edit, or send back
+
+**Video Generation**
+- Storyboard → finished video with narration, visuals, and timed text overlays
+- 3 render paths by screen type: talking head (avatar), slides (data visualization), stock video (B-roll)
+- 2 talking-head providers: HeyGen Photo Avatar (lip-synced) or Seedance 2.0 (reference-to-video)
+- Keyframe overlay system: timed text/icon overlays (stat, callout, quote, label, divider) composited via Remotion
+- LLM-driven keyframe auto-generation from voiceover scripts
+- Consistent narration voice across all panel types (OpenAI TTS)
 
 ## Architecture
 
@@ -19,15 +25,24 @@ Users upload a brief → a 3-round guided interview extracts intent, audience, a
 Frontend (React/Vite :3000)
   ↓ /api proxy
 Backend (FastAPI :8001)
-  ↓
-Orchestrator → State Machine (18 event handlers, SQLite-backed)
-  ├── BriefBuilder (3-round guided interview, LLM on round 3 only)
-  ├── StoryboardDirector (section-level outline with duration budgets)
-  ├── QualityGate (6-dimension LLM evaluation, auto-retry)
-  ├── StoryboardWriter (screen-by-screen expansion, duration retry loop)
-  └── DurationCalculator (deterministic: word_count / 2.2 wps + buffer)
+  ├── Orchestrator → State Machine (18 event handlers, SQLite-backed)
+  │   ├── BriefBuilder (3-round guided interview, LLM on round 3 only)
+  │   ├── StoryboardDirector (section-level outline with duration budgets)
+  │   ├── QualityGate (6-dimension LLM evaluation, auto-retry)
+  │   ├── StoryboardWriter (screen-by-screen expansion, duration retry loop)
+  │   └── DurationCalculator (deterministic: word_count / 2.2 wps + buffer)
+  │
+  └── Video Pipeline (python -m video generate)
+      ├── TTS: OpenAI tts-1-hd for all panels
+      ├── Keyframe Generator: LLM auto-generates overlay timing
+      ├── TALKING_HEAD → HeyGen or Seedance 2.0 (configurable)
+      ├── SLIDES → LLM template mapping → Remotion CLI render
+      ├── STOCK_VIDEO → LLM → Pexels search → ffmpeg overlay
+      ├── Keyframe Overlay → Remotion KeyframeOverlay composition
+      └── Stitcher → ffmpeg normalize + concat → final.mp4
   ↓
 SQLite (projects, pipeline_states, stage_snapshots, uploads, quality_log)
+LLM Gateway (cost tracking, model routing via config/llm_config.json)
 ```
 
 ## Tech Stack
@@ -36,8 +51,11 @@ SQLite (projects, pipeline_states, stage_snapshots, uploads, quality_log)
 |-------|-------|
 | Frontend | React 19, TypeScript, Vite, Tailwind CSS v4, Radix UI, Clerk auth |
 | Backend | FastAPI, Python 3.10, SQLAlchemy async + aiosqlite |
-| AI | OpenAI GPT-4o (all agents + quality gate) |
-| Persistence | SQLite — projects, pipeline state, stage snapshots, quality log |
+| AI | OpenAI GPT-4o (agents, quality gate, keyframe gen, template mapping) |
+| Video | Remotion 4.x (slides + overlays), ffmpeg (stitching), OpenAI TTS |
+| Video Providers | HeyGen (avatar lip sync), Seedance 2.0 / BytePlus ARK (AI video), Pexels (stock footage) |
+| Infra | LLM Gateway (unified routing, cost logging, model switching) |
+| Persistence | SQLite |
 | Deployment | Fly.io (separate backend + frontend services) |
 
 ## Agent Pipeline
@@ -55,17 +73,34 @@ StoryboardWriter     → screen-by-screen voiceover, visual direction, action no
       ↓ final storyboard
 ```
 
-Each agent has a matching prompt file in `prompts/` and inherits from `BaseAgent` (prompt loading, LLM calls, JSON extraction).
-
-## Pipeline State Machine
+## Video Pipeline
 
 ```
-intake → brief_round1 → brief_round2 → brief_round3 → brief_review
-  → gate1 (brief locked) → outline → gate2 (outline locked)
-  → write → review → done
+storyboard.json
+  ↓
+[1] Parse panels → classify by screen_type
+  ↓
+[2] OpenAI TTS → consistent narrator voice for all panels
+  ↓
+[2.5] Auto-generate keyframe overlays (LLM, optional)
+  ↓
+[3] Render per panel:
+    TALKING_HEAD → HeyGen lip sync (default) or Seedance reference-to-video
+    SLIDES       → LLM picks Remotion template → Whisper alignment → render
+    STOCK_VIDEO  → LLM query → Pexels search → download → ffmpeg overlay
+  ↓
+[3.5] Keyframe overlay post-processing (Remotion, optional)
+    Base video + keyframes → stat/callout/quote/label/divider overlays
+  ↓
+[4] Stitch → normalize all clips to 1920x1080 25fps → concat → final.mp4
 ```
 
-Events: `submit_knowledge_share`, `round1_confirm`, `round2_confirm`, `round3_confirm`, `brief_approve`, `approve`, `edit`, `refine_outline`, `regenerate_section`, `restart`.
+```bash
+cd backend && source venv/bin/activate
+python -m video generate --storyboard path/to/storyboard.json
+python -m video generate --storyboard path/to/storyboard.json --enable-keyframe-overlay
+python -m video generate --storyboard path/to/storyboard.json --talking-head-provider seedance --seedance-ref-image ref.png
+```
 
 ## Quick Start
 
@@ -91,7 +126,10 @@ App at `http://localhost:3000`, API proxied to `:8001`.
 
 Create `backend/.env`:
 ```env
-OPENAI_API_KEY=sk-proj-...
+OPENAI_API_KEY=sk-proj-...    # Required: agents, quality gate, TTS, keyframe gen
+HEYGEN_API_KEY=...            # Optional: talking-head avatar generation
+PEXEL_API_KEY=...             # Optional: stock video search
+ARK_API_KEY=...               # Optional: Seedance 2.0 video generation
 ```
 
 ### Tests
@@ -101,38 +139,43 @@ source venv/bin/activate
 python -m pytest app/test/ -v --ignore=app/test/test_models.py
 ```
 
-54 tests covering: golden path, state transitions, field writeback regressions, quality gate, quality log causal chains, duration matrix (10 timing scenarios), outline contract validation.
-
 ## Project Structure
 
 ```
 ├── frontend/src/
-│   ├── components/        # Stage components (BriefBuilder, OutlineBuilder, DraftBuilder, ReviewBuilder)
-│   ├── hooks/             # useAnalytics, useProjectState
-│   └── components/admin/  # AdminDashboard, DriftDetailPage, PromptBench
+│   ├── components/           # Stage components (BriefBuilder, OutlineBuilder, DraftBuilder, ReviewBuilder)
+│   ├── hooks/                # useAnalytics, useProjectState
+│   └── components/admin/     # AdminDashboard, DriftDetailPage, PromptBench
 ├── backend/app/
-│   ├── main.py            # FastAPI endpoints (~30 routes)
+│   ├── main.py               # FastAPI endpoints (~30 routes)
 │   ├── services/
-│   │   ├── agents/        # BriefBuilder, StoryboardDirector, StoryboardWriter, DurationCalculator
-│   │   ├── orchestrator.py # Pipeline coordinator (18 event handlers)
-│   │   ├── state.py       # State machine + SQLite persistence
-│   │   └── quality_gate.py # LLM-based evaluation with retry
+│   │   ├── agents/           # BriefBuilder, StoryboardDirector, StoryboardWriter
+│   │   ├── orchestrator.py   # Pipeline coordinator (18 event handlers)
+│   │   ├── state.py          # State machine + SQLite persistence
+│   │   ├── quality_gate.py   # LLM-based evaluation with retry
+│   │   └── video/
+│   │       ├── pipeline.py   # Video generation orchestrator
+│   │       ├── heygen.py     # HeyGen Photo Avatar client
+│   │       ├── seedance.py   # Seedance 2.0 / BytePlus ARK client
+│   │       ├── slides.py     # LLM template mapping + Remotion render
+│   │       ├── stock_video.py # Pexels search + ffmpeg overlay
+│   │       ├── overlay.py    # Keyframe overlay via Remotion
+│   │       ├── keyframe_generator.py  # LLM keyframe auto-generation
+│   │       ├── tts.py        # OpenAI TTS
+│   │       ├── stitcher.py   # ffmpeg normalize + concat
+│   │       ├── transcribe.py # Whisper word-level timestamps
+│   │       └── remotion/src/ # React overlay components (Stat, Callout, Quote, Label, Divider)
 │   ├── infra/
-│   │   └── quality_log.py # Event logging (generate, eval, override, approve)
-│   ├── db/                # SQLAlchemy models + async engine
-│   └── test/              # 54 tests (pytest + pytest-asyncio)
-├── prompts/               # System prompts for each agent (versioned, ~7k lines)
-├── data/                  # SQLite DB + uploads (gitignored)
-└── CLAUDE.md              # Operating manual for AI-assisted development
+│   │   ├── llm_gateway.py    # Unified LLM router (cost tracking, model switching)
+│   │   └── quality_log.py    # Event logging (generate, eval, override, approve)
+│   ├── db/                   # SQLAlchemy models + async engine
+│   └── test/                 # 54 tests
+├── prompts/                  # System prompts for each agent (versioned)
+├── config/
+│   └── llm_config.json       # Model routing rules per category.label
+├── data/                     # SQLite DB + uploads (gitignored)
+└── CLAUDE.md                 # Operating manual for AI-assisted development
 ```
-
-## Codebase Stats
-
-- ~20k lines TypeScript/React (107 files)
-- ~16k lines Python (backend)
-- ~7k lines prompt engineering (versioned .md files)
-- ~2.4k lines tests (54 tests)
-- 3+ months of development
 
 ## Deployment
 

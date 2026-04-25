@@ -23,6 +23,7 @@ class Panel:
     # stock_video render path; ignored for slides and talking_head.
     stock_title: Optional[str] = None
     stock_subtitle: Optional[str] = None
+    keyframes: Optional[list[dict]] = None
     # Populated during pipeline execution
     audio_path: Optional[str] = None
     clip_path: Optional[str] = None
@@ -63,3 +64,9 @@ class PipelineConfig:
     skip_tts: bool = False
     skip_avatar: bool = False
     only_panels: Optional[list[int]] = None
+    # Seedance / talking-head provider selection
+    talking_head_provider: str = "heygen"  # "heygen" | "seedance"
+    seedance_ref_image: Optional[str] = None
+    # Keyframe overlay
+    enable_keyframe_overlay: bool = False
+    skip_keyframe_gen: bool = False
