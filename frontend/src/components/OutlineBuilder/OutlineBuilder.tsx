@@ -15,7 +15,8 @@ import OutlineGrid from "./OutlineGrid";
 import AiOriginalDrawer from "./AiOriginalDrawer";
 import { QualityScore } from "../QualityScore";
 import { RegenPopover } from "./RegenPopover";
-import OutlineLoadingView from "../OutlineLoadingView";
+import StoryboardLoadingPanel from "../StoryboardLoadingPanel";
+import { BouncingDots } from "../ui/bouncing-dots";
 import { parseOutline, serializeOutline } from "./outlineParser";
 import type {
   OutlineBuilderProps,
@@ -38,6 +39,7 @@ export default function OutlineBuilder({
   researchResults = null,
   researchProgress = null,
   outlineEval = null,
+  onGeneratingStateChange,
 }: OutlineBuilderProps) {
   const [isContinuing, setIsContinuing] = useState(false);
   const [isRerunningResearch, setIsRerunningResearch] = useState(false);
@@ -253,7 +255,7 @@ export default function OutlineBuilder({
           className="flex-1 overflow-y-auto px-6 sm:px-10 py-6 min-w-0"
         >
           {isContinuing ? (
-            <OutlineLoadingView stage="storyboard" />
+            <StoryboardLoadingPanel loaderState={{ kind: "indeterminate" }} sectionCount={sections.length || 6} />
           ) : (
           <div className="w-full max-w-5xl space-y-6">
           <p className="text-sm text-muted-foreground leading-relaxed mb-5">
@@ -383,18 +385,30 @@ export default function OutlineBuilder({
           <Button
             onClick={async () => {
               setIsContinuing(true);
+              onGeneratingStateChange?.(true);
               try {
-                await onContinue(hasResearch ? getFilteredEvidence() : null);
-              } finally { setIsContinuing(false); }
+                await Promise.all([
+                  onContinue(hasResearch ? getFilteredEvidence() : null),
+                  new Promise((r) => setTimeout(r, 1500)),
+                ]);
+              } finally {
+                setIsContinuing(false);
+                onGeneratingStateChange?.(false);
+              }
             }}
             disabled={isContinuing || sections.length === 0}
           >
             {isContinuing ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              <>
+                <BouncingDots size={7} gap={4} light />
+                <span className="ml-2">Generating storyboard…</span>
+              </>
             ) : (
-              <Check className="w-4 h-4 mr-2" />
+              <>
+                <Check className="w-4 h-4 mr-2" />
+                Approve & Generate Storyboard
+              </>
             )}
-            {isContinuing ? "Generating storyboard..." : "Approve & Generate Storyboard"}
           </Button>
         </div>
       </div>

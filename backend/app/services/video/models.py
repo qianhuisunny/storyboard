@@ -1,29 +1,43 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Any, Optional
 
 
 class ScreenType(str, Enum):
     TALKING_HEAD = "talking_head"
-    SLIDES = "slides"
-    # Stock video (B-roll) panels — driven by Pexels search + ffmpeg
-    # audio overlay, see backend/app/services/video/stock_video.py
     STOCK_VIDEO = "stock_video"
+    PRODUCT_DEMO = "product_demo"
+    SOLID_BG = "solid_bg"
+
+
+class Composition(str, Enum):
+    SINGLE_CENTER = "single_center"
+    PRIMARY_WITH_SIDECAR = "primary_with_sidecar"
+    TWO_PANEL_SPLIT = "two_panel_split"
+    THREE_UP_GRID = "three_up_grid"
+    FOUR_UP_GRID = "four_up_grid"
+    MOSAIC = "mosaic"
+    FREE_OVERLAY = "free_overlay"
+
+
+class CanvasMode(str, Enum):
+    FULL_BLEED = "full_bleed"
+    BOUNDED = "bounded"
+    FLOATING = "floating"
+    NONE = "none"
 
 
 @dataclass
 class Panel:
     panel_number: int
     screen_type: ScreenType
+    composition: Composition
     duration_seconds: float
     voiceover_script: str
-    visual_direction: list[str]
-    # Optional text overlay for stock_video panels — drawn on top of
-    # the Pexels footage as a framing context line. Only read by the
-    # stock_video render path; ignored for slides and talking_head.
-    stock_title: Optional[str] = None
-    stock_subtitle: Optional[str] = None
-    keyframes: Optional[list[dict]] = None
+    overlay_elements: list[dict[str, Any]] = field(default_factory=list)
+    design_brief: list[str] = field(default_factory=list)
+    canvas_mode: CanvasMode = CanvasMode.NONE
+    base_media_path: Optional[str] = None
     # Populated during pipeline execution
     audio_path: Optional[str] = None
     clip_path: Optional[str] = None
@@ -41,22 +55,23 @@ class Storyboard:
         return [p for p in self.panels if p.screen_type == ScreenType.TALKING_HEAD]
 
     @property
-    def slides_panels(self) -> list[Panel]:
-        return [p for p in self.panels if p.screen_type == ScreenType.SLIDES]
-
-    @property
     def stock_video_panels(self) -> list[Panel]:
         return [p for p in self.panels if p.screen_type == ScreenType.STOCK_VIDEO]
+
+    @property
+    def product_demo_panels(self) -> list[Panel]:
+        return [p for p in self.panels if p.screen_type == ScreenType.PRODUCT_DEMO]
+
+    @property
+    def solid_bg_panels(self) -> list[Panel]:
+        return [p for p in self.panels if p.screen_type == ScreenType.SOLID_BG]
 
 
 @dataclass
 class PipelineConfig:
     storyboard_path: str
     output_dir: str
-    voice: str = "alloy"  # OpenAI TTS voice for slides panels
-    # HeyGen talking-head settings. See backend/app/services/video/heygen.py
-    # for defaults and how avatar_id is interpreted (it's actually a
-    # look_id internally).
+    voice: str = "alloy"
     heygen_avatar_id: str = "Lisa_public"
     heygen_voice_id: str = "1bd001e7e50f421d891986aad5158bc8"
     heygen_avatar_style: str = "normal"
@@ -64,9 +79,7 @@ class PipelineConfig:
     skip_tts: bool = False
     skip_avatar: bool = False
     only_panels: Optional[list[int]] = None
-    # Seedance / talking-head provider selection
-    talking_head_provider: str = "heygen"  # "heygen" | "seedance"
+    talking_head_provider: str = "heygen"
     seedance_ref_image: Optional[str] = None
-    # Keyframe overlay
-    enable_keyframe_overlay: bool = False
-    skip_keyframe_gen: bool = False
+    enable_overlay: bool = False
+    skip_overlay_gen: bool = False

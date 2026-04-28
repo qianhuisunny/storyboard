@@ -1,0 +1,147 @@
+{
+  "title": "Composition Storyboard",
+  "total_duration": "0:45",
+  "total_panels": 5,
+  "panels": [
+    {
+      "panel_number": 1,
+      "screen_type": "talking_head",
+      "composition": "free_overlay",
+      "canvas_mode": "full_bleed",
+      "duration_seconds": 8.0,
+      "voiceover_script": "Eighty four percent of businesses in America do not have any employees.",
+      "design_brief": [
+        "Talking head as the full canvas",
+        "Large statistic on the left",
+        "Support phrase on the right"
+      ],
+      "overlay_elements": [
+        {
+          "kind": "stat",
+          "value": "84%",
+          "text": "84%",
+          "t": 0.3
+        },
+        {
+          "kind": "headline",
+          "text": "don't have any employees",
+          "t": 0.8,
+          "style": {
+            "fontSize": 72
+          }
+        }
+      ]
+    },
+    {
+      "panel_number": 2,
+      "screen_type": "solid_bg",
+      "composition": "three_up_grid",
+      "canvas_mode": "none",
+      "duration_seconds": 7.0,
+      "voiceover_script": "Find your business idea, build your personal brand, and sign high ticket clients.",
+      "design_brief": [
+        "Three icon cards",
+        "One card per concept",
+        "Clean white background"
+      ],
+      "overlay_elements": [
+        {
+          "kind": "icon_card",
+          "title": "Find Your Business Idea",
+          "icon": "💡"
+        },
+        {
+          "kind": "icon_card",
+          "title": "Build Personal Brand",
+          "icon": "🏅"
+        },
+        {
+          "kind": "icon_card",
+          "title": "Sign High-Ticket Clients",
+          "icon": "💼"
+        }
+      ]
+    },
+    {
+      "panel_number": 3,
+      "screen_type": "stock_video",
+      "composition": "primary_with_sidecar",
+      "canvas_mode": "floating",
+      "duration_seconds": 10.0,
+      "voiceover_script": "Traditional programs teach useful skills, but they were written for a game where gender does not change the rules.",
+      "design_brief": [
+        "Professional office footage",
+        "Presenter style sidecar copy",
+        "Pros and cons framing"
+      ],
+      "overlay_elements": [
+        {
+          "kind": "headline",
+          "text": "AI Apps & Products",
+          "zone": "primary"
+        },
+        {
+          "kind": "pros_cons_block",
+          "items": [
+            "Make once sell forever",
+            "Time consuming to create"
+          ],
+          "zone": "primary"
+        },
+        {
+          "kind": "presenter_video",
+          "zone": "sidecar"
+        }
+      ]
+    },
+    {
+      "panel_number": 4,
+      "screen_type": "product_demo",
+      "composition": "mosaic",
+      "canvas_mode": "bounded",
+      "duration_seconds": 9.0,
+      "voiceover_script": "Across hundreds of onboarding flows, the same patterns keep showing up.",
+      "design_brief": [
+        "Editorial screenshot board",
+        "Large title across the canvas"
+      ],
+      "overlay_elements": [
+        {
+          "kind": "headline",
+          "text": "200 Onboarding Flows"
+        },
+        {
+          "kind": "screenshot_card",
+          "title": "Flow A"
+        },
+        {
+          "kind": "screenshot_card",
+          "title": "Flow B"
+        },
+        {
+          "kind": "screenshot_card",
+          "title": "Flow C"
+        }
+      ]
+    },
+    {
+      "panel_number": 5,
+      "screen_type": "solid_bg",
+      "composition": "single_center",
+      "canvas_mode": "none",
+      "duration_seconds": 6.0,
+      "voiceover_script": "There are more than thirty million people running one person businesses.",
+      "design_brief": [
+        "Single stat pill in the center",
+        "No extra decoration"
+      ],
+      "overlay_elements": [
+        {
+          "kind": "stat_pill",
+          "value": "+30,000,000",
+          "title": "People Running 1-Person Businesses"
+        }
+      ]
+    }
+  ]
+}

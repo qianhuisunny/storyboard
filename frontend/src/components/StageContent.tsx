@@ -33,6 +33,7 @@ interface StageContentProps {
   onApprove: (content: string, options?: ApproveOptions) => void;
   onRegenerate: (feedback: string) => void;
   onContentChange: (content: string) => void;
+  onStoryboardGeneratingChange?: (isGenerating: boolean) => void;
 }
 
 interface KnowledgeShareInitResult {
@@ -280,6 +281,7 @@ export default function StageContent({
   onApprove,
   onRegenerate,
   onContentChange,
+  onStoryboardGeneratingChange,
 }: StageContentProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [feedback, setFeedback] = useState("");
@@ -393,10 +395,20 @@ export default function StageContent({
         ? JSON.stringify(data.story_brief, null, 2)
         : JSON.stringify(allFields, null, 2);
 
-      // chat_brief_approve finalizes the briefing document and enters Gate 1.
-      // Stage 1 approval still happens through the normal stage-level approve
-      // event so Director remains owned by gate1 -> outline.
+      // If the backend was already at gate2, chat_brief_approve saves the
+      // edited brief and regenerates the outline in one call.
       onContentChange(briefContent);
+      if (data.screen_outline) {
+        onApprove(briefContent, {
+          skipNextGeneration: true,
+          nextStageContent: data.screen_outline,
+        });
+        return;
+      }
+
+      // First-time chat_brief_approve finalizes the briefing document and
+      // enters Gate 1. Stage 1 approval still runs through the normal
+      // stage-level approve event so Director remains owned by gate1 -> outline.
       onApprove(briefContent);
     },
     [projectId, onContentChange, onApprove]
@@ -800,6 +812,7 @@ export default function StageContent({
           researchResults={outlineResearchResults}
           researchProgress={researchProgress}
           outlineEval={outlineEval}
+          onGeneratingStateChange={onStoryboardGeneratingChange}
         />
       </div>
     );

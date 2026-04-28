@@ -69,8 +69,9 @@ DEFAULT_AVATAR_ID = "Lisa_public"
 # the pipeline with --voice-id.
 DEFAULT_VOICE_ID = "1bd001e7e50f421d891986aad5158bc8"
 
-# 1920x1080 matches the Remotion slide dimensions, so mixed talking-head
-# + slides videos can be stitched with ffmpeg -c copy (no re-encode).
+# 1920x1080 matches the Remotion scene-composition dimensions, so mixed
+# talking-head + composition clips can be stitched with ffmpeg -c copy
+# (no re-encode).
 DEFAULT_WIDTH = 1920
 DEFAULT_HEIGHT = 1080
 
@@ -108,9 +109,9 @@ class HeygenClient:
           - **Text-driven** (``input_text`` + ``voice_id``): HeyGen TTSes
             the text using its own voice and lip-syncs the avatar to
             the generated audio. Simplest but uses HeyGen's voice — if
-            you also narrate slides with a different TTS (e.g. OpenAI
-            alloy), the final video has a jarring voice change at each
-            talking-head panel.
+            you also narrate other composition panels with a different
+            TTS (e.g. OpenAI alloy), the final video has a jarring
+            voice change at each talking-head panel.
 
           - **Audio-driven** (``audio_url``): you supply a publicly
             accessible URL to an audio file you've already generated

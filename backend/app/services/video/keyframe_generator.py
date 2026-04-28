@@ -1,62 +1,83 @@
 """
-LLM-based keyframe auto-generation for video overlays.
+LLM-based overlay element generation for composition-first scenes.
 
-Analyzes a panel's voiceover_script + visual_direction to produce
-timed overlay elements (stat, callout, quote, label, divider) that
-render on top of the base video via the Remotion KeyframeOverlay
-composition.
+This module no longer thinks in terms of slide templates or keyframes.
+It generates ``overlay_elements`` for a scene described by:
 
-Uses llm_gateway for cost tracking and model routing.
+  - screen_type
+  - composition
+  - design_brief
+  - voiceover_script
+  - duration_seconds
 """
 import json
 
 from app.infra.llm_gateway import llm
 
-SYSTEM_PROMPT = """You are a video overlay designer. Given a panel's voiceover script, visual direction, duration, and screen type, generate a keyframes array that defines what text elements appear on screen and when.
+SYSTEM_PROMPT = """You are a motion-design planner for narrated videos.
+
+Given a scene's screen_type, composition, design_brief, voiceover_script,
+and duration_seconds, generate an overlay_elements JSON array.
+
+Each element should be a plain JSON object with a `kind` plus only the
+fields it needs. Typical kinds include:
+- headline
+- subhead
+- stat
+- stat_pill
+- label
+- badge
+- icon_card
+- screenshot_card
+- image_card
+- example_card
+- arrow
+- pros_cons_block
+
+Optional fields:
+- text
+- title
+- value
+- items
+- zone (`primary` or `sidecar`)
+- position
+- icon
+- t
+- dur
+- style
 
 Rules:
-- First element must appear within 2 seconds
-- No gap longer than 2 seconds between consecutive elements
-- Each keyframe needs: t (start seconds), type, text
-- Optional: dur (visibility duration), position, style, accent_word, icon (single emoji)
-- Element types:
-  - "stat": large centered number (use for percentages, multipliers)
-  - "callout": floating dialogue/phrase callout — key phrases the speaker is saying (use for objections, key statements, dialogue)
-  - "quote": large serif text with optional accent word (use for impactful phrases)
-  - "label": small annotation text
-  - "divider": section title card (format text as "Part N | Title", add icon emoji)
-- Use "icon" field to add a semantic emoji that matches the content (e.g. 📈 for growth stats, 🏢 for corporate, ⚖️ for legal, 📋 for checklists)
-- Calculate timestamps from word position: (word_index / total_words) * duration_seconds
-- For talking_head panels: use fewer, punchier elements (badges for key phrases)
-- For stock_video panels: badges and labels that reinforce the narration
-- For slides panels: stats, quotes, and badges as primary visual content
-- Position values: center, top_center, bottom_center, left, right, right_upper, right_lower, row_NofM
-- Style object: { "color": hex, "bg": hex, "fontSize": number }
-
-Output ONLY a valid JSON array of keyframe objects. No explanation."""
+- Match the requested composition instead of inventing a new layout.
+- Prefer 2-6 elements, not clutter.
+- For `single_center`, create one dominant focal element.
+- For `primary_with_sidecar`, assign supporting elements to `zone=sidecar`.
+- For `free_overlay`, use timed text/stat elements directly on the canvas.
+- Return ONLY a valid JSON array. No markdown fences.
+"""
 
 
-def generate_keyframes(
+def generate_overlay_elements(
     voiceover_script: str,
-    visual_direction: list[str],
+    design_brief: list[str],
     duration_seconds: float,
     screen_type: str,
+    composition: str,
 ) -> list[dict]:
-    """Generate keyframes for a single panel via LLM.
-
-    Returns a list of keyframe dicts ready to pass to
-    render_keyframe_overlay() or embed in a storyboard JSON.
-    """
-    user_prompt = json.dumps({
-        "voiceover_script": voiceover_script,
-        "visual_direction": visual_direction,
-        "duration_seconds": duration_seconds,
-        "screen_type": screen_type,
-    }, indent=2)
+    """Generate overlay elements for a single panel via LLM."""
+    user_prompt = json.dumps(
+        {
+            "voiceover_script": voiceover_script,
+            "design_brief": design_brief,
+            "duration_seconds": duration_seconds,
+            "screen_type": screen_type,
+            "composition": composition,
+        },
+        indent=2,
+    )
 
     raw = llm.chat(
         category="video",
-        label="keyframe_gen",
+        label="overlay_elements",
         system_prompt=SYSTEM_PROMPT,
         user_prompt=user_prompt,
         temperature=0.3,

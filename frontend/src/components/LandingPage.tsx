@@ -1,4 +1,4 @@
-import { SignInButton } from "@clerk/clerk-react";
+import { Link } from "react-router-dom";
 import { Play, Sparkles, Users, Zap, FileText, Check, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -23,12 +23,12 @@ export default function LandingPage() {
           Perfect for instructional designers, video creators, and content teams.
         </p>
 
-        <SignInButton mode="modal">
+        <Link to="/onboarding">
           <Button size="lg" className="text-base px-8 h-12">
             <Play className="w-5 h-5 mr-2" />
-            Get Started with Google
+            Get Started
           </Button>
-        </SignInButton>
+        </Link>
 
         <p className="text-sm text-muted-foreground mt-4">
           Free to try. No credit card required.

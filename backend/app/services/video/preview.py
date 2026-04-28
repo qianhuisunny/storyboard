@@ -48,8 +48,8 @@ def build_video_model(
 
     - talking_head  → heygen_video_id, heygen_audio_url (label is the
       configured avatar, since the video_id is opaque and changes per run)
-    - slides        → template
     - stock_video   → pexels_video_id, pexels_query
+    - product_demo / solid_bg → Remotion composition
 
     The label is the primary line in the inspector; sublabel is the
     smaller muted line underneath.
@@ -61,11 +61,14 @@ def build_video_model(
             "label": f"HeyGen · {config_avatar_id}",
             "sublabel": "Photo Avatar · audio-driven",
         }
-    if screen_type == ScreenType.SLIDES.value:
-        template = panel_info.get("template") or "unknown"
+    if screen_type in {
+        ScreenType.PRODUCT_DEMO.value,
+        ScreenType.SOLID_BG.value,
+    }:
+        composition = panel_info.get("composition") or "unknown"
         return {
-            "label": f"Remotion · {template}",
-            "sublabel": "local react renderer",
+            "label": f"Remotion · {composition}",
+            "sublabel": panel_info.get("canvas_mode") or "scene composition",
         }
     if screen_type == ScreenType.STOCK_VIDEO.value:
         pexels_id = panel_info.get("pexels_video_id") or "unknown"
@@ -169,15 +172,6 @@ def write_preview(output_dir: str) -> str:
 # Sample fixture generator — for previewing the UI without paying HeyGen
 # =============================================================================
 
-_SAMPLE_SLIDE_TEMPLATES = [
-    "DataCard",
-    "SplitComparison",
-    "PyramidChart",
-    "ThreeColumn",
-    "Timeline",
-]
-
-
 def _generate_placeholder_mp4(
     dest_path: str,
     duration_seconds: float = 2.0,
@@ -214,26 +208,20 @@ def _generate_placeholder_mp4(
         )
 
 
-def _build_sample_panel_info(panel, slide_idx_counter: list[int]) -> dict[str, Any]:
+def _build_sample_panel_info(panel, _unused_counter: list[int]) -> dict[str, Any]:
     """Build a faked-up per_panel entry for a single storyboard Panel.
 
     We don't hit any external API — the goal is a manifest that looks
-    plausible enough that the preview UI renders all field types. Slides
-    panels rotate through the 5 Remotion templates; stock_video panels get
-    fake Pexels IDs; talking_head panels get a fake HeyGen video_id.
-
-    The voiceover script and visual_direction come straight from the
-    storyboard Panel so the inspector's Voiceover + On-screen text
-    rows have real data to render. For slides + stock_video panels,
-    on_screen_text falls back to visual_direction (the creator-
-    authored description of what the frame should show), since this
-    fixture doesn't actually run the slide LLM / Pexels pipeline.
+    plausible enough that the preview UI renders all field types.
+    stock_video panels get fake Pexels IDs; talking_head panels get
+    a fake HeyGen video_id. Design-brief notes flow through to the
+    inspector as the author's intended visual direction.
     """
     base = {
         "panel_number": panel.panel_number,
         "screen_type": panel.screen_type.value,
         "voiceover_script": panel.voiceover_script,
-        "visual_direction": list(panel.visual_direction),
+        "visual_direction": list(panel.design_brief),
         "voiceover_words": len(panel.voiceover_script.split()),
         "duration": panel.duration_seconds,
     }
@@ -244,12 +232,12 @@ def _build_sample_panel_info(panel, slide_idx_counter: list[int]) -> dict[str, A
             "heygen_audio_url": "https://example.invalid/sample-audio.mp3",
             "on_screen_text": [],
         })
-    elif panel.screen_type == ScreenType.SLIDES:
-        template = _SAMPLE_SLIDE_TEMPLATES[slide_idx_counter[0] % len(_SAMPLE_SLIDE_TEMPLATES)]
-        slide_idx_counter[0] += 1
+    elif panel.screen_type in {ScreenType.PRODUCT_DEMO, ScreenType.SOLID_BG}:
+        composition = panel.composition.value
         base.update({
-            "template": template,
-            "on_screen_text": list(panel.visual_direction),
+            "composition": composition,
+            "canvas_mode": panel.canvas_mode.value,
+            "on_screen_text": [e.get("text") or e.get("title") or e.get("value") for e in panel.overlay_elements if e.get("text") or e.get("title") or e.get("value")],
         })
     elif panel.screen_type == ScreenType.STOCK_VIDEO:
         base.update({
@@ -257,7 +245,7 @@ def _build_sample_panel_info(panel, slide_idx_counter: list[int]) -> dict[str, A
             "pexels_video_id": 12345000 + panel.panel_number,
             "pexels_page_url": f"https://www.pexels.com/video/{12345000 + panel.panel_number}/",
             "pexels_variant_size": "1920x1080",
-            "on_screen_text": list(panel.visual_direction[:2]),
+            "on_screen_text": [e.get("text") or e.get("title") or e.get("value") for e in panel.overlay_elements if e.get("text") or e.get("title") or e.get("value")][:2],
         })
     return base
 
@@ -287,11 +275,13 @@ def make_sample(target_dir: str) -> str:
         panel in the fixture, so clip playback works for any tile).
 
     Uses the fixture storyboard at
-    ``tests/fixtures/sample_storyboard.json``. Zero API calls.
+    ``tests/fixtures/sample_composition_storyboard.json``. Zero API calls.
 
     Returns the path to the written index.html.
     """
-    fixture_path = Path(__file__).parent / "tests" / "fixtures" / "sample_storyboard.json"
+    fixture_path = (
+        Path(__file__).parent / "tests" / "fixtures" / "sample_composition_storyboard.json"
+    )
     if not fixture_path.exists():
         raise FileNotFoundError(f"sample fixture missing: {fixture_path}")
 

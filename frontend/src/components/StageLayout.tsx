@@ -1,12 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
 import { Menu, X, Cloud, CloudOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StageNavigation, { type Stage, type StageStatus } from "./StageNavigation";
 import StageContent from "./StageContent";
 import SatisfactionRatingModal from "./SatisfactionRatingModal";
 import { useAnalytics } from "@/hooks/useAnalytics";
+import { getAnonymousUserId } from "@/lib/anonymousUser";
 
 const INITIAL_STAGES: Stage[] = [
   { id: 1, name: "Video Briefing", description: "Define your video concept and goals", status: "not_started" },
@@ -36,7 +36,7 @@ function parseMaybeJson(content: string): unknown {
 
 export default function StageLayout() {
   const { projectId } = useParams<{ projectId: string }>();
-  const { user } = useUser();
+  const [userId] = useState(() => getAnonymousUserId());
   const navigate = useNavigate();
 
   const [stages, setStages] = useState<Stage[]>(INITIAL_STAGES);
@@ -56,7 +56,7 @@ export default function StageLayout() {
   const previousStageIdRef = useRef<number | null>(null);
 
   // Initialize analytics tracking
-  const analytics = useAnalytics(projectId, user?.id);
+  const analytics = useAnalytics(projectId, userId);
 
   // Load project context on mount
   useEffect(() => {
@@ -142,7 +142,9 @@ export default function StageLayout() {
                   const savedStatus = data.stageStatuses.find(
                     (ss: { id: number; status: StageStatus }) => ss.id === s.id
                   );
-                  return savedStatus ? { ...s, status: savedStatus.status } : s;
+                  if (!savedStatus) return s;
+                  const status = savedStatus.status === "generating" ? "not_started" : savedStatus.status;
+                  return { ...s, status };
                 })
               );
             }
@@ -363,6 +365,11 @@ export default function StageLayout() {
 
     try {
       if (currentStageId === 1) {
+        if (options?.nextStageContent) {
+          advanceToNextStage(2, options.nextStageContent);
+          return;
+        }
+
         const response = await fetch(`/api/project/${projectId}/event`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -458,6 +465,13 @@ export default function StageLayout() {
       },
     }));
   };
+
+  const handleStoryboardGeneratingChange = useCallback((generating: boolean) => {
+    if (generating) {
+      updateStageStatus(2, "approved");
+      updateStageStatus(3, "generating");
+    }
+  }, []);
 
   const currentStage = stages.find((s) => s.id === currentStageId);
   const currentData = stageData[currentStageId] || { aiVersion: null, humanVersion: null };
@@ -564,6 +578,7 @@ export default function StageLayout() {
             onApprove={handleApprove}
             onRegenerate={handleRegenerate}
             onContentChange={handleContentChange}
+            onStoryboardGeneratingChange={handleStoryboardGeneratingChange}
           />
         ) : null}
       </div>

@@ -1,11 +1,11 @@
 import os
 import tempfile
 from unittest.mock import MagicMock
-from video.tts import generate_audio, generate_all_audio
+
+from video.tts import generate_all_audio, generate_audio
 
 
 def test_generate_audio_creates_mp3():
-    """Test that generate_audio calls OpenAI TTS and writes an mp3 file."""
     mock_response = MagicMock()
     mock_response.write_to_file = MagicMock()
 
@@ -30,8 +30,7 @@ def test_generate_audio_creates_mp3():
 
 
 def test_generate_all_audio_sets_audio_path_on_panels():
-    """Test that generate_all_audio processes panels and sets audio_path."""
-    from video.models import Panel, ScreenType
+    from video.models import Composition, Panel, ScreenType
 
     mock_response = MagicMock()
     mock_response.write_to_file = MagicMock()
@@ -43,16 +42,18 @@ def test_generate_all_audio_sets_audio_path_on_panels():
         Panel(
             panel_number=1,
             screen_type=ScreenType.TALKING_HEAD,
+            composition=Composition.FREE_OVERLAY,
             duration_seconds=18.5,
             voiceover_script="First panel script",
-            visual_direction=["test"],
+            design_brief=["test"],
         ),
         Panel(
             panel_number=2,
-            screen_type=ScreenType.SLIDES,
+            screen_type=ScreenType.SOLID_BG,
+            composition=Composition.SINGLE_CENTER,
             duration_seconds=17.5,
             voiceover_script="Second panel script",
-            visual_direction=["test"],
+            design_brief=["test"],
         ),
     ]
 
@@ -62,4 +63,4 @@ def test_generate_all_audio_sets_audio_path_on_panels():
         assert mock_client.audio.speech.create.call_count == 2
         assert result[0].audio_path == os.path.join(tmpdir, "audio", "panel_01.mp3")
         assert result[1].audio_path == os.path.join(tmpdir, "audio", "panel_02.mp3")
-        assert result is panels  # Same list reference
+        assert result is panels

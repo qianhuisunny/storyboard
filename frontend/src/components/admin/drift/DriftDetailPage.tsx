@@ -7,12 +7,12 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, Loader2, Search } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { diffOutline, diffStoryboard } from "./diffUtils";
 import type { DiffResult, SectionDiff, FieldDiff } from "./diffUtils";
+import { getAnonymousUserId } from "@/lib/anonymousUser";
 
 interface ProjectSnapshot {
   project_id: string;
@@ -94,7 +94,7 @@ function SectionBlock({ section }: { section: SectionDiff }) {
 
 export default function DriftDetailPage() {
   const { stageName } = useParams<{ stageName: string }>();
-  const { user } = useUser();
+  const [userId] = useState(() => getAnonymousUserId());
   const [projects, setProjects] = useState<ProjectSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -111,7 +111,7 @@ export default function DriftDetailPage() {
       setLoading(true);
       try {
         const res = await fetch("/api/admin/stages/all", {
-          headers: { "X-User-Id": user?.id || "" },
+          headers: { "X-User-Id": userId },
         });
         if (!res.ok) throw new Error("Failed to fetch stage data");
         const data = await res.json();
@@ -124,7 +124,7 @@ export default function DriftDetailPage() {
     };
 
     fetchData();
-  }, [stageId, user?.id]);
+  }, [stageId, userId]);
 
   const projectDiffs = useMemo(() => {
     if (!stageId) return [];

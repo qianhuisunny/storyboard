@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -17,6 +16,7 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { getAnonymousUserId } from "@/lib/anonymousUser";
 
 interface Source {
   id: string;
@@ -39,7 +39,7 @@ type InputMode = "upload" | "link" | "text";
 
 const OnboardingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useUser();
+  const [userId] = useState(() => getAnonymousUserId());
   const [userInput, setUserInput] = useState("");
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
   const [audience, setAudience] = useState("");
@@ -163,7 +163,7 @@ const OnboardingPage: React.FC = () => {
           typeId,
           typeName: KNOWLEDGE_SHARING.title,
           userInput,
-          userId: user?.id,
+          userId,
         }),
       });
 

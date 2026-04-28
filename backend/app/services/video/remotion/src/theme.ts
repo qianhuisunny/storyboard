@@ -1,5 +1,5 @@
 /**
- * Canonical typography + color scale for every slide template.
+ * Canonical typography + color scale for every scene composition.
  *
  * Before this file existed, each component defined its own magic
  * numbers (labels 22 here, 24 there, metric 48 fighting the title for
@@ -8,13 +8,12 @@
  *
  * Hierarchy (largest → smallest, each ~0.7x the previous):
  *
- *   TITLE   56 — the slide headline (there's only one per slide)
+ *   TITLE   56 — the main scene headline
  *   SUBTITLE 28 — optional second-tier text under the title
  *               (source attribution, takeaway, context line)
- *   HEADING 32 — section headers like "Entry Level" in PyramidChart,
- *                column headers in ThreeColumn, side labels in
- *                SplitComparison. Always visually subordinate to
- *                the title.
+ *   HEADING 32 — section headers, card titles, sidecar labels, and
+ *                other structural text that should stay visually
+ *                subordinate to the main title.
  *   METRIC  40 — featured numeric value (e.g. "1.7x", "49%").
  *                Intentionally smaller than TITLE so the title still
  *                reads as the primary anchor.
@@ -71,7 +70,7 @@ export const FADE_FRAMES = 15; // ~0.6s at 25fps — gentle, consistent reveal
 
 /**
  * Semantic color helper: map a sentiment tag to a color.
- * Used by SplitComparison and DataCard for metric coloring.
+ * Used by metric-oriented scene compositions and overlay blocks.
  */
 export const sentimentColor = (
   sentiment?: "positive" | "negative" | "neutral",

@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
 import {
   Plus,
   Loader2,
@@ -13,6 +12,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getAnonymousUserId } from "@/lib/anonymousUser";
 
 interface Project {
   id: string;
@@ -40,17 +40,15 @@ const STAGE_NAMES = ["", "Video Briefing", "Video Outline", "Storyboard Draft", 
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
-  const { user, isLoaded } = useUser();
+  const [userId] = useState(() => getAnonymousUserId());
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     const loadProjects = async () => {
-      if (!isLoaded || !user?.id) return;
-
       try {
-        const response = await fetch(`/api/projects?user_id=${user.id}`);
+        const response = await fetch(`/api/projects?user_id=${encodeURIComponent(userId)}`);
         if (response.ok) {
           const data = await response.json();
           setProjects(data.projects || []);
@@ -63,18 +61,17 @@ export default function ProjectsPage() {
     };
 
     loadProjects();
-  }, [user?.id, isLoaded]);
+  }, [userId]);
 
   const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user?.id) return;
 
     if (!confirm("Are you sure you want to delete this project?")) return;
 
     setDeletingId(projectId);
     try {
       const response = await fetch(
-        `/api/project/${projectId}?user_id=${user.id}`,
+        `/api/project/${projectId}?user_id=${encodeURIComponent(userId)}`,
         { method: "DELETE" }
       );
       if (response.ok) {
@@ -113,14 +110,6 @@ export default function ProjectsPage() {
     if (text.length <= maxLength) return text;
     return text.substring(0, maxLength) + "...";
   };
-
-  if (!isLoaded) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin text-primary" />
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background">

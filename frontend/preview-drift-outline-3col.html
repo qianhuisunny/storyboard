@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outline — Edit Diffs (3-Column)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        border: '#e5e7eb',
+        background: '#ffffff',
+        foreground: '#111827',
+        muted: { DEFAULT: '#f3f4f6', foreground: '#6b7280' },
+        card: '#ffffff',
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; margin: 0; }
+</style>
+</head>
+<body class="bg-background text-foreground h-screen flex flex-col">
+
+<!-- Header -->
+<header class="border-b px-6 py-3 shrink-0 bg-card sticky top-0 z-10">
+  <div class="flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <a href="#" class="flex items-center gap-1 text-sm text-[#7C3AED] hover:text-[#6D28D9]">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+        Dashboard
+      </a>
+      <span class="font-semibold text-lg">Outline — Edit Diffs</span>
+    </div>
+    <span class="text-sm text-gray-500">19 projects · Avg edit rate: 11%</span>
+  </div>
+</header>
+
+<!-- 2-panel body: sidebar + content -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- Sidebar: project list -->
+  <div class="w-[240px] border-r overflow-y-auto shrink-0 bg-gray-50/50">
+    <div class="p-2">
+      <input type="text" placeholder="Filter projects..." id="filterInput" oninput="filterProjects()"
+        class="w-full h-7 rounded-md border bg-white px-2 text-xs placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300" />
+    </div>
+    <div id="projectList"></div>
+  </div>
+
+  <!-- Main content: diff view for selected project -->
+  <div class="flex-1 overflow-y-auto" id="content-panel">
+    <div class="flex h-full items-center justify-center text-sm text-gray-400">
+      Select a project to view diffs
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Project data ──
+const PROJECTS = [
+  {
+    id: "p-claude-marketers",
+    name: "Claude Code for Product Marketers: how vibe coding can be relevant for marketing",
+    editRate: 0.47,
+    sections: [
+      {
+        label: "SECTION 1: YOUR CAMPAIGN TIMELINE DOESN'T HAVE TO WAIT FOR ANOTHER SPRINT",
+        fields: [
+          { field: "title", status: "modified",
+            aiValue: "Your Campaign Timeline Doesn't Have to Wait for Dev Sprints",
+            humanValue: "Your Campaign Timeline Doesn't Have to Wait for another sprint" },
+          { field: "purpose", status: "modified",
+            aiValue: "Challenge the assumption that marketers must always depend on engineering resources for digital assets, establishing that there's a faster path to testing campaign ideas.",
+            humanValue: "Challenge the assumption that Claude Code is only for engineers, establishing that there's a faster path to testing campaign ideas." },
+          { field: "entryAssumption", status: "unchanged", humanValue: "None — cold open." },
+          { field: "exitState", status: "unchanged", humanValue: "The viewer recognizes that waiting weeks for simple marketing assets is a choice, not a requirement, and feels curious about an alternative approach." },
+          { field: "duration", status: "unchanged", humanValue: "0:30–1:00" },
+          { field: "talking_point", status: "unchanged", humanValue: "You have a campaign idea that needs a simple calculator or interactive demo" },
+          { field: "talking_point", status: "modified",
+            aiValue: "Design says 2 weeks, dev says \"next sprint\" — suddenly your 3-week campaign becomes 8 weeks",
+            humanValue: "Design says 2 days, dev says \"next sprint\" — suddenly your testing idea won't ship until 2 weeks later" },
+          { field: "talking_point", status: "unchanged", humanValue: "What if you could build and test that asset this afternoon instead?" },
+        ],
+      },
+      {
+        label: "SECTION 2: CLAUDE CODE BUILDS MARKETING ASSETS, NOT JUST SOFTWARE [PIVOT]",
+        fields: [
+          { field: "title", status: "unchanged", humanValue: "Claude Code Builds Marketing Assets, Not Just Software [PIVOT]" },
+          { field: "purpose", status: "unchanged", humanValue: "Dismantle the misconception that AI coding tools are only for software engineers by showing how they generate complete marketing artifacts instantly." },
+          { field: "entryAssumption", status: "unchanged", humanValue: "The viewer feels frustrated by asset creation bottlenecks but assumes coding tools aren't relevant to marketing work." },
+          { field: "exitState", status: "unchanged", humanValue: "The viewer understands that Claude Code can generate complete HTML/CSS/JS marketing assets in seconds, eliminating traditional design/dev dependencies." },
+          { field: "duration", status: "unchanged", humanValue: "1:30–2:00" },
+          { field: "talking_point", status: "modified",
+            aiValue: "Most marketers think \"AI coding = software engineering only\" — wrong assumption",
+            humanValue: "Most marketers think \"AI coding = software engineering only\" — that's outdated" },
+          { field: "talking_point", status: "unchanged", humanValue: "Claude Code can generate a complete interactive landing page in 30 seconds" },
+          { field: "talking_point", status: "unchanged", humanValue: "It writes real HTML/CSS/JavaScript — not templates, not mockups" },
+        ],
+      },
+      {
+        label: "SECTION 3: LIVE DEMO — BUILDING A CAMPAIGN ASSET IN REAL TIME [EVIDENCE]",
+        fields: [
+          { field: "title", status: "unchanged", humanValue: "Live Demo — Building a Campaign Asset in Real Time [EVIDENCE]" },
+          { field: "purpose", status: "modified",
+            aiValue: "Demonstrate Claude Code's marketing capabilities through a live build of a complete campaign asset, showing the entire process from prompt to functional output.",
+            humanValue: "Show (not tell) Claude Code building a real marketing asset live, proving the speed claim from Section 2." },
+          { field: "entryAssumption", status: "unchanged", humanValue: "Viewer is skeptical but curious — they've heard the promise, now they need proof." },
+          { field: "exitState", status: "unchanged", humanValue: "The viewer has seen a complete marketing asset built in real time and believes the speed/quality claims." },
+          { field: "duration", status: "modified", aiValue: "2:00–3:00", humanValue: "1:30–2:30" },
+          { field: "talking_point", status: "unchanged", humanValue: "\"Let me show you exactly what this looks like\"" },
+          { field: "talking_point", status: "modified",
+            aiValue: "Start with a simple prompt: \"Build me an interactive ROI calculator for our Q3 campaign\"",
+            humanValue: "Prompt: \"Build me an ROI calculator for our Q3 campaign with company branding\"" },
+          { field: "talking_point", status: "added", humanValue: "Show the iteration loop — tweak colors, add a chart, adjust copy — all in conversation" },
+        ],
+      },
+      {
+        label: "SECTION 4: TAKEAWAY — YOUR MARKETING TEAM JUST GOT A SUPERPOWER",
+        fields: [
+          { field: "title", status: "modified",
+            aiValue: "Your Marketing Stack Just Got Lighter",
+            humanValue: "Your Marketing Team Just Got a Superpower" },
+          { field: "purpose", status: "unchanged", humanValue: "Close with a clear value proposition and next steps." },
+          { field: "entryAssumption", status: "unchanged", humanValue: "Viewer is convinced but needs to know how to start." },
+          { field: "exitState", status: "unchanged", humanValue: "Viewer knows the single next action to take." },
+          { field: "duration", status: "unchanged", humanValue: "0:30–1:00" },
+          { field: "talking_point", status: "unchanged", humanValue: "You don't need to learn to code — you need to learn to describe what you want" },
+          { field: "talking_point", status: "modified",
+            aiValue: "Start with one low-stakes asset: an internal calculator, a test landing page, a prototype",
+            humanValue: "Start small: an internal calculator, a test page, a prototype for your next team meeting" },
+        ],
+      },
+    ],
+  },
+  {
+    id: "p-video-manual",
+    name: "How was create a video different when you do it manually v.s with Plotline (AI-assisted)?",
+    editRate: 0.98,
+    sections: [
+      {
+        label: "SECTION 1: THE MANUAL VIDEO PRODUCTION GRIND",
+        fields: [
+          { field: "title", status: "modified", aiValue: "The Manual Video Production Pipeline", humanValue: "The Manual Video Production Grind" },
+          { field: "purpose", status: "modified",
+            aiValue: "Establish the pain of traditional video production by walking through each manual step.",
+            humanValue: "Make the viewer feel the accumulated friction of manual video production — each step is fine alone, but the total is crushing." },
+          { field: "entryAssumption", status: "modified",
+            aiValue: "None — cold open.",
+            humanValue: "Viewer has made at least one instructional/marketing video before." },
+          { field: "exitState", status: "modified",
+            aiValue: "Viewer understands the typical video production process.",
+            humanValue: "Viewer feels the weight of manual production and is primed for contrast." },
+          { field: "duration", status: "modified", aiValue: "1:00–1:30", humanValue: "0:45–1:15" },
+          { field: "talking_point", status: "modified",
+            aiValue: "Write a script — 2 hours of drafting, editing, restructuring",
+            humanValue: "Script: 2 hours. Then you realize the structure doesn't work. Rewrite: 3 more hours." },
+          { field: "talking_point", status: "modified",
+            aiValue: "Find visuals — stock photos, screenshots, diagrams — another 3 hours",
+            humanValue: "Visuals: 3 hours finding stock that doesn't look like stock, or making diagrams that don't look like PowerPoint" },
+          { field: "talking_point", status: "modified",
+            aiValue: "Record and edit — at least a full day",
+            humanValue: "Record, re-record, edit, re-edit — a full day minimum, two if you're being honest" },
+          { field: "talking_point", status: "added", humanValue: "Total: 2-3 days for a 5-minute video. And that's if nothing goes wrong." },
+        ],
+      },
+      {
+        label: "SECTION 2: THE PLOTLINE WORKFLOW",
+        fields: [
+          { field: "title", status: "modified", aiValue: "AI-Assisted Video Production with Plotline", humanValue: "The Plotline Workflow" },
+          { field: "purpose", status: "modified",
+            aiValue: "Show how Plotline automates each step of the production pipeline.",
+            humanValue: "Direct contrast to Section 1 — same output quality, fraction of the time and decisions." },
+          { field: "duration", status: "modified", aiValue: "1:30–2:00", humanValue: "1:00–1:30" },
+          { field: "talking_point", status: "modified",
+            aiValue: "Upload your brief — Plotline generates a structured outline",
+            humanValue: "Drop in your brief. Plotline generates the outline — not a template, a real narrative structure based on your content." },
+          { field: "talking_point", status: "modified",
+            aiValue: "Review and approve the storyboard — edit any screen with natural language",
+            humanValue: "Review each screen. Don't like something? Edit it in plain English, not in a timeline editor." },
+        ],
+      },
+    ],
+  },
+  {
+    id: "p-cli-tools",
+    name: "CLI tools every developer needs",
+    editRate: 0.08,
+    sections: [
+      {
+        label: "SECTION 1: YOUR TERMINAL IS YOUR BEST FRIEND",
+        fields: [
+          { field: "title", status: "unchanged", humanValue: "Your Terminal Is Your Best Friend" },
+          { field: "purpose", status: "unchanged", humanValue: "Hook viewers by reframing the terminal as an accelerator, not a relic." },
+          { field: "entryAssumption", status: "unchanged", humanValue: "None — cold open." },
+          { field: "exitState", status: "unchanged", humanValue: "Viewer is curious about which tools make the terminal powerful." },
+          { field: "duration", status: "unchanged", humanValue: "0:30–1:00" },
+          { field: "talking_point", status: "unchanged", humanValue: "Most developers use 10% of what their terminal can do" },
+          { field: "talking_point", status: "modified",
+            aiValue: "These 5 tools will change how you work every day",
+            humanValue: "These 3 tools will change how you work every day" },
+        ],
+      },
+    ],
+  },
+  { id: "p-billionaire", name: "How to become a billionnaire", editRate: 0, sections: [] },
+  { id: "p-data-analysis", name: "ChatGPT for Data Analysis", editRate: 0, sections: [] },
+  { id: "p-drape-arms", name: "How to drape robot arms before surgery", editRate: 0, sections: [] },
+  { id: "p-kungfu", name: "Kung Fu instructors for true beginners", editRate: 0, sections: [] },
+  { id: "p-meeting-notes", name: "Meeting transcript to action items", editRate: 0, sections: [] },
+  { id: "p-jira", name: "AI to condense meeting notes into Jira tickets", editRate: 0, sections: [] },
+  { id: "p-female-leaders", name: "Challenges for female leaders in tech", editRate: 0, sections: [] },
+  { id: "p-senior-ops", name: "How senior operators cut meeting load", editRate: 0, sections: [] },
+  { id: "p-internal-docs", name: "Good internal docs vs dead internal docs", editRate: 0, sections: [] },
+  { id: "p-ai-writing", name: "When AI writing tools flatten your thinking", editRate: 0, sections: [] },
+  { id: "p-roadmaps", name: "Roadmaps should show bets, not promises", editRate: 0, sections: [] },
+  { id: "p-onboarding", name: "Developer onboarding without more docs", editRate: 0, sections: [] },
+  { id: "p-hi", name: "HI", editRate: 0, sections: [] },
+  { id: "p-claude-v1", name: "Claude code for marketers (v1)", editRate: 0, sections: [] },
+  { id: "p-claude-v2", name: "Claude code for marketers (v2)", editRate: 0, sections: [] },
+  { id: "p-attention", name: "The science of attention in video learning", editRate: 0, sections: [] },
+];
+
+// Sort by edit rate descending
+PROJECTS.sort((a, b) => b.editRate - a.editRate);
+
+let selectedProjectId = null;
+
+function renderProjectList(filter = "") {
+  const list = document.getElementById("projectList");
+  const lc = filter.toLowerCase();
+  const filtered = PROJECTS.filter(p => p.name.toLowerCase().includes(lc));
+
+  list.innerHTML = filtered.map(p => {
+    const isSelected = p.id === selectedProjectId;
+    const rateColor = p.editRate > 0.3
+      ? 'text-[#3A6B47]'
+      : p.editRate > 0
+        ? 'text-[#946B2D]'
+        : 'text-gray-400';
+    return `
+    <button
+      onclick="selectProject('${p.id}')"
+      class="w-full text-left px-3 py-2.5 text-xs border-b border-gray-100 transition-colors ${
+        isSelected
+          ? 'bg-white border-l-2 border-l-[#7C3AED] font-medium'
+          : 'hover:bg-white border-l-2 border-l-transparent'
+      }"
+    >
+      <div class="truncate leading-snug ${p.editRate > 0 ? 'text-foreground' : 'text-gray-400'}">${p.name}</div>
+      ${p.editRate > 0
+        ? `<span class="text-[10px] ${rateColor} font-medium">${Math.round(p.editRate * 100)}% edited</span>`
+        : `<span class="text-[10px] text-gray-300">no edits</span>`
+      }
+    </button>`;
+  }).join("");
+}
+
+function filterProjects() {
+  renderProjectList(document.getElementById("filterInput").value);
+}
+
+function selectProject(id) {
+  selectedProjectId = id;
+  renderProjectList(document.getElementById("filterInput").value);
+
+  const content = document.getElementById("content-panel");
+  const project = PROJECTS.find(p => p.id === id);
+
+  if (!project || project.sections.length === 0) {
+    content.innerHTML = `
+      <div class="py-16 text-center text-gray-400 text-sm">
+        No outline data for this project.
+      </div>`;
+    return;
+  }
+
+  const rateColor = project.editRate > 0.3
+    ? 'text-[#3A6B47] bg-[#E6F2EB]'
+    : project.editRate > 0
+      ? 'text-[#946B2D] bg-[#FFF8E7]'
+      : 'text-gray-500 bg-gray-100';
+
+  let html = `
+    <div class="max-w-4xl px-8 py-6">
+      <div class="flex items-start justify-between mb-6">
+        <h2 class="text-sm font-semibold text-foreground leading-snug max-w-[70%]">${project.name}</h2>
+        <span class="text-xs font-semibold px-2 py-0.5 rounded shrink-0 ${rateColor}">
+          ${Math.round(project.editRate * 100)}% edited
+        </span>
+      </div>
+  `;
+
+  for (const section of project.sections) {
+    html += `
+      <div class="mb-6">
+        <div class="text-[11px] font-semibold text-[#7C3AED] uppercase tracking-wide mb-2 pb-1 border-b border-[#F0EEFF]">
+          ${section.label}
+        </div>
+        <div class="text-[12.5px] leading-[1.8]">
+    `;
+    for (const f of section.fields) {
+      html += renderField(f);
+    }
+    html += `</div></div>`;
+  }
+
+  html += `</div>`;
+  content.innerHTML = html;
+}
+
+function renderField(diff) {
+  const label = `<span class="text-[10px] uppercase text-gray-400 mr-2">${diff.field}</span>`;
+
+  if (diff.status === "unchanged") {
+    return `<div class="py-1 text-gray-500">${label}${diff.humanValue}</div>`;
+  }
+  if (diff.status === "removed") {
+    return `<div class="py-1">${label}<span class="text-[#A63228] line-through bg-[#FDDDD9] px-0.5 rounded-sm">${diff.aiValue}</span> <span class="text-[9px] text-[#A63228] italic">(removed)</span></div>`;
+  }
+  if (diff.status === "added") {
+    return `<div class="py-1">${label}<span class="text-[#3A6B47] bg-[#D4EDDA] px-0.5 rounded-sm">${diff.humanValue}</span> <span class="text-[9px] text-[#3A6B47] italic">(added)</span></div>`;
+  }
+  // modified
+  return `<div class="py-1">${label}<span class="text-[#A63228] line-through bg-[#FDDDD9] px-0.5 rounded-sm">${diff.aiValue}</span> <span class="text-[#3A6B47] bg-[#D4EDDA] px-0.5 rounded-sm">${diff.humanValue}</span></div>`;
+}
+
+// Init
+renderProjectList();
+selectProject(PROJECTS[0].id);
+</script>
+</body>
+</html>

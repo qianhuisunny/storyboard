@@ -173,6 +173,7 @@ class StoryboardOrchestrator:
             ("gate2", "approve"): self._handle_gate2_approve,
             ("gate2", "regenerate_section"): self._handle_regenerate_section,
             ("gate2", "refine_outline"): self._handle_refine_outline,
+            ("gate2", "chat_brief_approve"): self._handle_reapprove_brief_from_downstream,
             ("gate2", "edit"): self._handle_gate2_edit,
             ("review", "approve"): self._handle_review_approve,
             ("review", "edit"): self._handle_review_edit,
@@ -812,5 +813,49 @@ class StoryboardOrchestrator:
         result["brief_locked"] = state.brief_locked
 
         return state, result
+
+    async def _handle_reapprove_brief_from_downstream(
+        self,
+        state: StoryboardState,
+        manager: StateManager,
+        payload: dict,
+        result: dict
+    ) -> tuple:
+        """
+        Re-approve an edited brief after the project has already reached Gate 2.
+
+        The frontend lets users navigate back to the brief and edit it directly.
+        In that case the backend may still be in gate2, so chat_brief_approve
+        means "save this edited brief and regenerate the outline."
+        """
+        all_fields = payload.get("all_fields", {})
+        if not all_fields:
+            raise ValueError("all_fields is required in payload")
+
+        state.confirmed_fields = all_fields
+        if not state.story_brief:
+            state.story_brief = {"fields": all_fields}
+        else:
+            state.story_brief["fields"] = {
+                **state.story_brief.get("fields", {}),
+                **all_fields,
+            }
+
+        state.screen_outline = None
+        state.storyboard = None
+        state.outline_eval = None
+        state.storyboard_eval = None
+        state = manager.go_back(state, target_gate=1)
+
+        result["message"] = "Edited brief saved. Regenerating outline..."
+        result["story_brief"] = state.story_brief
+        result["brief_reapproved_from_phase"] = "gate2"
+
+        return await self._handle_gate1_approve(
+            state,
+            manager,
+            {"current_story_brief": state.story_brief},
+            result,
+        )
 # Singleton instance
 orchestrator = StoryboardOrchestrator()

@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Check, FolderOpen } from "lucide-react";
+import { BouncingDots } from "./ui/bouncing-dots";
 
-export type StageStatus = "not_started" | "in_progress" | "needs_review" | "approved";
+export type StageStatus = "not_started" | "in_progress" | "needs_review" | "approved" | "generating";
 
 export interface Stage {
   id: number;
@@ -22,6 +23,7 @@ const statusLabels: Record<StageStatus, string> = {
   in_progress: "In progress",
   needs_review: "Needs review",
   approved: "Approved",
+  generating: "Generating…",
 };
 
 /** Visual stage item for the 5-stage sidebar display */
@@ -70,7 +72,7 @@ export default function StageNavigation({
       name: "Storyboard Draft",
       status: draft?.status ?? "not_started",
       isActive: currentStageId === 3,
-      isClickable: draft ? draft.status !== "not_started" || 3 <= currentStageId : false,
+      isClickable: draft ? draft.status !== "not_started" && draft.status !== "generating" || 3 <= currentStageId : false,
       onClick: () => onStageSelect(3),
     },
     {
@@ -100,6 +102,8 @@ export default function StageNavigation({
                   "flex items-center",
                   vs.isActive
                     ? "bg-[#E8F0E9]"
+                    : vs.status === "generating"
+                    ? "bg-[#e8f1ea]"
                     : vs.isClickable
                     ? "hover:bg-[#EEF1E9]"
                     : "text-[#626B58] cursor-not-allowed opacity-50"
@@ -116,6 +120,8 @@ export default function StageNavigation({
                       ? "bg-[#3A6B47] text-white"
                       : vs.status === "approved"
                       ? "bg-[#E6F2EB] text-[#2D6A4F]"
+                      : vs.status === "generating"
+                      ? "bg-[#e8f1ea]"
                       : "text-[#626B58]"
                   )}
                   style={{
@@ -125,19 +131,36 @@ export default function StageNavigation({
                       ? "1.5px solid #3A6B47"
                       : vs.status === "approved"
                       ? "1.5px solid #2D6A4F"
+                      : vs.status === "generating"
+                      ? "1.5px solid #3a6b4a"
                       : "1.5px solid #BFC6B5",
                     fontSize: "11px",
                     fontWeight: 600,
                     fontFamily: "'Fraunces', serif",
                   }}
                 >
-                  {vs.status === "approved" ? <Check className="w-3.5 h-3.5" /> : vs.visualNumber}
+                  {vs.status === "generating" ? (
+                    <span
+                      style={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: 99,
+                        background: "#3a6b4a",
+                        animation: "pl-pulse 1.2s ease-in-out infinite",
+                      }}
+                    />
+                  ) : vs.status === "approved" ? (
+                    <Check className="w-3.5 h-3.5" />
+                  ) : (
+                    vs.visualNumber
+                  )}
                 </span>
                 <div className="flex-1 min-w-0">
                   <span className={cn("block truncate", vs.isActive ? "text-[#3A6B47]" : "text-[#1C2118]")} style={{ fontSize: "13px", fontWeight: vs.isActive ? 600 : 500, lineHeight: "1.2" }}>
                     {vs.name}
                   </span>
-                  <span className="block text-[#626B58]" style={{ fontSize: "11px", marginTop: "2px" }}>
+                  <span className="block text-[#626B58]" style={{ fontSize: "11px", marginTop: "2px", display: "flex", alignItems: "center", gap: 5 }}>
+                    {vs.status === "generating" && <BouncingDots size={4} gap={2} />}
                     {statusLabels[vs.status]}
                   </span>
                 </div>

@@ -10,7 +10,6 @@
 
 import { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useUser } from "@clerk/clerk-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,6 +24,7 @@ import {
   AlertCircle,
   ShieldCheck,
 } from "lucide-react";
+import { getAnonymousUserId } from "@/lib/anonymousUser";
 
 // Types
 interface DashboardData {
@@ -55,7 +55,7 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
 
 export function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const { user } = useUser();
+  const [userId] = useState(() => getAnonymousUserId());
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +87,7 @@ export function AdminDashboard() {
           `/api/admin/analytics/dashboard?range=${timeRange}`,
           {
             headers: {
-              "X-User-Id": user?.id || "",
+              "X-User-Id": userId,
             },
           }
         );
@@ -109,7 +109,7 @@ export function AdminDashboard() {
     };
 
     fetchData();
-  }, [timeRange, user?.id]);
+  }, [timeRange, userId]);
 
   useEffect(() => {
     fetch("/api/quality-log/stats/summary")

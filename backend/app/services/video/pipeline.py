@@ -1,80 +1,42 @@
 """
 Video generation pipeline orchestrator.
 
-Each panel routes to one of three render paths based on ``screen_type``:
+Panels now route by ``screen_type`` to get a base layer, then every
+scene is finalized through one shared Remotion composition driven by:
 
-  - TALKING_HEAD → HeyGen Photo Avatar, lip-synced to OpenAI TTS audio
-                    (audio-driven mode via voice.type=audio + audio_url)
-  - SLIDES       → LLM-picked Remotion template + OpenAI TTS overlay
-  - STOCK_VIDEO  → Pexels video search + ffmpeg audio overlay with
-                    OpenAI TTS
-
-Every panel is narrated with the **same** OpenAI TTS voice (``config.voice``,
-default ``alloy``), so the final stitched video has a single consistent
-narration voice throughout. An earlier version of this pipeline used
-HeyGen's built-in TTS for talking-head panels, which produced a jarring
-voice change at every avatar cut; that's fixed here by generating TTS
-for ALL panels in step 2 and uploading the talking-head mp3s to
-litterbox.catbox.moe so HeyGen can fetch them as a URL.
-
-Cost model at the current HeyGen + Pexels rates:
-
-  - OpenAI TTS tts-1-hd: ~$0.01-0.02 per panel
-  - GPT-4o slide template pick: ~$0.01 per slide panel
-  - GPT-4o Pexels keyword gen: ~$0.005 per stock_video panel
-  - HeyGen audio-driven (Photo Avatar Lisa_public): ~$1 per minute
-    of generated video, measured by HeyGen's remaining_quota field
-    which is literally in seconds of video budget ($5 top-up = 300s)
-  - Pexels video search + download: free (25k req/hour)
-  - Remotion render: free
-  - ffmpeg normalize + concat: free
-
-For the current 16-panel fixture (3 talking-head at ~28s, 13
-slides/stock_video): ~$0.55 total per run.
+  - screen_type
+  - composition
+  - canvas_mode
+  - overlay_elements
 """
-import os
 import json
+import os
 import subprocess
 import time
 from pathlib import Path
 
-from .models import PipelineConfig, ScreenType
-from .parser import parse_storyboard
-from .tts import generate_all_audio
 from .heygen import generate_avatar_video as heygen_generate_avatar_video
-from .slides import (
-    map_visual_direction_to_props,
-    render_slide,
-    extract_elements,
-    align_elements_to_audio,
-)
+from .keyframe_generator import generate_overlay_elements
+from .models import PipelineConfig, ScreenType
+from .overlay import render_scene_composition
+from .parser import parse_storyboard
+from .preview import enrich_manifest, write_preview
+from .public_upload import upload_file
 from .stitcher import stitch_videos
 from .stock_video import create_stock_video_panel
-from .public_upload import upload_file
-from .transcribe import transcribe_with_word_timestamps
-from .preview import enrich_manifest, write_preview
-from .overlay import render_keyframe_overlay
-from .keyframe_generator import generate_keyframes
+from .tts import generate_all_audio
 
 
 def _probe_audio_duration(audio_path: str) -> float:
-    """Return the real playable duration of an audio file in seconds.
-
-    We call ffprobe instead of trusting the fixture's ``duration_seconds``
-    because the fixture's value is a planning estimate (word count / 130
-    wpm) which is consistently shorter than real OpenAI TTS output — often
-    30-50% shorter on long paragraphs. Passing the fixture estimate to
-    Remotion as the render duration meant Remotion rendered a clip that
-    was too short and cut off the voiceover mid-sentence. Probing the
-    real mp3 length fixes that: the rendered clip is exactly as long as
-    the audio needs, no more, no less.
-    """
     result = subprocess.run(
         [
             "ffprobe",
-            "-v", "error",
-            "-show_entries", "format=duration",
-            "-of", "default=nw=1:nk=1",
+            "-v",
+            "error",
+            "-show_entries",
+            "format=duration",
+            "-of",
+            "default=nw=1:nk=1",
             str(Path(audio_path).resolve()),
         ],
         capture_output=True,
@@ -82,315 +44,206 @@ def _probe_audio_duration(audio_path: str) -> float:
         timeout=30,
     )
     if result.returncode != 0:
-        raise RuntimeError(
-            f"ffprobe failed for {audio_path}: {result.stderr[-500:]}"
-        )
-    try:
-        return float(result.stdout.strip())
-    except ValueError as e:
-        raise RuntimeError(
-            f"ffprobe returned non-numeric duration for {audio_path}: "
-            f"{result.stdout!r}"
-        ) from e
+        raise RuntimeError(f"ffprobe failed for {audio_path}: {result.stderr[-500:]}")
+    return float(result.stdout.strip())
+
+
+def _overlay_text_strings(overlay_elements: list[dict]) -> list[str]:
+    text_values: list[str] = []
+    for element in overlay_elements:
+        for key in ("text", "title", "value"):
+            value = element.get(key)
+            if isinstance(value, str) and value.strip():
+                text_values.append(value.strip())
+        for item in element.get("items") or []:
+            if isinstance(item, str) and item.strip():
+                text_values.append(item.strip())
+    return text_values
+
+
+def _stock_text_overlays(overlay_elements: list[dict]) -> tuple[str | None, str | None]:
+    headline = None
+    subhead = None
+    for element in overlay_elements:
+        if headline is None and element.get("kind") in {"headline", "stat", "stat_pill"}:
+            headline = element.get("text") or element.get("value") or element.get("title")
+        elif subhead is None and element.get("kind") in {"subhead", "label", "badge"}:
+            subhead = element.get("text") or element.get("title")
+    return headline, subhead
 
 
 def run_pipeline(config: PipelineConfig) -> str:
-    """Run the full video generation pipeline.
-
-    Args:
-        config: Pipeline configuration.
-
-    Returns:
-        Path to the final video file.
-    """
     start = time.time()
-    print(f"=== Video Generation Pipeline ===")
+    print("=== Video Generation Pipeline ===")
 
-    # 1. Parse storyboard
-    print(f"\n[1/4] Parsing storyboard...")
+    print("\n[1/4] Parsing storyboard...")
     storyboard = parse_storyboard(config.storyboard_path)
     panels = storyboard.panels
 
     if config.only_panels:
-        panels = [p for p in panels if p.panel_number in config.only_panels]
-        print(f"  Filtered to panels: {[p.panel_number for p in panels]}")
+        panels = [panel for panel in panels if panel.panel_number in config.only_panels]
+        print(f"  Filtered to panels: {[panel.panel_number for panel in panels]}")
 
-    slides_panels = [p for p in panels if p.screen_type == ScreenType.SLIDES]
-    talking_head_panels = [p for p in panels if p.screen_type == ScreenType.TALKING_HEAD]
-    stock_video_panels = [p for p in panels if p.screen_type == ScreenType.STOCK_VIDEO]
+    talking_head_panels = [panel for panel in panels if panel.screen_type == ScreenType.TALKING_HEAD]
+    stock_video_panels = [panel for panel in panels if panel.screen_type == ScreenType.STOCK_VIDEO]
+    product_demo_panels = [panel for panel in panels if panel.screen_type == ScreenType.PRODUCT_DEMO]
+    solid_bg_panels = [panel for panel in panels if panel.screen_type == ScreenType.SOLID_BG]
     print(
         f"  {len(panels)} panels: "
         f"{len(talking_head_panels)} talking head, "
-        f"{len(slides_panels)} slides, "
-        f"{len(stock_video_panels)} stock video"
+        f"{len(stock_video_panels)} stock video, "
+        f"{len(product_demo_panels)} product demo, "
+        f"{len(solid_bg_panels)} solid bg"
     )
 
-    # 2. Generate TTS audio for ALL panels. We no longer skip talking-head
-    # panels (the earlier version did, because HeyGen had its own TTS) —
-    # now every panel is narrated with the same OpenAI voice so the final
-    # video has a consistent voice across all three render paths. The
-    # talking-head mp3s get uploaded to litterbox in step 3 so HeyGen can
-    # fetch them as URLs.
     if panels and not config.skip_tts:
         print(f"\n[2/4] Generating TTS audio for all {len(panels)} panels...")
         generate_all_audio(panels, config.output_dir, voice=config.voice)
-    elif panels and config.skip_tts:
-        print(f"\n[2/4] Skipping TTS (reusing existing audio)")
+    elif panels:
+        print("\n[2/4] Skipping TTS (reusing existing audio)")
         audio_dir = os.path.join(config.output_dir, "audio")
         for panel in panels:
             panel.audio_path = os.path.join(audio_dir, f"panel_{panel.panel_number:02d}.mp3")
     else:
-        print(f"\n[2/4] No panels to TTS")
+        print("\n[2/4] No panels to TTS")
 
-    # 2.5: Auto-generate keyframes for panels that don't have them
-    if config.enable_keyframe_overlay:
-        gen_count = 0
+    if config.enable_overlay:
+        generated_count = 0
         for panel in panels:
-            if panel.keyframes is None and not config.skip_keyframe_gen:
-                real_dur = _probe_audio_duration(panel.audio_path)
-                print(f"  [Panel {panel.panel_number:02d}] Generating keyframes...")
-                panel.keyframes = generate_keyframes(
-                    voiceover_script=panel.voiceover_script,
-                    visual_direction=panel.visual_direction,
-                    duration_seconds=real_dur,
-                    screen_type=panel.screen_type.value,
-                )
-                gen_count += 1
-                print(f"    → {len(panel.keyframes)} keyframes")
-        has_kf = sum(1 for p in panels if p.keyframes)
-        print(f"  Keyframes: {gen_count} auto-generated, {has_kf} total with keyframes")
+            if panel.overlay_elements or config.skip_overlay_gen:
+                continue
+            real_duration = _probe_audio_duration(panel.audio_path)
+            print(f"  [Panel {panel.panel_number:02d}] Generating overlay elements...")
+            panel.overlay_elements = generate_overlay_elements(
+                voiceover_script=panel.voiceover_script,
+                design_brief=panel.design_brief,
+                duration_seconds=real_duration,
+                screen_type=panel.screen_type.value,
+                composition=panel.composition.value,
+            )
+            generated_count += 1
+            print(f"    → {len(panel.overlay_elements)} overlay elements")
+        print(f"  Overlay generation: {generated_count} panels auto-filled")
 
-    # 3. Generate video clips per panel
-    print(f"\n[3/4] Generating video clips...")
+    print("\n[3/4] Generating video clips...")
     clips_dir = os.path.join(config.output_dir, "clips")
-    slides_artifacts_dir = os.path.join(config.output_dir, "slides")
     stock_artifacts_dir = os.path.join(config.output_dir, "stock_video")
     os.makedirs(clips_dir, exist_ok=True)
-    os.makedirs(slides_artifacts_dir, exist_ok=True)
     os.makedirs(stock_artifacts_dir, exist_ok=True)
 
-    # Manifest collects per-panel metadata as we go (HeyGen video IDs,
-    # Pexels video IDs, chosen templates, probed durations) so the final
-    # JSON is a useful audit trail of what actually happened.
     panel_manifests: list[dict] = []
 
     for panel in panels:
         clip_path = os.path.join(clips_dir, f"panel_{panel.panel_number:02d}.mp4")
+        real_audio_duration = _probe_audio_duration(panel.audio_path)
+        panel.duration_seconds = real_audio_duration
+
         panel_info: dict = {
             "panel_number": panel.panel_number,
             "screen_type": panel.screen_type.value,
+            "composition": panel.composition.value,
+            "canvas_mode": panel.canvas_mode.value,
             "voiceover_script": panel.voiceover_script,
-            "visual_direction": list(panel.visual_direction),
+            "design_brief": list(panel.design_brief),
+            "visual_direction": list(panel.design_brief),
             "voiceover_words": len(panel.voiceover_script.split()),
+            "duration": real_audio_duration,
         }
 
+        base_video_path = None
         if panel.screen_type == ScreenType.TALKING_HEAD:
             if config.skip_avatar:
-                print(f"  [Panel {panel.panel_number:02d}] Skipping avatar (reusing)")
-                panel.clip_path = clip_path
-                panel_info["skipped"] = True
-                panel_manifests.append(panel_info)
-                continue
-
-            if config.talking_head_provider == "seedance":
+                print(f"  [Panel {panel.panel_number:02d}] Reusing talking-head base clip")
+                base_video_path = clip_path
+            elif config.talking_head_provider == "seedance":
                 from .seedance import generate_seedance_video
-                print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → Seedance (lip sync)")
-                print(f"    uploading audio to public host for Seedance fetch...")
-                audio_url = upload_file(panel.audio_path, expiry="12h")
-                print(f"    audio URL: {audio_url}")
 
-                real_dur = _probe_audio_duration(panel.audio_path)
+                print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → Seedance")
+                audio_url = upload_file(panel.audio_path, expiry="12h")
                 result = generate_seedance_video(
                     output_path=clip_path,
-                    prompt="@Image1 is speaking to camera, medium close-up, direct eye contact, "
-                           "natural head movement, professional office background",
-                    duration=min(15, int(real_dur) + 1),
+                    prompt="@Image1 is speaking to camera, medium close-up, direct eye contact, natural head movement",
+                    duration=min(15, int(real_audio_duration) + 1),
                     image_path=config.seedance_ref_image,
                     audio_url=audio_url,
                 )
-                panel.clip_path = clip_path
-                panel.duration_seconds = real_dur
-                panel_info.update({
-                    "seedance_task_id": result.get("task_id"),
-                    "duration": real_dur,
-                    "provider": "seedance",
-                })
+                base_video_path = clip_path
+                panel_info.update(
+                    {
+                        "provider": "seedance",
+                        "seedance_task_id": result.get("task_id"),
+                    }
+                )
             else:
-                print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → HeyGen ({config.heygen_avatar_id})")
-                print(f"    uploading audio to public host for HeyGen fetch...")
+                print(f"  [Panel {panel.panel_number:02d}] TALKING HEAD → HeyGen")
                 audio_url = upload_file(panel.audio_path, expiry="12h")
-                print(f"    audio URL: {audio_url}")
-
                 result = heygen_generate_avatar_video(
                     output_path=clip_path,
                     audio_url=audio_url,
                     avatar_id=config.heygen_avatar_id,
                     avatar_style=config.heygen_avatar_style,
                 )
-                panel.clip_path = clip_path
-                if result.get("duration"):
-                    panel.duration_seconds = float(result["duration"])
-                panel_info.update({
-                    "heygen_video_id": result.get("video_id"),
-                    "heygen_audio_url": audio_url,
-                    "duration": result.get("duration"),
-                    "provider": "heygen",
-                })
-
-        elif panel.screen_type == ScreenType.SLIDES:
-            print(f"  [Panel {panel.panel_number:02d}] SLIDES → LLM + Remotion")
-
-            # Step 3a: LLM maps visual direction to template + props
-            slide_plan = map_visual_direction_to_props(panel.visual_direction)
-            props_path = os.path.join(
-                slides_artifacts_dir, f"panel_{panel.panel_number:02d}.json"
-            )
-            print(f"    Template: {slide_plan['template']}")
-
-            # Step 3b: probe the REAL audio length. Using panel.duration_seconds
-            # (fixture planning estimate) caused Remotion to cut clips short
-            # in earlier runs — real TTS is often 30-50% longer than the
-            # 130wpm estimate on long paragraphs.
-            real_audio_duration = _probe_audio_duration(panel.audio_path)
-            if abs(real_audio_duration - panel.duration_seconds) > 0.1:
-                print(
-                    f"    Audio duration: {real_audio_duration:.2f}s "
-                    f"(fixture estimate was {panel.duration_seconds}s)"
+                base_video_path = clip_path
+                panel_info.update(
+                    {
+                        "provider": "heygen",
+                        "heygen_video_id": result.get("video_id"),
+                    }
                 )
-            panel.duration_seconds = real_audio_duration
-
-            # Step 3c: transcribe the TTS audio with Whisper to get
-            # word-level timestamps. ~$0.006/minute, so a 30s slide
-            # costs ~$0.003. This enables Phase B per-element animation.
-            print(f"    Transcribing audio for word timestamps...")
-            word_timestamps = transcribe_with_word_timestamps(panel.audio_path)
-            print(f"    Got {len(word_timestamps)} word timestamps")
-
-            # Step 3d: LLM aligns visual elements to the moment in the
-            # audio when each element is first mentioned.
-            elements = extract_elements(slide_plan["template"], slide_plan["props"])
-            element_timings = align_elements_to_audio(
-                voiceover_script=panel.voiceover_script,
-                word_timestamps=word_timestamps,
-                elements=elements,
-                total_duration=real_audio_duration,
-            )
-            print(
-                f"    Aligned {len(element_timings)} elements: "
-                f"{ {k: round(v, 2) for k, v in element_timings.items()} }"
-            )
-
-            # Persist the full render plan (template, props, timings) for audit
-            slide_plan_full = {
-                **slide_plan,
-                "element_timings": element_timings,
-                "elements": elements,
-            }
-            Path(props_path).write_text(json.dumps(slide_plan_full, indent=2))
-
-            # Step 3e: Remotion renders the slide with per-element timings
-            render_slide(
-                template=slide_plan["template"],
-                props=slide_plan["props"],
-                audio_path=panel.audio_path,
-                output_path=clip_path,
-                duration_seconds=real_audio_duration,
-                element_timings=element_timings,
-            )
-            panel.clip_path = clip_path
-            # on_screen_text is the list of strings actually rendered on
-            # the slide — pulled from the element descriptions the LLM
-            # produced above. The preview UI shows this in the inspector.
-            on_screen_text = [
-                str(e.get("description", "")).strip()
-                for e in elements
-                if str(e.get("description", "")).strip()
-            ]
-            panel_info.update({
-                "template": slide_plan["template"],
-                "duration": real_audio_duration,
-                "element_timings": element_timings,
-                "on_screen_text": on_screen_text,
-            })
 
         elif panel.screen_type == ScreenType.STOCK_VIDEO:
-            print(f"  [Panel {panel.panel_number:02d}] STOCK VIDEO → Pexels + ffmpeg overlay")
-
-            # Step 3a: probe the real audio length (same reasoning as slides)
-            real_audio_duration = _probe_audio_duration(panel.audio_path)
-            if abs(real_audio_duration - panel.duration_seconds) > 0.1:
-                print(
-                    f"    Audio duration: {real_audio_duration:.2f}s "
-                    f"(fixture estimate was {panel.duration_seconds}s)"
-                )
-            panel.duration_seconds = real_audio_duration
-
-            # Step 3b: keyword → Pexels search → download → audio overlay.
-            # Text overlay (title/subtitle) is optional — comes from the
-            # fixture via getattr so panels without these fields just
-            # render a plain stock video without any text on top.
-            stock_title = getattr(panel, "stock_title", None) or None
-            stock_subtitle = getattr(panel, "stock_subtitle", None) or None
+            print(f"  [Panel {panel.panel_number:02d}] STOCK VIDEO → Pexels + scene composition")
+            title, subtitle = _stock_text_overlays(panel.overlay_elements)
             stock_result = create_stock_video_panel(
-                visual_direction=panel.visual_direction,
+                visual_direction=panel.design_brief,
                 audio_path=panel.audio_path,
                 output_path=clip_path,
                 target_duration=real_audio_duration,
-                title=stock_title,
-                subtitle=stock_subtitle,
+                title=title,
+                subtitle=subtitle,
             )
-            # Dump the search metadata next to the clip for auditability
-            meta_path = os.path.join(
-                stock_artifacts_dir, f"panel_{panel.panel_number:02d}.json"
-            )
+            meta_path = os.path.join(stock_artifacts_dir, f"panel_{panel.panel_number:02d}.json")
             Path(meta_path).write_text(json.dumps(stock_result, indent=2))
-            panel.clip_path = clip_path
-            # on_screen_text for stock video = the actual overlay text
-            # if the pipeline drew any, otherwise an empty list. Inspector
-            # falls back to visual_direction in that case.
-            stock_on_screen: list[str] = [
-                t for t in (stock_title, stock_subtitle) if t
-            ]
-            panel_info.update({
-                "pexels_query": stock_result["query"],
-                "pexels_video_id": stock_result["pexels_video_id"],
-                "pexels_page_url": stock_result["pexels_page_url"],
-                "pexels_variant_size": stock_result["variant_size"],
-                "duration": real_audio_duration,
-                "on_screen_text": stock_on_screen,
-            })
+            base_video_path = clip_path
+            panel_info.update(
+                {
+                    "pexels_query": stock_result["query"],
+                    "pexels_video_id": stock_result["pexels_video_id"],
+                    "pexels_page_url": stock_result["pexels_page_url"],
+                    "pexels_variant_size": stock_result["variant_size"],
+                }
+            )
 
+        elif panel.screen_type in {ScreenType.PRODUCT_DEMO, ScreenType.SOLID_BG}:
+            print(f"  [Panel {panel.panel_number:02d}] {panel.screen_type.value.upper()} → scene composition")
+            base_video_path = panel.base_media_path
         else:
-            raise ValueError(
-                f"Unknown screen_type for panel {panel.panel_number}: "
-                f"{panel.screen_type!r}"
-            )
+            raise ValueError(f"Unknown screen_type for panel {panel.panel_number}: {panel.screen_type!r}")
 
-        # Post-render: apply keyframe overlay if enabled and keyframes exist
-        if config.enable_keyframe_overlay and panel.keyframes and panel.clip_path:
-            print(f"  [Panel {panel.panel_number:02d}] Applying keyframe overlay ({len(panel.keyframes)} keyframes)")
-            real_dur = panel_info.get("duration") or panel.duration_seconds
-            render_keyframe_overlay(
-                base_video_path=panel.clip_path,
-                keyframes=panel.keyframes,
-                duration_seconds=real_dur,
-                output_path=panel.clip_path,
-                audio_path=panel.audio_path,
-            )
-            panel_info["keyframe_count"] = len(panel.keyframes)
-
+        render_scene_composition(
+            screen_type=panel.screen_type.value,
+            composition=panel.composition.value,
+            canvas_mode=panel.canvas_mode.value,
+            overlay_elements=panel.overlay_elements,
+            duration_seconds=real_audio_duration,
+            output_path=clip_path,
+            base_video_path=base_video_path,
+            audio_path=panel.audio_path,
+        )
+        panel.clip_path = clip_path
+        panel_info["overlay_elements"] = panel.overlay_elements
+        panel_info["overlay_count"] = len(panel.overlay_elements)
+        panel_info["on_screen_text"] = _overlay_text_strings(panel.overlay_elements)
         panel_manifests.append(panel_info)
 
-    # 4. Stitch all clips
-    print(f"\n[4/4] Stitching final video...")
+    print("\n[4/4] Stitching final video...")
     ordered_clips = [
-        os.path.join(clips_dir, f"panel_{p.panel_number:02d}.mp4")
-        for p in sorted(panels, key=lambda p: p.panel_number)
+        os.path.join(clips_dir, f"panel_{panel.panel_number:02d}.mp4")
+        for panel in sorted(panels, key=lambda panel: panel.panel_number)
     ]
     final_path = os.path.join(config.output_dir, "final.mp4")
     stitch_videos(ordered_clips, final_path)
 
-    # Manifest
     elapsed = time.time() - start
     manifest = {
         "storyboard": config.storyboard_path,
@@ -405,11 +258,6 @@ def run_pipeline(config: PipelineConfig) -> str:
         "per_panel": panel_manifests,
     }
 
-    # Enrich with UI-required fields (clip_path, video_model, voice_model,
-    # duration_seconds per panel; storyboard_title and total_duration_seconds
-    # at top level) BEFORE writing — so manifest.json and index.html stay
-    # consistent in a single run. Purely additive, no existing field is
-    # renamed or dropped.
     enrich_manifest(
         manifest,
         storyboard_title=storyboard.title,
@@ -419,17 +267,9 @@ def run_pipeline(config: PipelineConfig) -> str:
 
     manifest_path = os.path.join(config.output_dir, "manifest.json")
     Path(manifest_path).write_text(json.dumps(manifest, indent=2))
-
-    # Write the preview UI next to the manifest — a self-contained HTML
-    # file that fetches manifest.json on load and lets you click through
-    # each raw pre-stitch clip. See preview.py and
-    # docs/superpowers/specs/2026-04-10-video-pipeline-ui-design.md.
     index_path = write_preview(config.output_dir)
 
     print(f"\n=== Done in {elapsed:.1f}s ===")
     print(f"Final video: {final_path}")
     print(f"Preview UI:  {index_path}")
-    print(
-        f"  → cd {config.output_dir} && python3 -m http.server 8765"
-    )
     return final_path

@@ -161,7 +161,7 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   background: #1C2118;
 }
 
-/* Timeline is NOT a box-within-a-box — no bg, no horizontal padding,
+/* Clip strip is NOT a box-within-a-box — no bg, no horizontal padding,
  * no radius. Tiles align flush with the player's left and right edges
  * so the "player width" and "tile strip width" are identical. */
 .timeline {
@@ -234,7 +234,7 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
 }
 .tile { position: relative; }
 .tile:hover { border-color: var(--sage-4); }
-/* Three screen types, three backgrounds — none of them are sage-8, so
+/* Four screen types, four backgrounds — none of them are sage-8, so
  * the active outline color (sage-10) stays visually distinct from any
  * inactive tile and doesn't get confused with "just a talking_head". */
 .tile-talking_head {
@@ -243,12 +243,22 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   border-color: var(--sage-8);
 }
 .tile-talking_head:hover { border-color: var(--sage-9); }
-.tile-slides { background: var(--card-bg); color: var(--sage-7); }
+.tile-product_demo {
+  background: #edf3ff;
+  color: #2855a6;
+  border-color: #b7cdf6;
+}
+.tile-product_demo:hover { border-color: #94b4ee; }
+.tile-solid_bg {
+  background: var(--card-bg);
+  color: var(--sage-7);
+}
 .tile-stock_video {
   background: var(--sage-2);
   color: var(--sage-8);
   border-color: var(--sage-4);
 }
+.tile-stock_video:hover { border-color: var(--sage-5); }
 /* Active tile — inset box-shadow ring so the highlight is drawn
  * INSIDE the tile's footprint, not outside it. An outer outline or
  * drop shadow would bleed into the 3px gap between tiles and make the
@@ -276,7 +286,8 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   border: 1px solid var(--sage-3);
 }
 .dot-talking_head { background: var(--sage-5); border-color: var(--sage-8); }
-.dot-slides { background: var(--card-bg); }
+.dot-product_demo { background: #edf3ff; border-color: #b7cdf6; }
+.dot-solid_bg { background: var(--card-bg); }
 .dot-stock_video { background: var(--sage-2); border-color: var(--sage-4); }
 
 /* Inspector is always visible in its reserved 260px column. Contents
@@ -317,7 +328,8 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
   margin-bottom: 26px;
 }
 .badge-talking_head { background: var(--sage-8); color: white; }
-.badge-slides { background: var(--sage-2); color: var(--sage-8); }
+.badge-product_demo { background: #dfeaff; color: #2855a6; }
+.badge-solid_bg { background: var(--sage-2); color: var(--sage-8); }
 .badge-stock_video { background: var(--sage-4); color: var(--sage-10); }
 
 .model-row {
@@ -426,7 +438,8 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
         <div class="tiles" id="tiles"></div>
         <div class="legend">
           <span><span class="legend-dot dot-talking_head"></span> talking head (HeyGen)</span>
-          <span><span class="legend-dot dot-slides"></span> slides (Remotion)</span>
+          <span><span class="legend-dot dot-product_demo"></span> product demo (Remotion)</span>
+          <span><span class="legend-dot dot-solid_bg"></span> solid bg (Remotion)</span>
           <span><span class="legend-dot dot-stock_video"></span> stock video (Pexels)</span>
         </div>
       </div>
@@ -520,8 +533,13 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
     document.title = 'Plotline · ' + title;
     $('page-title').textContent = title;
 
-    // Timeline meta line
-    const counts = { talking_head: 0, slides: 0, stock_video: 0 };
+    // Clip-strip meta line
+    const counts = {
+      talking_head: 0,
+      product_demo: 0,
+      solid_bg: 0,
+      stock_video: 0,
+    };
     perPanel.forEach((p) => {
       const k = p.screen_type;
       counts[k] = (counts[k] || 0) + 1;
@@ -529,7 +547,8 @@ h3, h4 { font-family: 'Nunito', sans-serif; font-weight: 600; letter-spacing: -0
     const totalSec = Number(manifest.total_duration_seconds) || 0;
     const metaParts = [formatDuration(totalSec)];
     if (counts.talking_head) metaParts.push(counts.talking_head + ' talking head');
-    if (counts.slides) metaParts.push(counts.slides + ' slides');
+    if (counts.product_demo) metaParts.push(counts.product_demo + ' product demo');
+    if (counts.solid_bg) metaParts.push(counts.solid_bg + ' solid bg');
     if (counts.stock_video) metaParts.push(counts.stock_video + ' stock video');
     $('timeline-meta').textContent = metaParts.join(' · ');
 

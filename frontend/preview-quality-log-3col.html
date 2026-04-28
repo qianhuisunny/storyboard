@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quality Log — 3-Column Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        border: '#e5e7eb',
+        ring: '#6b7280',
+        background: '#ffffff',
+        foreground: '#111827',
+        muted: { DEFAULT: '#f3f4f6', foreground: '#6b7280' },
+        card: '#ffffff',
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; margin: 0; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .timeline-dot {
+    position: absolute; left: 0; top: 16px;
+    width: 10px; height: 10px;
+    transform: translateX(-5px);
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: #d1d5db;
+  }
+</style>
+</head>
+<body class="bg-background text-foreground h-screen flex flex-col">
+
+<!-- Header -->
+<div class="border-b px-6 py-3 shrink-0">
+  <div class="flex items-center gap-4">
+    <button class="flex items-center gap-1 text-sm text-gray-500 hover:text-foreground px-2 py-1 rounded-md hover:bg-gray-100">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      Admin
+    </button>
+    <h1 class="text-lg font-semibold">Quality Log</h1>
+    <span class="text-xs text-gray-500">35 projects</span>
+  </div>
+</div>
+
+<!-- 3-column body -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- Col 1: Project list -->
+  <div class="w-[220px] border-r overflow-y-auto shrink-0 bg-gray-50/50">
+    <div class="p-2">
+      <input type="text" placeholder="Filter projects..." class="w-full h-7 rounded-md border bg-white px-2 text-xs placeholder:text-gray-400 focus:outline-none focus:ring-1 focus:ring-gray-300 mb-1" id="filterInput" oninput="filterProjects()" />
+    </div>
+    <div id="projectList">
+      <!-- Projects rendered by JS -->
+    </div>
+  </div>
+
+  <!-- Col 2: Timeline -->
+  <div class="flex-1 overflow-y-auto p-4 border-r" id="timeline-panel" style="min-width: 300px;">
+    <!-- Rendered by JS on project select -->
+  </div>
+
+  <!-- Col 3: Detail panel -->
+  <div class="flex-1 overflow-y-auto p-4" id="detail-panel" style="min-width: 320px;">
+    <div class="flex h-full items-center justify-center text-sm text-gray-400">
+      Select an event to view details
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ── Mock project data ──
+const PROJECTS = [
+  { id: "fixture-quality-dash-001", title: "CLI tools every developer needs", events: 9 },
+  { id: "1773465713409", title: "How to become a billionnaire", events: 0 },
+  { id: "1773686140781", title: "Claude Code for marketers", events: 0 },
+  { id: "1773687226841", title: "Claude code for marketers (v2)", events: 0 },
+  { id: "1773692786261", title: "Challenges for female leaders in tech", events: 0 },
+  { id: "1774149667144", title: "ChatGPT for Data Analysis", events: 0 },
+  { id: "1774150978347", title: "How to drape robot arms before surgery", events: 0 },
+  { id: "1774202707899", title: "HI", events: 0 },
+  { id: "1774203470824", title: "Kung Fu instructors for true beginners", events: 0 },
+  { id: "1774294881351", title: "Meeting transcript to action items", events: 0 },
+  { id: "1774296123646", title: "AI to condense meeting notes into Jira tickets", events: 0 },
+  { id: "p-senior-ops", title: "How senior operators cut meeting load", events: 0 },
+  { id: "p-internal-docs", title: "Good internal docs vs dead internal docs", events: 0 },
+  { id: "p-ai-writing", title: "When AI writing tools flatten your thinking", events: 0 },
+  { id: "p-roadmaps", title: "Roadmaps should show bets, not promises", events: 0 },
+  { id: "p-onboarding", title: "Developer onboarding without more docs", events: 0 },
+];
+
+let selectedProjectId = null;
+
+function renderProjectList(filter = "") {
+  const list = document.getElementById("projectList");
+  const lc = filter.toLowerCase();
+  const filtered = PROJECTS.filter(p => p.title.toLowerCase().includes(lc));
+
+  list.innerHTML = filtered.map(p => `
+    <button
+      onclick="selectProject('${p.id}')"
+      id="proj-${p.id}"
+      class="w-full text-left px-3 py-2 text-xs border-b border-gray-100 transition-colors ${
+        p.id === selectedProjectId
+          ? 'bg-white border-l-2 border-l-gray-800 font-medium'
+          : 'hover:bg-white border-l-2 border-l-transparent'
+      }"
+    >
+      <div class="truncate ${p.events > 0 ? 'text-foreground' : 'text-gray-500'}">${p.title}</div>
+      ${p.events > 0 ? `<span class="text-[10px] text-gray-400">${p.events} events</span>` : ''}
+    </button>
+  `).join("");
+}
+
+function filterProjects() {
+  const val = document.getElementById("filterInput").value;
+  renderProjectList(val);
+}
+
+// ── Timeline + Detail data (only for fixture project) ──
+function selectProject(id) {
+  selectedProjectId = id;
+  renderProjectList(document.getElementById("filterInput").value);
+
+  const timeline = document.getElementById("timeline-panel");
+  const detail = document.getElementById("detail-panel");
+
+  if (id !== "fixture-quality-dash-001") {
+    timeline.innerHTML = '<div class="py-12 text-center text-gray-400 text-sm">No quality log entries for this project.</div>';
+    detail.innerHTML = '<div class="flex h-full items-center justify-center text-sm text-gray-400">Select an event to view details</div>';
+    return;
+  }
+
+  timeline.innerHTML = `
+    <p class="mb-4 text-xs text-gray-500">9 events across 2 stages</p>
+
+    <!-- OUTLINE -->
+    <div class="mb-6">
+      <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Outline (Director)</h3>
+      <div class="rounded-lg border bg-card">
+        <button onclick="toggleChain('o1')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+          <svg id="o1-chev" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+          <span class="font-medium">Chain #1</span>
+          <span class="text-xs text-gray-500">2 attempts · score: 7.8 · passed</span>
+        </button>
+        <div id="o1-body" class="relative ml-6 border-l border-gray-200 pb-2">
+          ${eventNode('gen1', 'generate', 'blue', '14:25:00', 'Attempt 1 · gpt-4o', 'M13 10V3L4 14h7v7l9-11h-7z')}
+          ${eventNode('eval1', 'eval', 'violet', '14:25:30', 'FAIL · 5.9', 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4')}
+          ${eventNode('gen2', 'generate', 'blue', '14:26:00', 'Attempt 2 · gpt-4o', 'M13 10V3L4 14h7v7l9-11h-7z')}
+          ${eventNode('eval2', 'eval', 'violet', '14:26:30', 'PASS · 7.8', 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4')}
+          ${eventNode('override1', 'override', 'amber', '14:27:00', 'section:3', 'M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z')}
+          ${eventNode('approve1', 'approve', 'green', '14:28:00', 'Full stage approved', 'M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z')}
+        </div>
+      </div>
+    </div>
+
+    <!-- STORYBOARD -->
+    <div class="mb-6">
+      <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">Storyboard (Writer)</h3>
+      <div class="rounded-lg border bg-card">
+        <button onclick="toggleChain('s1')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+          <svg id="s1-chev" class="w-4 h-4 text-gray-400 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+          <span class="font-medium">Chain #7</span>
+          <span class="text-xs text-gray-500">1 attempt · score: 7.6 · passed</span>
+        </button>
+        <div id="s1-body" class="relative ml-6 border-l border-gray-200 pb-2">
+          ${eventNode('gen3', 'generate', 'blue', '14:29:00', 'Attempt 1 · gpt-4o', 'M13 10V3L4 14h7v7l9-11h-7z')}
+          ${eventNode('eval3', 'eval', 'violet', '14:29:30', 'PASS · 7.6', 'M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4')}
+          ${eventNode('approve2', 'approve', 'green', '14:30:00', 'Full stage approved', 'M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z')}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Auto-select first event
+  selectEvent('gen1');
+}
+
+function eventNode(id, type, color, time, summary, iconPath) {
+  const labels = { generate: 'Generate', eval: 'Evaluate', override: 'Override', approve: 'Approve' };
+  const colors = {
+    blue: 'text-blue-600 bg-blue-50 border-blue-200',
+    violet: 'text-violet-600 bg-violet-50 border-violet-200',
+    amber: 'text-amber-600 bg-amber-50 border-amber-200',
+    green: 'text-green-600 bg-green-50 border-green-200',
+  };
+  return `
+    <div class="relative pl-4 -ml-px">
+      <div class="timeline-dot"></div>
+      <button onclick="selectEvent('${id}')" id="btn-${id}"
+        class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2 transition-colors hover:bg-gray-50">
+        <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border ${colors[color]}">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="${iconPath}"/></svg>
+        </div>
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-2">
+            <span class="text-sm font-medium">${labels[type]}</span>
+            <span class="text-xs text-gray-500">${time}</span>
+          </div>
+          <p class="text-xs text-gray-500 truncate">${summary}</p>
+        </div>
+      </button>
+    </div>`;
+}
+
+function toggleChain(id) {
+  const body = document.getElementById(id + '-body');
+  const chev = document.getElementById(id + '-chev');
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    chev.style.transform = '';
+  } else {
+    body.style.display = 'none';
+    chev.style.transform = 'rotate(-90deg)';
+  }
+}
+
+// ── Detail data ──
+function scoreRow(label, score, feedback) {
+  let c;
+  if (score >= 7.0) c = 'text-green-700 bg-green-50 border-green-200';
+  else if (score >= 6.0) c = 'text-yellow-700 bg-yellow-50 border-yellow-200';
+  else c = 'text-red-700 bg-red-50 border-red-200';
+  const fb = feedback ? `<span class="text-xs text-gray-500 max-w-[180px] truncate" title="${feedback}">${feedback}</span>` : '';
+  return `<div class="flex items-center justify-between py-1">
+    <span class="text-sm text-gray-500">${label}</span>
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-sm font-medium tabular-nums ${c}">${score.toFixed(1)}</span>
+      ${fb}
+    </div>
+  </div>`;
+}
+
+function metaRow(label, value) {
+  if (!value) return '';
+  return `<div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-20">${label}</span><span class="font-mono text-xs">${value}</span></div>`;
+}
+
+function section(title, content) {
+  return `<div class="space-y-1.5"><h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">${title}</h4>${content}</div>`;
+}
+
+function codeBlock(text) {
+  return `<pre class="max-h-[250px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">${text}</pre>`;
+}
+
+const DETAILS = {
+  gen1: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', `<div class="space-y-1">${metaRow('Model','gpt-4o')}${metaRow('Prompt','storyboard_director_prompt_v0324.md')}${metaRow('Attempt','1')}${metaRow('Scope','full')}</div>`)}
+    ${section('Context (input)', codeBlock("{'round': 'review', 'fields': {\n  'viewer_outcome': {'value': 'Learn 3 CLI tools...', ...},\n  'target_audience': {'value': 'Junior developers (0-2 years)', ...},\n  ...\n}}"))}
+    ${section('Raw Response', codeBlock("Section 1 — Hook: The Terminal Is Your Friend\nPurpose: Grab attention...\n\nSection 2 — Navigation Basics\nPurpose: Teach foundational commands..."))}
+  </div>`,
+
+  eval1: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', `<div class="space-y-1">${metaRow('Model','gpt-4o')}${metaRow('Prompt','OUTLINE_EVAL_PROMPT_v0419.md')}${metaRow('Scope','full')}</div>`)}
+    ${section('Scores', `<div class="space-y-0.5">
+      ${scoreRow('Composite', 5.9)}
+      ${scoreRow('Gut check', 5.5, 'Structure is too linear')}
+      ${scoreRow('narrative_structure', 5.0, 'Flat progression')}
+      ${scoreRow('audience_alignment', 6.0, 'Mostly on target')}
+      ${scoreRow('content_coverage', 7.0, 'Good breadth')}
+      ${scoreRow('visual_potential', 5.5, 'Mostly talking head')}
+      ${scoreRow('pacing', 6.0, 'Uneven section lengths')}
+    </div>`)}
+  </div>`,
+
+  gen2: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', `<div class="space-y-1">${metaRow('Model','gpt-4o')}${metaRow('Prompt','storyboard_director_prompt_v0324.md')}${metaRow('Attempt','2')}${metaRow('Scope','full')}</div>`)}
+    ${section('Raw Response', codeBlock("Section 1 — Hook: Why Most Devs Are Slow\nPurpose: Open with a relatable pain point\n...\n\nSection 2 — The Real Problem\n...\n\nSection 3 — 5 Tools That Change Everything\n...\n\nSection 4 — Takeaway\n..."))}
+  </div>`,
+
+  eval2: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', `<div class="space-y-1">${metaRow('Model','gpt-4o')}${metaRow('Prompt','OUTLINE_EVAL_PROMPT_v0419.md')}${metaRow('Scope','full')}</div>`)}
+    ${section('Scores', `<div class="space-y-0.5">
+      ${scoreRow('Composite', 7.8)}
+      ${scoreRow('Gut check', 8.0, 'Strong hook, clear arc')}
+      ${scoreRow('narrative_structure', 8.5, 'Clear problem-solution arc')}
+      ${scoreRow('audience_alignment', 7.5, 'Well-targeted')}
+      ${scoreRow('content_coverage', 8.0, 'Comprehensive')}
+      ${scoreRow('visual_potential', 7.0, 'Good mix of screen types')}
+      ${scoreRow('pacing', 8.0, 'Well-balanced sections')}
+    </div>`)}
+  </div>`,
+
+  override1: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', metaRow('Scope','section:3'))}
+    ${section('Instruction', '<p class="text-sm">Trim to 3 tools, not 5 — video is already long</p>')}
+    ${section('Before', codeBlock("Section 3 — 5 Tools That Change Everything\nPurpose: Concrete, actionable tool introductions\n...\nTalking points:\n- cd/ls/grep — the holy trinity\n- Git CLI vs GUI\n- Shell aliases\n- tmux\n- fzf"))}
+    ${section('After', codeBlock("Section 3 — 3 Tools That Change Everything\nPurpose: Concrete, actionable tool introductions\n...\nTalking points:\n- Git CLI vs GUI\n- Shell aliases\n- fzf"))}
+  </div>`,
+
+  approve1: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', `${metaRow('Scope','full')}${metaRow('Timestamp','4/21/2026, 2:28:00 PM')}`)}
+  </div>`,
+
+  gen3: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', `<div class="space-y-1">${metaRow('Model','gpt-4o')}${metaRow('Prompt','storyboard_writer_prompt_v0324.md')}${metaRow('Attempt','1')}${metaRow('Scope','full')}</div>`)}
+    ${section('Context (input)', codeBlock("brief: {'round': 'review', ...}\noutline: Section 1 — Hook: Why Most Devs Are Slow\n...\nSection 3 — 3 Tools That Change Everything\n..."))}
+  </div>`,
+
+  eval3: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', `<div class="space-y-1">${metaRow('Model','gpt-4o')}${metaRow('Prompt','STORYBOARD_EVAL_PROMPT.md')}${metaRow('Scope','full')}</div>`)}
+    ${section('Scores', `<div class="space-y-0.5">
+      ${scoreRow('Composite', 7.6)}
+      ${scoreRow('Gut check', 7.5, 'Solid storyboard')}
+      ${scoreRow('voiceover_quality', 8.0, 'Conversational tone')}
+      ${scoreRow('visual_direction', 7.0, 'Clear direction')}
+      ${scoreRow('content_accuracy', 8.5, 'Faithful to outline')}
+      ${scoreRow('screen_transitions', 7.0, 'Mostly smooth')}
+      ${scoreRow('duration_balance', 7.5, 'Good distribution')}
+    </div>`)}
+  </div>`,
+
+  approve2: () => `<div class="rounded-lg border p-4 space-y-4">
+    ${section('Metadata', `${metaRow('Scope','full')}${metaRow('Timestamp','4/21/2026, 2:30:00 PM')}`)}
+  </div>`,
+};
+
+let currentSelected = null;
+
+function selectEvent(id) {
+  document.querySelectorAll('[id^="btn-"]').forEach(el => {
+    el.classList.remove('border-gray-200', 'bg-gray-50/60', 'shadow-sm');
+    el.classList.add('border-transparent');
+  });
+  const btn = document.getElementById('btn-' + id);
+  if (btn) {
+    btn.classList.remove('border-transparent');
+    btn.classList.add('border-gray-200', 'bg-gray-50/60', 'shadow-sm');
+  }
+  const detail = document.getElementById('detail-panel');
+  const renderer = DETAILS[id];
+  detail.innerHTML = renderer ? renderer() : '<p class="text-sm text-gray-400">No detail</p>';
+  currentSelected = id;
+}
+
+// Init
+renderProjectList();
+selectProject('fixture-quality-dash-001');
+</script>
+</body>
+</html>

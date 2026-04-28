@@ -80,6 +80,14 @@ User → Frontend (React/Vite :3000)
 - **Delete old before adding new** — When rewriting a file, first identify and remove ALL outdated content. Don't add new content on top of old content. Read the full file, identify what's obsolete, delete it, then write the new version.
 - **Trace the data flow first** — Before writing, map out: What does this component receive? → What does it produce? → Who consumes it? → What do they do with it?
 
+### 🔒 Pre-Flight Checklist (before modifying any feature)
+This project has accumulated multiple parallel code paths (event API, legacy convenience endpoints, pipeline-state, /stages autosave). Before changing anything, run through this checklist — do not skip straight to coding.
+
+1. **Trace the full data chain** — Where does this feature's data originate → what intermediate layers does it pass through → who consumes it → are there parallel/legacy paths doing the same thing?
+2. **Identify the source of truth** — Is the current state coming from event API? `/pipeline-state`? `/stages` autosave? Legacy endpoints (`/start`, `/approve`, `/reject`)? Which one are you modifying, and will the others diverge?
+3. **Grep for legacy/dead code in the same area** — Check for unused components, deprecated branches, or dormant paths that your change could accidentally activate or conflict with.
+4. **After the change, trace back** — Don't just confirm the build passes. Walk the data chain again and verify no legacy path has been left with stale assumptions or side effects.
+
 ---
 
 ## Task Lifecycle

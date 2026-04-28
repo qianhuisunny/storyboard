@@ -1,13 +1,12 @@
 """
 Stock video support via Pexels Videos API.
 
-The original storyboard PDF labeled a few panels as "Stock video" rather
-than "Slides" — they were meant to be real B-roll footage (a close-up of
-hands reviewing paperwork, two people at a whiteboard, etc.) rather than
-LLM-generated slide layouts. The earlier pipeline silently mapped these
-to slides because no stock-footage branch existed. This module fills
-that gap by pulling real footage from Pexels Videos (free, ~25k req/hour,
-CC0-ish Pexels license, native 25 fps / 1920x1080 is common).
+This module builds the real-footage base layer for ``screen_type=stock_video``.
+Instead of fabricating a static composition for every panel, we can pull
+real B-roll footage (hands reviewing paperwork, two people at a whiteboard,
+etc.) from Pexels Videos (free, ~25k req/hour, CC0-ish Pexels license,
+native 25 fps / 1920x1080 is common) and then hand that base clip to the
+shared scene-composition renderer.
 
 End-to-end flow per stock_video panel:
 
@@ -23,8 +22,7 @@ End-to-end flow per stock_video panel:
      on the Pexels clip), re-encode to the canonical format the
      stitcher consumes downstream (1920x1080 yuv420p 25 fps AAC 48k).
 
-If Pexels returns zero results for a query, we raise and let the
-pipeline fall back to a plain slide render for that panel rather than
+If Pexels returns zero results for a query, we raise rather than
 silently producing a blank clip.
 """
 import os
@@ -313,7 +311,7 @@ def _render_title_bar_png(
     # at the first path on every machine I've tested. TTC files are
     # font collections — index=0 is Regular, index=1 is Bold on
     # Helvetica.ttc. We deliberately pick Bold for the title so it
-    # has similar visual weight to the Remotion slide titles (56px
+    # has similar visual weight to the Remotion scene headlines (56px
     # bold) and dominates the overlay bar. The subtitle stays regular.
     title_font = None
     subtitle_font = None

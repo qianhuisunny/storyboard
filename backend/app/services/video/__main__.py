@@ -28,7 +28,6 @@ from .preview import make_sample
 
 # Resolve <repo_root>/data/video_output from this file: 5 .parent calls
 # take us from backend/app/services/video/__main__.py up to the repo root.
-# Same pattern used by slides.py for REMOTION_DIR / PROMPT_PATH.
 _REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent
 DEFAULT_OUTPUT_DIR = str(_REPO_ROOT / "data" / "video_output")
 DEFAULT_SAMPLE_DIR = str(_REPO_ROOT / "data" / "video_output_sample")
@@ -52,7 +51,7 @@ def main():
     gen.add_argument(
         "--voice",
         default="alloy",
-        help="OpenAI TTS voice for slides panels (default: alloy)",
+        help="OpenAI TTS voice for scene narration (default: alloy)",
     )
     gen.add_argument(
         "--avatar-id",
@@ -97,14 +96,14 @@ def main():
         help="Path to character reference image for Seedance lip sync",
     )
     gen.add_argument(
-        "--enable-keyframe-overlay",
+        "--enable-overlay",
         action="store_true",
-        help="Render keyframe overlays on panel clips (auto-generates if missing)",
+        help="Render overlay elements through the shared scene composition",
     )
     gen.add_argument(
-        "--skip-keyframe-gen",
+        "--skip-overlay-gen",
         action="store_true",
-        help="Use storyboard-provided keyframes only (don't auto-generate)",
+        help="Use storyboard-provided overlay elements only (don't auto-generate)",
     )
     gen.add_argument(
         "--dry-run",
@@ -151,7 +150,8 @@ def main():
         print(f"Storyboard: {sb.title}")
         print(f"Panels: {sb.total_panels}")
         print(f"Talking Head: {len(sb.talking_head_panels)}")
-        print(f"Slides: {len(sb.slides_panels)}")
+        print(f"Product Demo: {len(sb.product_demo_panels)}")
+        print(f"Solid BG: {len(sb.solid_bg_panels)}")
         print(f"Stock Video: {len(sb.stock_video_panels)}")
         if only_panels:
             print(f"Only panels: {only_panels}")
@@ -171,8 +171,8 @@ def main():
         only_panels=only_panels,
         talking_head_provider=args.talking_head_provider,
         seedance_ref_image=args.seedance_ref_image,
-        enable_keyframe_overlay=args.enable_keyframe_overlay,
-        skip_keyframe_gen=args.skip_keyframe_gen,
+        enable_overlay=args.enable_overlay,
+        skip_overlay_gen=args.skip_overlay_gen,
     )
 
     run_pipeline(config)

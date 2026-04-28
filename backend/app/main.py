@@ -24,6 +24,8 @@ import sentry_sdk
 
 load_dotenv()
 
+DEFAULT_ANONYMOUS_USER_ID = "anonymous"
+
 if os.getenv("SENTRY_DSN"):
     sentry_sdk.init(
         dsn=os.getenv("SENTRY_DSN"),
@@ -136,7 +138,7 @@ async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get
         repo = ProjectRepository(db)
         project = await repo.create_project(
             project_id=request.projectId,
-            user_id=request.userId or "",
+            user_id=request.userId or DEFAULT_ANONYMOUS_USER_ID,
             title=request.userInput[:100] if request.userInput else "",
             type_id=request.typeId,
             type_name=request.typeName,
@@ -854,11 +856,11 @@ async def generate_visual(project_id: str, screen_index: int, db: AsyncSession =
     return {"success": True, "on_screen_visual": on_screen_visual}
 
 @app.get("/api/projects")
-async def list_user_projects(user_id: str, db: AsyncSession = Depends(get_db)):
-    """List all projects for a specific user."""
+async def list_user_projects(user_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+    """List all projects for a specific user, including anonymous sessions."""
     try:
         repo = ProjectRepository(db)
-        db_projects = await repo.list_projects(user_id)
+        db_projects = await repo.list_projects(user_id or DEFAULT_ANONYMOUS_USER_ID)
 
         projects = []
 
@@ -888,15 +890,15 @@ async def list_user_projects(user_id: str, db: AsyncSession = Depends(get_db)):
 
 
 @app.delete("/api/project/{project_id}")
-async def delete_project(project_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
-    """Delete a project (only if owned by user)."""
+async def delete_project(project_id: str, user_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+    """Delete a project owned by the current signed-in or anonymous user."""
     try:
         import shutil
         repo = ProjectRepository(db)
         project = await repo.get_project(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
-        if project.user_id != user_id:
+        if project.user_id != (user_id or DEFAULT_ANONYMOUS_USER_ID):
             raise HTTPException(status_code=403, detail="Not authorized to delete this project")
         await repo.delete_project(project_id)
 
@@ -1295,6 +1297,9 @@ def verify_admin(user_id: Optional[str]) -> bool:
     In production, this would check Clerk user metadata.
     For now, we check against an environment variable or allow all in dev mode.
     """
+    if os.getenv("ALLOW_ANONYMOUS_ACCESS", "true").lower() != "false":
+        return True
+
     admin_ids = os.getenv("ADMIN_USER_IDS", "").split(",")
     admin_ids = [id.strip() for id in admin_ids if id.strip()]
 

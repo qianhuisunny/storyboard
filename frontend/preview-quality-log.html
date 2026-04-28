@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Quality Log Dashboard — Preview</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        border: '#e5e7eb',
+        ring: '#6b7280',
+        background: '#ffffff',
+        foreground: '#111827',
+        muted: { DEFAULT: '#f3f4f6', foreground: '#6b7280' },
+        card: '#ffffff',
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; }
+  .tabular-nums { font-variant-numeric: tabular-nums; }
+  .timeline-dot {
+    position: absolute; left: 0; top: 16px;
+    width: 10px; height: 10px;
+    transform: translateX(-5px);
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: #d1d5db;
+  }
+  .timeline-dot.active { background: #6b7280; }
+</style>
+</head>
+<body class="bg-background text-foreground h-screen flex flex-col">
+
+<!-- Header -->
+<div class="border-b px-6 py-3 shrink-0">
+  <div class="flex items-center gap-4">
+    <button class="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground px-2 py-1 rounded-md hover:bg-muted">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      Admin
+    </button>
+    <h1 class="text-lg font-semibold">Quality Log</h1>
+    <div class="ml-auto flex items-center gap-2">
+      <input type="text" value="fixture-quality-dash-001" class="h-8 w-64 rounded-md border bg-gray-50 px-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring" />
+      <button class="h-8 px-3 rounded-md border text-sm hover:bg-muted">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Body -->
+<div class="flex flex-1 overflow-hidden">
+
+  <!-- Left: Timeline -->
+  <div class="w-[55%] border-r overflow-y-auto p-4" id="timeline-panel">
+    <p class="mb-4 text-xs text-muted-foreground">9 events across 2 stages</p>
+
+    <!-- OUTLINE STAGE -->
+    <div class="mb-6">
+      <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Outline (Director)</h3>
+
+      <!-- Chain 1 -->
+      <div class="rounded-lg border bg-card">
+        <button onclick="toggleChain('outline-1')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+          <svg id="outline-1-chevron" class="w-4 h-4 text-muted-foreground transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+          <span class="font-medium">Chain #1</span>
+          <span class="text-xs text-muted-foreground">2 attempts · score: 7.8 · passed</span>
+        </button>
+        <div id="outline-1-body" class="relative ml-6 border-l border-border pb-2">
+
+          <!-- Event: generate attempt 1 -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('gen1')" id="btn-gen1" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-blue-600 bg-blue-50 border-blue-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Generate</span>
+                  <span class="text-xs text-muted-foreground">14:25:00</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">Attempt 1 · gpt-4o</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Event: eval FAIL -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('eval1')" id="btn-eval1" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-violet-600 bg-violet-50 border-violet-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Evaluate</span>
+                  <span class="text-xs text-muted-foreground">14:25:30</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">FAIL · 5.9</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Event: generate attempt 2 -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('gen2')" id="btn-gen2" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-blue-600 bg-blue-50 border-blue-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Generate</span>
+                  <span class="text-xs text-muted-foreground">14:26:00</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">Attempt 2 · gpt-4o</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Event: eval PASS -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('eval2')" id="btn-eval2" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-violet-600 bg-violet-50 border-violet-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Evaluate</span>
+                  <span class="text-xs text-muted-foreground">14:26:30</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">PASS · 7.8</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Event: override -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('override1')" id="btn-override1" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-amber-600 bg-amber-50 border-amber-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5H6a2 2 0 0 0-2 2v11a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2v-5m-1.414-9.414a2 2 0 1 1 2.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Override</span>
+                  <span class="text-xs text-muted-foreground">14:27:00</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">section:3</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- Event: approve -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('approve1')" id="btn-approve1" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-green-600 bg-green-50 border-green-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Approve</span>
+                  <span class="text-xs text-muted-foreground">14:28:00</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">Full stage approved</p>
+              </div>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- STORYBOARD STAGE -->
+    <div class="mb-6">
+      <h3 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Storyboard (Writer)</h3>
+
+      <div class="rounded-lg border bg-card">
+        <button onclick="toggleChain('sb-1')" class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-gray-50">
+          <svg id="sb-1-chevron" class="w-4 h-4 text-muted-foreground transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="m6 9 6 6 6-6"/></svg>
+          <span class="font-medium">Chain #7</span>
+          <span class="text-xs text-muted-foreground">1 attempt · score: 7.6 · passed</span>
+        </button>
+        <div id="sb-1-body" class="relative ml-6 border-l border-border pb-2">
+
+          <!-- generate -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('gen3')" id="btn-gen3" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-blue-600 bg-blue-50 border-blue-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Generate</span>
+                  <span class="text-xs text-muted-foreground">14:29:00</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">Attempt 1 · gpt-4o</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- eval PASS -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('eval3')" id="btn-eval3" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-violet-600 bg-violet-50 border-violet-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2M9 5a2 2 0 0 0 2 2h2a2 2 0 0 0 2-2M9 5a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2m-6 9 2 2 4-4"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Evaluate</span>
+                  <span class="text-xs text-muted-foreground">14:29:30</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">PASS · 7.6</p>
+              </div>
+            </button>
+          </div>
+
+          <!-- approve -->
+          <div class="relative pl-4 -ml-px">
+            <div class="timeline-dot"></div>
+            <button onclick="selectEvent('approve2')" id="btn-approve2" class="w-full text-left flex items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-colors hover:bg-gray-50">
+              <div class="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-green-600 bg-green-50 border-green-200">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+              </div>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-sm font-medium">Approve</span>
+                  <span class="text-xs text-muted-foreground">14:30:00</span>
+                </div>
+                <p class="text-xs text-muted-foreground truncate">Full stage approved</p>
+              </div>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Detail Panel -->
+  <div class="flex-1 overflow-y-auto p-4" id="detail-panel">
+    <!-- Default: eval2 (the passing outline eval) -->
+  </div>
+
+</div>
+
+<script>
+// ── Detail panel data ──
+const details = {
+  gen1: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="space-y-1">
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Model</span><span class="font-mono text-xs">gpt-4o</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Prompt</span><span class="font-mono text-xs">storyboard_director_prompt_v0324.md</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Attempt</span><span class="font-mono text-xs">1</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">full</span></div>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Context (input)</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">{'round': 'review', 'fields': {
+  'viewer_outcome': {'value': 'Learn 5 CLI tools that save 30+ min/day', 'source': 'extracted', 'confirmed': True},
+  'target_audience': {'value': 'Junior developers (0-2 years)', 'source': 'extracted', 'confirmed': True},
+  'duration': {'value': 300, 'source': 'extracted', 'confirmed': True},
+  'audience_level': {'value': 'beginner', 'source': 'inferred', 'confirmed': True},
+  'platform': {'value': 'youtube', 'source': 'extracted', 'confirmed': True},
+  'on_camera_presence': {'value': 'none', 'source': 'extracted', 'confirmed': True},
+  'delivery_tone': {'value': 'casual, encouraging', 'source': 'extracted', 'confirmed': True},
+  'point_of_view': {'value': 'Every dev hits a wall where clicking through GUIs becomes the bottleneck', 'source': 'inferred', 'confirmed': True},
+  'core_talking_points': {'value': ['Why the terminal matters', 'cd/ls/grep basics', 'Git CLI vs GUI', 'Shell aliases', 'tmux/screen'], 'source': 'extracted', 'confirmed': True},
+  'misconceptions': {'value': 'Terminal is only for sysadmins', 'source': 'inferred', 'confirmed': True}
+}}</pre>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Raw Response</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">Section 1 — Hook: The Terminal Is Your Friend
+Purpose: Grab attention by showing the speed gap between GUI and CLI
+Entry assumption: Viewer uses GUIs for everything
+Exit state: Viewer is curious about CLI alternatives
+Duration: 0:20–0:30
+Talking points:
+- Side-by-side: renaming 50 files in Finder vs one terminal command
+- "What if I told you this takes 3 seconds?"
+
+Section 2 — Navigation Basics
+Purpose: Teach foundational commands
+Entry assumption: Viewer can open a terminal
+Exit state: Viewer can navigate filesystem confidently
+Duration: 0:45–1:00
+Talking points:
+- cd, ls, pwd — the holy trinity
+- Tab completion changes everything</pre>
+      </div>
+    </div>`,
+
+  eval1: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="space-y-1">
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Model</span><span class="font-mono text-xs">gpt-4o</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Prompt</span><span class="font-mono text-xs">OUTLINE_EVAL_PROMPT_v0419.md</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">full</span></div>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Scores</h4>
+        <div class="space-y-0.5">
+          ${scoreRow('Composite', 5.9)}
+          ${scoreRow('Gut check', 5.5, 'Structure is too linear, no narrative tension')}
+          ${scoreRow('narrative_structure', 5.0, 'Flat progression')}
+          ${scoreRow('audience_alignment', 6.0, 'Mostly on target')}
+          ${scoreRow('content_coverage', 7.0, 'Good breadth')}
+          ${scoreRow('visual_potential', 5.5, 'Mostly talking head')}
+          ${scoreRow('pacing', 6.0, 'Uneven section lengths')}
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Context (input)</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">Target audience: Junior developers (0-2 years) (level: beginner)
+Viewer outcome: Learn 5 CLI tools that save 30+ min/day
+Point of view: Every dev hits a wall where clicking through GUIs becomes the bottleneck
+Target duration (seconds): 300
+Core misconception: Terminal is only for sysadmins
+Must avoid:
+(none)
+Core talking points in order:
+1. Why the terminal matters
+2. cd/ls/grep basics
+3. Git CLI vs GUI
+4. Shell aliases
+5. tmux/screen
+
+Section 1 — Hook: The Terminal Is Your Friend
+Purpose: Grab attention by showing the speed gap between GUI and CLI
+Entry assumption: Viewer uses GUIs for everything
+Exit state: Viewer is curious about CLI alternatives
+Duration: 0:20–0:30
+Talking points:
+- Side-by-side: renaming 50 files in Finder vs one terminal command
+- "What if I told you this takes 3 seconds?"
+
+Section 2 — Navigation Basics
+...</pre>
+      </div>
+    </div>`,
+
+  gen2: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="space-y-1">
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Model</span><span class="font-mono text-xs">gpt-4o</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Prompt</span><span class="font-mono text-xs">storyboard_director_prompt_v0324.md</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Attempt</span><span class="font-mono text-xs">2</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">full</span></div>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Context (input)</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">{'round': 'review', 'fields': {
+  'viewer_outcome': {'value': 'Learn 5 CLI tools that save 30+ min/day', 'source': 'extracted', 'confirmed': True},
+  'target_audience': {'value': 'Junior developers (0-2 years)', 'source': 'extracted', 'confirmed': True},
+  'duration': {'value': 300, 'source': 'extracted', 'confirmed': True},
+  'audience_level': {'value': 'beginner', 'source': 'inferred', 'confirmed': True},
+  'platform': {'value': 'youtube', 'source': 'extracted', 'confirmed': True},
+  'on_camera_presence': {'value': 'none', 'source': 'extracted', 'confirmed': True},
+  'delivery_tone': {'value': 'casual, encouraging', 'source': 'extracted', 'confirmed': True},
+  'point_of_view': {'value': 'Every dev hits a wall where clicking through GUIs becomes the bottleneck', 'source': 'inferred', 'confirmed': True},
+  'core_talking_points': {'value': ['Why the terminal matters', 'cd/ls/grep basics', 'Git CLI vs GUI', 'Shell aliases', 'tmux/screen'], 'source': 'extracted', 'confirmed': True},
+  'misconceptions': {'value': 'Terminal is only for sysadmins', 'source': 'inferred', 'confirmed': True}
+}}</pre>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Raw Response</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">Section 1 — Hook: Why Most Devs Are Slow
+Purpose: Open with a relatable pain point — the viewer has felt this
+Entry assumption: Viewer relies on GUIs, doesn't question it
+Exit state: Viewer wants to know what they're missing
+Duration: 0:20–0:30
+Talking points:
+- "You're mass-renaming files by clicking. One by one."
+- Show the 3-second terminal alternative
+
+Section 2 — The Real Problem
+Purpose: Reframe the misconception
+Entry assumption: Viewer thinks terminal = hard
+Exit state: Viewer sees terminal as a time investment, not a barrier
+Duration: 0:30–0:45
+Talking points:
+- "It's not about being a hacker — it's about being fast"
+- The learning curve is 2 hours, the payoff is years
+
+Section 3 — 5 Tools That Change Everything
+Purpose: Concrete, actionable tool introductions
+...
+
+Section 4 — Takeaway
+Purpose: Motivate the viewer to start today
+...</pre>
+      </div>
+    </div>`,
+
+  eval2: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="space-y-1">
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Model</span><span class="font-mono text-xs">gpt-4o</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Prompt</span><span class="font-mono text-xs">OUTLINE_EVAL_PROMPT_v0419.md</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">full</span></div>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Scores</h4>
+        <div class="space-y-0.5">
+          ${scoreRow('Composite', 7.8)}
+          ${scoreRow('Gut check', 8.0, 'Strong hook, clear arc, good visual variety')}
+          ${scoreRow('narrative_structure', 8.5, 'Clear problem-solution arc')}
+          ${scoreRow('audience_alignment', 7.5, 'Well-targeted')}
+          ${scoreRow('content_coverage', 8.0, 'Comprehensive')}
+          ${scoreRow('visual_potential', 7.0, 'Good mix of screen types')}
+          ${scoreRow('pacing', 8.0, 'Well-balanced sections')}
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Context (input)</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">Target audience: Junior developers (0-2 years) (level: beginner)
+Viewer outcome: Learn 5 CLI tools that save 30+ min/day
+Point of view: Every dev hits a wall where clicking through GUIs becomes the bottleneck
+Target duration (seconds): 300
+Core misconception: Terminal is only for sysadmins
+Must avoid:
+(none)
+Core talking points in order:
+1. Why the terminal matters
+2. cd/ls/grep basics
+3. Git CLI vs GUI
+4. Shell aliases
+5. tmux/screen
+
+Section 1 — Hook: Why Most Devs Are Slow
+Purpose: Open with a relatable pain point
+...
+
+Section 2 — The Real Problem
+...
+
+Section 3 — 5 Tools That Change Everything
+...
+
+Section 4 — Takeaway
+...</pre>
+      </div>
+    </div>`,
+
+  approve1: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="space-y-1">
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">full</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Timestamp</span><span class="font-mono text-xs">4/21/2026, 2:27:00 PM</span></div>
+        </div>
+      </div>
+    </div>`,
+
+  override1: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">section:3</span></div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Instruction</h4>
+        <p class="text-sm">Trim to 3 tools, not 5 — video is already long</p>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Before</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">Section 3 — 5 Tools That Change Everything
+Purpose: Concrete, actionable tool introductions
+Entry assumption: Viewer is motivated to learn
+Exit state: Viewer knows 5 specific tools and when to use each
+Duration: 2:00–2:30
+Talking points:
+- cd/ls/grep — the holy trinity
+- Git CLI vs GUI — why it's faster
+- Shell aliases — automate the repetitive
+- tmux — split your terminal, split your brain
+- fzf — fuzzy find everything</pre>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">After</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">Section 3 — 3 Tools That Change Everything
+Purpose: Concrete, actionable tool introductions
+Entry assumption: Viewer is motivated to learn
+Exit state: Viewer knows 3 specific tools and when to use each
+Duration: 1:15–1:30
+Talking points:
+- Git CLI vs GUI — why it's faster
+- Shell aliases — automate the repetitive
+- fzf — fuzzy find everything</pre>
+      </div>
+    </div>`,
+
+  gen3: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="space-y-1">
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Model</span><span class="font-mono text-xs">gpt-4o</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Prompt</span><span class="font-mono text-xs">storyboard_writer_prompt_v0324.md</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Attempt</span><span class="font-mono text-xs">1</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">full</span></div>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Context (input)</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">brief: {'round': 'review', 'fields': {
+  'viewer_outcome': {'value': 'Learn 5 CLI tools that save 30+ min/day', ...},
+  'target_audience': {'value': 'Junior developers (0-2 years)', ...},
+  'core_talking_points': {'value': ['Why the terminal matters', 'cd/ls/grep basics', 'Git CLI vs GUI', 'Shell aliases', 'tmux/screen'], ...},
+  ...
+}}
+outline: Section 1 — Hook: Why Most Devs Are Slow
+Purpose: Open with a relatable pain point
+Entry assumption: Viewer relies on GUIs, doesn't question it
+Exit state: Viewer wants to know what they're missing
+Duration: 0:20–0:30
+Talking points:
+- "You're mass-renaming files by clicking. One by one."
+- Show the 3-second terminal alternative
+
+Section 2 — The Real Problem
+...
+
+Section 3 — 3 Tools That Change Everything
+...
+
+Section 4 — Takeaway
+...</pre>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Raw Response</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">[
+  {"screen_number": 1, "section_number": 1, "section_title": "Hook: Why Most Devs Are Slow", "screen_type": "slides", "voiceover_text": "Picture this. You need to rename 50 files...", "visual_direction": ["Split screen: Finder clicking vs terminal command"], "action_notes": "Quick cut between slow GUI and fast CLI"},
+  {"screen_number": 2, "section_number": 1, "section_title": "Hook: Why Most Devs Are Slow", "screen_type": "talking_head", "voiceover_text": "What if I told you that takes 3 seconds?", ...},
+  ...
+]</pre>
+      </div>
+    </div>`,
+
+  eval3: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="space-y-1">
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Model</span><span class="font-mono text-xs">gpt-4o</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Prompt</span><span class="font-mono text-xs">STORYBOARD_EVAL_PROMPT.md</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">full</span></div>
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Scores</h4>
+        <div class="space-y-0.5">
+          ${scoreRow('Composite', 7.6)}
+          ${scoreRow('Gut check', 7.5, 'Solid storyboard, voiceover flows naturally')}
+          ${scoreRow('voiceover_quality', 8.0, 'Conversational tone')}
+          ${scoreRow('visual_direction', 7.0, 'Clear direction')}
+          ${scoreRow('content_accuracy', 8.5, 'Faithful to outline')}
+          ${scoreRow('screen_transitions', 7.0, 'Mostly smooth')}
+          ${scoreRow('duration_balance', 7.5, 'Good distribution')}
+        </div>
+      </div>
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Context (input)</h4>
+        <pre class="max-h-[300px] overflow-auto rounded-md bg-gray-50 p-3 text-xs font-mono whitespace-pre-wrap break-words">Target audience: Junior developers (0-2 years) (level: beginner)
+Viewer outcome: Learn 5 CLI tools that save 30+ min/day
+Point of view: Every dev hits a wall where clicking through GUIs becomes the bottleneck
+Target duration (seconds): 300
+Core misconception: Terminal is only for sysadmins
+Must avoid:
+(none)
+Core talking points in order:
+1. Why the terminal matters
+2. cd/ls/grep basics
+3. Git CLI vs GUI
+4. Shell aliases
+5. tmux/screen
+
+Outline:
+Section 1 — Hook: Why Most Devs Are Slow
+...
+Section 2 — The Real Problem
+...
+Section 3 — 3 Tools That Change Everything
+...
+Section 4 — Takeaway
+...
+
+Storyboard:
+[
+  {"screen_number": 1, "section_number": 1, "section_title": "Hook: Why Most Devs Are Slow", "screen_type": "slides", "voiceover_text": "Picture this. You need to rename 50 files...", ...},
+  {"screen_number": 2, ...},
+  ...9 screens total...
+]</pre>
+      </div>
+    </div>`,
+
+  approve2: `
+    <div class="rounded-lg border bg-card p-4 space-y-5">
+      <div class="space-y-1.5">
+        <h4 class="text-xs font-medium uppercase tracking-wider text-gray-500">Metadata</h4>
+        <div class="space-y-1">
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Scope</span><span class="font-mono text-xs">full</span></div>
+          <div class="flex items-start gap-2 text-sm"><span class="shrink-0 text-gray-500 w-24">Timestamp</span><span class="font-mono text-xs">4/21/2026, 2:30:00 PM</span></div>
+        </div>
+      </div>
+    </div>`,
+};
+
+function scoreRow(label, score, feedback) {
+  let color;
+  if (score >= 7.0) color = 'text-green-700 bg-green-50 border-green-200';
+  else if (score >= 6.0) color = 'text-yellow-700 bg-yellow-50 border-yellow-200';
+  else color = 'text-red-700 bg-red-50 border-red-200';
+
+  const feedbackHtml = feedback
+    ? `<span class="text-xs text-gray-500 max-w-[200px] truncate" title="${feedback}">${feedback}</span>`
+    : '';
+
+  return `<div class="flex items-center justify-between py-1">
+    <span class="text-sm text-gray-500">${label}</span>
+    <div class="flex items-center gap-2">
+      <span class="inline-flex items-center rounded-md border px-2 py-0.5 text-sm font-medium tabular-nums ${color}">${score.toFixed(1)}</span>
+      ${feedbackHtml}
+    </div>
+  </div>`;
+}
+
+// ── Interaction ──
+let currentSelected = null;
+
+function selectEvent(id) {
+  // Remove old selection
+  document.querySelectorAll('[id^="btn-"]').forEach(el => {
+    el.classList.remove('border-gray-200', 'bg-gray-50/60', 'shadow-sm');
+    el.classList.add('border-transparent');
+  });
+  // Highlight new
+  const btn = document.getElementById('btn-' + id);
+  if (btn) {
+    btn.classList.remove('border-transparent');
+    btn.classList.add('border-gray-200', 'bg-gray-50/60', 'shadow-sm');
+  }
+  // Update detail
+  document.getElementById('detail-panel').innerHTML = details[id] || '<p class="text-sm text-gray-400">No detail available</p>';
+  currentSelected = id;
+}
+
+function toggleChain(chainId) {
+  const body = document.getElementById(chainId + '-body');
+  const chevron = document.getElementById(chainId + '-chevron');
+  if (body.style.display === 'none') {
+    body.style.display = '';
+    chevron.style.transform = '';
+  } else {
+    body.style.display = 'none';
+    chevron.style.transform = 'rotate(-90deg)';
+  }
+}
+
+// Auto-select eval1 (the failing eval) on load
+window.addEventListener('load', () => selectEvent('eval1'));
+</script>
+</body>
+</html>

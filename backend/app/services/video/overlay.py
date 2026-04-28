@@ -1,14 +1,15 @@
 """
-Keyframe overlay rendering via Remotion.
+Scene composition rendering via Remotion.
 
-Takes a base video (from any render path — Seedance, Pexels, HeyGen)
-and composites timed text/icon overlays on top using the Remotion
-KeyframeOverlay composition. The overlay types (stat, callout, quote,
-label, divider) are defined in remotion/src/components/overlays/.
+Every non-raw panel is rendered through a single Remotion composition:
+``SceneComposition``. The scene receives:
 
-Two-step process:
-  1. Remotion renders video-only overlay (no audio track)
-  2. ffmpeg merges the original audio back onto the overlaid video
+  - screen_type
+  - composition
+  - canvas_mode
+  - overlay_elements
+  - optional base_video_path
+  - optional audio track
 """
 import json
 import shutil
@@ -20,57 +21,61 @@ REMOTION_DIR = Path(__file__).parent / "remotion"
 FPS = 25
 
 
-def render_keyframe_overlay(
-    base_video_path: str,
-    keyframes: list[dict],
+def render_scene_composition(
+    screen_type: str,
+    composition: str,
+    overlay_elements: list[dict],
     duration_seconds: float,
     output_path: str,
+    canvas_mode: str = "none",
+    base_video_path: Optional[str] = None,
     audio_path: Optional[str] = None,
 ) -> str:
-    """Composite keyframe overlays onto a base video.
-
-    Args:
-        base_video_path: Path to the source video (any panel type).
-        keyframes: List of keyframe dicts with t, type, text, etc.
-        duration_seconds: Duration in seconds (drives frame count).
-        output_path: Where to write the final composited MP4.
-        audio_path: If provided, merge this audio track onto the
-            output. If None, the output is video-only.
-
-    Returns:
-        The output_path.
-    """
-    if not keyframes:
-        shutil.copyfile(base_video_path, output_path)
-        return output_path
-
+    """Render a scene composition and optionally merge narration audio."""
     Path(output_path).parent.mkdir(parents=True, exist_ok=True)
     public_dir = REMOTION_DIR / "public"
     public_dir.mkdir(parents=True, exist_ok=True)
 
-    video_name = Path(base_video_path).name
-    staged_path = public_dir / video_name
+    staged_video_name: Optional[str] = None
+    staged_audio_name: Optional[str] = None
+    staged_video_path: Optional[Path] = None
+    staged_audio_path: Optional[Path] = None
 
-    shutil.copyfile(base_video_path, staged_path)
+    if base_video_path:
+        staged_video_name = f"{Path(output_path).stem}_base{Path(base_video_path).suffix}"
+        staged_video_path = public_dir / staged_video_name
+        shutil.copyfile(base_video_path, staged_video_path)
 
-    overlay_output = output_path if audio_path is None else str(
-        Path(output_path).parent / f"_overlay_{Path(output_path).stem}.mp4"
+    if audio_path:
+        staged_audio_name = f"{Path(output_path).stem}_audio{Path(audio_path).suffix}"
+        staged_audio_path = public_dir / staged_audio_name
+        shutil.copyfile(audio_path, staged_audio_path)
+
+    video_only_output = output_path if audio_path is None else str(
+        Path(output_path).parent / f"_scene_{Path(output_path).stem}.mp4"
     )
 
     try:
         props = {
-            "seedanceVideoPath": video_name,
+            "screenType": screen_type,
+            "composition": composition,
+            "canvasMode": canvas_mode,
             "durationSeconds": duration_seconds,
-            "keyframes": keyframes,
+            "overlayElements": overlay_elements,
+            "baseVideoPath": staged_video_name,
+            "audioSrc": staged_audio_name,
         }
         props_json = json.dumps(props)
         total_frames = max(1, int(duration_seconds * FPS))
 
         cmd = [
-            "npx", "remotion", "render",
-            "src/index.ts", "KeyframeOverlay",
+            "npx",
+            "remotion",
+            "render",
+            "src/index.ts",
+            "SceneComposition",
             f"--props={props_json}",
-            f"--output={str(Path(overlay_output).resolve())}",
+            f"--output={str(Path(video_only_output).resolve())}",
             f"--frames=0-{total_frames - 1}",
         ]
 
@@ -82,26 +87,41 @@ def render_keyframe_overlay(
             timeout=300,
         )
         if result.returncode != 0:
-            raise RuntimeError(f"Remotion overlay render failed:\n{result.stderr[-2000:]}")
+            raise RuntimeError(
+                f"Remotion scene render failed:\n{result.stderr[-2000:]}"
+            )
 
         if audio_path:
-            _merge_audio(overlay_output, audio_path, output_path)
+            _merge_audio(video_only_output, audio_path, output_path)
 
         return output_path
     finally:
-        staged_path.unlink(missing_ok=True)
+        if staged_video_path:
+            staged_video_path.unlink(missing_ok=True)
+        if staged_audio_path:
+            staged_audio_path.unlink(missing_ok=True)
         if audio_path:
-            Path(overlay_output).unlink(missing_ok=True)
+            Path(video_only_output).unlink(missing_ok=True)
 
 
 def _merge_audio(video_path: str, audio_path: str, output_path: str) -> str:
-    """Replace audio track on a video with the given audio file."""
     cmd = [
-        "ffmpeg", "-y",
-        "-i", video_path,
-        "-i", audio_path,
-        "-map", "0:v", "-map", "1:a",
-        "-c:v", "copy", "-c:a", "aac", "-b:a", "192k",
+        "ffmpeg",
+        "-y",
+        "-i",
+        video_path,
+        "-i",
+        audio_path,
+        "-map",
+        "0:v",
+        "-map",
+        "1:a",
+        "-c:v",
+        "copy",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "192k",
         "-shortest",
         str(Path(output_path).resolve()),
     ]

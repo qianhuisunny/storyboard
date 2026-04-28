@@ -82,6 +82,12 @@ frontend/blob-report/
 backend/*.log
 backend/plotline.db
 
+# Generated / output artifacts
+hackathon-april-12/output/
+frontend/public/generated/
+backend/quality_log.db
+来时路/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
