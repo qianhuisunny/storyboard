@@ -1,5 +1,5 @@
 """
-Brief Builder Agent - Creates Story Brief from intake form using 3-round flow.
+Brief Builder Agent - Creates the initial Story Brief seed from intake form.
 Generates fields with proper source tagging (extracted vs inferred).
 """
 
@@ -11,7 +11,7 @@ from .base import BaseAgent
 
 class BriefBuilder(BaseAgent):
     """
-    Three-round brief generation for Knowledge Share videos.
+    Initial brief generation for Knowledge Share videos.
 
     Field sources are determined by WHERE data comes from:
     - extracted: directly from user-provided inputs (form submission or explicit answers)
@@ -51,8 +51,7 @@ class BriefBuilder(BaseAgent):
         elif round == 2:
             return self._generate_round2(state.intake_form, confirmed_fields)
         elif round == 3:
-            research_results = getattr(state, 'research_results', None) or {}
-            return self._generate_round3(state.intake_form, confirmed_fields, research_results, revision_feedback)
+            return self._generate_round3(state.intake_form, confirmed_fields, revision_feedback)
         else:
             raise ValueError(f"Invalid round: {round}. Must be 1, 2, or 3.")
 
@@ -122,7 +121,7 @@ class BriefBuilder(BaseAgent):
             "confirmed": False,
         }
 
-        return {"round": 1, "fields": fields}
+        return {"fields": fields}
 
     def _generate_round2(self, intake_form: dict, confirmed_fields: dict) -> dict:
         """
@@ -167,13 +166,12 @@ class BriefBuilder(BaseAgent):
             "confirmed": False,
         }
 
-        return {"round": 2, "fields": fields}
+        return {"fields": fields}
 
     def _generate_round3(
         self,
         intake_form: dict,
         confirmed_fields: dict,
-        research_results: dict,
         revision_feedback: Optional[str] = None,
     ) -> dict:
         """
@@ -273,5 +271,4 @@ Regenerate the content spine incorporating this feedback."""
                 # "must_avoid": { "value": [], "source": "empty", "confirmed": False },
             }
 
-        return {"round": 3, "fields": fields}
-
+        return {"fields": fields}

@@ -4,7 +4,8 @@
  */
 
 import type { BriefField } from "../types";
-import { KNOWLEDGE_SHARE_FIELD_LABELS, KNOWLEDGE_SHARE_OPTIONS } from "../types";
+import { useEffect, useState } from "react";
+import { KNOWLEDGE_SHARE_FIELD_LABELS, KNOWLEDGE_SHARE_OPTIONS, KNOWLEDGE_SHARE_FIELD_TYPES } from "../types";
 
 interface BriefReviewProps {
   fields: Record<string, BriefField>;
@@ -12,6 +13,9 @@ interface BriefReviewProps {
   onApproveBrief: () => void;
   disabled?: boolean;
   isAlreadyApproved?: boolean; // Brief was already approved, hide approve button
+  editable?: boolean;
+  onSaveEditedBrief?: (fields: Record<string, BriefField>) => void;
+  onCancelEdit?: () => void;
 }
 
 const SECTION_1_FIELDS = [
@@ -79,14 +83,102 @@ function FieldRow({ fieldKey, field }: { fieldKey: string; field: BriefField }) 
   );
 }
 
+function normalizeFieldValue(fieldKey: string, field: BriefField, rawValue: string): BriefField {
+  const fieldType = KNOWLEDGE_SHARE_FIELD_TYPES[fieldKey];
+  const trimmed = rawValue.trim();
+
+  if (fieldType === "editable-list" || fieldType === "list" || Array.isArray(field.value)) {
+    return {
+      ...field,
+      value: trimmed
+        ? trimmed.split("\n").map((item) => item.trim()).filter(Boolean)
+        : [],
+      source: "extracted",
+      confirmed: true,
+    };
+  }
+
+  return {
+    ...field,
+    value: trimmed,
+    source: "extracted",
+    confirmed: true,
+  };
+}
+
+function EditableFieldRow({
+  fieldKey,
+  field,
+  onChange,
+}: {
+  fieldKey: string;
+  field: BriefField;
+  onChange: (fieldKey: string, nextField: BriefField) => void;
+}) {
+  const label = KNOWLEDGE_SHARE_FIELD_LABELS[fieldKey] || fieldKey;
+  const fieldType = KNOWLEDGE_SHARE_FIELD_TYPES[fieldKey];
+  const options = KNOWLEDGE_SHARE_OPTIONS[fieldKey] || [];
+  const value = Array.isArray(field.value) ? field.value.join("\n") : String(field.value ?? "");
+  const isReadOnly = fieldType === "readonly";
+  const isSelect = fieldType === "select" && options.length > 0;
+  const isTextArea = fieldType === "textarea" || fieldType === "editable-list" || fieldType === "list";
+
+  return (
+    <div className="flex flex-col sm:flex-row sm:items-start py-2 border-b border-border last:border-0 gap-2 sm:gap-4">
+      <dt className="text-sm font-medium text-muted-foreground sm:w-1/3 sm:flex-shrink-0">
+        {label}
+      </dt>
+      <dd className="sm:w-2/3">
+        {isReadOnly ? (
+          <div className="text-sm text-foreground bg-muted/40 rounded-md px-3 py-2">
+            {getDisplayValue(field, fieldKey)}
+          </div>
+        ) : isSelect ? (
+          <select
+            value={String(field.value ?? "")}
+            onChange={(e) => onChange(fieldKey, normalizeFieldValue(fieldKey, field, e.target.value))}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+          >
+            <option value="">Select an option</option>
+            {options.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        ) : isTextArea ? (
+          <textarea
+            value={value}
+            onChange={(e) => onChange(fieldKey, normalizeFieldValue(fieldKey, field, e.target.value))}
+            rows={Array.isArray(field.value) ? Math.max(3, field.value.length + 1) : 4}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+            placeholder={Array.isArray(field.value) ? "One item per line" : ""}
+          />
+        ) : (
+          <input
+            type="text"
+            value={value}
+            onChange={(e) => onChange(fieldKey, normalizeFieldValue(fieldKey, field, e.target.value))}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground"
+          />
+        )}
+      </dd>
+    </div>
+  );
+}
+
 function Section({
   title,
   fieldKeys,
   fields,
+  editable = false,
+  onFieldChange,
 }: {
   title: string;
   fieldKeys: string[];
   fields: Record<string, BriefField>;
+  editable?: boolean;
+  onFieldChange?: (fieldKey: string, nextField: BriefField) => void;
 }) {
   return (
     <div className="mb-6">
@@ -97,6 +189,16 @@ function Section({
         {fieldKeys.map((key) => {
           const field = fields[key];
           if (!field) return null;
+          if (editable && onFieldChange) {
+            return (
+              <EditableFieldRow
+                key={key}
+                fieldKey={key}
+                field={field}
+                onChange={onFieldChange}
+              />
+            );
+          }
           return <FieldRow key={key} fieldKey={key} field={field} />;
         })}
       </dl>
@@ -110,32 +212,69 @@ export default function BriefReview({
   onApproveBrief,
   disabled = false,
   isAlreadyApproved = false,
+  editable = false,
+  onSaveEditedBrief,
+  onCancelEdit,
 }: BriefReviewProps) {
+  const [draftFields, setDraftFields] = useState<Record<string, BriefField>>(fields);
+
+  useEffect(() => {
+    setDraftFields(fields);
+  }, [fields, editable]);
+
+  const activeFields = editable ? draftFields : fields;
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="border-b pb-4">
         <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
           <span className="text-2xl">📋</span>
-          {isAlreadyApproved ? "Your Video Brief — Approved" : "Your Video Brief — Final Review"}
+          {isAlreadyApproved ? "Your Video Brief — Approved" : editable ? "Edit Your Video Brief" : "Your Video Brief — Final Review"}
         </h2>
         <p className="text-sm text-muted-foreground mt-1">
           {isAlreadyApproved
             ? "This brief has been approved. View the outline stage for next steps."
+            : editable
+            ? "Edit the brief directly here before continuing to outline generation."
             : "Review your complete brief before proceeding to outline generation."}
         </p>
       </div>
 
       {/* Sections */}
       <div className="bg-card rounded-lg border p-6">
-        <Section title="Section 1: Core Intent" fieldKeys={SECTION_1_FIELDS} fields={fields} />
-        <Section title="Section 2: Delivery & Format" fieldKeys={SECTION_2_FIELDS} fields={fields} />
-        <Section title="Section 3: Content Spine" fieldKeys={SECTION_3_FIELDS} fields={fields} />
+        <Section
+          title="Section 1: Core Intent"
+          fieldKeys={SECTION_1_FIELDS}
+          fields={activeFields}
+          editable={editable}
+          onFieldChange={(fieldKey, nextField) => {
+            setDraftFields((prev) => ({ ...prev, [fieldKey]: nextField }));
+          }}
+        />
+        <Section
+          title="Section 2: Delivery & Format"
+          fieldKeys={SECTION_2_FIELDS}
+          fields={activeFields}
+          editable={editable}
+          onFieldChange={(fieldKey, nextField) => {
+            setDraftFields((prev) => ({ ...prev, [fieldKey]: nextField }));
+          }}
+        />
+        <Section
+          title="Section 3: Content Spine"
+          fieldKeys={SECTION_3_FIELDS}
+          fields={activeFields}
+          editable={editable}
+          onFieldChange={(fieldKey, nextField) => {
+            setDraftFields((prev) => ({ ...prev, [fieldKey]: nextField }));
+          }}
+        />
       </div>
 
       {/* Action Buttons */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
-        {!isAlreadyApproved && (
+        {!isAlreadyApproved && !editable && (
           <button
             onClick={onEditBrief}
             disabled={disabled}
@@ -148,7 +287,7 @@ export default function BriefReview({
             ← Edit Brief
           </button>
         )}
-        {!isAlreadyApproved && (
+        {!isAlreadyApproved && !editable && (
           <button
             onClick={() => {
               console.log("[BriefReview] Approve button clicked");
@@ -162,6 +301,32 @@ export default function BriefReview({
             }`}
           >
             Approve & Continue to Outline
+          </button>
+        )}
+        {!isAlreadyApproved && editable && (
+          <button
+            onClick={onCancelEdit}
+            disabled={disabled}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium border transition-colors ${
+              disabled
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-background text-foreground border-border hover:bg-muted"
+            }`}
+          >
+            Cancel
+          </button>
+        )}
+        {!isAlreadyApproved && editable && (
+          <button
+            onClick={() => onSaveEditedBrief?.(draftFields)}
+            disabled={disabled}
+            className={`flex-1 py-3 px-4 rounded-lg font-medium transition-colors ${
+              disabled
+                ? "bg-muted text-muted-foreground cursor-not-allowed"
+                : "bg-primary text-primary-foreground hover:bg-primary/90"
+            }`}
+          >
+            Save Brief Changes
           </button>
         )}
         {isAlreadyApproved && (

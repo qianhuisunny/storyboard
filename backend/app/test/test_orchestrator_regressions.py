@@ -1,6 +1,5 @@
 """
-Regression tests: each test reproduces a specific bug from PROGRESS.md.
-These tests exist to prevent known bugs from recurring.
+Regression tests for known state writeback and cascade-delete bugs.
 """
 import pytest
 from app.services.state import StateManager
@@ -8,58 +7,49 @@ from app.test.conftest import MOCK_INTAKE_FORM, MOCK_OUTLINE, MOCK_STORYBOARD
 
 
 @pytest.mark.asyncio
-class TestFieldWritebackRegressions:
+class TestBriefWritebackRegressions:
     """
-    Bug: round confirm handlers didn't write confirmed_fields back to
-    state.story_brief["fields"]. User's input was lost on page refresh.
+    Bug: final chat-approved brief fields were not fully written back to
+    state.story_brief["fields"], which caused stale data on refresh.
     """
 
-    async def _setup_to_round1(self, orch):
+    async def test_chat_brief_approve_writes_all_fields_back_to_story_brief(self, make_orchestrator, patch_state_manager):
+        orch = make_orchestrator()
         await orch.process_event("test-project", "submit_knowledge_share", {"intake_form": MOCK_INTAKE_FORM})
 
-    async def test_round1_confirm_writes_back_to_story_brief(self, make_orchestrator, patch_state_manager):
-        orch = make_orchestrator()
-        await self._setup_to_round1(orch)
-        confirmed = {"topic": {"value": "User Edited Topic", "source": "extracted", "confirmed": True}}
-        result = await orch.process_event("test-project", "round1_confirm", {"confirmed_fields": confirmed})
+        all_fields = {
+            "viewer_outcome": {"value": "User Edited Outcome", "source": "extracted", "confirmed": True},
+            "target_audience": {"value": "Non-technical builders", "source": "extracted", "confirmed": True},
+            "core_talking_points": {"value": ["A", "B"], "source": "inferred", "confirmed": True},
+        }
+        result = await orch.process_event("test-project", "chat_brief_approve", {"all_fields": all_fields})
         assert result["success"] is True
+
         manager = StateManager("test-project")
         state = await manager.load()
         assert state.story_brief is not None
-        assert state.story_brief["fields"]["topic"]["value"] == "User Edited Topic"
-
-    async def test_round2_confirm_writes_back_to_story_brief(self, make_orchestrator, patch_state_manager):
-        orch = make_orchestrator()
-        await self._setup_to_round1(orch)
-        await orch.process_event("test-project", "round1_confirm", {
-            "confirmed_fields": {"topic": {"value": "ML", "source": "extracted", "confirmed": True}}
-        })
-        r2_confirmed = {"format_style": {"value": "User Picked Workshop", "source": "extracted", "confirmed": True}}
-        result = await orch.process_event("test-project", "round2_confirm", {"confirmed_fields": r2_confirmed})
-        assert result["success"] is True
-        manager = StateManager("test-project")
-        state = await manager.load()
-        assert state.story_brief["fields"]["format_style"]["value"] == "User Picked Workshop"
-        assert state.story_brief["fields"]["topic"]["value"] == "ML"
-
-    async def test_round3_confirm_writes_back_to_story_brief(self, make_orchestrator, patch_state_manager):
-        orch = make_orchestrator()
-        await self._setup_to_round1(orch)
-        await orch.process_event("test-project", "round1_confirm", {
-            "confirmed_fields": {"topic": {"value": "ML", "source": "extracted", "confirmed": True}}
-        })
-        await orch.process_event("test-project", "round2_confirm", {
-            "confirmed_fields": {"format_style": {"value": "Tutorial", "source": "extracted", "confirmed": True}}
-        })
-        await orch.process_event("test-project", "generate_content_spine", {"point_of_view": "Practical ML"})
-        r3_confirmed = {"core_talking_points": {"value": ["A", "B"], "source": "generated", "confirmed": True}}
-        result = await orch.process_event("test-project", "round3_confirm", {"confirmed_fields": r3_confirmed})
-        assert result["success"] is True
-        manager = StateManager("test-project")
-        state = await manager.load()
+        assert state.phase == "gate1"
+        assert state.story_brief["fields"]["viewer_outcome"]["value"] == "User Edited Outcome"
+        assert state.story_brief["fields"]["target_audience"]["value"] == "Non-technical builders"
         assert state.story_brief["fields"]["core_talking_points"]["value"] == ["A", "B"]
-        assert "topic" in state.story_brief["fields"]
-        assert "format_style" in state.story_brief["fields"]
+
+    async def test_submit_knowledge_share_is_idempotent_after_initialization(self, make_orchestrator, patch_state_manager):
+        orch = make_orchestrator()
+
+        first = await orch.process_event("test-project", "submit_knowledge_share", {"intake_form": MOCK_INTAKE_FORM})
+        assert first["success"] is True
+        assert first["phase"] == "brief_chat"
+        assert first.get("brief_fields") is not None
+
+        second = await orch.process_event("test-project", "submit_knowledge_share", {"intake_form": MOCK_INTAKE_FORM})
+        assert second["success"] is True
+        assert second["phase"] == "brief_chat"
+        assert second.get("brief_fields") == first.get("brief_fields")
+
+        manager = StateManager("test-project")
+        state = await manager.load()
+        assert state.phase == "brief_chat"
+        assert state.story_brief is not None
 
 
 @pytest.mark.asyncio
@@ -74,7 +64,7 @@ class TestCascadeDeleteRegressions:
         manager = StateManager("test-project")
         state = make_state(
             phase="gate2",
-            story_brief={"fields": {"topic": {"value": "ML"}}},
+            story_brief={"fields": {"viewer_outcome": {"value": "ML"}}},
             screen_outline=MOCK_OUTLINE,
             storyboard=list(MOCK_STORYBOARD),
             brief_locked=True,
@@ -94,7 +84,7 @@ class TestCascadeDeleteRegressions:
         manager = StateManager("test-project")
         state = make_state(
             phase="review",
-            story_brief={"fields": {"topic": {"value": "ML"}}},
+            story_brief={"fields": {"viewer_outcome": {"value": "ML"}}},
             screen_outline=MOCK_OUTLINE,
             storyboard=list(MOCK_STORYBOARD),
             brief_locked=True,

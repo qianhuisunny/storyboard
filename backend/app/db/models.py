@@ -67,6 +67,22 @@ class StageSnapshot(Base):
     project = relationship("Project", back_populates="stage_snapshots")
 
 
+class ChatMessage(Base):
+    __tablename__ = "chat_messages"
+
+    id = Column(Text, primary_key=True)
+    project_id = Column(Text, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    stage_id = Column(Integer, nullable=False, default=1)
+    role = Column(Text, nullable=False)
+    content = Column(Text, nullable=False)
+    phase = Column(Integer, nullable=False, default=1)
+    field_key = Column(Text, nullable=True)
+    selected_chip = Column(Text, nullable=True)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+    project = relationship("Project")
+
+
 class Upload(Base):
     __tablename__ = "uploads"
 

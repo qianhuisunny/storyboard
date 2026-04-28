@@ -86,15 +86,32 @@ class StoryboardOrchestrator:
             result["requested_event"] = event
 
         try:
-            # Route based on current phase and event
-            handler = self._get_handler(state.phase, normalized_event)
-            if handler:
-                state, result = await handler(state, manager, normalized_payload, result)
-            else:
-                raise ValueError(
-                    f"Invalid event '{event}' for phase '{state.phase}'. "
-                    f"Valid events: {manager._valid_events_for_phase(state.phase)}"
+            ks_initialized_phases = {
+                "brief_chat",
+                "brief_review",
+                "gate1",
+                "outline",
+                "gate2",
+                "outline_research",
+                "write",
+                "review",
+                "done",
+            }
+
+            if normalized_event == "submit_knowledge_share" and state.phase in ks_initialized_phases:
+                state, result = await self._handle_submit_knowledge_share_reentrant(
+                    state, manager, normalized_payload, result
                 )
+            else:
+                # Route based on current phase and event
+                handler = self._get_handler(state.phase, normalized_event)
+                if handler:
+                    state, result = await handler(state, manager, normalized_payload, result)
+                else:
+                    raise ValueError(
+                        f"Invalid event '{event}' for phase '{state.phase}'. "
+                        f"Valid events: {manager._valid_events_for_phase(state.phase)}"
+                    )
 
             await manager.save(state)
             result["phase"] = state.phase
@@ -161,17 +178,11 @@ class StoryboardOrchestrator:
             ("review", "edit"): self._handle_review_edit,
             ("done", "restart"): self._handle_restart,
 
-            # Knowledge Share 3-Round Briefing Flow
+            # Knowledge Share chat-assisted brief flow
             ("intake", "submit_knowledge_share"): self._handle_submit_knowledge_share,
-            ("brief_round1", "round1_confirm"): self._handle_round1_confirm,
-            ("brief_round2", "round2_confirm"): self._handle_round2_confirm,
-            ("brief_round3", "generate_content_spine"): self._handle_generate_content_spine,
-            ("brief_round3", "round3_confirm"): self._handle_round3_confirm,
             ("brief_review", "brief_approve"): self._handle_brief_approve,
             ("brief_review", "edit"): self._handle_edit_brief,
-            ("brief_round1", "chat_brief_approve"): self._handle_chat_brief_approve,
-            ("brief_round2", "chat_brief_approve"): self._handle_chat_brief_approve,
-            ("brief_round3", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_chat", "chat_brief_approve"): self._handle_chat_brief_approve,
             ("brief_review", "chat_brief_approve"): self._handle_chat_brief_approve,
         }
         return handlers.get((phase, event))
@@ -612,17 +623,14 @@ class StoryboardOrchestrator:
             "has_storyboard": state.storyboard is not None,
             "created_at": state.created_at,
             "updated_at": state.updated_at,
-            # NEW: 3-Round Briefing Flow state
-            "brief_round": state.brief_round,
             "confirmed_fields": state.confirmed_fields,
-            "research_complete": getattr(state, 'research_complete', False),
             "has_evidence_research": state.evidence_research is not None,
             "outline_eval": state.outline_eval,
             "storyboard_eval": state.storyboard_eval,
         }
 
     # =========================================================================
-    # NEW: 3-Round Briefing Flow Handlers (Knowledge Share)
+    # Knowledge Share Chat Brief Flow
     # =========================================================================
 
     async def _handle_submit_knowledge_share(
@@ -634,8 +642,8 @@ class StoryboardOrchestrator:
     ) -> tuple:
         """
         Handle Knowledge Share intake submission.
-        Generates Round 1 fields immediately from intake form.
-        Research runs later after Round 1 confirmation.
+        Generates the initial brief seed from onboarding data and moves to the
+        single chat-assisted brief phase.
         """
         import time
         start_time = time.time()
@@ -649,16 +657,12 @@ class StoryboardOrchestrator:
 
         # Store intake form
         state.intake_form = intake_form
-        state.brief_round = 1
 
-        state.research_results = None
-        state.research_complete = True
-
-        # Transition to brief_round1
+        # Transition to the single chat-assisted brief phase
         state = manager.transition(state, "submit_knowledge_share")
         print(f"[KS] State transitioned in {(time.time() - start_time)*1000:.0f}ms")
 
-        # Generate Round 1 fields (no research needed - just extract from intake)
+        # Generate the initial field seed from onboarding data
         brief_start = time.time()
         round1_result = self.agents["brief_builder"].run(
             state,
@@ -669,15 +673,13 @@ class StoryboardOrchestrator:
         # Store in story_brief
         state.story_brief = round1_result
 
-        result["message"] = "Knowledge Share brief started. Review Section 1: Core Intent."
+        result["message"] = "Knowledge Share brief started."
         result["brief_fields"] = round1_result.get("fields", {})
-        result["round"] = 1
-        result["research_status"] = "complete"
 
         print(f"[KS] _handle_submit_knowledge_share completed in {(time.time() - start_time)*1000:.0f}ms")
         return state, result
 
-    async def _handle_round1_confirm(
+    async def _handle_submit_knowledge_share_reentrant(
         self,
         state: StoryboardState,
         manager: StateManager,
@@ -685,188 +687,23 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """
-        Handle Round 1 confirmation (Section 1: Core Intent).
+        Treat repeat Knowledge Share initialization as idempotent.
 
-        The MVP flows directly to Round 2. Researcher-generated perspectives are
-        deferred until the researcher I/O contract is reintroduced.
+        This protects the dev flow under React StrictMode, where the brief
+        stage can mount twice and issue a duplicate submit_knowledge_share
+        before the UI finishes hydrating.
         """
-        confirmed_fields = payload.get("confirmed_fields", {})
-
-        # Ensure state.confirmed_fields is a dict
-        if state.confirmed_fields is None:
-            state.confirmed_fields = {}
-
-        # Merge confirmed fields
-        state.confirmed_fields = {
-            **state.confirmed_fields,
-            **confirmed_fields
-        }
-
-        # Transition directly to Round 2
-        state = manager.transition(state, "round1_confirm")
-        state.brief_round = 2
-        state.research_complete = True
-
-        # Generate Round 2 fields
-        round2_result = self.agents["brief_builder"].run(
-            state,
-            round=2,
-            confirmed_fields=state.confirmed_fields
-        )
-
-        # Update story_brief with confirmed Round 1 values + new Round 2 fields
+        existing_fields = {}
         if state.story_brief:
-            state.story_brief["round"] = 2
-            state.story_brief["fields"] = {
-                **state.story_brief.get("fields", {}),
-                **confirmed_fields,  # User's confirmed Round 1 values
-                **round2_result.get("fields", {})
-            }
-        else:
-            state.story_brief = round2_result
+            existing_fields = state.story_brief.get("fields", {}) or {}
 
-        result["message"] = "Section 1 confirmed. Moving to Section 2: Delivery & Format."
-        result["status"] = "round2_ready"
-        result["brief_fields"] = round2_result.get("fields", {})
-        result["round"] = 2
-        result["research_status"] = "complete"
+        if not state.intake_form and payload.get("intake_form"):
+            state.intake_form = payload["intake_form"]
 
-        return state, result
-
-    async def _handle_round2_confirm(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """
-        Handle Round 2 confirmation (Section 2: Delivery & Format).
-        Transitions to brief_round3. Round 3 fields generated after user provides POV.
-        """
-        confirmed_fields = payload.get("confirmed_fields", {})
-
-        # Merge confirmed fields
-        state.confirmed_fields = {
-            **state.confirmed_fields,
-            **confirmed_fields
-        }
-
-        # Transition to brief_round3 — Round 3 fields generated after user provides POV
-        state = manager.transition(state, "round2_confirm")
-        state.brief_round = 3
-
-        # Write confirmed Round 2 values back to story_brief for state restoration
-        if state.story_brief:
-            state.story_brief["round"] = 3
-            state.story_brief["fields"] = {
-                **state.story_brief.get("fields", {}),
-                **confirmed_fields,
-            }
-
-        result["message"] = "Section 2 confirmed. Moving to Section 3: Content Spine."
-        result["brief_fields"] = {}
-        result["round"] = 3
-        result["research_status"] = "complete" if state.research_complete else "failed"
-
-        return state, result
-
-    async def _handle_generate_content_spine(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """
-        Handle POV submission: store POV, generate content spine fields via BriefBuilder.
-        Does NOT transition state — stays in brief_round3.
-        """
-        point_of_view = payload.get("point_of_view", "")
-        if not point_of_view:
-            raise ValueError("point_of_view is required in payload")
-
-        feedback = payload.get("feedback")  # Optional regeneration feedback
-
-        # Store POV in confirmed fields
-        state.confirmed_fields["point_of_view"] = {
-            "value": point_of_view,
-            "source": "extracted",
-            "confirmed": True,
-        }
-
-        # Self-loop transition (stays in brief_round3)
-        state = manager.transition(state, "generate_content_spine")
-
-        # Generate content spine from POV
-        round3_result = self.agents["brief_builder"].run(
-            state,
-            round=3,
-            confirmed_fields=state.confirmed_fields,
-            revision_feedback=feedback,
-        )
-
-        # Update story_brief with generated fields
-        if state.story_brief:
-            state.story_brief["round"] = 3
-            state.story_brief["fields"] = {
-                **state.story_brief.get("fields", {}),
-                **round3_result.get("fields", {}),
-                "point_of_view": {
-                    "value": point_of_view,
-                    "source": "extracted",
-                    "confirmed": True,
-                },
-            }
-        else:
-            fields = round3_result.get("fields", {})
-            fields["point_of_view"] = {
-                "value": point_of_view,
-                "source": "extracted",
-                "confirmed": True,
-            }
-            state.story_brief = {"round": 3, "fields": fields}
-
-        result["message"] = "Content spine generated. Review and edit before confirming."
-        result["brief_fields"] = round3_result.get("fields", {})
-        result["round"] = 3
-
-        return state, result
-
-    async def _handle_round3_confirm(
-        self,
-        state: StoryboardState,
-        manager: StateManager,
-        payload: dict,
-        result: dict
-    ) -> tuple:
-        """
-        Handle Round 3 confirmation. Stores all Content Spine fields and transitions to brief_review.
-        """
-        confirmed_fields = payload.get("confirmed_fields", {})
-
-        # Merge confirmed fields
-        state.confirmed_fields = {
-            **state.confirmed_fields,
-            **confirmed_fields
-        }
-
-        # Transition to brief_review (direct, no angle_selection)
-        state = manager.transition(state, "round3_confirm")
-        state.brief_round = 4  # Review phase
-
-        # Write confirmed Round 3 values back to story_brief for state restoration
-        if state.story_brief:
-            state.story_brief["round"] = "review"
-            state.story_brief["fields"] = {
-                **state.story_brief.get("fields", {}),
-                **confirmed_fields,
-            }
-
-        result["message"] = "Section 3 confirmed. Review complete brief before proceeding."
-        result["full_brief"] = state.story_brief
-        result["confirmed_fields"] = state.confirmed_fields
-        result["round"] = "review"
+        print(f"[KS] Reusing existing Knowledge Share initialization at phase={state.phase}")
+        result["message"] = f"Knowledge Share already initialized at {state.phase}."
+        result["brief_fields"] = existing_fields
+        result["story_brief"] = state.story_brief
 
         return state, result
 
@@ -933,13 +770,11 @@ class StoryboardOrchestrator:
         Handle request to edit brief from review.
         Goes back to Round 1 for editing.
         """
-        # Transition back to brief_round1
+        # Transition back to the single chat-assisted brief phase
         state = manager.transition(state, "edit")
-        state.brief_round = 1
 
-        result["message"] = "Returned to editing mode. All sections editable."
+        result["message"] = "Returned to chat-assisted brief editing."
         result["brief_fields"] = state.story_brief.get("fields", {}) if state.story_brief else {}
-        result["round"] = 1
 
         return state, result
 
@@ -952,7 +787,8 @@ class StoryboardOrchestrator:
     ) -> tuple:
         """
         Handle chat-based brief approval.
-        Accepts all fields at once, batch-transitions through rounds, then runs Director.
+        Accepts the final brief fields at once and enters Gate 1 with the
+        briefing document ready for approval.
         """
         all_fields = payload.get("all_fields", {})
         if not all_fields:
@@ -961,55 +797,19 @@ class StoryboardOrchestrator:
         # Store all fields in state
         state.confirmed_fields = all_fields
         if not state.story_brief:
-            state.story_brief = {"round": "review", "fields": all_fields}
+            state.story_brief = {"fields": all_fields}
         else:
-            state.story_brief["round"] = "review"
             state.story_brief["fields"] = {
                 **state.story_brief.get("fields", {}),
                 **all_fields,
             }
 
-        # Force phase to brief_review for the approve transition
-        state.phase = "brief_review"
+        # Finalize the chat-built briefing document and enter Gate 1.
+        state = manager.transition(state, "chat_brief_approve")
 
-        # Lock the brief
-        state = manager.lock_brief(state)
-
-        # Transition to gate1
-        state = manager.transition(state, "brief_approve")
-
-        # Immediately run Director with quality gate (combining brief_approve + gate1_approve)
-        state = manager.transition(state, "approve")  # gate1 → outline
-        screen_outline, outline_eval = await self.quality_gate.run_with_gate(
-            agent=self.agents["director"],
-            state=state,
-            stage="outline",
-        )
-        self._raise_if_quality_gate_failed("Outline", outline_eval)
-        state.screen_outline = screen_outline
-        state.outline_eval = outline_eval.to_dict()
-        try:
-            from app.infra.quality_log import qlog
-            qlog.log_generate(
-                project_id=state.project_id,
-                stage="outline",
-                scope="full",
-                attempt=outline_eval.attempt,
-                model=self.quality_gate.model,
-                prompt_ref=self.agents["director"].prompt_file,
-                context=str(state.story_brief),
-                raw_response=str(screen_outline),
-                parsed_output=screen_outline if isinstance(screen_outline, (dict, list)) else None,
-            )
-        except Exception:
-            pass
-        state = manager.transition(state, "outline_ready")  # outline → gate2
-
-        result["message"] = "Screen Outline ready for review"
+        result["message"] = "Video brief ready for Gate 1 review."
         result["story_brief"] = state.story_brief
-        result["brief_locked"] = True
-        result["screen_outline"] = screen_outline
-        result["outline_eval"] = state.outline_eval
+        result["brief_locked"] = state.brief_locked
 
         return state, result
 # Singleton instance

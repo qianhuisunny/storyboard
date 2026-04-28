@@ -279,6 +279,15 @@ export default function StageLayout() {
       return;
     }
 
+    const storedType = sessionStorage.getItem("storyboardType");
+    const projectType = projectContext?.typeName;
+    const isKnowledgeShareStage =
+      storedType === "3" || projectType === "Knowledge Share";
+    if (isKnowledgeShareStage) {
+      console.error("[StageLayout] Refusing to use legacy /start for Knowledge Share. Use submit_knowledge_share instead.");
+      return;
+    }
+
     setIsGenerating(true);
     updateStageStatus(stageId, "in_progress");
 

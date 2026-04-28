@@ -321,60 +321,27 @@ async def run_case(client: httpx.AsyncClient, case: dict, run_id: str) -> dict:
     )
     steps.append({"step": "submit_knowledge_share", "seconds": elapsed, "status_code": status})
     print(f"[{project_id}] submit_knowledge_share {elapsed:.3f}s")
-    round1_fields = event_result.get("brief_fields", {})
-
     event_result, elapsed, status = await timed_request(
         client,
         "POST",
         f"/api/project/{project_id}/event",
-        json_body={"event": "round1_confirm", "payload": {"confirmed_fields": build_round1_confirmation(round1_fields, case)}},
+        json_body={
+            "event": "chat_brief_approve",
+            "payload": {
+                "all_fields": {
+                    **build_round1_confirmation(event_result.get("brief_fields", {}), case),
+                    **build_round2_confirmation(case),
+                    **build_round3_confirmation({
+                        "core_talking_points": {"value": case["talking_points"], "source": "generated", "confirmed": True},
+                        "misconceptions": {"value": case.get("misconceptions", ""), "source": "generated", "confirmed": True},
+                    }),
+                    "point_of_view": {"value": case["point_of_view"], "source": "extracted", "confirmed": True},
+                }
+            },
+        },
     )
-    steps.append({"step": "round1_confirm", "seconds": elapsed, "status_code": status})
-    print(f"[{project_id}] round1_confirm {elapsed:.3f}s")
-
-    event_result, elapsed, status = await timed_request(
-        client,
-        "POST",
-        f"/api/project/{project_id}/event",
-        json_body={"event": "round2_confirm", "payload": {"confirmed_fields": build_round2_confirmation(case)}},
-    )
-    steps.append({"step": "round2_confirm", "seconds": elapsed, "status_code": status})
-    print(f"[{project_id}] round2_confirm {elapsed:.3f}s")
-
-    event_result, elapsed, status = await timed_request(
-        client,
-        "POST",
-        f"/api/project/{project_id}/event",
-        json_body={"event": "generate_content_spine", "payload": {"point_of_view": case["point_of_view"]}},
-    )
-    steps.append({"step": "generate_content_spine", "seconds": elapsed, "status_code": status})
-    print(f"[{project_id}] generate_content_spine {elapsed:.3f}s")
-
-    state_result, elapsed, status = await timed_request(
-        client,
-        "GET",
-        f"/api/project/{project_id}/pipeline-state",
-    )
-    steps.append({"step": "pipeline_state_after_round3", "seconds": elapsed, "status_code": status})
-    round3_fields = state_result["data"]["story_brief"]["fields"]
-
-    event_result, elapsed, status = await timed_request(
-        client,
-        "POST",
-        f"/api/project/{project_id}/event",
-        json_body={"event": "round3_confirm", "payload": {"confirmed_fields": build_round3_confirmation(round3_fields)}},
-    )
-    steps.append({"step": "round3_confirm", "seconds": elapsed, "status_code": status})
-    print(f"[{project_id}] round3_confirm {elapsed:.3f}s")
-
-    event_result, elapsed, status = await timed_request(
-        client,
-        "POST",
-        f"/api/project/{project_id}/event",
-        json_body={"event": "approve", "payload": {}},
-    )
-    steps.append({"step": "brief_review_approve", "seconds": elapsed, "status_code": status})
-    print(f"[{project_id}] brief_review approve(alias) {elapsed:.3f}s")
+    steps.append({"step": "chat_brief_approve", "seconds": elapsed, "status_code": status})
+    print(f"[{project_id}] chat_brief_approve {elapsed:.3f}s")
 
     outline = event_result.get("screen_outline")
     event_result, elapsed, status = await timed_request(

@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect } from "react";
 import type { ChatMessage } from "./types";
 import { PHASE1_QUESTIONS } from "./types";
 import ChatThread from "./ChatThread";
+import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
 import BriefReview from "../BriefBuilder/RoundForms/BriefReview";
 import OutlineLoadingView from "../OutlineLoadingView";
@@ -98,6 +99,29 @@ function loadSession(projectId: string): { messages: ChatMessage[]; phase: Phase
   return null;
 }
 
+function derivePhaseFromMessages(messages: ChatMessage[], fallback: Phase): Phase {
+  const maxPhase = messages.reduce<Phase>((current, message) => {
+    const next = message.phase as Phase;
+    return next > current ? next : current;
+  }, 1);
+  return maxPhase || fallback;
+}
+
+function deriveQuestionIndexFromMessages(messages: ChatMessage[]): number {
+  const phase1Answers = messages.filter((message) => message.role === "user" && message.phase === 1).length;
+  return Math.min(phase1Answers, PHASE1_QUESTIONS.length - 1);
+}
+
+function messageFingerprint(message: ChatMessage): string {
+  return JSON.stringify({
+    role: message.role,
+    content: message.content,
+    phase: message.phase,
+    fieldKey: message.fieldKey || null,
+    selectedChip: message.selectedChip || null,
+  });
+}
+
 export default function ChatBriefBuilder({
   projectId,
   initialFields,
@@ -105,7 +129,7 @@ export default function ChatBriefBuilder({
   onBriefApprove,
   onEditBrief,
 }: ChatBriefBuilderProps) {
-  const cached = isAlreadyApproved ? null : loadSession(projectId);
+  const cached = loadSession(projectId);
 
   const [messages, setMessages] = useState<ChatMessage[]>(cached?.messages ?? []);
   const [phase, setPhase] = useState<Phase>(isAlreadyApproved ? 3 : cached?.phase ?? 1);
@@ -118,9 +142,27 @@ export default function ChatBriefBuilder({
   const [questionIndex, setQuestionIndex] = useState(cached?.questionIndex ?? 0);
   const [error, setError] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isEditingReview, setIsEditingReview] = useState(false);
+  const [hasHydratedHistory, setHasHydratedHistory] = useState(false);
   const initialized = useRef(cached !== null);
+  const coreIntentRef = useRef<HTMLDivElement>(null);
+  const contentSpineRef = useRef<HTMLDivElement>(null);
+  const reviewRef = useRef<HTMLDivElement>(null);
+  const syncTimeoutRef = useRef<number | null>(null);
+  const syncedMessageFingerprintsRef = useRef<Record<string, string>>({});
 
   const handleSectionNavigate = useCallback((section: ActiveSection) => {
+    if (phase === 3 || isAlreadyApproved) {
+      const targetRef =
+        section === "core_intent"
+          ? coreIntentRef
+          : section === "content_spine"
+          ? contentSpineRef
+          : reviewRef;
+      targetRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+
     const phaseMap: Record<ActiveSection, Phase> = {
       core_intent: 1,
       content_spine: 2,
@@ -134,14 +176,94 @@ export default function ChatBriefBuilder({
 
   // Persist chat state to sessionStorage on every change
   useEffect(() => {
-    if (!isAlreadyApproved) {
-      saveSession(projectId, { messages, phase, questionIndex, fields });
+    saveSession(projectId, { messages, phase, questionIndex, fields });
+  }, [messages, phase, questionIndex, fields, projectId]);
+
+  // Hydrate persisted server-side chat history on mount.
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadPersistedHistory = async () => {
+      try {
+        const resp = await fetch(`/api/project/${projectId}/chat-messages`);
+        if (!resp.ok) {
+          setHasHydratedHistory(true);
+          return;
+        }
+
+        const data = await resp.json();
+        const persistedMessages = Array.isArray(data.messages) ? data.messages as ChatMessage[] : [];
+
+        if (cancelled) return;
+
+        if (persistedMessages.length > 0) {
+          syncedMessageFingerprintsRef.current = Object.fromEntries(
+            persistedMessages.map((message) => [message.id, messageFingerprint(message)])
+          );
+          setMessages(persistedMessages);
+          setPhase((current) => (isAlreadyApproved ? 3 : derivePhaseFromMessages(persistedMessages, current)));
+          setQuestionIndex(deriveQuestionIndexFromMessages(persistedMessages));
+          initialized.current = true;
+        }
+      } catch (err) {
+        console.error("[ChatBriefBuilder] Failed to hydrate persisted chat history:", err);
+      } finally {
+        if (!cancelled) {
+          setHasHydratedHistory(true);
+        }
+      }
+    };
+
+    loadPersistedHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [projectId, isAlreadyApproved]);
+
+  // Persist full chat history to the backend after hydration completes.
+  useEffect(() => {
+    if (!hasHydratedHistory) return;
+
+    const changedMessages = messages.filter((message) => {
+      const fingerprint = messageFingerprint(message);
+      return syncedMessageFingerprintsRef.current[message.id] !== fingerprint;
+    });
+
+    if (changedMessages.length === 0) return;
+
+    if (syncTimeoutRef.current !== null) {
+      window.clearTimeout(syncTimeoutRef.current);
     }
-  }, [messages, phase, questionIndex, fields, projectId, isAlreadyApproved]);
+
+    syncTimeoutRef.current = window.setTimeout(async () => {
+      try {
+        const resp = await fetch(`/api/project/${projectId}/chat-messages`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: changedMessages }),
+        });
+        if (!resp.ok) {
+          throw new Error(`Failed to persist chat messages: ${resp.status}`);
+        }
+        changedMessages.forEach((message) => {
+          syncedMessageFingerprintsRef.current[message.id] = messageFingerprint(message);
+        });
+      } catch (err) {
+        console.error("[ChatBriefBuilder] Failed to persist chat history:", err);
+      }
+    }, 400);
+
+    return () => {
+      if (syncTimeoutRef.current !== null) {
+        window.clearTimeout(syncTimeoutRef.current);
+      }
+    };
+  }, [messages, projectId, hasHydratedHistory]);
 
   // Seed the first AI message on mount (only if no cached session)
   useEffect(() => {
-    if (initialized.current || isAlreadyApproved) return;
+    if (!hasHydratedHistory || initialized.current || isAlreadyApproved) return;
     initialized.current = true;
 
     const firstQ = PHASE1_QUESTIONS[0];
@@ -155,7 +277,7 @@ export default function ChatBriefBuilder({
         phase: 1,
       },
     ]);
-  }, [isAlreadyApproved]);
+  }, [isAlreadyApproved, hasHydratedHistory]);
 
   // Merge initialFields on change, but never overwrite user-provided values with empty ones
   useEffect(() => {
@@ -412,15 +534,22 @@ export default function ChatBriefBuilder({
   }, [fields, onBriefApprove]);
 
   const handleEdit = useCallback(() => {
-    sessionStorage.removeItem(STORAGE_KEY(projectId));
-    setPhase(1);
-    setQuestionIndex(0);
-    setMessages([]);
-    initialized.current = false;
+    setIsEditingReview(true);
     onEditBrief();
-  }, [projectId, onEditBrief]);
+  }, [onEditBrief]);
+
+  const handleSaveEditedBrief = useCallback((nextFields: Record<string, BriefField>) => {
+    setFields(nextFields);
+    setIsEditingReview(false);
+  }, []);
+
+  const handleCancelEdit = useCallback(() => {
+    setIsEditingReview(false);
+  }, []);
 
   const activeSection = sectionForPhase(phase, questionIndex);
+  const coreIntentMessages = messages.filter((msg) => msg.phase === 1);
+  const contentSpineMessages = messages.filter((msg) => msg.phase === 2);
 
   // Phase 3: show BriefReview
   if (phase === 3 || isAlreadyApproved) {
@@ -460,13 +589,73 @@ export default function ChatBriefBuilder({
           {isGenerating ? (
             <OutlineLoadingView />
           ) : (
-            <BriefReview
-              fields={fields}
-              onEditBrief={handleEdit}
-              onApproveBrief={handleApprove}
-              disabled={false}
-              isAlreadyApproved={isAlreadyApproved}
-            />
+            <div className="space-y-8">
+              <section ref={coreIntentRef} className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-[#626B58]">
+                    1. Core Intent
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    Your briefing conversation about audience, outcome, and framing.
+                  </p>
+                </div>
+                {coreIntentMessages.length > 0 ? (
+                  <div className="space-y-1">
+                    {coreIntentMessages.map((msg, idx) => (
+                      <MessageBubble
+                        key={msg.id}
+                        message={msg}
+                        onChipSelect={handleChipSelect}
+                        isLatest={idx === coreIntentMessages.length - 1}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-[#D9DDD2] bg-[#FAFBF8] px-4 py-3 text-sm text-muted-foreground">
+                    No saved Core Intent conversation is available for this project yet.
+                  </div>
+                )}
+              </section>
+
+              <section ref={contentSpineRef} className="space-y-3">
+                <div>
+                  <h3 className="text-sm font-semibold uppercase tracking-wide text-[#626B58]">
+                    2. Key Narrative
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    The follow-up conversation that shaped the content spine.
+                  </p>
+                </div>
+                {contentSpineMessages.length > 0 ? (
+                  <div className="space-y-1">
+                    {contentSpineMessages.map((msg, idx) => (
+                      <MessageBubble
+                        key={msg.id}
+                        message={msg}
+                        isLatest={idx === contentSpineMessages.length - 1}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-[#D9DDD2] bg-[#FAFBF8] px-4 py-3 text-sm text-muted-foreground">
+                    No saved Key Narrative conversation is available for this project yet.
+                  </div>
+                )}
+              </section>
+
+              <section ref={reviewRef}>
+                <BriefReview
+                  fields={fields}
+                  onEditBrief={handleEdit}
+                  onApproveBrief={handleApprove}
+                  disabled={false}
+                  isAlreadyApproved={isAlreadyApproved}
+                  editable={isEditingReview}
+                  onSaveEditedBrief={handleSaveEditedBrief}
+                  onCancelEdit={handleCancelEdit}
+                />
+              </section>
+            </div>
           )}
         </div>
 

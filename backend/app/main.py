@@ -290,7 +290,7 @@ async def save_stories_to_project(project_id: str, request: SaveStoriesRequest, 
 
 class EventRequest(BaseModel):
     """Request body for event-based pipeline."""
-    event: str  # submit, submit_knowledge_share, approve/brief_approve, edit/edit_brief, refine_outline, regenerate_section, restart
+    event: str  # submit, submit_knowledge_share, chat_brief_approve, approve/brief_approve, edit/edit_brief, refine_outline, regenerate_section, restart
     payload: Optional[dict] = None
 
 
@@ -306,6 +306,19 @@ class ChatBriefRequest(BaseModel):
     onboarding: dict
 
 
+class PersistedChatMessage(BaseModel):
+    id: str
+    role: str
+    content: str
+    phase: int
+    fieldKey: Optional[str] = None
+    selectedChip: Optional[str] = None
+
+
+class SaveChatMessagesRequest(BaseModel):
+    messages: List[PersistedChatMessage]
+
+
 @app.post("/api/project/{project_id}/event")
 async def process_pipeline_event(project_id: str, request: EventRequest, db: AsyncSession = Depends(get_db)):
     """
@@ -313,6 +326,7 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
 
     Preferred events:
     - submit / submit_knowledge_share: Start the pipeline
+    - chat_brief_approve: Finalize the chat-built brief and enter Gate 1
     - approve: Approve the current gate
     - edit: Unlock the current stage or go back
     - refine_outline / regenerate_section: Regenerate outline content at Gate 2
@@ -429,6 +443,52 @@ Respond with the next JSON message."""
         raise HTTPException(status_code=500, detail=f"Chat brief error: {str(e)}")
 
 
+@app.get("/api/project/{project_id}/chat-messages")
+async def get_chat_messages(project_id: str, db: AsyncSession = Depends(get_db)):
+    """Load persisted Stage 1 chat history for a project."""
+    try:
+        await _require_project(db, project_id)
+        repo = ProjectRepository(db)
+        messages = await repo.list_chat_messages(project_id=project_id, stage_id=1)
+        return {
+            "success": True,
+            "messages": [
+                {
+                    "id": message.id,
+                    "role": message.role,
+                    "content": message.content,
+                    "phase": message.phase,
+                    "fieldKey": message.field_key,
+                    "selectedChip": message.selected_chip,
+                }
+                for message in messages
+            ],
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error loading chat messages: {str(e)}")
+
+
+@app.post("/api/project/{project_id}/chat-messages")
+async def save_chat_messages(project_id: str, request: SaveChatMessagesRequest, db: AsyncSession = Depends(get_db)):
+    """Append or update Stage 1 chat messages for a project."""
+    try:
+        await _require_project(db, project_id)
+        repo = ProjectRepository(db)
+        await repo.upsert_chat_messages(
+            project_id=project_id,
+            stage_id=1,
+            messages=[message.model_dump() for message in request.messages],
+        )
+        await repo.update_project_timestamp(project_id)
+        return {"success": True, "messageCount": len(request.messages)}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error saving chat messages: {str(e)}")
+
+
 @app.post("/api/project/{project_id}/start")
 async def start_pipeline(project_id: str, request: IntakeFormRequest, db: AsyncSession = Depends(get_db)):
     """
@@ -439,6 +499,13 @@ async def start_pipeline(project_id: str, request: IntakeFormRequest, db: AsyncS
     """
     try:
         await _require_project(db, project_id)
+        video_type = str(request.intake_form.get("video_type", "")).strip().lower()
+        if video_type in {"knowledge share", "knowledge_share"}:
+            raise HTTPException(
+                status_code=400,
+                detail="Knowledge Share must use /api/project/{project_id}/event with submit_knowledge_share, not /start.",
+            )
+
         result = await orchestrator.process_event(
             project_id=project_id,
             event="submit",
@@ -611,9 +678,7 @@ async def get_pipeline_state(project_id: str, db: AsyncSession = Depends(get_db)
         # Determine available events based on current phase
         available_events = {
             "intake": ["submit", "submit_knowledge_share"],
-            "brief_round1": ["round1_confirm"],
-            "brief_round2": ["round2_confirm"],
-            "brief_round3": ["generate_content_spine", "round3_confirm"],
+            "brief_chat": ["chat_brief_approve"],
             "brief_review": ["approve", "brief_approve", "edit", "edit_brief", "chat_brief_approve"],
             "gate1": ["approve", "edit", "reject", "refine"],
             "gate2": ["approve", "edit", "regenerate_section", "refine_outline", "reject", "refine"],

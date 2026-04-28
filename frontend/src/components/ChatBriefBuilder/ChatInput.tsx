@@ -12,6 +12,71 @@ const SpeechRecognition =
     ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     : null;
 
+const FILLER_WORDS = new Set([
+  "uh",
+  "um",
+  "erm",
+  "hmm",
+  "mm",
+]);
+
+function collapseRepeatedNgrams(tokens: string[]): string[] {
+  let collapsed = [...tokens];
+
+  for (let size = 5; size >= 1; size -= 1) {
+    const next: string[] = [];
+
+    for (let i = 0; i < collapsed.length;) {
+      let skipped = false;
+
+      if (i + size * 2 <= collapsed.length) {
+        const left = collapsed.slice(i, i + size).join(" ").toLowerCase();
+        const right = collapsed.slice(i + size, i + size * 2).join(" ").toLowerCase();
+
+        if (left === right) {
+          next.push(...collapsed.slice(i, i + size));
+          i += size * 2;
+          skipped = true;
+        }
+      }
+
+      if (!skipped) {
+        next.push(collapsed[i]);
+        i += 1;
+      }
+    }
+
+    collapsed = next;
+  }
+
+  return collapsed;
+}
+
+function cleanSpeechTranscript(rawTranscript: string): string {
+  const normalized = rawTranscript.replace(/\s+/g, " ").trim();
+  if (!normalized) return "";
+
+  const tokens = normalized
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean)
+    .filter((token) => {
+      const lettersOnly = token.toLowerCase().replace(/^[^a-z]+|[^a-z]+$/g, "");
+      return !lettersOnly || !FILLER_WORDS.has(lettersOnly);
+    });
+
+  const deduped = collapseRepeatedNgrams(tokens)
+    .filter((token, index, arr) => {
+      if (index === 0) return true;
+      return token.toLowerCase() !== arr[index - 1].toLowerCase();
+    });
+
+  const cleaned = deduped.join(" ").replace(/\s+/g, " ").trim();
+  if (!cleaned) return "";
+
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
 export default function ChatInput({
   onSend,
   disabled = false,
@@ -21,6 +86,10 @@ export default function ChatInput({
   const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const prefixTextRef = useRef("");
+  const finalTranscriptRef = useRef("");
+  const liveTranscriptRef = useRef("");
+  const shouldSubmitSpeechRef = useRef(false);
 
   useEffect(() => {
     if (!disabled) inputRef.current?.focus();
@@ -37,38 +106,98 @@ export default function ChatInput({
 
   const handleSend = () => {
     const trimmed = text.trim();
-    if (!trimmed || disabled) return;
+    if (!trimmed || disabled || isListening) return;
     onSend(trimmed);
     setText("");
   };
+
+  const finalizeSpeechInput = useCallback(() => {
+    const cleanedSpeech = cleanSpeechTranscript(
+      finalTranscriptRef.current || liveTranscriptRef.current
+    );
+    const prefix = prefixTextRef.current.trim();
+    const finalMessage = [prefix, cleanedSpeech].filter(Boolean).join(" ").trim();
+
+    recognitionRef.current = null;
+    finalTranscriptRef.current = "";
+    liveTranscriptRef.current = "";
+    prefixTextRef.current = "";
+
+    if (!shouldSubmitSpeechRef.current) {
+      shouldSubmitSpeechRef.current = false;
+      return;
+    }
+
+    shouldSubmitSpeechRef.current = false;
+
+    if (!finalMessage || disabled) {
+      setText(prefix);
+      return;
+    }
+
+    setText("");
+    onSend(finalMessage);
+  }, [disabled, onSend]);
 
   const toggleListening = useCallback(() => {
     if (!SpeechRecognition) return;
 
     if (isListening) {
+      shouldSubmitSpeechRef.current = true;
       recognitionRef.current?.stop();
       setIsListening(false);
       return;
     }
 
     const recognition = new SpeechRecognition();
-    recognition.continuous = false;
-    recognition.interimResults = false;
+    recognition.continuous = true;
+    recognition.interimResults = true;
     recognition.lang = "en-US";
 
+    prefixTextRef.current = text.trim();
+    finalTranscriptRef.current = "";
+    liveTranscriptRef.current = "";
+    shouldSubmitSpeechRef.current = true;
+
     recognition.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setText((prev) => (prev ? prev + " " + transcript : transcript));
+      const finalParts: string[] = [];
+      const interimParts: string[] = [];
+
+      for (let i = 0; i < event.results.length; i += 1) {
+        const result = event.results[i];
+        if (!result?.[0]?.transcript) continue;
+        if (result.isFinal) {
+          finalParts.push(result[0].transcript);
+        } else {
+          interimParts.push(result[0].transcript);
+        }
+      }
+
+      finalTranscriptRef.current = finalParts.join(" ").trim();
+      liveTranscriptRef.current = [...finalParts, ...interimParts].join(" ").trim();
+
+      const preview = [prefixTextRef.current.trim(), liveTranscriptRef.current]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+
+      setText(preview);
       inputRef.current?.focus();
     };
 
-    recognition.onend = () => setIsListening(false);
-    recognition.onerror = () => setIsListening(false);
+    recognition.onend = () => {
+      setIsListening(false);
+      finalizeSpeechInput();
+    };
+    recognition.onerror = () => {
+      setIsListening(false);
+      finalizeSpeechInput();
+    };
 
     recognitionRef.current = recognition;
     recognition.start();
     setIsListening(true);
-  }, [isListening]);
+  }, [finalizeSpeechInput, isListening, text]);
 
   return (
     <div
@@ -87,7 +216,7 @@ export default function ChatInput({
               handleSend();
             }
           }}
-          disabled={disabled}
+          disabled={disabled || isListening}
           placeholder={isListening ? "Listening..." : placeholder}
           className="flex-1 outline-none"
           style={{
@@ -121,17 +250,17 @@ export default function ChatInput({
         )}
         <button
           onClick={handleSend}
-          disabled={disabled || !text.trim()}
+          disabled={disabled || isListening || !text.trim()}
           className="flex items-center justify-center transition-colors"
           style={{
             width: 40,
             height: 40,
             borderRadius: 10,
             backgroundColor:
-              disabled || !text.trim() ? "#D9DDD2" : "#3A6B47",
+              disabled || isListening || !text.trim() ? "#D9DDD2" : "#3A6B47",
             color: "#fff",
             border: "none",
-            cursor: disabled || !text.trim() ? "not-allowed" : "pointer",
+            cursor: disabled || isListening || !text.trim() ? "not-allowed" : "pointer",
           }}
         >
           <Send className="w-4 h-4" />

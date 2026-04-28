@@ -9,7 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Project, PipelineState, StageSnapshot, Upload
+from .models import ChatMessage, Project, PipelineState, StageSnapshot, Upload
 
 
 class ProjectRepository:
@@ -144,6 +144,57 @@ class ProjectRepository:
                 ai_version=ai_version, human_version=human_version,
             )
             self.session.add(snap)
+        await self.session.commit()
+
+    # ---- Chat Messages ----
+
+    async def list_chat_messages(self, project_id: str, stage_id: int = 1) -> list[ChatMessage]:
+        result = await self.session.execute(
+            select(ChatMessage)
+            .where(ChatMessage.project_id == project_id, ChatMessage.stage_id == stage_id)
+            .order_by(ChatMessage.created_at.asc(), ChatMessage.id.asc())
+        )
+        return list(result.scalars().all())
+
+    async def upsert_chat_messages(self, project_id: str, messages: list[dict], stage_id: int = 1):
+        if not messages:
+            return
+
+        message_ids = [message["id"] for message in messages]
+        result = await self.session.execute(
+            select(ChatMessage).where(
+                ChatMessage.project_id == project_id,
+                ChatMessage.stage_id == stage_id,
+                ChatMessage.id.in_(message_ids),
+            )
+        )
+        existing_messages = {
+            message.id: message
+            for message in result.scalars().all()
+        }
+
+        for message in messages:
+            existing = existing_messages.get(message["id"])
+            if existing:
+                existing.role = message["role"]
+                existing.content = message["content"]
+                existing.phase = int(message.get("phase", 1))
+                existing.field_key = message.get("fieldKey")
+                existing.selected_chip = message.get("selectedChip")
+            else:
+                self.session.add(
+                    ChatMessage(
+                        id=message["id"],
+                        project_id=project_id,
+                        stage_id=stage_id,
+                        role=message["role"],
+                        content=message["content"],
+                        phase=int(message.get("phase", 1)),
+                        field_key=message.get("fieldKey"),
+                        selected_chip=message.get("selectedChip"),
+                    )
+                )
+
         await self.session.commit()
 
     # ---- Uploads ----

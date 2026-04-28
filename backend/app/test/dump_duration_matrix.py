@@ -57,30 +57,22 @@ async def run_ks_to_gate2(orch, project_id, duration_seconds):
             "target_audience": "Engineers", "duration_minutes": duration_seconds / 60,
         }
     })
-    await orch.process_event(project_id, "round1_confirm", {
-        "confirmed_fields": {
+    r = await orch.process_event(project_id, "chat_brief_approve", {
+        "all_fields": {
             "topic": {"value": "Test Topic", "source": "extracted", "confirmed": True},
             "viewer_outcome": {"value": "Understand concept", "source": "extracted", "confirmed": True},
             "target_audience": {"value": "Engineers", "source": "extracted", "confirmed": True},
             "duration": {"value": str(duration_seconds), "source": "extracted", "confirmed": True},
             "audience_level": {"value": "intermediate", "source": "extracted", "confirmed": True},
             "platform": {"value": "youtube", "source": "extracted", "confirmed": True},
-        }
-    })
-    await orch.process_event(project_id, "round2_confirm", {
-        "confirmed_fields": {
             "on_camera_presence": {"value": "yes", "source": "extracted", "confirmed": True},
             "broll_type": {"value": ["slides", "talking_head"], "source": "extracted", "confirmed": True},
             "delivery_tone": {"value": "educational", "source": "extracted", "confirmed": True},
-        }
-    })
-    await orch.process_event(project_id, "generate_content_spine", {"point_of_view": "Practical perspective"})
-    await orch.process_event(project_id, "round3_confirm", {
-        "confirmed_fields": {
+            "point_of_view": {"value": "Practical perspective", "source": "extracted", "confirmed": True},
             "core_talking_points": {"value": ["Point A", "Point B", "Point C"], "source": "generated", "confirmed": True},
         }
     })
-    return await orch.process_event(project_id, "brief_approve", {})
+    return await orch.process_event(project_id, "approve", {}) if r.get("success") else r
 
 
 SCENARIOS = []

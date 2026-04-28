@@ -35,6 +35,13 @@ interface StageContentProps {
   onContentChange: (content: string) => void;
 }
 
+interface KnowledgeShareInitResult {
+  briefFields: Record<string, BriefField>;
+  isBriefAlreadyApproved: boolean;
+}
+
+const knowledgeShareInitRequests = new Map<string, Promise<KnowledgeShareInitResult>>();
+
 // Helper to get onboarding data from session storage
 function getOnboardingDataFromSession(): OnboardingData | null {
   try {
@@ -91,6 +98,112 @@ function getOnboardingDataFromSession(): OnboardingData | null {
   } catch {
     return null;
   }
+}
+
+async function initializeKnowledgeShareProject(
+  projectId: string,
+  onboardingData: OnboardingData | null,
+  isAlreadyApproved: boolean
+): Promise<KnowledgeShareInitResult> {
+  const startTime = performance.now();
+  console.log("[KS] Initializing... stage.status:", isAlreadyApproved ? "approved" : "not_approved");
+
+  const stateResponse = await fetch(`/api/project/${projectId}/pipeline-state`);
+  if (stateResponse.ok) {
+    const stateData = await stateResponse.json();
+    console.log("[KS] Current pipeline state:", stateData);
+
+    const briefFields = stateData.data?.story_brief?.fields || {};
+
+    if (isAlreadyApproved && Object.keys(briefFields).length > 0) {
+      console.log("[KS] Stage already approved, restoring fields:", Object.keys(briefFields));
+      return {
+        briefFields,
+        isBriefAlreadyApproved: true,
+      };
+    }
+
+    if (stateData.phase === "brief_chat" || stateData.phase === "brief_review") {
+      console.log("[KS] Restoring chat brief state, fields:", Object.keys(briefFields));
+      return {
+        briefFields,
+        isBriefAlreadyApproved: false,
+      };
+    }
+
+    if (stateData.phase && !["intake", "brief_chat", "brief_review"].includes(stateData.phase)) {
+      console.log(
+        "[KS] Project already past brief stage, phase:",
+        stateData.phase,
+        "fields:",
+        Object.keys(briefFields)
+      );
+      return {
+        briefFields,
+        isBriefAlreadyApproved: Object.keys(briefFields).length > 0,
+      };
+    }
+  }
+
+  console.log("[KS] Starting fresh with submit_knowledge_share...", {
+    videoType: onboardingData?.videoType,
+    duration: onboardingData?.duration,
+    audience: onboardingData?.audience,
+  });
+
+  const response = await fetch(`/api/project/${projectId}/event`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      event: "submit_knowledge_share",
+      payload: {
+        intake_form: {
+          video_type: onboardingData?.videoType,
+          description: onboardingData?.description,
+          duration: onboardingData?.duration,
+          target_audience: onboardingData?.audience,
+          links: onboardingData?.links || [],
+        },
+      },
+    }),
+  });
+
+  console.log(`[KS] Response status: ${response.status}`);
+
+  if (!response.ok) {
+    const errorData = await response.json().catch(() => ({}));
+    console.error("[KS] Init failed:", errorData);
+    throw new Error(errorData.error || errorData.detail || "Failed to start briefing");
+  }
+
+  const data = await response.json();
+  console.log("[KS] Round 1 response data:", data);
+  console.log(`[KS] Total time: ${(performance.now() - startTime).toFixed(0)}ms`);
+
+  return {
+    briefFields: data.brief_fields || {},
+    isBriefAlreadyApproved: false,
+  };
+}
+
+function getKnowledgeShareInitRequest(
+  projectId: string,
+  onboardingData: OnboardingData | null,
+  isAlreadyApproved: boolean
+): Promise<KnowledgeShareInitResult> {
+  const existingRequest = knowledgeShareInitRequests.get(projectId);
+  if (existingRequest) {
+    console.log("[KS] Reusing in-flight initialization for project:", projectId);
+    return existingRequest;
+  }
+
+  const request = initializeKnowledgeShareProject(projectId, onboardingData, isAlreadyApproved)
+    .finally(() => {
+      knowledgeShareInitRequests.delete(projectId);
+    });
+
+  knowledgeShareInitRequests.set(projectId, request);
+  return request;
 }
 
 const OUTLINE_STEPS = [
@@ -211,113 +324,34 @@ export default function StageContent({
   // Initialize Knowledge Share flow
   useEffect(() => {
     if (isKnowledgeShare && projectId && USE_KNOWLEDGE_SHARE_FLOW && stage.id === 1 && !knowledgeShareInitialized) {
-      // Start the Knowledge Share flow by submitting intake
-      const initializeKnowledgeShare = async () => {
-        const startTime = performance.now();
-        console.log("[KS] Initializing... stage.status:", stage.status);
+      let cancelled = false;
 
+      const runKnowledgeShareInitialization = async () => {
         try {
           setKnowledgeShareInitialized(true);
 
-          // If stage is already approved, we just need to load the saved data for display
-          const isAlreadyApproved = stage.status === "approved";
+          const initResult = await getKnowledgeShareInitRequest(
+            projectId,
+            onboardingData,
+            stage.status === "approved"
+          );
 
-          // First, check if project already has state (e.g., page refresh)
-          const stateResponse = await fetch(`/api/project/${projectId}/pipeline-state`);
-          if (stateResponse.ok) {
-            const stateData = await stateResponse.json();
-            console.log("[KS] Current pipeline state:", stateData);
+          if (cancelled) return;
 
-            // Extract brief_fields from story_brief in pipeline state
-            const briefFields = stateData.data?.story_brief?.fields || {};
-
-            // If frontend stage is already approved, show review mode with saved data
-            if (isAlreadyApproved && Object.keys(briefFields).length > 0) {
-              console.log("[KS] Stage already approved, restoring fields:", Object.keys(briefFields));
-              setKnowledgeShareFields(briefFields);
-              setIsBriefAlreadyApproved(true); // Mark as already approved on backend
-              return;
-            }
-
-            // If already in round 2 or later, restore that state
-            if (stateData.phase === "brief_round2") {
-              console.log("[KS] Restoring round 2 state, fields:", Object.keys(briefFields));
-              setKnowledgeShareFields(briefFields);
-              return;
-            } else if (stateData.phase === "brief_round3") {
-              console.log("[KS] Restoring round 3 state, fields:", Object.keys(briefFields));
-              setKnowledgeShareFields(briefFields);
-              return;
-            } else if (stateData.phase === "angle_selection") {
-              // Legacy: projects stuck in angle_selection get restored to round 3
-              console.log("[KS] Restoring angle_selection as round 3, fields:", Object.keys(briefFields));
-              setKnowledgeShareFields(briefFields);
-              return;
-            } else if (stateData.phase === "brief_round1") {
-              console.log("[KS] Restoring round 1 state, fields:", Object.keys(briefFields));
-              setKnowledgeShareFields(briefFields);
-              return;
-            }
-            // If phase is set but not brief_round*, project may have progressed past brief stage
-            // Still populate fields so they can be shown in read-only view
-            if (stateData.phase && !stateData.phase.startsWith("brief_") && stateData.phase !== "intake") {
-              console.log("[KS] Project already past brief stage, phase:", stateData.phase, "fields:", Object.keys(briefFields));
-              if (Object.keys(briefFields).length > 0) {
-                setKnowledgeShareFields(briefFields);
-                setIsBriefAlreadyApproved(true); // Mark as already approved on backend
-              }
-              return;
-            }
-          }
-
-          // Project is new or in intake phase - start fresh
-          console.log("[KS] Starting fresh with submit_knowledge_share...", {
-            videoType: onboardingData?.videoType,
-            duration: onboardingData?.duration,
-            audience: onboardingData?.audience,
-          });
-
-          const response = await fetch(`/api/project/${projectId}/event`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              event: "submit_knowledge_share",
-              payload: {
-                intake_form: {
-                  video_type: onboardingData?.videoType,
-                  description: onboardingData?.description,
-                  duration: onboardingData?.duration,
-                  target_audience: onboardingData?.audience,
-                  links: onboardingData?.links || [],
-                },
-              },
-            }),
-          });
-
-          console.log(`[KS] Response status: ${response.status}`);
-
-          if (response.ok) {
-            const data = await response.json();
-            console.log("[KS] Round 1 response data:", data);
-            console.log(`[KS] Total time: ${(performance.now() - startTime).toFixed(0)}ms`);
-
-            if (data.brief_fields) {
-              setKnowledgeShareFields(data.brief_fields);
-            } else if (data.error) {
-              setResearchError(data.error);
-            }
-          } else {
-            const errorData = await response.json();
-            console.error("[KS] Init failed:", errorData);
-            setResearchError(errorData.error || "Failed to start briefing");
-          }
+          setKnowledgeShareFields(initResult.briefFields);
+          setIsBriefAlreadyApproved(initResult.isBriefAlreadyApproved);
         } catch (err) {
+          if (cancelled) return;
           console.error("[KS] Failed to initialize:", err);
           setResearchError("Failed to start briefing flow");
         }
       };
 
-      initializeKnowledgeShare();
+      runKnowledgeShareInitialization();
+
+      return () => {
+        cancelled = true;
+      };
     }
   }, [isKnowledgeShare, projectId, stage.id, stage.status, knowledgeShareInitialized, aiContent, onboardingData]);
 
@@ -355,32 +389,15 @@ export default function StageContent({
       const data = await response.json();
       console.log("[KS StageContent] Brief approve response:", data);
 
-      // Backend returns screen_outline after running Director
-      // For Knowledge Share, we skip the legacy endpoints and pass
-      // the pre-generated outline directly to the next stage
       const briefContent = data.story_brief
         ? JSON.stringify(data.story_brief, null, 2)
         : JSON.stringify(allFields, null, 2);
 
-      if (data.outline_eval) setOutlineEval(data.outline_eval);
-
-      if (data.screen_outline) {
-        console.log("[KS StageContent] Got screen_outline, calling onApprove with nextStageContent");
-        // Pass brief as current stage content, outline as next stage content (plain text)
-        onContentChange(briefContent);
-        const outlineText = typeof data.screen_outline === "string"
-          ? data.screen_outline
-          : JSON.stringify(data.screen_outline, null, 2);
-        onApprove(briefContent, {
-          skipNextGeneration: true,
-          nextStageContent: outlineText,
-        });
-      } else {
-        console.log("[KS StageContent] No screen_outline, calling onApprove without nextStageContent");
-        // Fallback if only brief returned - this shouldn't happen normally
-        onContentChange(briefContent);
-        onApprove(briefContent, { skipNextGeneration: true });
-      }
+      // chat_brief_approve finalizes the briefing document and enters Gate 1.
+      // Stage 1 approval still happens through the normal stage-level approve
+      // event so Director remains owned by gate1 -> outline.
+      onContentChange(briefContent);
+      onApprove(briefContent);
     },
     [projectId, onContentChange, onApprove]
   );

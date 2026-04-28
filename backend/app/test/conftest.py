@@ -67,12 +67,12 @@ MOCK_ROUND3_FIELDS = {
 class MockBriefBuilder:
     def run(self, state, round=1, confirmed_fields=None, revision_feedback=None, **kwargs):
         if round == 1:
-            return {"round": 1, "fields": dict(MOCK_ROUND1_FIELDS)}
+            return {"fields": dict(MOCK_ROUND1_FIELDS)}
         elif round == 2:
-            return {"round": 2, "fields": dict(MOCK_ROUND2_FIELDS)}
+            return {"fields": dict(MOCK_ROUND2_FIELDS)}
         elif round == 3:
-            return {"round": 3, "fields": dict(MOCK_ROUND3_FIELDS)}
-        return {"round": round, "fields": {}}
+            return {"fields": dict(MOCK_ROUND3_FIELDS)}
+        return {"fields": {}}
 
 
 class MockDirector:
