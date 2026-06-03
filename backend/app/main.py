@@ -26,6 +26,64 @@ load_dotenv()
 
 DEFAULT_ANONYMOUS_USER_ID = "anonymous"
 
+
+def _is_local_anonymous_user(user_id: Optional[str]) -> bool:
+    return not user_id or user_id == DEFAULT_ANONYMOUS_USER_ID or user_id.startswith("anon_")
+
+
+def _can_access_project_owner(owner_user_id: str, request_user_id: Optional[str]) -> bool:
+    if owner_user_id == (request_user_id or DEFAULT_ANONYMOUS_USER_ID):
+        return True
+    if _is_local_anonymous_user(request_user_id):
+        return owner_user_id in {"", DEFAULT_ANONYMOUS_USER_ID} or owner_user_id.startswith("user_")
+    return False
+
+
+def _frontend_stage_view(phase: Optional[str], state_data: dict) -> tuple[int, list[dict]]:
+    """Map backend pipeline phase to the four-stage frontend status model."""
+    saved_current_stage = int(state_data.get("currentStageId") or 1)
+    saved_statuses = state_data.get("stageStatuses") or []
+    stage3_approved = any(
+        status.get("id") == 3 and status.get("status") == "approved"
+        for status in saved_statuses
+        if isinstance(status, dict)
+    )
+    statuses = [
+        {"id": 1, "status": "not_started"},
+        {"id": 2, "status": "not_started"},
+        {"id": 3, "status": "not_started"},
+        {"id": 4, "status": "not_started"},
+    ]
+
+    if phase in {"brief_chat", "brief_review", "gate1"}:
+        statuses[0]["status"] = "needs_review" if phase != "brief_chat" else "in_progress"
+        return 1, statuses
+    if phase in {"gate2", "outline_research"}:
+        statuses[0]["status"] = "approved"
+        statuses[1]["status"] = "generating" if phase == "outline_research" else "needs_review"
+        return 2, statuses
+    if phase == "review":
+        statuses[0]["status"] = "approved"
+        statuses[1]["status"] = "approved"
+        if stage3_approved or saved_current_stage >= 4:
+            statuses[2]["status"] = "approved"
+            statuses[3]["status"] = "needs_review"
+            return 4, statuses
+        statuses[2]["status"] = "needs_review"
+        return 3, statuses
+    if phase == "done":
+        for status in statuses:
+            status["status"] = "approved"
+        return 4, statuses
+    return saved_current_stage, saved_statuses or statuses
+
+
+def _frontend_stage_summary(phase: Optional[str], state_data: dict) -> tuple[int, int]:
+    """Map backend pipeline phase to the four-stage frontend progress model."""
+    current_stage, statuses = _frontend_stage_view(phase, state_data)
+    approved_count = sum(1 for status in statuses if status.get("status") == "approved")
+    return current_stage, int((approved_count / 4) * 100)
+
 if os.getenv("SENTRY_DSN"):
     sentry_sdk.init(
         dsn=os.getenv("SENTRY_DSN"),
@@ -790,6 +848,7 @@ async def load_stages(project_id: str, db: AsyncSession = Depends(get_db)):
         snapshots = await repo.get_all_snapshots(project_id)
         ps = await repo.get_pipeline_state(project_id)
         state_data = repo.parse_state_data(ps) if ps else {}
+        current_stage_id, stage_statuses = _frontend_stage_view(ps.phase if ps else None, state_data)
 
         stages = {}
         for snap in snapshots:
@@ -801,8 +860,8 @@ async def load_stages(project_id: str, db: AsyncSession = Depends(get_db)):
         return {
             "success": True,
             "stages": stages if stages else None,
-            "currentStageId": state_data.get("currentStageId", 1),
-            "stageStatuses": state_data.get("stageStatuses"),
+            "currentStageId": current_stage_id,
+            "stageStatuses": stage_statuses,
             "lastSaved": project.updated_at.isoformat() if project.updated_at else None,
         }
 
@@ -860,7 +919,11 @@ async def list_user_projects(user_id: Optional[str] = None, db: AsyncSession = D
     """List all projects for a specific user, including anonymous sessions."""
     try:
         repo = ProjectRepository(db)
-        db_projects = await repo.list_projects(user_id or DEFAULT_ANONYMOUS_USER_ID)
+        request_user_id = user_id or DEFAULT_ANONYMOUS_USER_ID
+        db_projects = await repo.list_projects(
+            request_user_id,
+            include_legacy_local=_is_local_anonymous_user(user_id),
+        )
 
         projects = []
 
@@ -868,9 +931,7 @@ async def list_user_projects(user_id: Optional[str] = None, db: AsyncSession = D
         for p in db_projects:
             ps = await repo.get_pipeline_state(p.id)
             state_data = repo.parse_state_data(ps) if ps else {}
-            stage_statuses = state_data.get("stageStatuses", [])
-            approved_count = sum(1 for s in stage_statuses if s.get("status") == "approved")
-            progress = int((approved_count / 4) * 100) if stage_statuses else 0
+            current_stage, progress = _frontend_stage_summary(ps.phase if ps else None, state_data)
 
             projects.append({
                 "id": p.id,
@@ -878,7 +939,7 @@ async def list_user_projects(user_id: Optional[str] = None, db: AsyncSession = D
                 "userInput": (p.user_input or "")[:100],
                 "createdAt": p.created_at.isoformat() if p.created_at else None,
                 "lastUpdated": p.updated_at.isoformat() if p.updated_at else None,
-                "currentStage": state_data.get("currentStageId", 1),
+                "currentStage": current_stage,
                 "progress": progress,
             })
 
@@ -898,7 +959,7 @@ async def delete_project(project_id: str, user_id: Optional[str] = None, db: Asy
         project = await repo.get_project(project_id)
         if not project:
             raise HTTPException(status_code=404, detail="Project not found")
-        if project.user_id != (user_id or DEFAULT_ANONYMOUS_USER_ID):
+        if not _can_access_project_owner(project.user_id, user_id):
             raise HTTPException(status_code=403, detail="Not authorized to delete this project")
         await repo.delete_project(project_id)
 

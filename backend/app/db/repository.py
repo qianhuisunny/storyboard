@@ -5,7 +5,7 @@ Data access layer — async CRUD for all 4 tables.
 import json
 from datetime import datetime, timezone
 from typing import Optional
-from sqlalchemy import select, update
+from sqlalchemy import or_, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -39,9 +39,25 @@ class ProjectRepository:
         )
         return result.scalar_one_or_none()
 
-    async def list_projects(self, user_id: str) -> list[Project]:
+    async def list_projects(self, user_id: str, include_legacy_local: bool = False) -> list[Project]:
+        predicate = Project.user_id == user_id
+        if include_legacy_local and (not user_id or user_id == "anonymous" or user_id.startswith("anon_")):
+            # The hackathon app previously stored projects under Clerk-style
+            # user IDs, then moved to local anonymous IDs. In local anonymous
+            # mode, include those legacy projects so history does not appear
+            # to disappear when the browser/user-id source changes.
+            predicate = or_(
+                Project.user_id == user_id,
+                Project.user_id == "anonymous",
+                Project.user_id == "",
+                Project.user_id.like("user_%"),
+            )
+
         result = await self.session.execute(
-            select(Project).where(Project.user_id == user_id).order_by(Project.updated_at.desc())
+            select(Project)
+            .where(predicate)
+            .where(Project.user_id != "codex-batch")
+            .order_by(Project.updated_at.desc())
         )
         return list(result.scalars().all())
 

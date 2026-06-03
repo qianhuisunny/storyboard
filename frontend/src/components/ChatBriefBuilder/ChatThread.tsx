@@ -6,6 +6,7 @@ interface ChatThreadProps {
   messages: ChatMessage[];
   onChipSelect?: (value: string) => void;
   isLlmLoading?: boolean;
+  animatedMessageIds?: Set<string>;
 }
 
 function TypingIndicator() {
@@ -64,6 +65,7 @@ export default function ChatThread({
   messages,
   onChipSelect,
   isLlmLoading = false,
+  animatedMessageIds = new Set<string>(),
 }: ChatThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -82,6 +84,7 @@ export default function ChatThread({
           message={msg}
           onChipSelect={onChipSelect}
           isLatest={idx === messages.length - 1}
+          animate={animatedMessageIds.has(msg.id)}
         />
       ))}
       {isLlmLoading && <TypingIndicator />}

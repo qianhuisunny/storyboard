@@ -7,7 +7,7 @@ import sys
 import json
 from pathlib import Path
 
-from backend.app.models.project import Project, ProjectRequirements, VideoType
+from app.models.project import Project, ProjectRequirements, VideoType
 
 # Add the app directory to Python path
 sys.path.append(str(Path(__file__).parent / 'app'))

@@ -146,7 +146,11 @@ export function normalizeProductionScreen(raw: Partial<ProductionScreen>, index:
 export function parseProductionScreens(data: unknown): ProductionScreen[] {
   if (!data) return [];
 
-  const arr = Array.isArray(data) ? data : [];
+  const arr = Array.isArray(data)
+    ? data
+    : typeof data === "object" && data !== null && Array.isArray((data as { screens?: unknown }).screens)
+    ? (data as { screens: unknown[] }).screens
+    : [];
   return arr.map((item, index) => normalizeProductionScreen(item as Partial<ProductionScreen>, index));
 }
 

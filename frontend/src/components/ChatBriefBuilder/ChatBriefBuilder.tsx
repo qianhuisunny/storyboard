@@ -134,6 +134,7 @@ export default function ChatBriefBuilder({
   const [messages, setMessages] = useState<ChatMessage[]>(cached?.messages ?? []);
   const [phase, setPhase] = useState<Phase>(isAlreadyApproved ? 3 : cached?.phase ?? 1);
   const [fields, setFields] = useState<Record<string, BriefField>>(() => {
+    if (isAlreadyApproved && initialFields && Object.keys(initialFields).length > 0) return initialFields;
     if (cached?.fields && Object.keys(cached.fields).length > 0) return cached.fields;
     if (initialFields && Object.keys(initialFields).length > 0) return initialFields;
     return {};
@@ -144,6 +145,7 @@ export default function ChatBriefBuilder({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isEditingReview, setIsEditingReview] = useState(false);
   const [hasHydratedHistory, setHasHydratedHistory] = useState(false);
+  const [animatedMessageIds, setAnimatedMessageIds] = useState<Set<string>>(() => new Set());
   const initialized = useRef(cached !== null);
   const coreIntentRef = useRef<HTMLDivElement>(null);
   const contentSpineRef = useRef<HTMLDivElement>(null);
@@ -173,6 +175,12 @@ export default function ChatBriefBuilder({
       setPhase(targetPhase);
     }
   }, [phase]);
+
+  useEffect(() => {
+    if (!isAlreadyApproved) return;
+    setPhase(3);
+    initialized.current = true;
+  }, [isAlreadyApproved]);
 
   // Persist chat state to sessionStorage on every change
   useEffect(() => {
@@ -267,9 +275,10 @@ export default function ChatBriefBuilder({
     initialized.current = true;
 
     const firstQ = PHASE1_QUESTIONS[0];
+    const firstMessageId = nextId();
     setMessages([
       {
-        id: nextId(),
+        id: firstMessageId,
         role: "ai",
         content: firstQ.aiMessage,
         chips: firstQ.chips,
@@ -277,11 +286,17 @@ export default function ChatBriefBuilder({
         phase: 1,
       },
     ]);
+    setAnimatedMessageIds(new Set([firstMessageId]));
   }, [isAlreadyApproved, hasHydratedHistory]);
 
   // Merge initialFields on change, but never overwrite user-provided values with empty ones
   useEffect(() => {
     if (initialFields && Object.keys(initialFields).length > 0) {
+      if (isAlreadyApproved) {
+        setFields(initialFields);
+        return;
+      }
+
       setFields((prev) => {
         const merged = { ...prev };
         for (const [key, field] of Object.entries(initialFields)) {
@@ -296,10 +311,18 @@ export default function ChatBriefBuilder({
         return merged;
       });
     }
-  }, [initialFields]);
+  }, [initialFields, isAlreadyApproved]);
 
   const addMessages = useCallback((...msgs: ChatMessage[]) => {
     setMessages((prev) => [...prev, ...msgs]);
+    const aiMessageIds = msgs.filter((msg) => msg.role === "ai").map((msg) => msg.id);
+    if (aiMessageIds.length > 0) {
+      setAnimatedMessageIds((prev) => {
+        const next = new Set(prev);
+        aiMessageIds.forEach((id) => next.add(id));
+        return next;
+      });
+    }
   }, []);
 
   // Call the /chat-brief backend endpoint
@@ -607,6 +630,7 @@ export default function ChatBriefBuilder({
                         message={msg}
                         onChipSelect={handleChipSelect}
                         isLatest={idx === coreIntentMessages.length - 1}
+                        animate={false}
                       />
                     ))}
                   </div>
@@ -633,6 +657,7 @@ export default function ChatBriefBuilder({
                         key={msg.id}
                         message={msg}
                         isLatest={idx === contentSpineMessages.length - 1}
+                        animate={false}
                       />
                     ))}
                   </div>
@@ -708,6 +733,7 @@ export default function ChatBriefBuilder({
         messages={messages}
         onChipSelect={handleChipSelect}
         isLlmLoading={isLlmLoading}
+        animatedMessageIds={animatedMessageIds}
       />
 
       {/* Error */}

@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useParams } from "react-router-dom";
 import { type Stage } from "./StageNavigation";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ interface StageContentProps {
   humanContent: string | null;
   previousStageOutput?: Record<string, unknown> | null;
   isGenerating: boolean;
-  onApprove: (content: string, options?: ApproveOptions) => void;
+  onApprove: (content: string, options?: ApproveOptions) => void | Promise<void>;
   onRegenerate: (feedback: string) => void;
   onContentChange: (content: string) => void;
   onStoryboardGeneratingChange?: (isGenerating: boolean) => void;
@@ -223,6 +223,19 @@ const DRAFT_STEPS = [
   { label: "Finalizing storyboard", delay: 24000 },
 ];
 
+function stringifyStageContent(content: unknown): string {
+  return typeof content === "string" ? content : JSON.stringify(content, null, 2);
+}
+
+function hasRenderableStoryboard(content: unknown): boolean {
+  const screens = Array.isArray(content)
+    ? content
+    : typeof content === "object" && content !== null && Array.isArray((content as { screens?: unknown }).screens)
+    ? (content as { screens: unknown[] }).screens
+    : [];
+  return screens.length >= 3 && typeof screens[0] === "object" && screens[0] !== null;
+}
+
 function GeneratingProgress({ stageId }: { stageId: number }) {
   const steps = stageId === 2 ? OUTLINE_STEPS : DRAFT_STEPS;
   const [activeStep, setActiveStep] = useState(0);
@@ -296,7 +309,7 @@ export default function StageContent({
 
   // Knowledge Share 3-round flow state
   const [knowledgeShareFields, setKnowledgeShareFields] = useState<Record<string, BriefField>>({});
-  const [knowledgeShareInitialized, setKnowledgeShareInitialized] = useState(false);
+  const knowledgeShareInitStartedRef = useRef(false);
   // Track if brief is already approved on backend (past brief stage)
   const [isBriefAlreadyApproved, setIsBriefAlreadyApproved] = useState(false);
   const [, setResearchError] = useState<string | null>(null);
@@ -325,13 +338,12 @@ export default function StageContent({
 
   // Initialize Knowledge Share flow
   useEffect(() => {
-    if (isKnowledgeShare && projectId && USE_KNOWLEDGE_SHARE_FLOW && stage.id === 1 && !knowledgeShareInitialized) {
+    if (isKnowledgeShare && projectId && USE_KNOWLEDGE_SHARE_FLOW && stage.id === 1 && !knowledgeShareInitStartedRef.current) {
       let cancelled = false;
+      knowledgeShareInitStartedRef.current = true;
 
       const runKnowledgeShareInitialization = async () => {
         try {
-          setKnowledgeShareInitialized(true);
-
           const initResult = await getKnowledgeShareInitRequest(
             projectId,
             onboardingData,
@@ -344,6 +356,7 @@ export default function StageContent({
           setIsBriefAlreadyApproved(initResult.isBriefAlreadyApproved);
         } catch (err) {
           if (cancelled) return;
+          knowledgeShareInitStartedRef.current = false;
           console.error("[KS] Failed to initialize:", err);
           setResearchError("Failed to start briefing flow");
         }
@@ -355,7 +368,7 @@ export default function StageContent({
         cancelled = true;
       };
     }
-  }, [isKnowledgeShare, projectId, stage.id, stage.status, knowledgeShareInitialized, aiContent, onboardingData]);
+  }, [isKnowledgeShare, projectId, stage.id, stage.status, onboardingData]);
 
   // Handle round confirmation for Knowledge Share
   // Handle brief approval for Knowledge Share
@@ -401,7 +414,7 @@ export default function StageContent({
       if (data.screen_outline) {
         onApprove(briefContent, {
           skipNextGeneration: true,
-          nextStageContent: data.screen_outline,
+          nextStageContent: stringifyStageContent(data.screen_outline),
         });
         return;
       }
@@ -608,27 +621,26 @@ export default function StageContent({
       const phase = stateData.phase;
       console.log("[Outline] Current backend phase:", phase);
 
+      const advanceWithStoryboard = async (storyboard: unknown) => {
+        await onApprove(currentOutlineText, {
+          skipNextGeneration: true,
+          nextStageContent: JSON.stringify(storyboard, null, 2),
+        });
+      };
+
       // If storyboard already exists, skip straight to the frontend advance.
-      // This can happen when evidence research was attached outside the MVP flow.
+      // This can happen after a previous writer run completed but the stage
+      // snapshot did not save before refresh/navigation.
       if (phase !== "gate2" && phase !== "outline_research") {
         if (stateData.data?.storyboard_eval) setStoryboardEval(stateData.data.storyboard_eval);
         const storyboard = stateData.data?.storyboard;
-        const isValidStoryboard = Array.isArray(storyboard) &&
-          storyboard.length >= 3 &&
-          storyboard[0]?.screen_type != null;
-        if (isValidStoryboard) {
-          onApprove(currentOutlineText, {
-            skipNextGeneration: true,
-            nextStageContent: JSON.stringify(storyboard, null, 2),
-          });
-        } else {
-          onApprove(currentOutlineText);
+        if (hasRenderableStoryboard(storyboard)) {
+          await advanceWithStoryboard(storyboard);
+          return;
         }
-        return;
+        throw new Error(`Storyboard is not ready for phase '${phase}'.`);
       }
 
-      // At gate2 or outline_research — send approve event to trigger writer.
-      // If future research data exists, pass the filtered evidence through.
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -640,20 +652,23 @@ export default function StageContent({
           },
         }),
       });
-      if (response.ok) {
-        const data = await response.json();
-        if (data.storyboard_eval) setStoryboardEval(data.storyboard_eval);
-        if (data.storyboard) {
-          onApprove(currentOutlineText, {
-            skipNextGeneration: true,
-            nextStageContent: JSON.stringify(data.storyboard, null, 2),
-          });
-        } else {
-          onApprove(currentOutlineText);
-        }
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.detail || errData.error || "Failed to approve outline");
       }
+
+      const data = await response.json();
+      if (data.storyboard_eval) setStoryboardEval(data.storyboard_eval);
+      if (data.storyboard) {
+        await advanceWithStoryboard(data.storyboard);
+        return;
+      }
+
+      throw new Error("Outline approval completed without storyboard data.");
     } catch (err) {
       console.error("[Outline] Continue failed:", err);
+      throw err;
     }
   }, [projectId, currentOutlineText, onApprove]);
 

@@ -5,6 +5,7 @@ interface MessageBubbleProps {
   message: ChatMessage;
   onChipSelect?: (value: string) => void;
   isLatest?: boolean;
+  animate?: boolean;
 }
 
 function Avatar({ letter, isAi }: { letter: string; isAi: boolean }) {
@@ -61,10 +62,11 @@ export default function MessageBubble({
   message,
   onChipSelect,
   isLatest = false,
+  animate = false,
 }: MessageBubbleProps) {
   const isAi = message.role === "ai";
   const hasAnimated = useRef(false);
-  const shouldAnimate = isAi && isLatest && !hasAnimated.current;
+  const shouldAnimate = animate && isAi && isLatest && !hasAnimated.current;
 
   const { displayed, done } = useTypewriter(
     message.content,

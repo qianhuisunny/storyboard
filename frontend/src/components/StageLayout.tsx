@@ -20,6 +20,21 @@ interface StageData {
   humanVersion: string | null;
 }
 
+interface PipelineStateResponse {
+  success: boolean;
+  phase?: string;
+  state?: {
+    has_story_brief?: boolean;
+    has_screen_outline?: boolean;
+    has_storyboard?: boolean;
+  };
+  data?: {
+    story_brief?: unknown;
+    screen_outline?: unknown;
+    storyboard?: unknown;
+  };
+}
+
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 function stringifyForStageData(content: unknown): string {
@@ -32,6 +47,115 @@ function parseMaybeJson(content: string): unknown {
   } catch {
     return content;
   }
+}
+
+function isMeaningfulStageContent(content: string | null | undefined): boolean {
+  return typeof content === "string" && content.trim().length > 0;
+}
+
+function hasStageContent(data: StageData | undefined): boolean {
+  return isMeaningfulStageContent(data?.aiVersion) || isMeaningfulStageContent(data?.humanVersion);
+}
+
+function fillStageFromPipeline(
+  existing: Record<number, StageData>,
+  stageId: number,
+  content: unknown,
+  version: keyof StageData,
+) {
+  if (content == null || hasStageContent(existing[stageId])) return;
+  const prior = existing[stageId] ?? { aiVersion: null, humanVersion: null };
+  existing[stageId] = {
+    ...prior,
+    [version]: stringifyForStageData(content),
+  };
+}
+
+function hydrateStageDataFromPipeline(
+  restoredData: Record<number, StageData>,
+  pipelineState: PipelineStateResponse | null,
+): Record<number, StageData> {
+  const next = { ...restoredData };
+  const pipelineData = pipelineState?.data;
+  if (!pipelineData) return next;
+
+  fillStageFromPipeline(next, 1, pipelineData.story_brief, "humanVersion");
+  fillStageFromPipeline(next, 2, pipelineData.screen_outline, "aiVersion");
+  fillStageFromPipeline(next, 3, pipelineData.storyboard, "aiVersion");
+
+  return next;
+}
+
+function stageStatusesFromList(statuses: unknown): Record<number, StageStatus> {
+  if (!Array.isArray(statuses)) return {};
+  return statuses.reduce<Record<number, StageStatus>>((acc, status) => {
+    if (
+      status &&
+      typeof status === "object" &&
+      "id" in status &&
+      "status" in status
+    ) {
+      const stageId = Number((status as { id: unknown }).id);
+      const stageStatus = (status as { status: StageStatus }).status;
+      if (stageId && ["not_started", "in_progress", "needs_review", "approved", "generating"].includes(stageStatus)) {
+        acc[stageId] = stageStatus;
+      }
+    }
+    return acc;
+  }, {});
+}
+
+function deriveStageViewFromPipeline(
+  pipelineState: PipelineStateResponse | null,
+  savedCurrentStageId?: number,
+  savedStageStatuses?: unknown,
+): { currentStageId: number; stageStatuses: Record<number, StageStatus> } | null {
+  const phase = pipelineState?.phase;
+  if (!phase) return null;
+
+  const savedStatuses = stageStatusesFromList(savedStageStatuses);
+  const stageStatuses: Record<number, StageStatus> = {
+    1: "not_started",
+    2: "not_started",
+    3: "not_started",
+    4: "not_started",
+  };
+
+  let currentStageId = savedCurrentStageId || 1;
+
+  if (phase === "intake") {
+    currentStageId = 1;
+  } else if (phase === "brief_chat") {
+    currentStageId = 1;
+    stageStatuses[1] = "in_progress";
+  } else if (phase === "brief_review" || phase === "gate1") {
+    currentStageId = 1;
+    stageStatuses[1] = "needs_review";
+  } else if (phase === "gate2" || phase === "outline_research") {
+    currentStageId = 2;
+    stageStatuses[1] = "approved";
+    stageStatuses[2] = phase === "outline_research" ? "generating" : "needs_review";
+  } else if (phase === "review") {
+    stageStatuses[1] = "approved";
+    stageStatuses[2] = "approved";
+    const stage3WasApproved = savedStatuses[3] === "approved" || (savedCurrentStageId || 0) >= 4;
+    if (stage3WasApproved) {
+      currentStageId = 4;
+      stageStatuses[3] = "approved";
+      stageStatuses[4] = "needs_review";
+    } else {
+      currentStageId = 3;
+      stageStatuses[3] = "needs_review";
+    }
+  } else if (phase === "done") {
+    currentStageId = 4;
+    stageStatuses[1] = "approved";
+    stageStatuses[2] = "approved";
+    stageStatuses[3] = "approved";
+    stageStatuses[4] = "approved";
+  }
+
+  return { currentStageId, stageStatuses };
 }
 
 export default function StageLayout() {
@@ -119,40 +243,65 @@ export default function StageLayout() {
       // StrictMode double-mount guard: ref survives remount but state resets.
       // Always fetch and restore — skip only the "already loaded" early return.
       try {
-        const response = await fetch(`/api/project/${projectId}/stages`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.stages && Object.keys(data.stages).length > 0) {
-            // Restore stage data
-            const restoredData: Record<number, StageData> = {};
-            for (const [key, value] of Object.entries(data.stages)) {
-              restoredData[parseInt(key)] = value as StageData;
-            }
-            setStageData(restoredData);
+        const [stagesResponse, pipelineResponse] = await Promise.all([
+          fetch(`/api/project/${projectId}/stages`),
+          fetch(`/api/project/${projectId}/pipeline-state`),
+        ]);
 
-            // Restore current stage ID
-            if (data.currentStageId) {
-              setCurrentStageId(data.currentStageId);
-            }
+        const stagesPayload = stagesResponse.ok ? await stagesResponse.json() : {};
+        const pipelinePayload: PipelineStateResponse | null = pipelineResponse.ok
+          ? await pipelineResponse.json()
+          : null;
 
-            // Restore stage statuses
-            if (data.stageStatuses && Array.isArray(data.stageStatuses)) {
-              setStages((prev) =>
-                prev.map((s) => {
-                  const savedStatus = data.stageStatuses.find(
-                    (ss: { id: number; status: StageStatus }) => ss.id === s.id
-                  );
-                  if (!savedStatus) return s;
-                  const status = savedStatus.status === "generating" ? "not_started" : savedStatus.status;
-                  return { ...s, status };
-                })
-              );
-            }
-
-            hasLoadedStages.current = true;
-            console.log("Restored saved stages:", data);
+        const restoredData: Record<number, StageData> = {};
+        if (stagesPayload.stages && Object.keys(stagesPayload.stages).length > 0) {
+          for (const [key, value] of Object.entries(stagesPayload.stages)) {
+            restoredData[parseInt(key)] = value as StageData;
           }
         }
+
+        const hydratedData = hydrateStageDataFromPipeline(restoredData, pipelinePayload);
+        if (Object.keys(hydratedData).length > 0) {
+          setStageData(hydratedData);
+        }
+
+        const derivedStageView = deriveStageViewFromPipeline(
+          pipelinePayload,
+          stagesPayload.currentStageId,
+          stagesPayload.stageStatuses,
+        );
+
+        if (derivedStageView) {
+          setCurrentStageId(derivedStageView.currentStageId);
+          setStages((prev) =>
+            prev.map((s) => ({
+              ...s,
+              status: derivedStageView.stageStatuses[s.id] ?? s.status,
+            }))
+          );
+        } else {
+          if (stagesPayload.currentStageId) {
+            setCurrentStageId(stagesPayload.currentStageId);
+          }
+
+          if (stagesPayload.stageStatuses && Array.isArray(stagesPayload.stageStatuses)) {
+            setStages((prev) =>
+              prev.map((s) => {
+                const savedStatus = stagesPayload.stageStatuses.find(
+                  (ss: { id: number; status: StageStatus }) => ss.id === s.id
+                );
+                if (!savedStatus) return s;
+                const status = savedStatus.status === "generating" ? "not_started" : savedStatus.status;
+                return { ...s, status };
+              })
+            );
+          }
+        }
+
+        hasLoadedStages.current =
+          Object.values(hydratedData).some(hasStageContent) ||
+          Boolean(pipelinePayload?.state?.has_story_brief);
+        console.log("Restored saved stages:", { stages: stagesPayload, pipeline: pipelinePayload });
       } catch (error) {
         console.error("Failed to load saved stages:", error);
       } finally {
@@ -433,6 +582,7 @@ export default function StageLayout() {
       }
     } catch (error) {
       console.error("Failed to approve stage:", error);
+      throw error;
     }
   };
 
@@ -470,7 +620,19 @@ export default function StageLayout() {
     if (generating) {
       updateStageStatus(2, "approved");
       updateStageStatus(3, "generating");
+      return;
     }
+
+    setStages((prev) => {
+      const stage3WasGenerating = prev.some((s) => s.id === 3 && s.status === "generating");
+      if (!stage3WasGenerating) return prev;
+
+      return prev.map((s) => {
+        if (s.id === 2) return { ...s, status: "needs_review" };
+        if (s.id === 3) return { ...s, status: "not_started" };
+        return s;
+      });
+    });
   }, []);
 
   const currentStage = stages.find((s) => s.id === currentStageId);
