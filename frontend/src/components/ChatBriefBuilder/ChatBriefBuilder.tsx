@@ -1,8 +1,8 @@
 // frontend/src/components/ChatBriefBuilder/ChatBriefBuilder.tsx
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import type { ChatMessage } from "./types";
-import { PHASE1_QUESTIONS } from "./types";
+import { getPhase1Questions, type Phase1Question } from "./types";
 import ChatThread from "./ChatThread";
 import MessageBubble from "./MessageBubble";
 import ChatInput from "./ChatInput";
@@ -107,9 +107,9 @@ function derivePhaseFromMessages(messages: ChatMessage[], fallback: Phase): Phas
   return maxPhase || fallback;
 }
 
-function deriveQuestionIndexFromMessages(messages: ChatMessage[]): number {
+function deriveQuestionIndexFromMessages(messages: ChatMessage[], questions: Phase1Question[]): number {
   const phase1Answers = messages.filter((message) => message.role === "user" && message.phase === 1).length;
-  return Math.min(phase1Answers, PHASE1_QUESTIONS.length - 1);
+  return Math.min(phase1Answers, questions.length - 1);
 }
 
 function messageFingerprint(message: ChatMessage): string {
@@ -139,6 +139,15 @@ export default function ChatBriefBuilder({
     if (initialFields && Object.keys(initialFields).length > 0) return initialFields;
     return {};
   });
+  const intentRoute = useMemo(() => {
+    const raw =
+      fields.intent_route?.value ||
+      fields.video_type?.value ||
+      sessionStorage.getItem("storyboardIntentRoute");
+    if (Array.isArray(raw)) return raw[0] || null;
+    return raw ? String(raw) : null;
+  }, [fields.intent_route?.value, fields.video_type?.value]);
+  const phase1Questions = useMemo(() => getPhase1Questions(intentRoute), [intentRoute]);
   const [isLlmLoading, setIsLlmLoading] = useState(false);
   const [questionIndex, setQuestionIndex] = useState(cached?.questionIndex ?? 0);
   const [error, setError] = useState<string | null>(null);
@@ -210,7 +219,7 @@ export default function ChatBriefBuilder({
           );
           setMessages(persistedMessages);
           setPhase((current) => (isAlreadyApproved ? 3 : derivePhaseFromMessages(persistedMessages, current)));
-          setQuestionIndex(deriveQuestionIndexFromMessages(persistedMessages));
+          setQuestionIndex(deriveQuestionIndexFromMessages(persistedMessages, phase1Questions));
           initialized.current = true;
         }
       } catch (err) {
@@ -227,7 +236,7 @@ export default function ChatBriefBuilder({
     return () => {
       cancelled = true;
     };
-  }, [projectId, isAlreadyApproved]);
+  }, [projectId, isAlreadyApproved, phase1Questions]);
 
   // Persist full chat history to the backend after hydration completes.
   useEffect(() => {
@@ -274,7 +283,7 @@ export default function ChatBriefBuilder({
     if (!hasHydratedHistory || initialized.current || isAlreadyApproved) return;
     initialized.current = true;
 
-    const firstQ = PHASE1_QUESTIONS[0];
+    const firstQ = phase1Questions[0];
     const firstMessageId = nextId();
     setMessages([
       {
@@ -287,7 +296,7 @@ export default function ChatBriefBuilder({
       },
     ]);
     setAnimatedMessageIds(new Set([firstMessageId]));
-  }, [isAlreadyApproved, hasHydratedHistory]);
+  }, [isAlreadyApproved, hasHydratedHistory, phase1Questions]);
 
   // Merge initialFields on change, but never overwrite user-provided values with empty ones
   useEffect(() => {
@@ -340,6 +349,7 @@ export default function ChatBriefBuilder({
         10
       );
       const audience = sessionStorage.getItem("storyboardAudience") || "";
+      const sourceContext = sessionStorage.getItem("storyboardContext") || "";
 
       try {
         const resp = await fetch(
@@ -354,7 +364,14 @@ export default function ChatBriefBuilder({
                 fieldKey: m.fieldKey,
               })),
               fields_so_far: fieldsSoFar,
-              onboarding: { topic, duration, audience },
+              onboarding: {
+                topic,
+                duration,
+                audience,
+                intent_route: intentRoute,
+                content_mode: sessionStorage.getItem("storyboardContentMode") || "",
+                source_context: sourceContext,
+              },
             }),
           }
         );
@@ -422,13 +439,13 @@ export default function ChatBriefBuilder({
         setIsLlmLoading(false);
       }
     },
-    [projectId, addMessages]
+    [projectId, addMessages, intentRoute]
   );
 
   // Handle user answering a Phase 1 question (text or chip)
   const handlePhase1Answer = useCallback(
     (answer: string, chipLabel?: string) => {
-      const currentQ = PHASE1_QUESTIONS[questionIndex];
+      const currentQ = phase1Questions[questionIndex];
       if (!currentQ) return;
 
       // Add user message
@@ -440,6 +457,7 @@ export default function ChatBriefBuilder({
         fieldKey: currentQ.fieldKey,
         phase: 1,
       };
+      const fieldValue = currentQ.fieldKey === "broll_type" ? [answer] : answer;
 
       // Update the last AI message to mark the chip as selected
       setMessages((prev) => {
@@ -461,7 +479,7 @@ export default function ChatBriefBuilder({
       setFields((prev) => ({
         ...prev,
         [currentQ.fieldKey]: {
-          value: answer,
+          value: fieldValue,
           source: "extracted",
           confirmed: true,
         },
@@ -469,10 +487,10 @@ export default function ChatBriefBuilder({
 
       const nextIdx = questionIndex + 1;
 
-      if (nextIdx < PHASE1_QUESTIONS.length) {
+      if (nextIdx < phase1Questions.length) {
         // Ask next Phase 1 question
         setQuestionIndex(nextIdx);
-        const nextQ = PHASE1_QUESTIONS[nextIdx];
+        const nextQ = phase1Questions[nextIdx];
         setTimeout(() => {
           addMessages({
             id: nextId(),
@@ -492,7 +510,7 @@ export default function ChatBriefBuilder({
         const allFieldsSoFar = {
           ...fields,
           [currentQ.fieldKey]: {
-            value: answer,
+            value: fieldValue,
             source: "extracted" as const,
             confirmed: true,
           },
@@ -503,17 +521,17 @@ export default function ChatBriefBuilder({
         );
       }
     },
-    [questionIndex, fields, messages, addMessages, callChatBrief]
+    [questionIndex, fields, messages, addMessages, callChatBrief, phase1Questions]
   );
 
   // Handle chip select (Phase 1)
   const handleChipSelect = useCallback(
     (value: string) => {
-      const currentQ = PHASE1_QUESTIONS[questionIndex];
+      const currentQ = phase1Questions[questionIndex];
       const chip = currentQ?.chips?.find((c) => c.value === value);
       handlePhase1Answer(value, chip?.label);
     },
-    [questionIndex, handlePhase1Answer]
+    [questionIndex, handlePhase1Answer, phase1Questions]
   );
 
   // Handle text send

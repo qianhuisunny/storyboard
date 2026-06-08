@@ -103,6 +103,8 @@ class QualityGate:
 
     def _build_brief_context(self, story_brief: dict) -> str:
         viewer_outcome = self._extract_brief_field(story_brief, "viewer_outcome")
+        intent_route = self._extract_brief_field(story_brief, "intent_route") or self._extract_brief_field(story_brief, "video_type")
+        content_mode = self._extract_brief_field(story_brief, "content_mode")
         target_audience = self._extract_brief_field(story_brief, "target_audience")
         audience_level = self._extract_brief_field(story_brief, "audience_level", "intermediate")
         point_of_view = self._extract_brief_field(story_brief, "point_of_view")
@@ -124,6 +126,8 @@ class QualityGate:
         must_avoid_text = "\n".join(f"- {item}" for item in must_avoid if item) or "(none)"
 
         return (
+            f"Intent route: {intent_route}\n"
+            f"Content mode: {content_mode}\n"
             f"Target audience: {target_audience} (level: {audience_level})\n"
             f"Viewer outcome: {viewer_outcome}\n"
             f"Point of view: {point_of_view}\n"

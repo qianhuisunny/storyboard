@@ -19,7 +19,7 @@ class StoryboardDirector(BaseAgent):
             evidence needed, visual intent)
     """
 
-    prompt_file = "storyboard_director_prompt_v0421.md"
+    prompt_file = "storyboard_director_prompt_v0603.md"
 
     def _extract_brief_field(self, story_brief: dict, field_name: str, default=None):
         """
@@ -72,12 +72,18 @@ class StoryboardDirector(BaseAgent):
     def _build_prompt(self, story_brief: dict) -> str:
         """Build user prompt with brief fields as context."""
         viewer_outcome = self._extract_brief_field(story_brief, "viewer_outcome") or ""
+        intent_route = self._extract_brief_field(story_brief, "intent_route") or self._extract_brief_field(story_brief, "video_type") or ""
+        content_mode = self._extract_brief_field(story_brief, "content_mode") or ""
+        format_style = self._extract_brief_field(story_brief, "format_style") or ""
         target_audience = self._extract_brief_field(story_brief, "target_audience") or ""
         audience_level = self._extract_brief_field(story_brief, "audience_level") or "intermediate"
         duration = self._extract_brief_field(story_brief, "duration") or "60"
         platform = self._extract_brief_field(story_brief, "platform") or ""
         delivery_tone = self._extract_brief_field(story_brief, "delivery_tone") or ""
         point_of_view = self._extract_brief_field(story_brief, "point_of_view") or ""
+        broll_type = self._extract_brief_field(story_brief, "broll_type") or []
+        if isinstance(broll_type, str):
+            broll_type = [broll_type]
 
         talking_points = self._extract_brief_field(story_brief, "core_talking_points") or []
         if isinstance(talking_points, str):
@@ -99,6 +105,15 @@ class StoryboardDirector(BaseAgent):
 
         return f"""Generate a video outline for this brief.
 
+INTENT ROUTE
+{intent_route}
+
+CONTENT MODE
+{content_mode}
+
+FORMAT STYLE
+{format_style}
+
 VIEWER OUTCOME
 {viewer_outcome}
 
@@ -113,6 +128,9 @@ PLATFORM
 
 DELIVERY TONE
 {delivery_tone}
+
+VISUAL FORMATS
+{", ".join(broll_type) if broll_type else "(none specified)"}
 
 POINT OF VIEW
 {point_of_view}
@@ -200,10 +218,14 @@ Regenerate the full outline incorporating the instruction above. You may add, re
     def _build_brief_context(self, story_brief: dict) -> str:
         """Build a brief context summary for refinement prompts."""
         viewer_outcome = self._extract_brief_field(story_brief, "viewer_outcome") or ""
+        intent_route = self._extract_brief_field(story_brief, "intent_route") or self._extract_brief_field(story_brief, "video_type") or ""
+        content_mode = self._extract_brief_field(story_brief, "content_mode") or ""
         target_audience = self._extract_brief_field(story_brief, "target_audience") or ""
         point_of_view = self._extract_brief_field(story_brief, "point_of_view") or ""
 
         return f"""## BRIEF CONTEXT
+Intent route: {intent_route}
+Content mode: {content_mode}
 Viewer outcome: {viewer_outcome}
 Target audience: {target_audience}
 Point of view: {point_of_view}"""

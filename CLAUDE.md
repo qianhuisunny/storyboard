@@ -217,11 +217,11 @@ Note: All LLM calls use OpenAI gpt-4o (Anthropic API deactivated). Model set in 
 
 | Agent / Service | Prompt File |
 |-----------|------------|
-| `agents/brief_builder.py` | `prompts/CONTENT_SPINE_PROMPT.md` (Round 3 only; Rounds 1-2 have no LLM call) |
-| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0324.md` |
-| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0324.md` |
+| `agents/brief_builder.py` | `prompts/CONTENT_SPINE_PROMPT_v0603.md` (Round 3 only; Rounds 1-2 are deterministic route-aware seeds) |
+| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0603.md` |
+| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0603.md` |
 | `services/quality_gate.py` | `prompts/OUTLINE_EVAL_PROMPT_v0419.md` (outline), `prompts/STORYBOARD_EVAL_PROMPT.md` (storyboard) |
-| `main.py` (chat-brief endpoint) | `prompts/chat_brief_prompt.md` |
+| `main.py` (chat-brief endpoint) | `prompts/chat_brief_prompt_v0603.md` |
 
 ### Agent Structure Pattern
 

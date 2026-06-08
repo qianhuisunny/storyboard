@@ -9,6 +9,8 @@ from .project import (
     Type1VideoRequirements,
     Type2VideoRequirements,
     Type3VideoRequirements,
+    Type4VideoRequirements,
+    Type5VideoRequirements,
     ProjectRequirements,
     Project
 )
@@ -18,6 +20,8 @@ __all__ = [
     "Type1VideoRequirements",
     "Type2VideoRequirements",
     "Type3VideoRequirements",
+    "Type4VideoRequirements",
+    "Type5VideoRequirements",
     "ProjectRequirements",
     "Project"
 ]

@@ -6,6 +6,8 @@ import {
   Film,
   BookOpen,
   Lightbulb,
+  Mic2,
+  CalendarDays,
   Trash2,
   Clock,
   ChevronRight,
@@ -27,13 +29,25 @@ interface Project {
 const TYPE_ICONS: Record<string, React.ReactNode> = {
   "Product Release": <Film className="w-5 h-5" />,
   "Product Demo Video": <BookOpen className="w-5 h-5" />,
+  "Product Demo": <BookOpen className="w-5 h-5" />,
+  "Tutorial / Demo": <BookOpen className="w-5 h-5" />,
   "Knowledge Sharing": <Lightbulb className="w-5 h-5" />,
+  "Knowledge Share": <Lightbulb className="w-5 h-5" />,
+  "YouTube Explainer": <Lightbulb className="w-5 h-5" />,
+  "Talking Script": <Mic2 className="w-5 h-5" />,
+  "Planner / Lifestyle": <CalendarDays className="w-5 h-5" />,
 };
 
 const TYPE_COLORS: Record<string, string> = {
   "Product Release": "bg-[#E8F0E9] text-[#3A6B47]",
   "Product Demo Video": "bg-[#E6F2EB] text-[#3A6B47]",
+  "Product Demo": "bg-[#E6F2EB] text-[#3A6B47]",
+  "Tutorial / Demo": "bg-[#E6F2EB] text-[#3A6B47]",
   "Knowledge Sharing": "bg-[#E8F0E9] text-[#5A6352]",
+  "Knowledge Share": "bg-[#E8F0E9] text-[#5A6352]",
+  "YouTube Explainer": "bg-[#E8F0E9] text-[#5A6352]",
+  "Talking Script": "bg-[#F7F0E0] text-[#7A5C1E]",
+  "Planner / Lifestyle": "bg-[#FBEAE8] text-[#A63228]",
 };
 
 const STAGE_NAMES = ["", "Video Briefing", "Video Outline", "Storyboard Draft", "Review and Share"];

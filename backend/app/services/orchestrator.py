@@ -98,7 +98,7 @@ class StoryboardOrchestrator:
                 "done",
             }
 
-            if normalized_event == "submit_knowledge_share" and state.phase in ks_initialized_phases:
+            if normalized_event in {"submit_guided_brief", "submit_knowledge_share"} and state.phase in ks_initialized_phases:
                 state, result = await self._handle_submit_knowledge_share_reentrant(
                     state, manager, normalized_payload, result
                 )
@@ -179,7 +179,8 @@ class StoryboardOrchestrator:
             ("review", "edit"): self._handle_review_edit,
             ("done", "restart"): self._handle_restart,
 
-            # Knowledge Share chat-assisted brief flow
+            # Guided chat-assisted brief flow
+            ("intake", "submit_guided_brief"): self._handle_submit_knowledge_share,
             ("intake", "submit_knowledge_share"): self._handle_submit_knowledge_share,
             ("brief_review", "brief_approve"): self._handle_brief_approve,
             ("brief_review", "edit"): self._handle_edit_brief,
@@ -272,7 +273,7 @@ class StoryboardOrchestrator:
 
         # Support both old flat schema and new nested schema
         if "fields" in state.story_brief:
-            # New Knowledge Share schema: {fields: {field_name: {value, source, confirmed}}}
+            # New guided brief schema: {fields: {field_name: {value, source, confirmed}}}
             fields = state.story_brief.get("fields", {})
             required_new = ["viewer_outcome", "target_audience", "core_talking_points"]
             missing = []
@@ -631,7 +632,7 @@ class StoryboardOrchestrator:
         }
 
     # =========================================================================
-    # Knowledge Share Chat Brief Flow
+    # Guided Chat Brief Flow
     # =========================================================================
 
     async def _handle_submit_knowledge_share(
@@ -642,26 +643,26 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """
-        Handle Knowledge Share intake submission.
+        Handle guided brief intake submission.
         Generates the initial brief seed from onboarding data and moves to the
         single chat-assisted brief phase.
         """
         import time
         start_time = time.time()
-        print(f"[KS] _handle_submit_knowledge_share started")
+        print(f"[Brief] _handle_submit_guided_brief started")
 
         intake_form = payload.get("intake_form")
         if not intake_form:
             raise ValueError("intake_form is required in payload")
 
-        print(f"[KS] intake_form: {intake_form}")
+        print(f"[Brief] intake_form: {intake_form}")
 
         # Store intake form
         state.intake_form = intake_form
 
         # Transition to the single chat-assisted brief phase
         state = manager.transition(state, "submit_knowledge_share")
-        print(f"[KS] State transitioned in {(time.time() - start_time)*1000:.0f}ms")
+        print(f"[Brief] State transitioned in {(time.time() - start_time)*1000:.0f}ms")
 
         # Generate the initial field seed from onboarding data
         brief_start = time.time()
@@ -669,15 +670,15 @@ class StoryboardOrchestrator:
             state,
             round=1
         )
-        print(f"[KS] BriefBuilder.run() completed in {(time.time() - brief_start)*1000:.0f}ms")
+        print(f"[Brief] BriefBuilder.run() completed in {(time.time() - brief_start)*1000:.0f}ms")
 
         # Store in story_brief
         state.story_brief = round1_result
 
-        result["message"] = "Knowledge Share brief started."
+        result["message"] = "Guided video brief started."
         result["brief_fields"] = round1_result.get("fields", {})
 
-        print(f"[KS] _handle_submit_knowledge_share completed in {(time.time() - start_time)*1000:.0f}ms")
+        print(f"[Brief] _handle_submit_guided_brief completed in {(time.time() - start_time)*1000:.0f}ms")
         return state, result
 
     async def _handle_submit_knowledge_share_reentrant(
@@ -688,10 +689,10 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """
-        Treat repeat Knowledge Share initialization as idempotent.
+        Treat repeat guided brief initialization as idempotent.
 
         This protects the dev flow under React StrictMode, where the brief
-        stage can mount twice and issue a duplicate submit_knowledge_share
+        stage can mount twice and issue a duplicate submit event
         before the UI finishes hydrating.
         """
         existing_fields = {}
@@ -701,8 +702,8 @@ class StoryboardOrchestrator:
         if not state.intake_form and payload.get("intake_form"):
             state.intake_form = payload["intake_form"]
 
-        print(f"[KS] Reusing existing Knowledge Share initialization at phase={state.phase}")
-        result["message"] = f"Knowledge Share already initialized at {state.phase}."
+        print(f"[Brief] Reusing existing guided brief initialization at phase={state.phase}")
+        result["message"] = f"Guided brief already initialized at {state.phase}."
         result["brief_fields"] = existing_fields
         result["story_brief"] = state.story_brief
 

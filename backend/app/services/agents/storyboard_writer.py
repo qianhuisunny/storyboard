@@ -36,7 +36,7 @@ class StoryboardWriter(BaseAgent):
     Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_v0421.md"
+    prompt_file = "storyboard_writer_prompt_v0603.md"
     SECTION_DURATION_TOLERANCE = 0.20
     MAX_SECTION_RETRY_ATTEMPTS = 1
 
@@ -329,6 +329,10 @@ class StoryboardWriter(BaseAgent):
     def _extract_brief_context(self, story_brief: dict) -> dict:
         """Extract relevant fields from story brief for the user prompt."""
         return {
+            "intent_route": self._extract_brief_field(story_brief, "intent_route", self._extract_brief_field(story_brief, "video_type", "")),
+            "content_mode": self._extract_brief_field(story_brief, "content_mode", ""),
+            "format_style": self._extract_brief_field(story_brief, "format_style", ""),
+            "platform": self._extract_brief_field(story_brief, "platform", ""),
             "target_audience": self._extract_brief_field(story_brief, "target_audience", ""),
             "audience_level": self._extract_brief_field(story_brief, "audience_level", "intermediate"),
             "delivery_tone": self._extract_brief_field(story_brief, "delivery_tone", ""),
@@ -477,6 +481,8 @@ Evidence research:
 {evidence_text}
 
 Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
+Intent route: {brief_context['intent_route']}
+Content mode: {brief_context['content_mode']}
 Tone: {brief_context['delivery_tone']}
 
 {adjust}
@@ -629,6 +635,10 @@ Evidence research:
         prompt = f"""Generate the COMPLETE storyboard for this video — all sections, all screens, in one pass.
 
 === STORY BRIEF ===
+Intent route: {brief_context['intent_route']}
+Content mode: {brief_context['content_mode']}
+Format style: {brief_context['format_style']}
+Platform: {brief_context['platform']}
 Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
 Tone: {brief_context['delivery_tone']}
 Point of View: {brief_context['point_of_view']}

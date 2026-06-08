@@ -4,7 +4,7 @@ export { default as BriefBuilder } from "./BriefBuilder";
 // Split-screen Brief Builder
 export { SplitBriefBuilder } from "./SplitBriefBuilder";
 
-// NEW: Knowledge Share Brief Builder (3-round flow)
+// Guided Brief Builder (3-round flow)
 export { default as KnowledgeShareBriefBuilder } from "./KnowledgeShareBriefBuilder";
 
 // Round Forms (for 3-round flow)

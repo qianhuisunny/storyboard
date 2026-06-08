@@ -3,15 +3,16 @@ Brief Builder Agent - Creates the initial Story Brief seed from intake form.
 Generates fields with proper source tagging (extracted vs inferred).
 """
 
-import json
 from typing import Any, Optional
+
+from app.services.video_intent import infer_video_intent_route, make_brief_field
 
 from .base import BaseAgent
 
 
 class BriefBuilder(BaseAgent):
     """
-    Initial brief generation for Knowledge Share videos.
+    Initial brief generation for guided video briefs.
 
     Field sources are determined by WHERE data comes from:
     - extracted: directly from user-provided inputs (form submission or explicit answers)
@@ -19,7 +20,7 @@ class BriefBuilder(BaseAgent):
     - empty: not set
     """
 
-    prompt_file = "CONTENT_SPINE_PROMPT.md"
+    prompt_file = "CONTENT_SPINE_PROMPT_v0603.md"
 
     def run(
         self,
@@ -59,25 +60,24 @@ class BriefBuilder(BaseAgent):
         """
         Generate Section 1: Core Intent fields.
 
-        Returns extracted fields immediately (no LLM call).
-        Inferred fields are left empty for user input.
+        Returns fields immediately (no LLM call). Route-specific defaults are
+        inferred from user intent so the user does not have to choose a type.
 
         Field source mapping:
-        - video_type: extracted (user selection), confirmed=true
+        - video_type / intent_route / content_mode: inferred route metadata
         - viewer_outcome: empty (user fills in — merged from old primary_goal + one_big_thing)
         - target_audience: extracted (from initial form)
         - duration: extracted (from initial form)
-        - audience_level: empty (user selects)
-        - platform: empty (user selects)
+        - audience_level / platform / delivery fields: inferred route defaults unless provided
         """
         fields = {}
+        route = infer_video_intent_route(intake_form)
 
-        # video_type is always extracted and confirmed
-        fields["video_type"] = {
-            "value": "knowledge_share",
-            "source": "extracted",
-            "confirmed": True,
-        }
+        fields["video_type"] = make_brief_field(route.key, "inferred", True)
+        fields["intent_route"] = make_brief_field(route.key, "inferred", True)
+        fields["content_mode"] = make_brief_field(route.content_mode, "inferred", True)
+        fields["format_style"] = make_brief_field(route.label, "inferred", True)
+        fields["route_summary"] = make_brief_field(route.summary, "inferred", True)
 
         # viewer_outcome - empty (user fills in)
         # Combines old primary_goal and one_big_thing into a single field
@@ -95,31 +95,53 @@ class BriefBuilder(BaseAgent):
             "confirmed": False,
         }
 
-        # duration - extracted from form (can be "duration" or "desired_length")
+        # duration - extracted from form (can be "duration", "desired_length", or minutes)
         # Auto-confirmed when extracted from onboarding (not shown in Section 1 form)
         duration = intake_form.get("duration") or intake_form.get("desired_length", "")
+        if not duration and intake_form.get("duration_minutes"):
+            try:
+                duration = int(float(intake_form["duration_minutes"])) * 60
+            except (TypeError, ValueError):
+                duration = ""
         fields["duration"] = {
             "value": str(duration) if duration else "",
             "source": "extracted" if duration else "empty",
             "confirmed": True if duration else False,
         }
 
-        # Remaining fields are empty - user fills them in
-        # No LLM call here to ensure immediate response
-
-        # audience_level - empty (user selects)
+        # Route defaults guide the questions, outline shape, and allowed visuals.
         fields["audience_level"] = {
-            "value": "",
-            "source": "empty",
-            "confirmed": False,
+            "value": intake_form.get("audience_level") or route.default_audience_level,
+            "source": "extracted" if intake_form.get("audience_level") else "inferred",
+            "confirmed": bool(intake_form.get("audience_level")),
         }
 
-        # platform - empty (user selects)
         fields["platform"] = {
-            "value": "",
-            "source": "empty",
-            "confirmed": False,
+            "value": intake_form.get("platform") or route.default_platform,
+            "source": "extracted" if intake_form.get("platform") else "inferred",
+            "confirmed": bool(intake_form.get("platform")),
         }
+
+        fields["on_camera_presence"] = make_brief_field(
+            intake_form.get("on_camera_presence") or route.default_on_camera_presence,
+            "extracted" if intake_form.get("on_camera_presence") else "inferred",
+            bool(intake_form.get("on_camera_presence")),
+        )
+        fields["broll_type"] = make_brief_field(
+            intake_form.get("broll_type") or list(route.default_broll_type),
+            "extracted" if intake_form.get("broll_type") else "inferred",
+            bool(intake_form.get("broll_type")),
+        )
+        fields["delivery_tone"] = make_brief_field(
+            intake_form.get("delivery_tone") or route.default_tone,
+            "extracted" if intake_form.get("delivery_tone") else "inferred",
+            bool(intake_form.get("delivery_tone")),
+        )
+        fields["freshness_expectation"] = make_brief_field(
+            intake_form.get("freshness_expectation") or route.default_freshness,
+            "extracted" if intake_form.get("freshness_expectation") else "inferred",
+            bool(intake_form.get("freshness_expectation")),
+        )
 
         return {"fields": fields}
 
@@ -127,7 +149,7 @@ class BriefBuilder(BaseAgent):
         """
         Generate Section 2: Delivery & Format fields.
 
-        All Round 2 fields are empty - user fills them in.
+        Round 2 defaults are route-aware and can be edited/confirmed by users.
         No LLM call to ensure immediate response.
 
         Field source mapping:
@@ -136,34 +158,28 @@ class BriefBuilder(BaseAgent):
         - delivery_tone: empty (user selects)
         - freshness_expectation: empty (user selects)
         """
-        fields = {}
-
-        # on_camera_presence - empty (user selects)
-        fields["on_camera_presence"] = {
-            "value": "",
-            "source": "empty",
-            "confirmed": False,
-        }
-
-        # broll_type - empty (user selects, array)
-        fields["broll_type"] = {
-            "value": [],
-            "source": "empty",
-            "confirmed": False,
-        }
-
-        # delivery_tone - empty (user selects)
-        fields["delivery_tone"] = {
-            "value": "",
-            "source": "empty",
-            "confirmed": False,
-        }
-
-        # freshness_expectation - empty (user selects)
-        fields["freshness_expectation"] = {
-            "value": "",
-            "source": "empty",
-            "confirmed": False,
+        route = infer_video_intent_route({**intake_form, **confirmed_fields})
+        fields = {
+            "on_camera_presence": make_brief_field(
+                intake_form.get("on_camera_presence") or route.default_on_camera_presence,
+                "extracted" if intake_form.get("on_camera_presence") else "inferred",
+                bool(intake_form.get("on_camera_presence")),
+            ),
+            "broll_type": make_brief_field(
+                intake_form.get("broll_type") or list(route.default_broll_type),
+                "extracted" if intake_form.get("broll_type") else "inferred",
+                bool(intake_form.get("broll_type")),
+            ),
+            "delivery_tone": make_brief_field(
+                intake_form.get("delivery_tone") or route.default_tone,
+                "extracted" if intake_form.get("delivery_tone") else "inferred",
+                bool(intake_form.get("delivery_tone")),
+            ),
+            "freshness_expectation": make_brief_field(
+                intake_form.get("freshness_expectation") or route.default_freshness,
+                "extracted" if intake_form.get("freshness_expectation") else "inferred",
+                bool(intake_form.get("freshness_expectation")),
+            ),
         }
 
         return {"fields": fields}
@@ -176,7 +192,7 @@ class BriefBuilder(BaseAgent):
     ) -> dict:
         """
         Generate Section 3: Content Spine fields from user's Point of View.
-        Loads prompt from prompts/CONTENT_SPINE_PROMPT.md and injects brief context.
+        Loads the route-aware content spine prompt and injects brief context.
         POV is the source of truth. All fields are downstream derivations.
         """
         # Extract confirmed field values for context
@@ -188,6 +204,9 @@ class BriefBuilder(BaseAgent):
             return str(field) if field else default
 
         point_of_view = get_val("point_of_view")
+        intent_route = get_val("intent_route") or get_val("video_type")
+        content_mode = get_val("content_mode")
+        format_style = get_val("format_style")
         viewer_outcome = get_val("viewer_outcome")
         target_audience = get_val("target_audience")
         audience_level = get_val("audience_level", "intermediate")
@@ -196,12 +215,15 @@ class BriefBuilder(BaseAgent):
         delivery_tone = get_val("delivery_tone")
         freshness = get_val("freshness_expectation")
 
-        # System prompt = CONTENT_SPINE_PROMPT.md (loaded by BaseAgent)
+        # System prompt = CONTENT_SPINE_PROMPT_v0603.md (loaded by BaseAgent)
         # User prompt = brief context only (POV + audience + duration etc.)
         prompt = f"""## POINT OF VIEW (source of truth)
 {point_of_view}
 
 ## BRIEF CONTEXT
+- Intent Route: {intent_route}
+- Content Mode: {content_mode}
+- Format Style: {format_style}
 - Target Audience: {target_audience}
 - Audience Level: {audience_level}
 - Viewer Outcome: {viewer_outcome}

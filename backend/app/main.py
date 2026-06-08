@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from app.services.orchestrator import orchestrator
 from app.services.analytics import analytics_tracker
 from app.services.state import StateManager
+from app.services.video_intent import LEGACY_ROUTE_ALIASES, VIDEO_INTENT_ROUTES
 from app.infra.quality_log import qlog
 from app.services.image_generator import ImageGenerator
 
@@ -350,7 +351,7 @@ async def save_stories_to_project(project_id: str, request: SaveStoriesRequest, 
 
 class EventRequest(BaseModel):
     """Request body for event-based pipeline."""
-    event: str  # submit, submit_knowledge_share, chat_brief_approve, approve/brief_approve, edit/edit_brief, refine_outline, regenerate_section, restart
+    event: str  # submit, submit_guided_brief, submit_knowledge_share, chat_brief_approve, approve/brief_approve, edit/edit_brief, refine_outline, regenerate_section, restart
     payload: Optional[dict] = None
 
 
@@ -385,7 +386,7 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
     Process a state machine event for the storyboard pipeline.
 
     Preferred events:
-    - submit / submit_knowledge_share: Start the pipeline
+    - submit / submit_guided_brief / submit_knowledge_share: Start the pipeline
     - chat_brief_approve: Finalize the chat-built brief and enter Gate 1
     - approve: Approve the current gate
     - edit: Unlock the current stage or go back
@@ -443,7 +444,7 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
     """Phase 2 chat-based content spine extraction. Direct LLM call, no agent class."""
     try:
         # Load system prompt
-        prompt_path = Path(__file__).parent.parent.parent / "prompts" / "chat_brief_prompt.md"
+        prompt_path = Path(__file__).parent.parent.parent / "prompts" / "chat_brief_prompt_v0603.md"
         if not prompt_path.exists():
             raise HTTPException(status_code=500, detail="Chat brief prompt not found")
         system_prompt = prompt_path.read_text(encoding="utf-8")
@@ -464,6 +465,9 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
 - Topic: {request.onboarding.get('topic', '')}
 - Duration: {request.onboarding.get('duration', 300)} seconds
 - Audience: {request.onboarding.get('audience', '')}
+- Intent Route: {request.onboarding.get('intent_route', '')}
+- Content Mode: {request.onboarding.get('content_mode', '')}
+- Source Context: {request.onboarding.get('source_context', '')[:6000]}
 
 ## COLLECTED BRIEF FIELDS
 {fields_summary or '(none yet)'}
@@ -560,10 +564,12 @@ async def start_pipeline(project_id: str, request: IntakeFormRequest, db: AsyncS
     try:
         await _require_project(db, project_id)
         video_type = str(request.intake_form.get("video_type", "")).strip().lower()
-        if video_type in {"knowledge share", "knowledge_share"}:
+        guided_names = {route.label.lower() for route in VIDEO_INTENT_ROUTES.values()}
+        guided_keys = set(VIDEO_INTENT_ROUTES.keys()) | set(LEGACY_ROUTE_ALIASES.keys())
+        if video_type in guided_names or video_type in guided_keys:
             raise HTTPException(
                 status_code=400,
-                detail="Knowledge Share must use /api/project/{project_id}/event with submit_knowledge_share, not /start.",
+                detail="Guided brief projects must use /api/project/{project_id}/event with submit_guided_brief, not /start.",
             )
 
         result = await orchestrator.process_event(
@@ -737,7 +743,7 @@ async def get_pipeline_state(project_id: str, db: AsyncSession = Depends(get_db)
 
         # Determine available events based on current phase
         available_events = {
-            "intake": ["submit", "submit_knowledge_share"],
+            "intake": ["submit", "submit_guided_brief", "submit_knowledge_share"],
             "brief_chat": ["chat_brief_approve"],
             "brief_review": ["approve", "brief_approve", "edit", "edit_brief", "chat_brief_approve"],
             "gate1": ["approve", "edit", "reject", "refine"],

@@ -19,16 +19,18 @@ interface BriefReviewProps {
 }
 
 const SECTION_1_FIELDS = [
-  "video_type",
+  "format_style",
   "viewer_outcome",
   "target_audience",
   "audience_level",
-  // "platform", // Commented out — see task #77
+  "platform",
   "duration",
 ];
 
 const SECTION_2_FIELDS = [
-  // [HACKATHON Apr18] hidden: "on_camera_presence", "broll_type", "delivery_tone"
+  "on_camera_presence",
+  "broll_type",
+  "delivery_tone",
   "freshness_expectation",
 ];
 

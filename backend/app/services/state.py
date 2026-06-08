@@ -31,7 +31,7 @@ class StoryboardState(BaseModel):
         "intake",         # Initial state, waiting for intake form
         "research",       # Reserved for future researcher reintroduction
         "brief",          # Brief Builder is running (legacy)
-        "brief_chat",     # Active chat-assisted brief building for Knowledge Share
+        "brief_chat",     # Active chat-assisted guided brief building
         "brief_review",   # NEW: Final brief review before locking
         "gate1",          # Human review of Story Brief
         "outline",        # Storyboard Director is running
@@ -48,7 +48,7 @@ class StoryboardState(BaseModel):
     screen_outline: Optional[Union[str, list]] = None
     storyboard: Optional[list] = None
 
-    # Knowledge Share chat brief state
+    # Guided chat brief state
     confirmed_fields: dict = Field(default_factory=dict)  # Accumulated confirmed fields from each round
 
     # Reserved I/O slots for the deferred Researcher/EvidenceResearcher work.
@@ -99,7 +99,8 @@ class StateManager:
         ("review", "approve"): "done",
         ("review", "refine"): "outline",  # Optional refinement
 
-        # Knowledge Share chat-assisted brief flow
+        # Guided chat-assisted brief flow
+        ("intake", "submit_guided_brief"): "brief_chat",
         ("intake", "submit_knowledge_share"): "brief_chat",
         ("brief_chat", "chat_brief_approve"): "gate1",
         ("brief_review", "chat_brief_approve"): "gate1",

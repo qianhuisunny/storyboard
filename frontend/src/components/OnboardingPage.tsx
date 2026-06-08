@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAnonymousUserId } from "@/lib/anonymousUser";
+import { inferVideoIntentRoute } from "@/lib/videoIntent";
 
 interface Source {
   id: string;
@@ -26,13 +27,6 @@ interface Source {
   file?: File;
   url?: string;
 }
-
-// Fixed to Knowledge Sharing type
-const KNOWLEDGE_SHARING = {
-  id: 3,
-  title: "Knowledge Sharing",
-  placeholder: "e.g., How to use AI models as specialized agents in a multi-step analytical workflow...",
-};
 
 type InputMode = "upload" | "link" | "text";
 
@@ -51,6 +45,10 @@ const OnboardingPage: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isUploadingFiles, setIsUploadingFiles] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inferredRoute = useMemo(
+    () => inferVideoIntentRoute(userInput, selectedDuration),
+    [userInput, selectedDuration]
+  );
 
   const generateProjectId = (): string => {
     return Date.now().toString();
@@ -161,7 +159,7 @@ const OnboardingPage: React.FC = () => {
         body: JSON.stringify({
           projectId,
           typeId,
-          typeName: KNOWLEDGE_SHARING.title,
+          typeName: inferredRoute.label,
           userInput,
           userId,
         }),
@@ -242,7 +240,7 @@ const OnboardingPage: React.FC = () => {
     console.log("=== ONBOARDING FORM SUBMISSION ===");
     console.log("Form valid:", isFormValid);
     console.log("User input:", userInput);
-    console.log("Selected type:", KNOWLEDGE_SHARING.title);
+    console.log("Inferred route:", inferredRoute);
     console.log("Duration:", selectedDuration);
     console.log("Audience:", audience);
     console.log("Sources:", sources.length);
@@ -263,7 +261,7 @@ const OnboardingPage: React.FC = () => {
       console.log(`[Onboarding] projectId: ${projectId}`);
 
       const t1 = performance.now();
-      await createProjectFolder(projectId, KNOWLEDGE_SHARING.id, userInput);
+      await createProjectFolder(projectId, inferredRoute.typeId, userInput);
       console.log(`[Onboarding] createProjectFolder done in ${(performance.now() - t1).toFixed(0)}ms`);
 
       const t2 = performance.now();
@@ -283,7 +281,10 @@ const OnboardingPage: React.FC = () => {
 
       console.log("Storing session data...");
       sessionStorage.setItem("projectId", projectId);
-      sessionStorage.setItem("storyboardType", KNOWLEDGE_SHARING.id.toString());
+      sessionStorage.setItem("storyboardType", inferredRoute.typeId.toString());
+      sessionStorage.setItem("storyboardTypeName", inferredRoute.label);
+      sessionStorage.setItem("storyboardIntentRoute", inferredRoute.key);
+      sessionStorage.setItem("storyboardContentMode", inferredRoute.contentMode);
       sessionStorage.setItem("storyboardPrompt", userInput);
       sessionStorage.setItem("storyboardDuration", selectedDuration ? String(selectedDuration) : "");
       sessionStorage.setItem("storyboardAudience", audience);
@@ -295,62 +296,6 @@ const OnboardingPage: React.FC = () => {
       console.log(`[Onboarding] Navigating in ${(performance.now() - startTime).toFixed(0)}ms`);
       console.log("Navigating to /storyboard/" + projectId);
       navigate(`/storyboard/${projectId}`);
-
-      // Knowledge Share uses the 3-round briefing flow, not the legacy chat API
-      if (KNOWLEDGE_SHARING.id === 3) {
-        console.log("[Onboarding] Knowledge Share - skipping legacy chat API");
-        return;
-      }
-
-      // Start AI generation in background (don't await) - for legacy flow only
-      const generateInBackground = async () => {
-        console.log("=== BACKGROUND AI GENERATION STARTING ===");
-        try {
-          let promptWithType = `${userInput} with the category type ${KNOWLEDGE_SHARING.title}. Please don't use any placeholder, and search the web if you cannot find enough information. Return without confirm needed.`;
-
-          if (allContext) {
-            promptWithType = `Here is reference material to use:\n\n${allContext}\n\n---\n\nBased on the above context, ${promptWithType}`;
-          }
-
-          console.log("Prompt sent to chat API:", promptWithType.substring(0, 500) + "...");
-
-          const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 380000);
-
-          console.log("Calling /api/chat...");
-          const response = await fetch("/api/chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              message: promptWithType,
-              conversation_history: [],
-              project_id: projectId,
-            }),
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-          console.log("/api/chat response status:", response.status);
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error("Failed to generate storyboard:", response.status, errorText);
-            return;
-          }
-
-          const data = await response.json();
-          console.log("/api/chat response data:", data);
-
-          sessionStorage.setItem("initialResponse", data.message);
-          console.log("Background AI generation completed for project:", projectId);
-        } catch (error) {
-          console.error("Background AI generation failed:", error);
-        }
-      };
-
-      generateInBackground();
     } catch (error) {
       console.error("=== ERROR IN FORM SUBMISSION ===");
       console.error("Error creating project:", error);
@@ -379,43 +324,43 @@ const OnboardingPage: React.FC = () => {
   };
 
   return (
-    <div className="grid grid-cols-[380px_1fr] h-full">
+    <div className="grid min-h-full grid-cols-1 lg:grid-cols-[380px_1fr]">
       {/* Left Panel */}
-      <div className="bg-[#1C2118] text-white px-10 flex flex-col justify-center">
+      <div className="bg-[#1C2118] text-white px-6 py-10 lg:px-10 lg:flex lg:flex-col lg:justify-center">
         <h1
           className="text-[30px] font-medium text-white mb-4"
           style={{ fontFamily: "'Fraunces', serif", letterSpacing: "-0.5px", lineHeight: 1.25 }}
         >
-          Create Your Storyboard for Knowledge Sharing Videos
+          Create a Storyboard From a Rough Video Idea
         </h1>
         <p className="text-[14px] text-[#B0B8A8] leading-relaxed">
-          Best for 5–15 min YouTube explainer-style videos.
+          Tell Plotline what you want to make. The briefing adapts to the intent behind it.
         </p>
       </div>
 
       {/* Right Panel */}
-      <div className="overflow-y-auto flex flex-col justify-center px-16 py-14">
+      <div className="overflow-y-auto flex flex-col justify-center px-6 py-10 lg:px-16 lg:py-14">
         <div className="max-w-[560px] space-y-7">
           {/* Topic */}
           <div>
             <h3 className="text-sm font-semibold text-foreground mb-1.5">
-              What's your video about? <span className="text-[#A63228]">*</span>
+              What are you trying to make? <span className="text-[#A63228]">*</span>
             </h3>
             <p className="text-[13px] text-muted-foreground mb-3">
-              Topic, learning objectives, key points you want to cover
+              A rough idea is enough: topic, angle, story, workflow, or what you want to say.
             </p>
             <Textarea
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder={KNOWLEDGE_SHARING.placeholder}
+              placeholder={inferredRoute.defaultPlaceholder}
               className="min-h-[120px] resize-none text-[15px]"
               disabled={isGenerating}
             />
           </div>
 
           {/* Duration + Audience side by side */}
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
             <div>
               <h3 className="text-sm font-semibold text-foreground mb-1.5">
                 Duration (seconds) <span className="text-[#A63228]">*</span>

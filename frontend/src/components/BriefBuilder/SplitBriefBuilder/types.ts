@@ -150,6 +150,8 @@ export interface BriefChatState {
 // Initial brief data from onboarding
 export interface OnboardingData {
   videoType: string;
+  intentRoute?: string;
+  contentMode?: string;
   description: string;
   duration: number;
   audience: string;

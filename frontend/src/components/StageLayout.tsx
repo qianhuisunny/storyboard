@@ -7,6 +7,7 @@ import StageContent from "./StageContent";
 import SatisfactionRatingModal from "./SatisfactionRatingModal";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { getAnonymousUserId } from "@/lib/anonymousUser";
+import { isGuidedBriefType } from "@/lib/videoIntent";
 
 const INITIAL_STAGES: Stage[] = [
   { id: 1, name: "Video Briefing", description: "Define your video concept and goals", status: "not_started" },
@@ -201,10 +202,10 @@ export default function StageLayout() {
             typeName: storedType || "Video Project",
           });
 
-          // Start generating brief only if no saved data exists
-          // SKIP for Knowledge Share (type "3") - handled by new 3-round flow in StageContent
-          const isKnowledgeShare = storedType === "3";
-          if (!stageData[1]?.aiVersion && !hasLoadedStages.current && !isKnowledgeShare) {
+          // Start legacy generation only for old non-guided projects.
+          const storedTypeName = sessionStorage.getItem("storyboardTypeName");
+          const isGuidedBrief = Boolean(sessionStorage.getItem("storyboardIntentRoute")) || isGuidedBriefType(storedTypeName);
+          if (!stageData[1]?.aiVersion && !hasLoadedStages.current && !isGuidedBrief) {
             generateStage(1, storedPrompt);
           }
         } else {
@@ -218,10 +219,9 @@ export default function StageLayout() {
                 typeName: data.project.typeName,
               });
 
-              // Start generating brief only if no saved data exists
-              // SKIP for Knowledge Share - handled by new 3-round flow in StageContent
-              const projectIsKnowledgeShare = data.project.typeName === "Knowledge Share";
-              if (!stageData[1]?.aiVersion && !hasLoadedStages.current && data.project.userInput && !projectIsKnowledgeShare) {
+              // Start legacy generation only for old non-guided projects.
+              const projectIsGuidedBrief = isGuidedBriefType(data.project.typeName);
+              if (!stageData[1]?.aiVersion && !hasLoadedStages.current && data.project.userInput && !projectIsGuidedBrief) {
                 generateStage(1, data.project.userInput);
               }
             }
@@ -396,7 +396,9 @@ export default function StageLayout() {
     const videoTypeNames: Record<string, string> = {
       "1": "Product Release",
       "2": "Product Demo Video",
-      "3": "Knowledge Sharing",
+      "3": "YouTube Explainer",
+      "4": "Talking Script",
+      "5": "Planner / Lifestyle",
     };
 
     return {
@@ -431,11 +433,13 @@ export default function StageLayout() {
     }
 
     const storedType = sessionStorage.getItem("storyboardType");
+    const storedIntentRoute = sessionStorage.getItem("storyboardIntentRoute");
+    const storedTypeName = sessionStorage.getItem("storyboardTypeName");
     const projectType = projectContext?.typeName;
-    const isKnowledgeShareStage =
-      storedType === "3" || projectType === "Knowledge Share";
-    if (isKnowledgeShareStage) {
-      console.error("[StageLayout] Refusing to use legacy /start for Knowledge Share. Use submit_knowledge_share instead.");
+    const isGuidedBriefStage =
+      Boolean(storedIntentRoute) || isGuidedBriefType(storedTypeName) || isGuidedBriefType(projectType) || storedType === "3";
+    if (isGuidedBriefStage) {
+      console.error("[StageLayout] Refusing to use legacy /start for guided brief projects. Use submit_guided_brief instead.");
       return;
     }
 
@@ -639,7 +643,7 @@ export default function StageLayout() {
   const currentData = stageData[currentStageId] || { aiVersion: null, humanVersion: null };
 
   // For stages > 1, get the previous stage's output to pass as context
-  // Use humanVersion as fallback for Knowledge Share flow which writes to humanVersion
+  // Use humanVersion as fallback for guided brief flow which writes to humanVersion.
   const previousStageData = currentStageId > 1 ? stageData[currentStageId - 1] : null;
   const previousStageOutput = useMemo(() => {
     const content = previousStageData?.humanVersion || previousStageData?.aiVersion;

@@ -21,7 +21,7 @@ const SECTION_1_FIELDS = [
   "viewer_outcome",
   "target_audience",
   "audience_level",
-  // "platform", // Commented out: platform-aware narrative (YouTube vs LMS) not yet implemented — see task #77
+  "platform",
 ];
 
 export default function RoundOneForm({
@@ -44,7 +44,7 @@ export default function RoundOneForm({
           Section 1: Core Intent
         </h2>
         <p style={{ fontSize: "13.5px", fontWeight: 300, color: "#5A6352" }}>
-          Define the purpose and audience for your Knowledge Share video.
+          Define the purpose and audience for this video.
         </p>
       </div>
 

@@ -12,12 +12,13 @@ import { OutlineBuilder, type EvidenceResearch } from "./OutlineBuilder";
 import { DraftBuilder, parseProductionScreens, type ProductionScreen, type DraftProcessingEntry } from "./DraftBuilder";
 import { ReviewBuilder } from "./ReviewBuilder";
 import type { QualityEvalResult } from "./QualityScore";
+import { VIDEO_INTENT_ROUTES, isGuidedBriefType } from "@/lib/videoIntent";
 
 // Feature flag for new split-screen brief builder
 const USE_SPLIT_BRIEF_BUILDER = true;
 
-// Feature flag for new Knowledge Share 3-round flow
-const USE_KNOWLEDGE_SHARE_FLOW = true;
+// Feature flag for the guided intent-aware brief flow
+const USE_GUIDED_BRIEF_FLOW = true;
 
 interface ApproveOptions {
   skipNextGeneration?: boolean;
@@ -36,18 +37,21 @@ interface StageContentProps {
   onStoryboardGeneratingChange?: (isGenerating: boolean) => void;
 }
 
-interface KnowledgeShareInitResult {
+interface GuidedBriefInitResult {
   briefFields: Record<string, BriefField>;
   isBriefAlreadyApproved: boolean;
 }
 
-const knowledgeShareInitRequests = new Map<string, Promise<KnowledgeShareInitResult>>();
+const guidedBriefInitRequests = new Map<string, Promise<GuidedBriefInitResult>>();
 
 // Helper to get onboarding data from session storage
 function getOnboardingDataFromSession(): OnboardingData | null {
   try {
     const storedPrompt = sessionStorage.getItem("storyboardPrompt");
     const storedType = sessionStorage.getItem("storyboardType");
+    const storedTypeName = sessionStorage.getItem("storyboardTypeName");
+    const storedIntentRoute = sessionStorage.getItem("storyboardIntentRoute");
+    const storedContentMode = sessionStorage.getItem("storyboardContentMode");
     const storedContext = sessionStorage.getItem("storyboardContext");
     const storedDuration = sessionStorage.getItem("storyboardDuration");
     const storedAudience = sessionStorage.getItem("storyboardAudience");
@@ -58,8 +62,13 @@ function getOnboardingDataFromSession(): OnboardingData | null {
     const videoTypeMap: Record<string, string> = {
       "1": "Product Release",
       "2": "Product Demo",
-      "3": "Knowledge Share",
+      "3": "YouTube Explainer",
+      "4": "Talking Script",
+      "5": "Planner / Lifestyle",
     };
+    const routeLabel = storedIntentRoute && storedIntentRoute in VIDEO_INTENT_ROUTES
+      ? VIDEO_INTENT_ROUTES[storedIntentRoute as keyof typeof VIDEO_INTENT_ROUTES].label
+      : undefined;
 
     // Try to extract additional data from context
     let links: string[] = [];
@@ -86,7 +95,9 @@ function getOnboardingDataFromSession(): OnboardingData | null {
     }
 
     return {
-      videoType: videoTypeMap[storedType || "1"] || "Product Release",
+      videoType: storedTypeName || routeLabel || videoTypeMap[storedType || "3"] || "YouTube Explainer",
+      intentRoute: storedIntentRoute || undefined,
+      contentMode: storedContentMode || undefined,
       description: storedPrompt,
       duration,
       audience: storedAudience || "General audience",
@@ -101,23 +112,23 @@ function getOnboardingDataFromSession(): OnboardingData | null {
   }
 }
 
-async function initializeKnowledgeShareProject(
+async function initializeGuidedBriefProject(
   projectId: string,
   onboardingData: OnboardingData | null,
   isAlreadyApproved: boolean
-): Promise<KnowledgeShareInitResult> {
+): Promise<GuidedBriefInitResult> {
   const startTime = performance.now();
-  console.log("[KS] Initializing... stage.status:", isAlreadyApproved ? "approved" : "not_approved");
+  console.log("[Brief] Initializing... stage.status:", isAlreadyApproved ? "approved" : "not_approved");
 
   const stateResponse = await fetch(`/api/project/${projectId}/pipeline-state`);
   if (stateResponse.ok) {
     const stateData = await stateResponse.json();
-    console.log("[KS] Current pipeline state:", stateData);
+    console.log("[Brief] Current pipeline state:", stateData);
 
     const briefFields = stateData.data?.story_brief?.fields || {};
 
     if (isAlreadyApproved && Object.keys(briefFields).length > 0) {
-      console.log("[KS] Stage already approved, restoring fields:", Object.keys(briefFields));
+      console.log("[Brief] Stage already approved, restoring fields:", Object.keys(briefFields));
       return {
         briefFields,
         isBriefAlreadyApproved: true,
@@ -125,7 +136,7 @@ async function initializeKnowledgeShareProject(
     }
 
     if (stateData.phase === "brief_chat" || stateData.phase === "brief_review") {
-      console.log("[KS] Restoring chat brief state, fields:", Object.keys(briefFields));
+      console.log("[Brief] Restoring chat brief state, fields:", Object.keys(briefFields));
       return {
         briefFields,
         isBriefAlreadyApproved: false,
@@ -134,7 +145,7 @@ async function initializeKnowledgeShareProject(
 
     if (stateData.phase && !["intake", "brief_chat", "brief_review"].includes(stateData.phase)) {
       console.log(
-        "[KS] Project already past brief stage, phase:",
+        "[Brief] Project already past brief stage, phase:",
         stateData.phase,
         "fields:",
         Object.keys(briefFields)
@@ -146,8 +157,9 @@ async function initializeKnowledgeShareProject(
     }
   }
 
-  console.log("[KS] Starting fresh with submit_knowledge_share...", {
+  console.log("[Brief] Starting fresh with submit_guided_brief...", {
     videoType: onboardingData?.videoType,
+    intentRoute: onboardingData?.intentRoute,
     duration: onboardingData?.duration,
     audience: onboardingData?.audience,
   });
@@ -156,10 +168,12 @@ async function initializeKnowledgeShareProject(
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      event: "submit_knowledge_share",
+      event: "submit_guided_brief",
       payload: {
         intake_form: {
-          video_type: onboardingData?.videoType,
+          video_type: onboardingData?.intentRoute || onboardingData?.videoType,
+          intent_route: onboardingData?.intentRoute,
+          content_mode: onboardingData?.contentMode,
           description: onboardingData?.description,
           duration: onboardingData?.duration,
           target_audience: onboardingData?.audience,
@@ -169,17 +183,17 @@ async function initializeKnowledgeShareProject(
     }),
   });
 
-  console.log(`[KS] Response status: ${response.status}`);
+  console.log(`[Brief] Response status: ${response.status}`);
 
   if (!response.ok) {
     const errorData = await response.json().catch(() => ({}));
-    console.error("[KS] Init failed:", errorData);
+    console.error("[Brief] Init failed:", errorData);
     throw new Error(errorData.error || errorData.detail || "Failed to start briefing");
   }
 
   const data = await response.json();
-  console.log("[KS] Round 1 response data:", data);
-  console.log(`[KS] Total time: ${(performance.now() - startTime).toFixed(0)}ms`);
+  console.log("[Brief] Round 1 response data:", data);
+  console.log(`[Brief] Total time: ${(performance.now() - startTime).toFixed(0)}ms`);
 
   return {
     briefFields: data.brief_fields || {},
@@ -187,23 +201,23 @@ async function initializeKnowledgeShareProject(
   };
 }
 
-function getKnowledgeShareInitRequest(
+function getGuidedBriefInitRequest(
   projectId: string,
   onboardingData: OnboardingData | null,
   isAlreadyApproved: boolean
-): Promise<KnowledgeShareInitResult> {
-  const existingRequest = knowledgeShareInitRequests.get(projectId);
+): Promise<GuidedBriefInitResult> {
+  const existingRequest = guidedBriefInitRequests.get(projectId);
   if (existingRequest) {
-    console.log("[KS] Reusing in-flight initialization for project:", projectId);
+    console.log("[Brief] Reusing in-flight initialization for project:", projectId);
     return existingRequest;
   }
 
-  const request = initializeKnowledgeShareProject(projectId, onboardingData, isAlreadyApproved)
+  const request = initializeGuidedBriefProject(projectId, onboardingData, isAlreadyApproved)
     .finally(() => {
-      knowledgeShareInitRequests.delete(projectId);
+      guidedBriefInitRequests.delete(projectId);
     });
 
-  knowledgeShareInitRequests.set(projectId, request);
+  guidedBriefInitRequests.set(projectId, request);
   return request;
 }
 
@@ -225,6 +239,20 @@ const DRAFT_STEPS = [
 
 function stringifyStageContent(content: unknown): string {
   return typeof content === "string" ? content : JSON.stringify(content, null, 2);
+}
+
+function extractBriefFieldsFromStageContent(content: string | null | undefined): Record<string, BriefField> {
+  if (!content) return {};
+  try {
+    const parsed = JSON.parse(content);
+    const fields = parsed?.fields;
+    if (fields && typeof fields === "object" && !Array.isArray(fields)) {
+      return fields as Record<string, BriefField>;
+    }
+  } catch {
+    // Not JSON or not a brief payload.
+  }
+  return {};
 }
 
 function hasRenderableStoryboard(content: unknown): boolean {
@@ -307,27 +335,32 @@ export default function StageContent({
   const currentContent = humanContent ?? aiContent ?? "";
   const hasChanges = humanContent !== null && humanContent !== aiContent;
 
-  // Knowledge Share 3-round flow state
-  const [knowledgeShareFields, setKnowledgeShareFields] = useState<Record<string, BriefField>>({});
-  const knowledgeShareInitStartedRef = useRef(false);
+  // Guided brief flow state
+  const savedGuidedBriefFields = useMemo(
+    () => stage.id === 1 ? extractBriefFieldsFromStageContent(humanContent ?? aiContent) : {},
+    [stage.id, humanContent, aiContent]
+  );
+  const [guidedBriefFields, setGuidedBriefFields] = useState<Record<string, BriefField>>(() => savedGuidedBriefFields);
+  const guidedBriefInitStartedRef = useRef(false);
   // Track if brief is already approved on backend (past brief stage)
   const [isBriefAlreadyApproved, setIsBriefAlreadyApproved] = useState(false);
   const [, setResearchError] = useState<string | null>(null);
 
-  // Check if this is a Knowledge Share project
+  // Check if this project should use the guided intent-aware brief flow.
   // Priority: session storage onboarding data → saved brief content (for existing projects)
-  const isKnowledgeShare = useMemo(() => {
+  const isGuidedBrief = useMemo(() => {
     if (onboardingData) {
-      return onboardingData.videoType === "Knowledge Share";
+      return Boolean(onboardingData.intentRoute) || isGuidedBriefType(onboardingData.videoType);
     }
     // Fallback: check saved stage-1 content for video_type field
     const content = humanContent || aiContent;
     if (content && stage.id === 1) {
       try {
         const parsed = JSON.parse(content);
+        const intentRoute = parsed?.fields?.intent_route?.value;
         const videoType = parsed?.fields?.video_type?.value;
-        if (videoType) {
-          return videoType === "knowledge_share" || videoType === "Knowledge Share";
+        if (intentRoute || videoType) {
+          return Boolean(intentRoute) || isGuidedBriefType(videoType);
         }
       } catch {
         // Not JSON or doesn't have expected structure
@@ -336,55 +369,60 @@ export default function StageContent({
     return false;
   }, [onboardingData, humanContent, aiContent, stage.id]);
 
-  // Initialize Knowledge Share flow
   useEffect(() => {
-    if (isKnowledgeShare && projectId && USE_KNOWLEDGE_SHARE_FLOW && stage.id === 1 && !knowledgeShareInitStartedRef.current) {
-      let cancelled = false;
-      knowledgeShareInitStartedRef.current = true;
+    if (Object.keys(guidedBriefFields).length > 0 || Object.keys(savedGuidedBriefFields).length === 0) return;
+    setGuidedBriefFields(savedGuidedBriefFields);
+  }, [guidedBriefFields, savedGuidedBriefFields]);
 
-      const runKnowledgeShareInitialization = async () => {
+  // Initialize guided brief flow
+  useEffect(() => {
+    if (isGuidedBrief && projectId && USE_GUIDED_BRIEF_FLOW && stage.id === 1 && !guidedBriefInitStartedRef.current) {
+      let active = true;
+      guidedBriefInitStartedRef.current = true;
+
+      const runGuidedBriefInitialization = async () => {
         try {
-          const initResult = await getKnowledgeShareInitRequest(
+          const initResult = await getGuidedBriefInitRequest(
             projectId,
             onboardingData,
             stage.status === "approved"
           );
 
-          if (cancelled) return;
+          if (!active) return;
 
-          setKnowledgeShareFields(initResult.briefFields);
+          setGuidedBriefFields(initResult.briefFields);
           setIsBriefAlreadyApproved(initResult.isBriefAlreadyApproved);
         } catch (err) {
-          if (cancelled) return;
-          knowledgeShareInitStartedRef.current = false;
-          console.error("[KS] Failed to initialize:", err);
+          if (!active) return;
+          guidedBriefInitStartedRef.current = false;
+          console.error("[Brief] Failed to initialize:", err);
           setResearchError("Failed to start briefing flow");
         }
       };
 
-      runKnowledgeShareInitialization();
+      runGuidedBriefInitialization();
 
       return () => {
-        cancelled = true;
+        active = false;
+        guidedBriefInitStartedRef.current = false;
       };
     }
-  }, [isKnowledgeShare, projectId, stage.id, stage.status, onboardingData]);
+  }, [isGuidedBrief, projectId, stage.id, stage.status, onboardingData]);
 
-  // Handle round confirmation for Knowledge Share
-  // Handle brief approval for Knowledge Share
-  const handleKnowledgeShareBriefApprove = useCallback(
+  // Handle brief approval for guided brief projects
+  const handleGuidedBriefApprove = useCallback(
     async (allFields: Record<string, BriefField>): Promise<void> => {
-      console.log("[KS StageContent] handleKnowledgeShareBriefApprove called");
-      console.log("[KS StageContent] projectId:", projectId);
-      console.log("[KS StageContent] allFields keys:", Object.keys(allFields));
+      console.log("[Brief StageContent] handleGuidedBriefApprove called");
+      console.log("[Brief StageContent] projectId:", projectId);
+      console.log("[Brief StageContent] allFields keys:", Object.keys(allFields));
 
       const url = `/api/project/${projectId}/event`;
       const body = {
         event: "chat_brief_approve",
         payload: { all_fields: allFields },
       };
-      console.log("[KS StageContent] Fetching URL:", url);
-      console.log("[KS StageContent] Request body:", JSON.stringify(body, null, 2));
+      console.log("[Brief StageContent] Fetching URL:", url);
+      console.log("[Brief StageContent] Request body:", JSON.stringify(body, null, 2));
 
       const response = await fetch(url, {
         method: "POST",
@@ -392,17 +430,17 @@ export default function StageContent({
         body: JSON.stringify(body),
       });
 
-      console.log("[KS StageContent] Response status:", response.status);
+      console.log("[Brief StageContent] Response status:", response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("[KS StageContent] Error response:", errorText);
+        console.error("[Brief StageContent] Error response:", errorText);
         throw new Error("Failed to approve brief");
       }
 
       // Trigger stage advance
       const data = await response.json();
-      console.log("[KS StageContent] Brief approve response:", data);
+      console.log("[Brief StageContent] Brief approve response:", data);
 
       const briefContent = data.story_brief
         ? JSON.stringify(data.story_brief, null, 2)
@@ -427,8 +465,8 @@ export default function StageContent({
     [projectId, onContentChange, onApprove]
   );
 
-  // Handle edit brief for Knowledge Share
-  const handleKnowledgeShareEditBrief = useCallback(() => {
+  // Handle edit brief for guided brief projects
+  const handleGuidedBriefEdit = useCallback(() => {
     // ChatBriefBuilder manages its own edit state internally
   }, []);
 
@@ -721,16 +759,30 @@ export default function StageContent({
     );
   }
 
-  // For Stage 1 (Brief), use ChatBriefBuilder for Knowledge Share videos
-  if (stage.id === 1 && USE_KNOWLEDGE_SHARE_FLOW && isKnowledgeShare && projectId) {
+  // For Stage 1 (Brief), use ChatBriefBuilder for guided intent-aware videos
+  if (stage.id === 1 && USE_GUIDED_BRIEF_FLOW && isGuidedBrief && projectId) {
+    if (!isBriefAlreadyApproved && Object.keys(guidedBriefFields).length === 0) {
+      return (
+        <div className="flex-1 flex items-center justify-center p-4" style={{ minHeight: "300px" }}>
+          <div className="text-center">
+            <Loader2 className="w-8 h-8 text-primary animate-spin mx-auto mb-4" />
+            <h3 className="text-lg font-medium mb-2">Preparing your briefing...</h3>
+            <p className="text-sm text-muted-foreground">
+              Plotline is reading the intent behind your video idea.
+            </p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
         <ChatBriefBuilder
           projectId={projectId}
-          initialFields={knowledgeShareFields}
+          initialFields={guidedBriefFields}
           isAlreadyApproved={isBriefAlreadyApproved}
-          onBriefApprove={handleKnowledgeShareBriefApprove}
-          onEditBrief={handleKnowledgeShareEditBrief}
+          onBriefApprove={handleGuidedBriefApprove}
+          onEditBrief={handleGuidedBriefEdit}
         />
       </div>
     );

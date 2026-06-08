@@ -77,17 +77,17 @@ export function getFieldColor(field: BriefField, isRequired: boolean = false): F
 export type BriefRound = 1 | 2 | 3 | "review";
 
 /**
- * Knowledge Share Brief - the new brief structure for Knowledge Share videos.
+ * Guided Brief - the route-aware brief structure for video projects.
  * Contains all 17 fields across 3 sections.
  */
 export interface KnowledgeShareBrief {
-  video_type: "knowledge_share";
+  video_type: string;
   round: BriefRound;
   fields: Record<string, BriefField>;
 }
 
 /**
- * Required fields per round for Knowledge Share.
+ * Required fields per round for the guided brief.
  */
 export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
   1: [
@@ -111,11 +111,15 @@ export const KNOWLEDGE_SHARE_REQUIRED_FIELDS: Record<1 | 2 | 3, string[]> = {
 };
 
 /**
- * Field labels for Knowledge Share (user-facing).
+ * Field labels for the guided brief (user-facing).
  */
 export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
   // Section 1: Core Intent
   video_type: "Video type",
+  intent_route: "Brief route",
+  content_mode: "Content mode",
+  format_style: "Format style",
+  route_summary: "Route logic",
   viewer_outcome: "Viewer outcome: what do you want people to know, do, believe, by the end of watching this video?",
   target_audience: "Who is this video for?",
   audience_level: "How familiar is your audience with this topic?",
@@ -134,10 +138,14 @@ export const KNOWLEDGE_SHARE_FIELD_LABELS: Record<string, string> = {
 };
 
 /**
- * Field input types for Knowledge Share.
+ * Field input types for the guided brief.
  */
 export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
   video_type: "readonly",
+  intent_route: "readonly",
+  content_mode: "readonly",
+  format_style: "readonly",
+  route_summary: "readonly",
   viewer_outcome: "textarea",
   target_audience: "text",
   audience_level: "select",
@@ -154,7 +162,7 @@ export const KNOWLEDGE_SHARE_FIELD_TYPES: Record<string, string> = {
 };
 
 /**
- * Select options for Knowledge Share fields.
+ * Select options for guided brief fields.
  */
 export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: string; description?: string; image?: string | string[] }[]> = {
   duration: [
@@ -174,6 +182,8 @@ export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: str
   platform: [
     { value: "youtube", label: "YouTube" },
     { value: "internal_lms", label: "Internal LMS" },
+    { value: "short_form", label: "Short-form social" },
+    { value: "general", label: "General" },
   ],
   on_camera_presence: [
     { value: "yes", label: "Yes" },
@@ -192,6 +202,9 @@ export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: str
     { value: "analytical_informative", label: "Analytical & informative" },
     { value: "mentor_peer", label: "Mentor & Peer" },
     { value: "executive_briefing", label: "Executive briefing" },
+    { value: "direct_conversational", label: "Direct & conversational" },
+    { value: "calm_reflective", label: "Calm & reflective" },
+    { value: "inspirational", label: "Inspirational" },
   ],
   freshness_expectation: [
     { value: "evergreen", label: "Evergreen (should stay useful for a long time)" },
@@ -201,7 +214,7 @@ export const KNOWLEDGE_SHARE_OPTIONS: Record<string, { value: string; label: str
 };
 
 /**
- * Field tooltips for Knowledge Share (shown as info icon next to label).
+ * Field tooltips for the guided brief (shown as info icon next to label).
  */
 export const KNOWLEDGE_SHARE_FIELD_TOOLTIPS: Record<string, string> = {
   viewer_outcome: "Know = a concept or fact they understand after watching.\nDo = a specific action they can take.\nBelieve = a perspective or conviction they walk away with.\n\nYou can aim for one or a combination — just be specific.",
@@ -220,14 +233,15 @@ export function createEmptyField(key: string): BriefField {
 }
 
 /**
- * Create initial fields for a Knowledge Share brief (Round 1).
+ * Create initial fields for a guided brief (Round 1).
  */
 export function createInitialKnowledgeShareFields(): Record<string, BriefField> {
   const fields: Record<string, BriefField> = {};
 
   // Section 1 fields
   const section1Fields = [
-    "video_type", "viewer_outcome", "target_audience", "audience_level",
+    "video_type", "intent_route", "content_mode", "format_style", "route_summary",
+    "viewer_outcome", "target_audience", "audience_level",
     "platform", "duration"
   ];
 
@@ -245,11 +259,11 @@ export function createInitialKnowledgeShareFields(): Record<string, BriefField> 
     fields[key] = createEmptyField(key);
   });
 
-  // video_type is always extracted and confirmed for Knowledge Share
+  // Defaults are placeholders until backend route inference returns real values.
   fields.video_type = {
     key: "video_type",
-    value: "knowledge_share",
-    source: "extracted",
+    value: "deep_explainer",
+    source: "inferred",
     confirmed: true,
   };
 
@@ -515,8 +529,10 @@ export const TONE_OPTIONS = [
 // Video type options
 export const VIDEO_TYPE_OPTIONS = [
   { value: "Product Release", label: "Product Release" },
-  { value: "Product Demo Video", label: "Product Demo" },
-  { value: "Knowledge Sharing", label: "Knowledge Share" },
+  { value: "Tutorial / Demo", label: "Tutorial / Demo" },
+  { value: "YouTube Explainer", label: "YouTube Explainer" },
+  { value: "Talking Script", label: "Talking Script" },
+  { value: "Planner / Lifestyle", label: "Planner / Lifestyle" },
 ];
 
 // Format/platform options
