@@ -7,7 +7,7 @@
 
 This folder is the landing page for the April 12 hackathon snapshot. Everything a fresh pair of eyes needs to understand, play, or regenerate the video lives here or one `cd` away.
 
-> **⚠️ Videos are NOT committed.** The initial push of this branch to GitHub was too large to transmit reliably over SSH (~300 MB of accumulated loose objects, of which the videos alone were ~118 MB). To keep the push under size limits, `final.mp4` and `clips/*.mp4` were excluded from the commit. They still live in the author's local working tree at `hackathon-april-12/final.mp4` + `hackathon-april-12/clips/panel_*.mp4`, but fresh clones will see only `HANDOFF.md`, `storyboard.json`, and `manifest.json`. **Regenerate them via the steps in "How to regenerate" below** — cost ~$0.67, runtime ~12 min.
+> **Videos are intentionally not tracked.** `final.mp4`, `clips/*.mp4`, and regenerated output folders are local render artifacts and are ignored by Git. Fresh clones should use `HANDOFF.md`, `storyboard.json`, and `manifest.json` as the durable reference files. Regenerate videos via the steps in "How to regenerate" below.
 
 ---
 

@@ -1,6 +1,10 @@
 # Logs
 logs
 *.log
+*.pid
+*.pid.lock
+.server-info
+.server-stopped
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -47,6 +51,9 @@ langflow_env/
 # Project data (local JSON storage)
 data/
 !data/example/
+!data/example/**
+!data/gold_sets/
+!data/gold_sets/**/gold_standard.json
 
 # Environment variables
 .env
@@ -75,6 +82,7 @@ frontend/playwright-report/
 frontend/blob-report/
 
 # Superpowers / Task Master
+.claude/
 .superpowers/
 .taskmaster/
 
@@ -83,7 +91,18 @@ backend/*.log
 backend/plotline.db
 
 # Generated / output artifacts
+*.mp4
+*.mov
+*.avi
+*.mkv
+*.webm
+*.wav
+*.mp3
 hackathon-april-12/output/
+hackathon-april-12/clips/
+hackathon-april-12/final.mp4
+goldsets/**/*.mp4
+image_placeholders/
 frontend/public/generated/
 backend/quality_log.db
 来时路/

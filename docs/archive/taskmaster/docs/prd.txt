@@ -1,0 +1,243 @@
+# Plotline MVP - Product Requirements Document
+
+## Overview
+Transform the current Langflow-based storyboard generator into a human-in-the-loop system with staged workflows, edit tracking, and Google authentication. The primary goal is to ship an MVP to instructional designers to gather feedback on what users change at each gating point to improve AI prompts.
+
+## Target Users
+- Primary: Instructional designers and video creators
+- Secondary: PM (for analytics and prompt improvement)
+
+## Architecture
+
+### Current State
+User Input → Langflow (6 min black box) → Full Storyboard
+
+### Target State
+User Input → 5-Stage Pipeline with 2 Gating Points → Tracked Edits → Analytics
+
+### Call Graph
+```
+User Intake Form (Entry Point)
+    ↓
+Main Orchestrator
+├── Topic Researcher (Flow 1) - Web Search
+├── Brief Builder (Flow 2) - Context Pack + User Input
+├── 🚦 GATE 1: Human Review of Story Brief
+├── Storyboard Director (Flow 3) - Screen Planning + Visual Keywords
+├── 🚦 GATE 2: Human Review of Screen Outline
+└── Storyboard Writer (Flow 4)
+    ├── Image Researcher (Flow 5) - Auto-fetch using keywords from Stage 3
+    └── Duration Calculator (Flow 6)
+```
+
+## Tech Stack
+- Frontend: React 19 + TypeScript + Vite + Tailwind CSS v4 + Radix UI
+- Backend: FastAPI + Python
+- Auth: Clerk (Google Sign-In)
+- AI: Direct OpenAI SDK (replace Langflow)
+- Images: Google Custom Search API
+- Storage: File-based JSON
+
+## Phase 1: User-Facing MVP
+
+### 1.1 Clerk Authentication
+Add Google Sign-In authentication using Clerk.
+- Create Clerk account and enable Google OAuth
+- Add ClerkProvider to frontend
+- Create LandingPage with sign-in button
+- Protect routes for authenticated users only
+- Link projects to user IDs
+
+Files to create:
+- frontend/src/components/LandingPage.tsx
+- frontend/.env (VITE_CLERK_PUBLISHABLE_KEY)
+
+Files to modify:
+- frontend/src/main.tsx (wrap with ClerkProvider)
+- frontend/src/App.tsx (add protected routes)
+- frontend/package.json (add @clerk/clerk-react)
+
+### 1.2 Stage Layout UI
+Create new stage-based layout with 5 stages and navigation.
+
+Stage definitions:
+- Stage 1 (Brief) = Video concept and goals
+- Stage 2 (Outline) = Screen structure and types
+- Stage 3 (Panels) = Individual screen details + visual keywords
+- Stage 4 (Draft) = Full voiceover, visuals, and auto-fetched images
+- Stage 5 (Polish) = Final review and export
+
+Files to create:
+- frontend/src/components/StageLayout.tsx
+- frontend/src/components/StageNavigation.tsx
+- frontend/src/components/StageContent.tsx
+- frontend/src/components/stages/BriefStage.tsx
+- frontend/src/components/stages/OutlineStage.tsx
+- frontend/src/components/stages/PanelsStage.tsx
+- frontend/src/components/stages/DraftStage.tsx
+- frontend/src/components/stages/PolishStage.tsx
+
+### 1.3 Backend Orchestrator
+Replace Langflow with direct OpenAI SDK calls. Create orchestrator service with 6 flows.
+
+Flows:
+1. Topic Researcher - Web search for context
+2. Brief Builder - Generate video brief
+3. Storyboard Director - Plan screen structure and visual keywords
+4. Storyboard Writer - Generate full content
+5. Image Researcher - Fetch images using keywords from Stage 3
+6. Duration Calculator - Calculate timing
+
+API Endpoints:
+- POST /api/project/{id}/run-stage - Run a specific stage
+- POST /api/project/{id}/approve-stage - Approve and advance
+- GET /api/project/{id}/stage/{stage_name} - Get stage data
+
+Files to create:
+- backend/app/services/orchestrator.py
+- backend/app/services/flows/topic_researcher.py
+- backend/app/services/flows/brief_builder.py
+- backend/app/services/flows/storyboard_director.py
+- backend/app/services/flows/storyboard_writer.py
+- backend/app/prompts/researcher.txt
+- backend/app/prompts/brief_builder.txt
+- backend/app/prompts/director.txt
+- backend/app/prompts/writer.txt
+
+Files to modify:
+- backend/app/main.py (add new endpoints)
+
+### 1.4 Edit Tracking System
+Track all user edits at gating points for prompt improvement analysis.
+
+Track:
+- AI version vs human version at each gate
+- Characters added/removed
+- Time spent editing
+- Screens added/removed/modified (for outline stage)
+
+Data structure (edit_log.json):
+```json
+{
+  "project_id": "123",
+  "user_id": "clerk_user_id",
+  "stages": {
+    "brief": {
+      "ai_version": "...",
+      "human_version": "...",
+      "edited": true,
+      "edit_summary": {...}
+    }
+  }
+}
+```
+
+Files to create:
+- backend/app/services/edit_tracker.py
+- backend/app/models/edit_log.py
+
+### 1.5 Diff View Component
+Show users what changed between AI version and their edits, or between regeneration versions.
+
+Features:
+- Side-by-side or inline diff display
+- Highlight additions (green) and deletions (red)
+- Toggle on/off
+
+Files to create:
+- frontend/src/components/DiffView.tsx
+
+### 1.6 Content Source Attribution
+Show users where content comes from to build trust.
+
+Source types:
+- 📎 User-provided materials (from intake form)
+- 🔍 Web search results (from Topic Researcher)
+- 🤖 AI-generated (synthesized by the model)
+
+Files to create:
+- frontend/src/components/SourceBadge.tsx
+- backend/app/models/source.py
+
+### 1.7 Gating Point Interactions
+At each gate, users can:
+- Option A: Provide suggestions → AI regenerates
+- Option B: Directly edit rich text
+Both interactions are tracked in edit_log.json
+
+### 1.8 Export & Share
+Allow users to export and share their storyboards.
+
+Export to PDF:
+- Generate downloadable PDF of final storyboard
+- Include all screens with images, voiceover, notes
+- Library: @react-pdf/renderer or html2pdf.js
+
+Share to Community (like Lovable):
+- Generate shareable public link
+- Read-only view of storyboard
+
+Files to create:
+- frontend/src/components/ExportButton.tsx
+- frontend/src/components/ShareModal.tsx
+- frontend/src/pages/SharedStoryboard.tsx
+- backend/app/services/export.py
+
+New endpoint:
+- GET /api/share/{share_token} - Public storyboard access
+
+### 1.9 Project Data Structure Update
+Reorganize data storage for new architecture.
+
+```
+data/
+├── users/
+│   └── {clerk_user_id}/
+│       └── projects.json
+└── projects/
+    └── project_{id}/
+        ├── metadata.json
+        ├── state.json
+        ├── stages/
+        │   ├── brief.json
+        │   ├── outline.json
+        │   ├── panels.json
+        │   └── draft.json
+        ├── edit_log.json
+        └── chat_history.json
+```
+
+## Phase 2: PM-Facing Analytics Tools
+
+### 2.1 Analytics Dashboard
+- View all projects and their edit logs
+- Aggregate edit patterns across users
+- Identify which fields get changed most
+- Surface prompt improvement insights
+
+### 2.2 Edit Log Viewer
+- Browse individual project edit histories
+- See exact before/after for each gate
+- Filter by user, date, stage
+
+### 2.3 Prompt Version Management
+- Track which prompt version generated which outputs
+- A/B test different prompts
+- Rollback to previous prompt versions
+
+## Success Metrics
+- Number of storyboards created
+- Completion rate through all 5 stages
+- Edit frequency at each gating point
+- Most commonly edited fields (for prompt improvement)
+- Share/export usage
+
+## Confirmed Decisions
+- Auth: Clerk with Google OAuth
+- Gating behavior: Both AI regeneration AND direct text editing
+- Image timing: Auto-fetch in Stage 4 using keywords from Stage 3
+- UI approach: Simple list view for MVP, visual grid later
+- Diff view: In Phase 1 (core to feedback loop)
+- Source attribution: Show where content comes from (user/web/AI)
+- Export & Share: PDF export + shareable public links (like Lovable)
+- Phase split: Phase 1 = User-facing, Phase 2 = PM analytics
