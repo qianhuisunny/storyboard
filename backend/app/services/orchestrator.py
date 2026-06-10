@@ -358,10 +358,14 @@ class StoryboardOrchestrator:
         result: dict
     ) -> tuple:
         """Handle Gate 2 approval - locks outline and runs writer."""
-        current_outline = self._coerce_json_payload(
-            payload.get("current_outline"),
-            "current_outline",
-        )
+        current_outline = payload.get("current_outline")
+        if isinstance(current_outline, str):
+            try:
+                current_outline = json.loads(current_outline)
+            except json.JSONDecodeError:
+                # Outlines are plain text (the director's markdown contract),
+                # so a non-JSON string is the normal case — keep it as-is.
+                pass
         if current_outline is not None:
             state.screen_outline = current_outline
 
