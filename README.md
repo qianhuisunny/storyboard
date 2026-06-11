@@ -1,4 +1,4 @@
-# Plotline — AI-Powered Storyboard & Video Creation Platform
+# Plotline — AI-Powered Storyboard & Video Creation Pipeline
 
 Plotline transforms briefs and documents into structured, production-ready video storyboards — and renders them into finished videos. A multi-agent AI pipeline handles everything from content extraction to screen-by-screen storyboarding to video generation with multiple providers.
 
