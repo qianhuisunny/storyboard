@@ -5,6 +5,13 @@ from fastapi.responses import JSONResponse
 from app.services.orchestrator import orchestrator
 from app.services.analytics import analytics_tracker
 from app.services.state import StateManager
+from app.services.workflow import (
+    DuplicateJobError,
+    InvalidWorkflowEvent,
+    VersionConflictError,
+    WorkflowGenerationError,
+    workflow_service,
+)
 from app.services.video_intent import LEGACY_ROUTE_ALIASES, VIDEO_INTENT_ROUTES
 from app.infra.quality_log import qlog
 from app.services.image_generator import ImageGenerator
@@ -409,6 +416,12 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
 
     try:
         await _require_project(db, project_id)
+        if request.event in workflow_service.NEW_EVENTS:
+            return await workflow_service.process_event(
+                project_id,
+                request.event,
+                request.payload,
+            )
         normalized_event, normalized_payload = await _normalize_pipeline_event(
             project_id=project_id,
             event=request.event,
@@ -426,6 +439,41 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
 
         return result
 
+    except VersionConflictError as e:
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "code": "version_conflict",
+                "current_version_id": e.current_version_id,
+            },
+        )
+    except DuplicateJobError as e:
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "duplicate_job", "job": e.job},
+        )
+    except InvalidWorkflowEvent as e:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "invalid_workflow_event",
+                "event": e.event,
+                "workflow_stage": e.workflow_stage,
+                "allowed_events": e.allowed_events,
+                "message": str(e),
+            },
+        )
+    except WorkflowGenerationError as e:
+        raise HTTPException(
+            status_code=502,
+            detail={
+                "code": "workflow_generation_failed",
+                "message": str(e),
+                "job": e.job,
+            },
+        )
+    except HTTPException:
+        raise
     except ValueError as e:
         logger.error(f"ValueError: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
@@ -738,49 +786,9 @@ async def get_pipeline_state(project_id: str, db: AsyncSession = Depends(get_db)
     """
     try:
         await _require_project(db, project_id)
-        manager = StateManager(project_id)
-        state = await manager.load()
-
-        # Determine available events based on current phase
-        available_events = {
-            "intake": ["submit", "submit_guided_brief", "submit_knowledge_share"],
-            "brief_chat": ["chat_brief_approve"],
-            "brief_review": ["approve", "brief_approve", "edit", "edit_brief", "chat_brief_approve"],
-            "gate1": ["approve", "edit", "reject", "refine"],
-            "gate2": ["approve", "edit", "regenerate_section", "refine_outline", "reject", "refine"],
-            "outline_research": [],
-            "review": ["approve", "edit", "reject", "refine"],
-            "done": ["restart"],
-        }.get(state.phase, [])
-
-        return {
-            "success": True,
-            "project_id": project_id,
-            "phase": state.phase,
-            "available_events": available_events,
-            "state": {
-                "brief_locked": state.brief_locked,
-                "outline_locked": state.outline_locked,
-                "revision_count_gate1": state.revision_count_gate1,
-                "revision_count_gate2": state.revision_count_gate2,
-                "max_revisions": state.max_revisions,
-                "has_intake_form": state.intake_form is not None,
-                "has_story_brief": state.story_brief is not None,
-                "has_screen_outline": state.screen_outline is not None,
-                "has_storyboard": state.storyboard is not None,
-            },
-            "data": {
-                "intake_form": state.intake_form,
-                "story_brief": state.story_brief,
-                "screen_outline": state.screen_outline,
-                "storyboard": state.storyboard,
-                "evidence_research": state.evidence_research,
-                "outline_eval": state.outline_eval,
-                "storyboard_eval": state.storyboard_eval,
-            },
-            "revision_history": [r.model_dump() for r in state.revision_history],
-        }
-
+        return await workflow_service.get_project(project_id)
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error getting pipeline state: {str(e)}")
 

@@ -74,7 +74,9 @@ def test_workflow_state_has_typed_defaults_and_exact_allowed_events():
         ("gate2", "outline"),
         ("outline_research", "outline"),
         ("write", "storyboard"),
+        ("storyboard", "storyboard"),
         ("review", "storyboard"),
+        ("complete", "complete"),
         ("done", "complete"),
     ],
 )

@@ -30,7 +30,9 @@ LEGACY_WORKFLOW_STAGES: dict[str, WorkflowStage] = {
     "gate2": "outline",
     "outline_research": "outline",
     "write": "storyboard",
+    "storyboard": "storyboard",
     "review": "storyboard",
+    "complete": "complete",
     "done": "complete",
 }
 
@@ -76,6 +78,8 @@ class StoryboardState(BaseModel):
         "brief_review",   # NEW: Final brief review before locking
         "gate1",          # Human review of Story Brief
         "outline",        # Storyboard Director is running
+        "storyboard",     # New canonical storyboard stage
+        "complete",       # New canonical completed stage
         "gate2",          # Human review of Screen Outline
         "outline_research",  # Reserved for future outline research flow
         "write",          # Storyboard Writer is running

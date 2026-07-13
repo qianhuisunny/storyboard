@@ -1,0 +1,521 @@
+"""Concurrency and persistence tests for the four-stage workflow service."""
+
+import asyncio
+
+import pytest
+from sqlalchemy.ext.asyncio import async_sessionmaker
+
+from app.db import engine as db_engine
+from app.db.models import Base
+from app.db.repository import ProjectRepository
+from app.services.state import JobOverlay, StoryboardState
+from app.services.workflow import (
+    DuplicateJobError,
+    VersionConflictError,
+    WorkflowGenerationError,
+    WorkflowService,
+)
+
+
+async def _workflow_database(tmp_path, project_id="workflow-project"):
+    engine = db_engine.create_sqlite_async_engine(
+        f"sqlite+aiosqlite:///{tmp_path / (project_id + '.db')}"
+    )
+    sessions = async_sessionmaker(engine, expire_on_commit=False)
+    async with engine.begin() as connection:
+        await connection.run_sync(Base.metadata.create_all)
+    async with sessions() as session:
+        await ProjectRepository(session).create_project(
+            project_id, "test-user", "Workflow"
+        )
+    return engine, sessions
+
+
+async def _outline(context):
+    return f"Outline for {context.intake['prompt']}"
+
+
+async def _storyboard(context):
+    return [{"screen_number": 1, "voiceover": context.outline}]
+
+
+@pytest.mark.asyncio
+async def test_initial_save_reuses_identical_content_without_changing_stage(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    service = WorkflowService(sessions, _outline, _storyboard)
+    content = {"prompt": "Explain versioned workflows"}
+
+    first = await service.process_event(
+        "workflow-project",
+        "save_intake",
+        {"content": content, "expected_version_id": None},
+    )
+    second = await service.process_event(
+        "workflow-project",
+        "save_intake",
+        {
+            "content": content,
+            "expected_version_id": first["artifacts"]["intake"]["current_version_id"],
+        },
+    )
+
+    assert first["workflow_stage"] == second["workflow_stage"] == "intake"
+    assert first["phase"] == second["phase"] == "intake"
+    assert second["artifacts"]["intake"]["current_content"] == content
+    assert second["artifacts"]["intake"]["current_version_id"] == first["artifacts"]["intake"]["current_version_id"]
+    assert len(second["artifacts"]["intake"]["versions"]) == 1
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_approve_is_atomic_and_generated_artifact_tracks_approved_input(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    seen = []
+
+    async def outline_generator(context):
+        seen.append(context)
+        return "Section 1 — Safe state"
+
+    service = WorkflowService(sessions, outline_generator, _storyboard)
+    content = {"prompt": "Teach atomic promotion"}
+    response = await service.process_event(
+        "workflow-project",
+        "approve_intake",
+        {"content": content, "expected_version_id": None},
+    )
+
+    intake = response["artifacts"]["intake"]
+    outline = response["artifacts"]["outline"]
+    assert response["workflow_stage"] == response["phase"] == "outline"
+    assert intake["approved_version_id"] == intake["current_version_id"]
+    assert outline["current_content"] == "Section 1 — Safe state"
+    assert outline["versions"][0]["based_on_version_id"] == intake["approved_version_id"]
+    assert outline["versions"][0]["created_by"] == "ai"
+    assert response["job"]["status"] == "idle"
+    assert seen[0].intake == content
+    assert seen[0].input_version_id == intake["approved_version_id"]
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_stale_expected_id_conflict_does_not_create_a_version(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    service = WorkflowService(sessions, _outline, _storyboard)
+    first = await service.process_event(
+        "workflow-project",
+        "save_intake",
+        {"content": {"prompt": "First"}, "expected_version_id": None},
+    )
+    current_id = first["artifacts"]["intake"]["current_version_id"]
+
+    with pytest.raises(VersionConflictError) as exc_info:
+        await service.process_event(
+            "workflow-project",
+            "save_intake",
+            {"content": {"prompt": "Stale"}, "expected_version_id": None},
+        )
+
+    current = await service.get_project("workflow-project")
+    assert exc_info.value.current_version_id == current_id
+    assert current["artifacts"]["intake"]["current_version_id"] == current_id
+    assert len(current["artifacts"]["intake"]["versions"]) == 1
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_duplicate_generation_is_rejected_while_first_job_is_blocked(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def blocked_outline(_context):
+        entered.set()
+        await release.wait()
+        return "Generated once"
+
+    service = WorkflowService(sessions, blocked_outline, _storyboard)
+    payload = {"content": {"prompt": "One job"}, "expected_version_id": None}
+    first = asyncio.create_task(
+        service.process_event("workflow-project", "approve_intake", payload)
+    )
+    await asyncio.wait_for(entered.wait(), timeout=2)
+
+    with pytest.raises(DuplicateJobError) as exc_info:
+        await service.process_event(
+            "workflow-project", "approve_intake", payload
+        )
+
+    assert exc_info.value.job["kind"] == "outline"
+    assert exc_info.value.job["status"] == "running"
+    release.set()
+    await first
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_generation_failure_preserves_current_and_persists_failed_job(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    calls = 0
+
+    async def outline_generator(_context):
+        nonlocal calls
+        calls += 1
+        if calls == 1:
+            return "Last valid outline"
+        raise RuntimeError("director unavailable")
+
+    service = WorkflowService(sessions, outline_generator, _storyboard)
+    approved = await service.process_event(
+        "workflow-project",
+        "approve_intake",
+        {"content": {"prompt": "Failure safety"}, "expected_version_id": None},
+    )
+    outline_id = approved["artifacts"]["outline"]["current_version_id"]
+
+    with pytest.raises(WorkflowGenerationError, match="director unavailable"):
+        await service.process_event(
+            "workflow-project",
+            "revise_outline",
+            {"instruction": "Make it sharper", "expected_version_id": outline_id},
+        )
+
+    failed = await service.get_project("workflow-project")
+    assert failed["artifacts"]["outline"]["current_version_id"] == outline_id
+    assert failed["artifacts"]["outline"]["current_content"] == "Last valid outline"
+    assert failed["job"]["status"] == "failed"
+    assert failed["job"]["error"] == "director unavailable"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_late_result_is_history_only_when_input_and_job_have_changed(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def blocked_outline(_context):
+        entered.set()
+        await release.wait()
+        return "Late outline"
+
+    service = WorkflowService(sessions, blocked_outline, _storyboard)
+    task = asyncio.create_task(
+        service.process_event(
+            "workflow-project",
+            "approve_intake",
+            {"content": {"prompt": "Old input"}, "expected_version_id": None},
+        )
+    )
+    await asyncio.wait_for(entered.wait(), timeout=2)
+
+    async with sessions() as session:
+        repo = ProjectRepository(session)
+        row = await repo.get_pipeline_state("workflow-project")
+        state = StoryboardState(**repo.parse_state_data(row))
+        replacement = await repo.create_artifact_version(
+            "workflow-project", "intake", {"prompt": "New input"}, "human", commit=False
+        )
+        state.artifacts["intake"].current_version_id = replacement.id
+        state.artifacts["intake"].approved_version_id = replacement.id
+        state.intake_form = {"prompt": "New input"}
+        state.story_brief = {"prompt": "New input"}
+        state.job = JobOverlay(
+            status="running",
+            job_id="replacement-job",
+            kind="outline",
+            input_version_id=replacement.id,
+        )
+        await repo.update_pipeline_state(
+            "workflow-project", "outline", "pending", state.model_dump(), commit=False
+        )
+        await session.commit()
+
+    release.set()
+    response = await task
+    assert response["artifacts"]["outline"]["current_version_id"] is None
+    assert len(response["artifacts"]["outline"]["versions"]) == 1
+    assert response["artifacts"]["outline"]["versions"][0]["created_by"] == "ai"
+    assert response["job"]["job_id"] == "replacement-job"
+    assert response["job"]["status"] == "running"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_upstream_save_retains_downstream_versions_and_marks_them_stale(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    service = WorkflowService(sessions, _outline, _storyboard)
+    outline_response = await service.process_event(
+        "workflow-project",
+        "approve_intake",
+        {"content": {"prompt": "Original"}, "expected_version_id": None},
+    )
+    outline = outline_response["artifacts"]["outline"]
+    storyboard_response = await service.process_event(
+        "workflow-project",
+        "approve_outline",
+        {
+            "content": outline["current_content"],
+            "expected_version_id": outline["current_version_id"],
+        },
+    )
+    old_outline_id = storyboard_response["artifacts"]["outline"]["current_version_id"]
+    old_storyboard_id = storyboard_response["artifacts"]["storyboard"]["current_version_id"]
+    await service.process_event("workflow-project", "edit_intake", {})
+    intake_id = storyboard_response["artifacts"]["intake"]["current_version_id"]
+
+    changed = await service.process_event(
+        "workflow-project",
+        "save_intake",
+        {
+            "content": {"prompt": "Changed"},
+            "expected_version_id": intake_id,
+        },
+    )
+
+    assert changed["workflow_stage"] == "intake"
+    assert changed["artifacts"]["outline"]["current_version_id"] == old_outline_id
+    assert changed["artifacts"]["storyboard"]["current_version_id"] == old_storyboard_id
+    assert changed["artifacts"]["outline"]["needs_update"] is True
+    assert changed["artifacts"]["storyboard"]["needs_update"] is True
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_keep_storyboard_creates_override_based_on_approved_outline(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    storyboard_calls = 0
+
+    async def storyboard_generator(context):
+        nonlocal storyboard_calls
+        storyboard_calls += 1
+        if storyboard_calls == 1:
+            return [{"screen_number": 1, "voiceover": "Keep this"}]
+        raise RuntimeError("regeneration failed")
+
+    service = WorkflowService(sessions, _outline, storyboard_generator)
+    outline_response = await service.process_event(
+        "workflow-project",
+        "approve_intake",
+        {"content": {"prompt": "Overrides"}, "expected_version_id": None},
+    )
+    outline = outline_response["artifacts"]["outline"]
+    storyboard_response = await service.process_event(
+        "workflow-project",
+        "approve_outline",
+        {
+            "content": outline["current_content"],
+            "expected_version_id": outline["current_version_id"],
+        },
+    )
+    old_storyboard = storyboard_response["artifacts"]["storyboard"]
+    await service.process_event("workflow-project", "edit_outline", {})
+    saved = await service.process_event(
+        "workflow-project",
+        "save_outline",
+        {
+            "content": "A newly approved outline",
+            "expected_version_id": outline["current_version_id"],
+        },
+    )
+    with pytest.raises(WorkflowGenerationError):
+        await service.process_event(
+            "workflow-project",
+            "approve_outline",
+            {
+                "content": saved["artifacts"]["outline"]["current_content"],
+                "expected_version_id": saved["artifacts"]["outline"]["current_version_id"],
+            },
+        )
+    failed = await service.get_project("workflow-project")
+
+    kept = await service.process_event(
+        "workflow-project",
+        "keep_storyboard",
+        {"expected_version_id": old_storyboard["current_version_id"]},
+    )
+    override = kept["artifacts"]["storyboard"]
+    assert override["current_content"] == old_storyboard["current_content"]
+    assert override["current_version_id"] != old_storyboard["current_version_id"]
+    assert override["versions"][-1]["created_by"] == "human"
+    assert override["versions"][-1]["is_override"] is True
+    assert override["versions"][-1]["based_on_version_id"] == failed["artifacts"]["outline"]["approved_version_id"]
+    assert override["needs_update"] is False
+    assert kept["workflow_stage"] == "storyboard"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("reopen_event", "expected_stage"),
+    [
+        ("reopen_intake", "intake"),
+        ("reopen_outline", "outline"),
+        ("reopen_storyboard", "storyboard"),
+    ],
+)
+async def test_complete_and_reopen_retain_all_version_pointers(
+    tmp_path, reopen_event, expected_stage
+):
+    engine, sessions = await _workflow_database(tmp_path)
+    service = WorkflowService(sessions, _outline, _storyboard)
+    outline_response = await service.process_event(
+        "workflow-project",
+        "approve_intake",
+        {"content": {"prompt": "Finish"}, "expected_version_id": None},
+    )
+    outline = outline_response["artifacts"]["outline"]
+    storyboard_response = await service.process_event(
+        "workflow-project",
+        "approve_outline",
+        {
+            "content": outline["current_content"],
+            "expected_version_id": outline["current_version_id"],
+        },
+    )
+    storyboard = storyboard_response["artifacts"]["storyboard"]
+    completed = await service.process_event(
+        "workflow-project",
+        "approve_storyboard",
+        {
+            "content": storyboard["current_content"],
+            "expected_version_id": storyboard["current_version_id"],
+        },
+    )
+    pointers = {
+        name: artifact["current_version_id"]
+        for name, artifact in completed["artifacts"].items()
+    }
+    reopened = await service.process_event(
+        "workflow-project", reopen_event, {}
+    )
+
+    assert completed["workflow_stage"] == "complete"
+    assert completed["artifacts"]["storyboard"]["approved_version_id"] == storyboard["current_version_id"]
+    assert reopened["workflow_stage"] == reopened["phase"] == expected_stage
+    assert {
+        name: artifact["current_version_id"]
+        for name, artifact in reopened["artifacts"].items()
+    } == pointers
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_revise_generators_receive_current_content_and_instruction(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    outline_contexts = []
+    storyboard_contexts = []
+
+    async def outline_generator(context):
+        outline_contexts.append(context)
+        return "Revised outline" if context.instruction else "Initial outline"
+
+    async def storyboard_generator(context):
+        storyboard_contexts.append(context)
+        return [
+            {
+                "screen_number": 1,
+                "voiceover": "Revised" if context.instruction else "Initial",
+            }
+        ]
+
+    service = WorkflowService(sessions, outline_generator, storyboard_generator)
+    outlined = await service.process_event(
+        "workflow-project",
+        "approve_intake",
+        {"content": {"prompt": "Revise safely"}, "expected_version_id": None},
+    )
+    outline = outlined["artifacts"]["outline"]
+    revised_outline = await service.process_event(
+        "workflow-project",
+        "revise_outline",
+        {
+            "instruction": "Lead with the example",
+            "expected_version_id": outline["current_version_id"],
+        },
+    )
+    current_outline = revised_outline["artifacts"]["outline"]
+    storyboard = await service.process_event(
+        "workflow-project",
+        "approve_outline",
+        {
+            "content": current_outline["current_content"],
+            "expected_version_id": current_outline["current_version_id"],
+        },
+    )
+    current_storyboard = storyboard["artifacts"]["storyboard"]
+    await service.process_event(
+        "workflow-project",
+        "revise_storyboard",
+        {
+            "instruction": "Tighten the ending",
+            "expected_version_id": current_storyboard["current_version_id"],
+        },
+    )
+
+    assert outline_contexts[-1].current_content == "Initial outline"
+    assert outline_contexts[-1].instruction == "Lead with the example"
+    assert storyboard_contexts[-1].current_content == current_storyboard["current_content"]
+    assert storyboard_contexts[-1].storyboard == current_storyboard["current_content"]
+    assert storyboard_contexts[-1].instruction == "Tighten the ending"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_canonical_response_has_history_aliases_flags_and_legacy_content(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path, "legacy-project")
+    legacy = {
+        "project_id": "legacy-project",
+        "phase": "review",
+        "intake_form": {"prompt": "Original intake"},
+        "story_brief": {"prompt": "Approved legacy brief"},
+        "screen_outline": "Legacy outline",
+        "storyboard": [{"screen_number": 1, "voiceover": "Legacy"}],
+        "outline_eval": {"score": 8},
+        "storyboard_eval": {"score": 7},
+        "brief_locked": True,
+    }
+    async with sessions() as session:
+        await ProjectRepository(session).update_pipeline_state(
+            "legacy-project", "review", "pending", legacy
+        )
+    service = WorkflowService(sessions, _outline, _storyboard)
+
+    response = await service.get_project("legacy-project")
+
+    assert response["workflow_stage"] == "storyboard"
+    assert response["phase"] == "review"
+    assert response["allowed_events"] == response["available_events"]
+    assert response["allowed_events"] == [
+        "save_storyboard",
+        "revise_storyboard",
+        "approve_storyboard",
+        "edit_outline",
+        "edit_intake",
+        "keep_storyboard",
+    ]
+    assert response["artifacts"]["outline"]["current_content"] == "Legacy outline"
+    assert response["artifacts"]["storyboard"]["current_content"] == legacy["storyboard"]
+    assert response["artifacts"]["outline"]["versions"] == []
+    assert response["data"] == {
+        "intake_form": legacy["intake_form"],
+        "story_brief": legacy["story_brief"],
+        "screen_outline": legacy["screen_outline"],
+        "storyboard": legacy["storyboard"],
+        "evidence_research": None,
+        "outline_eval": legacy["outline_eval"],
+        "storyboard_eval": legacy["storyboard_eval"],
+    }
+    assert response["state"]["brief_locked"] is True
+    assert response["state"]["has_storyboard"] is True
+
+    await engine.dispose()
