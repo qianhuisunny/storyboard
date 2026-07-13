@@ -2,6 +2,7 @@
 
 import io
 import ssl
+import time
 import zipfile
 
 import httpx
@@ -17,6 +18,8 @@ from app.db.repository import ProjectRepository
 from app.main import app
 from app.services.session_auth import SESSION_COOKIE, hash_session_token
 from app.services.source_ingestion import (
+    MAX_EXTRACTED_BYTES,
+    MAX_EXTRACTED_CHARS,
     PinnedNetworkBackend,
     SourceIngestionError,
     fetch_public_text,
@@ -234,6 +237,7 @@ async def test_extraction_is_killable_timeout_bounded_and_output_capped(tmp_path
     source = tmp_path / "source.txt"
     source.write_text("é" * 100)
 
+    started_at = time.monotonic()
     with pytest.raises(SourceIngestionError, match="timed out"):
         await extract_source_in_subprocess(
             "text",
@@ -241,6 +245,7 @@ async def test_extraction_is_killable_timeout_bounded_and_output_capped(tmp_path
             timeout_seconds=0.01,
             worker_delay_seconds=0.2,
         )
+    assert time.monotonic() - started_at < 1
 
     result = await extract_source_in_subprocess(
         "text",
@@ -249,6 +254,20 @@ async def test_extraction_is_killable_timeout_bounded_and_output_capped(tmp_path
         max_chars=10,
     )
     assert result == "é" * 10
+
+
+@pytest.mark.asyncio
+async def test_extraction_drains_max_byte_multibyte_result_without_false_timeout():
+    emoji_count = min(MAX_EXTRACTED_CHARS, MAX_EXTRACTED_BYTES // 4)
+    title, text = await extract_source_in_subprocess(
+        "html",
+        f"<p>{'😀' * emoji_count}</p>",
+        timeout_seconds=3,
+    )
+
+    assert title == ""
+    assert text == "😀" * emoji_count
+    assert len(text.encode("utf-8")) == MAX_EXTRACTED_BYTES
 
 
 @pytest.mark.asyncio

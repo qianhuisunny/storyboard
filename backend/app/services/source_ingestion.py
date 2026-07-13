@@ -9,6 +9,7 @@ import queue
 import socket
 import ssl
 import sys
+import threading
 import time
 import zipfile
 from dataclasses import dataclass
@@ -371,13 +372,29 @@ def _extraction_worker(
 
             title, text_content = extract_text_from_html(payload)
             extracted = (title[:512], truncate_utf8(text_content[:max_chars]))
-            output.put((True, extracted))
+            output.send((True, extracted))
             return
         else:
             raise SourceIngestionError("Unsupported extraction type")
-        output.put((True, truncate_utf8(extracted[:max_chars])))
+        output.send((True, truncate_utf8(extracted[:max_chars])))
     except BaseException as error:
-        output.put((False, str(error) or "Source extraction failed"))
+        try:
+            output.send((False, str(error) or "Source extraction failed"))
+        except (BrokenPipeError, EOFError, OSError):
+            pass
+    finally:
+        output.close()
+
+
+def _stop_extraction_process(process) -> None:
+    if not process.is_alive():
+        process.join()
+        return
+    process.terminate()
+    process.join(0.1)
+    if process.is_alive():
+        process.kill()
+        process.join(0.1)
 
 
 def _run_extraction_process(
@@ -391,11 +408,11 @@ def _run_extraction_process(
     worker_delay_seconds: float,
 ):
     context = multiprocessing.get_context("spawn")
-    output = context.Queue(maxsize=1)
+    receiver, sender = context.Pipe(duplex=False)
     process = context.Process(
         target=_extraction_worker,
         args=(
-            output,
+            sender,
             kind,
             payload,
             max_chars,
@@ -404,25 +421,51 @@ def _run_extraction_process(
             worker_delay_seconds,
         ),
     )
-    process.start()
-    process.join(timeout_seconds)
-    if process.is_alive():
-        process.terminate()
-        process.join(1)
-        if process.is_alive():
-            process.kill()
-            process.join(1)
-        output.close()
-        raise SourceIngestionError("Source extraction timed out")
+    deadline = time.monotonic() + timeout_seconds
     try:
-        succeeded, result = output.get(timeout=0.2)
-    except queue.Empty as error:
-        raise SourceIngestionError("Source extraction process failed") from error
+        process.start()
+    except BaseException:
+        receiver.close()
+        sender.close()
+        raise
+    sender.close()
+
+    received = queue.Queue(maxsize=1)
+
+    def drain_result() -> None:
+        try:
+            received.put((True, receiver.recv()))
+        except (EOFError, OSError) as error:
+            received.put((False, error))
+
+    reader = threading.Thread(target=drain_result, daemon=True)
+    reader.start()
+    try:
+        try:
+            remaining = max(0, deadline - time.monotonic())
+            has_message, message = received.get(timeout=remaining)
+        except queue.Empty as error:
+            _stop_extraction_process(process)
+            raise SourceIngestionError("Source extraction timed out") from error
+        if not has_message:
+            _stop_extraction_process(process)
+            raise SourceIngestionError("Source extraction process failed") from message
+
+        remaining = max(0, deadline - time.monotonic())
+        process.join(remaining)
+        if process.is_alive():
+            _stop_extraction_process(process)
+            raise SourceIngestionError("Source extraction timed out")
+
+        succeeded, result = message
+        if process.exitcode != 0 and succeeded:
+            raise SourceIngestionError("Source extraction process failed")
+        if not succeeded:
+            raise SourceIngestionError(result)
+        return result
     finally:
-        output.close()
-    if not succeeded:
-        raise SourceIngestionError(result)
-    return result
+        receiver.close()
+        reader.join(0.1)
 
 
 async def extract_source_in_subprocess(
