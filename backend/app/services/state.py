@@ -5,15 +5,56 @@ State transitions live here; persistence goes through SQLite via SQLAlchemy.
 No pipeline state is written to `state.json`.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Literal, Union
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 from app.db.engine import AsyncSessionLocal
 from app.db.models import Base
 from app.db.repository import ProjectRepository
+
+
+ArtifactType = Literal["intake", "outline", "storyboard"]
+WorkflowStage = Literal["intake", "outline", "storyboard", "complete"]
+
+LEGACY_WORKFLOW_STAGES: dict[str, WorkflowStage] = {
+    "intake": "intake",
+    "research": "intake",
+    "brief": "intake",
+    "brief_chat": "intake",
+    "brief_review": "intake",
+    "gate1": "intake",
+    "outline": "outline",
+    "gate2": "outline",
+    "outline_research": "outline",
+    "write": "storyboard",
+    "review": "storyboard",
+    "done": "complete",
+}
+
+
+class ArtifactPointers(BaseModel):
+    current_version_id: Optional[str] = None
+    approved_version_id: Optional[str] = None
+    needs_update: bool = False
+
+
+def default_artifact_pointers() -> dict[ArtifactType, ArtifactPointers]:
+    return {
+        "intake": ArtifactPointers(),
+        "outline": ArtifactPointers(),
+        "storyboard": ArtifactPointers(),
+    }
+
+
+class JobOverlay(BaseModel):
+    status: Literal["idle", "running", "failed"] = "idle"
+    job_id: Optional[str] = None
+    kind: Optional[Literal["outline", "storyboard"]] = None
+    input_version_id: Optional[str] = None
+    error: Optional[str] = None
 
 
 class RevisionRecord(BaseModel):
@@ -41,6 +82,13 @@ class StoryboardState(BaseModel):
         "review",         # Final review (optional refinements)
         "done"            # Complete
     ] = "intake"
+
+    # New workflow contract. Legacy phase/content fields remain available below.
+    workflow_stage: WorkflowStage = "intake"
+    artifacts: dict[ArtifactType, ArtifactPointers] = Field(
+        default_factory=default_artifact_pointers
+    )
+    job: JobOverlay = Field(default_factory=JobOverlay)
 
     # Accumulated data through pipeline
     intake_form: Optional[dict] = None
@@ -72,12 +120,57 @@ class StoryboardState(BaseModel):
     outline_locked: bool = False
 
     # Timestamps
-    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
-    updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    updated_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def hydrate_workflow_contract(cls, value):
+        """Add workflow metadata to legacy state blobs without moving content."""
+        if not isinstance(value, dict):
+            return value
+
+        data = dict(value)
+        if data.get("workflow_stage") is None:
+            data["workflow_stage"] = LEGACY_WORKFLOW_STAGES.get(
+                data.get("phase", "intake"), "intake"
+            )
+
+        if "artifacts" in data:
+            supplied = data.get("artifacts") or {}
+            defaults = default_artifact_pointers()
+            data["artifacts"] = {
+                artifact_type: supplied.get(artifact_type, defaults[artifact_type])
+                for artifact_type in defaults
+            }
+        return data
 
 
 class StateManager:
     """Manages state persistence and transitions for a project."""
+
+    WORKFLOW_ALLOWED_EVENTS = {
+        "intake": ["save_intake", "approve_intake"],
+        "outline": [
+            "save_outline",
+            "revise_outline",
+            "approve_outline",
+            "edit_intake",
+        ],
+        "storyboard": [
+            "save_storyboard",
+            "revise_storyboard",
+            "approve_storyboard",
+            "edit_outline",
+            "edit_intake",
+            "keep_storyboard",
+        ],
+        "complete": ["reopen_intake", "reopen_outline", "reopen_storyboard"],
+    }
 
     # Valid state transitions: (current_phase, event) -> next_phase
     TRANSITIONS = {
@@ -181,7 +274,7 @@ class StateManager:
     async def save(self, state: StoryboardState) -> None:
         """Persist state to SQLite."""
         await self._ensure_tables()
-        state.updated_at = datetime.now().isoformat()
+        state.updated_at = datetime.now(timezone.utc).isoformat()
         async with self._sessionmaker() as session:
             repo = ProjectRepository(session)
             project = await repo.get_project(self.project_id)
@@ -221,6 +314,30 @@ class StateManager:
             )
 
         state.phase = self.TRANSITIONS[key]
+        state.workflow_stage = LEGACY_WORKFLOW_STAGES[state.phase]
+        return state
+
+    def allowed_events(self, state: StoryboardState) -> List[str]:
+        """Return the sole allowed-event contract for the four-stage workflow."""
+        return list(self.WORKFLOW_ALLOWED_EVENTS[state.workflow_stage])
+
+    def mark_upstream_changed(
+        self,
+        state: StoryboardState,
+        artifact_type: Literal["intake", "outline"],
+    ) -> StoryboardState:
+        """Mark existing downstream versions stale while retaining all pointers."""
+        downstream = {
+            "intake": ("outline", "storyboard"),
+            "outline": ("storyboard",),
+        }
+        if artifact_type not in downstream:
+            raise ValueError(f"Unsupported upstream artifact type: {artifact_type}")
+
+        for downstream_type in downstream[artifact_type]:
+            pointers = state.artifacts[downstream_type]
+            if pointers.current_version_id is not None:
+                pointers.needs_update = True
         return state
 
     def _valid_events_for_phase(self, phase: str) -> List[str]:
@@ -271,7 +388,7 @@ class StateManager:
         state.revision_history.append(RevisionRecord(
             gate=gate,
             feedback=feedback,
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             resolved=False
         ))
 
@@ -335,6 +452,7 @@ class StateManager:
             state.revision_count_gate2 = 0
             state.revision_history = []
             state.phase = "intake"
+            state.workflow_stage = "intake"
 
         elif target_gate == 1:
             # Go back to Gate 1 - unlock brief, clear outline, storyboard and research
@@ -344,6 +462,7 @@ class StateManager:
             state.storyboard = None
             state.evidence_research = None
             state.phase = "gate1"
+            state.workflow_stage = "intake"
 
         elif target_gate == 2:
             # Go back to Gate 2 - unlock outline, clear storyboard and research
@@ -351,5 +470,6 @@ class StateManager:
             state.storyboard = None
             state.evidence_research = None
             state.phase = "gate2"
+            state.workflow_stage = "outline"
 
         return state

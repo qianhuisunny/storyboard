@@ -1,9 +1,18 @@
-"""
-SQLAlchemy ORM models — 5 tables.
-"""
+"""SQLAlchemy ORM models."""
 
 from datetime import datetime, timezone
-from sqlalchemy import Column, Text, Integer, DateTime, ForeignKey, UniqueConstraint
+from uuid import uuid4
+
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    Column,
+    DateTime,
+    ForeignKey,
+    Integer,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, relationship
 
 
@@ -30,6 +39,55 @@ class Project(Base):
     stage_snapshots = relationship("StageSnapshot", back_populates="project",
                                    cascade="all, delete-orphan")
     uploads = relationship("Upload", back_populates="project", cascade="all, delete-orphan")
+    artifact_versions = relationship(
+        "ArtifactVersion",
+        back_populates="project",
+        cascade="all, delete-orphan",
+    )
+
+
+class ArtifactVersion(Base):
+    """Append-only snapshot in one of a project's artifact streams."""
+
+    __tablename__ = "artifact_versions"
+
+    id = Column(Text, primary_key=True, default=lambda: str(uuid4()))
+    project_id = Column(
+        Text,
+        ForeignKey("projects.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    artifact_type = Column(Text, nullable=False)
+    version_number = Column(Integer, nullable=False)
+    content = Column(Text, nullable=False)  # JSON text
+    based_on_version_id = Column(
+        Text,
+        ForeignKey("artifact_versions.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    created_by = Column(Text, nullable=False)
+    is_override = Column(Boolean, nullable=False, default=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "artifact_type IN ('intake', 'outline', 'storyboard')",
+            name="ck_artifact_version_type",
+        ),
+        UniqueConstraint(
+            "project_id",
+            "artifact_type",
+            "version_number",
+            name="uq_project_artifact_version",
+        ),
+    )
+
+    project = relationship("Project", back_populates="artifact_versions")
 
 
 class PipelineState(Base):

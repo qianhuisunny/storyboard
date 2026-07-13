@@ -1,15 +1,21 @@
-"""
-Data access layer — async CRUD for all 4 tables.
-"""
+"""Data access layer for SQLite-backed project data."""
 
 import json
 from datetime import datetime, timezone
-from typing import Optional
-from sqlalchemy import or_, select, update
+from typing import Any, Optional
+
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import ChatMessage, Project, PipelineState, StageSnapshot, Upload
+from .models import (
+    ArtifactVersion,
+    ChatMessage,
+    PipelineState,
+    Project,
+    StageSnapshot,
+    Upload,
+)
 
 
 class ProjectRepository:
@@ -20,7 +26,8 @@ class ProjectRepository:
 
     async def create_project(
         self, project_id: str, user_id: str, title: str,
-        type_id: int = 1, type_name: str = "", user_input: str = ""
+        type_id: int = 1, type_name: str = "", user_input: str = "",
+        commit: bool = True,
     ) -> Project:
         project = Project(
             id=project_id, user_id=user_id, title=title,
@@ -30,7 +37,10 @@ class ProjectRepository:
         # Also create initial pipeline state
         ps = PipelineState(project_id=project_id, phase="intake", status="pending", state_data="{}")
         self.session.add(ps)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return project
 
     async def get_project(self, project_id: str) -> Optional[Project]:
@@ -86,7 +96,8 @@ class ProjectRepository:
         return result.scalar_one_or_none()
 
     async def update_pipeline_state(
-        self, project_id: str, phase: str, status: str, state_data: dict
+        self, project_id: str, phase: str, status: str, state_data: dict,
+        commit: bool = True,
     ):
         ps = await self.get_pipeline_state(project_id)
         if ps:
@@ -100,7 +111,11 @@ class ProjectRepository:
                 state_data=json.dumps(state_data),
             )
             self.session.add(ps)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
+        return ps
 
     def parse_state_data(self, ps: PipelineState) -> dict:
         """Parse the JSON blob from pipeline_state."""
@@ -110,6 +125,74 @@ class ProjectRepository:
             return json.loads(ps.state_data)
         except json.JSONDecodeError:
             return {}
+
+    # ---- Immutable Artifact Versions ----
+
+    async def create_artifact_version(
+        self,
+        project_id: str,
+        artifact_type: str,
+        content: Any,
+        created_by: str,
+        based_on_version_id: Optional[str] = None,
+        is_override: bool = False,
+        commit: bool = True,
+    ) -> ArtifactVersion:
+        """Append the next version in a project/type artifact stream."""
+        if artifact_type not in {"intake", "outline", "storyboard"}:
+            raise ValueError(f"Unsupported artifact type: {artifact_type}")
+
+        result = await self.session.execute(
+            select(func.max(ArtifactVersion.version_number)).where(
+                ArtifactVersion.project_id == project_id,
+                ArtifactVersion.artifact_type == artifact_type,
+            )
+        )
+        version_number = (result.scalar_one_or_none() or 0) + 1
+        artifact = ArtifactVersion(
+            project_id=project_id,
+            artifact_type=artifact_type,
+            version_number=version_number,
+            content=json.dumps(content),
+            based_on_version_id=based_on_version_id,
+            created_by=created_by,
+            is_override=is_override,
+        )
+        self.session.add(artifact)
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
+        return artifact
+
+    async def list_artifact_versions(
+        self,
+        project_id: str,
+        artifact_type: Optional[str] = None,
+    ) -> list[ArtifactVersion]:
+        query = select(ArtifactVersion).where(
+            ArtifactVersion.project_id == project_id
+        )
+        if artifact_type is not None:
+            query = query.where(ArtifactVersion.artifact_type == artifact_type)
+        query = query.order_by(
+            ArtifactVersion.artifact_type,
+            ArtifactVersion.version_number,
+        )
+        result = await self.session.execute(query)
+        return list(result.scalars().all())
+
+    async def get_artifact_version(
+        self, version_id: str
+    ) -> Optional[ArtifactVersion]:
+        result = await self.session.execute(
+            select(ArtifactVersion).where(ArtifactVersion.id == version_id)
+        )
+        return result.scalar_one_or_none()
+
+    def parse_artifact_content(self, artifact: ArtifactVersion) -> Any:
+        """Deserialize a version's JSON text without changing the stored row."""
+        return json.loads(artifact.content)
 
     # ---- Stage Snapshots ----
 
