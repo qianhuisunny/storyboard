@@ -40,7 +40,7 @@ export function parseOutline(text: string): OutlineSection[] {
   if (!text || !text.trim()) return [];
 
   // Split on section headers: "Section N — Title" or "Section N - Title" or "Section N – Title"
-  const sectionRegex = /^Section\s+(\d+)\s*[—–\-]\s*(.+)$/gm;
+  const sectionRegex = /^Section\s+(\d+)\s*[—–-]\s*(.+)$/gm;
   const headers: { index: number; number: number; title: string }[] = [];
 
   let match;

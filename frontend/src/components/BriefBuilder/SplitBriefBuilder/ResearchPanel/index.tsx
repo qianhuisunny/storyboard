@@ -15,9 +15,7 @@ import { AlertCircle, CheckCircle2, Search, Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export function ResearchPanel({
-  status: _status, // Legacy, kept for backwards compat
   findings,
-  searchEvents: _searchEvents, // Legacy, kept for backwards compat
   error,
   angle,
   researchPhase,

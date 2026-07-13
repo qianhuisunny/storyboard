@@ -17,7 +17,7 @@ const authFile = path.join(__dirname, '../.auth/user.json');
  * 1. Sign in at http://localhost:3000 in your normal browser
  * 2. Run: npm run test:export-auth
  */
-setup('authenticate', async ({ }, testInfo) => {
+setup('authenticate', async () => {
   // Check if auth file already exists
   if (fs.existsSync(authFile)) {
     // Verify the auth file is valid (has cookies/localStorage)

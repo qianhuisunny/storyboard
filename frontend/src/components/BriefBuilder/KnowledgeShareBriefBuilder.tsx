@@ -23,7 +23,6 @@ interface KnowledgeShareBriefBuilderProps {
 }
 
 export default function KnowledgeShareBriefBuilder({
-  projectId: _projectId,
   initialFields,
   initialRound = 1,
   researchComplete = false,
@@ -67,10 +66,7 @@ export default function KnowledgeShareBriefBuilder({
 
   // Sync currentRound with initialRound when it changes (e.g., after state restoration)
   useEffect(() => {
-    if (initialRound !== currentRound) {
-      console.log("[KS Builder] Syncing round:", initialRound);
-      setCurrentRound(initialRound);
-    }
+    setCurrentRound(initialRound);
   }, [initialRound]);
 
   // Track which rounds are completed
@@ -206,7 +202,7 @@ export default function KnowledgeShareBriefBuilder({
         isSubmittingRef.current = false;
       }
     },
-    [fields, onRoundConfirm]
+    [completedRounds, fields, hasDirtyFields, onRoundConfirm]
   );
 
   // Handle generating content spine from a point of view

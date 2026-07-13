@@ -41,9 +41,7 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
 
 export default function UserView({
   screens,
-  projectId: _projectId,
   projectTitle = "Storyboard",
-  onScreensUpdate: _onScreensUpdate,
   onExport,
 }: UserViewProps) {
   const [isExporting, setIsExporting] = useState(false);

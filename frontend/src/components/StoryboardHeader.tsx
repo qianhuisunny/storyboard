@@ -7,7 +7,7 @@ interface ProjectData {
   userInput: string;
   createdAt: string;
   stories?: string[];
-  storyboard?: any;
+  storyboard?: unknown;
 }
 
 interface StoryboardHeaderProps {

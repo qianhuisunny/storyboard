@@ -451,7 +451,7 @@ export default function OnboardingPage() {
                 </ChoicePopover>
 
                 <ChoicePopover triggerName="Aspect ratio" label={aspectRatio} icon={<LayoutTemplate className="h-3.5 w-3.5" />}>
-                  <div className="w-[320px] p-3">
+                  <div className="w-[min(320px,calc(100vw-40px))] p-3">
                     <p className="mb-2 text-xs font-semibold text-[#6B6B65]">Aspect ratio</p>
                     <div className="flex gap-1 rounded-lg bg-[#F7F5F0] p-2">
                       {RATIO_OPTIONS.map(({ value, Icon }) => (

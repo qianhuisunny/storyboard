@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 type SavedIntake = {
   content: Record<string, unknown>;
@@ -82,6 +82,17 @@ async function openSources(page: Page) {
   await expect(page.getByRole("dialog", { name: "Sources" })).toBeVisible();
 }
 
+async function chooseWithKeyboard(page: Page, trigger: Locator, optionName: string | RegExp) {
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const option = page.getByRole("option", { name: optionName });
+  await expect(option).toBeVisible();
+  await option.press("Enter");
+  // Radix intentionally restores focus to the trigger after a selection. Wait
+  // for that close lifecycle before focusing the next popover trigger.
+  await expect(trigger).toBeFocused();
+}
+
 async function addLink(page: Page, value: string) {
   await page.getByRole("tab", { name: "Link" }).click();
   await page.getByLabel("Source URL").fill(value);
@@ -96,25 +107,20 @@ test("Create controls are keyboard accessible and persist exact canonical intake
   await prompt.fill("Something about organizing a team offsite");
 
   const platform = page.getByRole("button", { name: /platform/i });
-  await platform.focus();
-  await page.keyboard.press("Enter");
-  await page.getByRole("option", { name: /Internal LMS/i }).press("Enter");
+  await chooseWithKeyboard(page, platform, /Internal LMS/i);
   await expect(platform).toContainText("Internal LMS");
 
   await openSources(page);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog", { name: "Sources" })).toBeHidden();
+  await expect(page.getByRole("button", { name: /sources/i })).toBeFocused();
 
   const duration = page.getByRole("button", { name: /duration/i });
-  await duration.focus();
-  await page.keyboard.press("Enter");
-  await page.getByRole("option", { name: "2 mins" }).press("Enter");
+  await chooseWithKeyboard(page, duration, "2 mins");
   await expect(duration).toContainText("2 mins");
 
   const ratio = page.getByRole("button", { name: /aspect ratio/i });
-  await ratio.focus();
-  await page.keyboard.press("Enter");
-  await page.getByRole("option", { name: "9:16" }).press("Enter");
+  await chooseWithKeyboard(page, ratio, "9:16");
   await expect(ratio).toContainText("9:16");
 
   await page.getByRole("button", { name: "Create storyboard" }).click();
@@ -149,6 +155,21 @@ test("Sources reports URL validation inline", async ({ page }) => {
 
   await expect(page.getByRole("alert")).toHaveText("Enter a valid URL.");
   await expect(page.getByRole("dialog", { name: "Sources" })).toBeVisible();
+});
+
+test("Aspect Ratio options stay within a narrow mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await mockCreateApi(page);
+  await page.goto("/");
+
+  const ratio = page.getByRole("button", { name: /aspect ratio/i });
+  await ratio.click();
+  const panel = page.getByRole("dialog", { name: "Aspect ratio options" });
+  await expect(panel).toBeVisible();
+  const box = await panel.boundingBox();
+  expect(box).not.toBeNull();
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(320);
 });
 
 test("a failed source remains visible and can be retried into the same project", async ({ page }) => {

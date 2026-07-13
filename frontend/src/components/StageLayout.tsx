@@ -179,6 +179,9 @@ export default function StageLayout() {
   const hasLoadedStages = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousStageIdRef = useRef<number | null>(null);
+  const stageDataRef = useRef(stageData);
+  const generateStageRef = useRef<(stageId: number, context?: string, feedback?: string) => Promise<void>>(async () => undefined);
+  stageDataRef.current = stageData;
 
   // Initialize analytics tracking
   const analytics = useAnalytics(projectId, userId ?? undefined);
@@ -222,8 +225,8 @@ export default function StageLayout() {
           // Start legacy generation only for old non-guided projects.
           const storedTypeName = sessionStorage.getItem("storyboardTypeName");
           const isGuidedBrief = Boolean(sessionStorage.getItem("storyboardIntentRoute")) || isGuidedBriefType(storedTypeName);
-          if (!stageData[1]?.aiVersion && !hasLoadedStages.current && !isGuidedBrief) {
-            generateStage(1, storedPrompt);
+          if (!stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && !isGuidedBrief) {
+            void generateStageRef.current(1, storedPrompt);
           }
         } else {
           setProjectContext({
@@ -233,8 +236,8 @@ export default function StageLayout() {
 
           // Start legacy generation only for old non-guided projects.
           const projectIsGuidedBrief = isGuidedBriefType(project.typeName);
-          if (!stageData[1]?.aiVersion && !hasLoadedStages.current && project.userInput && !projectIsGuidedBrief) {
-            generateStage(1, project.userInput);
+          if (!stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && project.userInput && !projectIsGuidedBrief) {
+            void generateStageRef.current(1, project.userInput);
           }
         }
       } catch (error) {
@@ -493,6 +496,7 @@ export default function StageLayout() {
       setIsGenerating(false);
     }
   };
+  generateStageRef.current = generateStage;
 
   const updateStageStatus = (stageId: number, status: StageStatus) => {
     setStages((prev) =>

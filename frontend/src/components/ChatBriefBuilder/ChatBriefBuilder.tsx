@@ -186,7 +186,7 @@ export default function ChatBriefBuilder({
     if (targetPhase < phase) {
       setPhase(targetPhase);
     }
-  }, [phase]);
+  }, [isAlreadyApproved, phase]);
 
   useEffect(() => {
     if (!isAlreadyApproved) return;

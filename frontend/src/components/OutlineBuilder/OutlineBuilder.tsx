@@ -35,7 +35,6 @@ export default function OutlineBuilder({
   onRegenerateSection,
   onRefineOutline,
   isResearching = false,
-  isRegenerating: _isRegenerating = false,
   researchResults = null,
   researchProgress = null,
   outlineEval = null,

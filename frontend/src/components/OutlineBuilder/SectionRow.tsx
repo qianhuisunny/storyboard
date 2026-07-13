@@ -119,7 +119,6 @@ function BulletBlock({
 export default function SectionRow({
   section,
   index,
-  totalSections: _totalSections,
   onUpdate,
   onRemove,
   onRegenerate,

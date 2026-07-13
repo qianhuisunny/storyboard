@@ -92,10 +92,6 @@ test.describe('Storyboard Creation Flow', () => {
     // Take screenshot of current state
     await page.screenshot({ path: 'test-results/briefbuilder-loaded.png' });
 
-    // Check if research is already running (Knowledge Share auto-triggers)
-    // The page should show processing state or research content
-    const processingView = page.locator('text=Processing').or(page.locator('text=Research'));
-
     // Log the page state
     console.log('Page URL:', page.url());
     console.log('Waiting for processing to complete...');

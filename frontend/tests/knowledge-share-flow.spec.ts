@@ -109,9 +109,6 @@ test.describe('Knowledge Share Flow', () => {
       console.log('Waiting for perspectives to generate...');
       await page.waitForTimeout(10000);
 
-      // Check for perspective options in Research Chat
-      const perspectiveOption = page.locator('text=Select an angle').or(page.locator('[class*="perspective"]'));
-
       // Screenshot of perspectives
       await page.screenshot({ path: 'test-results/ks-perspectives.png' });
     }
@@ -127,7 +124,6 @@ test.describe('Knowledge Share Flow', () => {
     await page.waitForURL(/\/storyboard\/\d+/, { timeout: 30000 });
 
     projectId = page.url().split('/storyboard/')[1];
-    const storyboardUrl = page.url();
     console.log('Project ID:', projectId);
 
     // Wait for initial load

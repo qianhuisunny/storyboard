@@ -81,7 +81,6 @@ export default function RoundThreeForm({
   onGenerateContentSpine,
   briefContext,
   disabled = false,
-  researchComplete: _researchComplete = true,
   showConfirmButton = true,
 }: RoundThreeFormProps) {
   const [isGenerating, setIsGenerating] = useState(false);

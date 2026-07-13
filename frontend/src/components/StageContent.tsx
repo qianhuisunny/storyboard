@@ -274,7 +274,7 @@ function GeneratingProgress({ stageId }: { stageId: number }) {
       setTimeout(() => setActiveStep(idx + 1), step.delay)
     );
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [steps]);
 
   return (
     <div className="flex flex-col items-center gap-6" style={{ maxWidth: 360 }}>

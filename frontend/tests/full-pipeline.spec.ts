@@ -231,10 +231,10 @@ test.describe('API Pipeline Test', () => {
         console.log(`  - Brief generated: ${data.state?.has_story_brief ? 'YES' : 'NO'}`);
 
         // Show extracted fields
-        const fields = data.data?.story_brief?.fields || {};
+        const fields = (data.data?.story_brief?.fields || {}) as Record<string, { value?: unknown }>;
         const extractedFields = Object.entries(fields)
-          .filter(([_, v]) => (v as any).value)
-          .map(([k, v]) => `${k}="${(v as any).value}"`)
+          .filter(([, value]) => Boolean(value.value))
+          .map(([key, value]) => `${key}="${String(value.value)}"`)
           .slice(0, 3);
 
         if (extractedFields.length > 0) {
