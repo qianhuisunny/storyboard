@@ -3,8 +3,9 @@
 import json
 from datetime import datetime, timezone
 from typing import Any, Optional
+from uuid import uuid4
 
-from sqlalchemy import func, or_, select, update
+from sqlalchemy import func, insert, literal, or_, select, update
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -142,27 +143,51 @@ class ProjectRepository:
         if artifact_type not in {"intake", "outline", "storyboard"}:
             raise ValueError(f"Unsupported artifact type: {artifact_type}")
 
-        result = await self.session.execute(
-            select(func.max(ArtifactVersion.version_number)).where(
-                ArtifactVersion.project_id == project_id,
-                ArtifactVersion.artifact_type == artifact_type,
-            )
+        if based_on_version_id is not None:
+            based_on = await self.get_artifact_version(based_on_version_id)
+            if based_on is None or based_on.project_id != project_id:
+                raise ValueError(
+                    "based_on_version_id must reference a version from the same project"
+                )
+
+        version_id = str(uuid4())
+        next_version = select(
+            literal(version_id),
+            literal(project_id),
+            literal(artifact_type),
+            func.coalesce(func.max(ArtifactVersion.version_number), 0) + 1,
+            literal(json.dumps(content)),
+            literal(based_on_version_id),
+            literal(created_by),
+            literal(is_override),
+            literal(datetime.now(timezone.utc)),
+        ).where(
+            ArtifactVersion.project_id == project_id,
+            ArtifactVersion.artifact_type == artifact_type,
         )
-        version_number = (result.scalar_one_or_none() or 0) + 1
-        artifact = ArtifactVersion(
-            project_id=project_id,
-            artifact_type=artifact_type,
-            version_number=version_number,
-            content=json.dumps(content),
-            based_on_version_id=based_on_version_id,
-            created_by=created_by,
-            is_override=is_override,
+        statement = insert(ArtifactVersion).from_select(
+            [
+                "id",
+                "project_id",
+                "artifact_type",
+                "version_number",
+                "content",
+                "based_on_version_id",
+                "created_by",
+                "is_override",
+                "created_at",
+            ],
+            next_version,
         )
-        self.session.add(artifact)
+        await self.session.execute(statement)
         if commit:
             await self.session.commit()
         else:
             await self.session.flush()
+
+        artifact = await self.get_artifact_version(version_id)
+        if artifact is None:
+            raise RuntimeError(f"Failed to load inserted artifact version {version_id}")
         return artifact
 
     async def list_artifact_versions(

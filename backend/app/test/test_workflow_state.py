@@ -1,6 +1,7 @@
 """Tests for the additive four-stage workflow state contract."""
 
 import pytest
+from sqlalchemy import text
 
 from app.db.repository import ProjectRepository
 from app.services.state import (
@@ -29,6 +30,18 @@ EXPECTED_ALLOWED_EVENTS = {
     ],
     "complete": ["reopen_intake", "reopen_outline", "reopen_storyboard"],
 }
+
+
+@pytest.mark.asyncio
+async def test_state_manager_owned_engine_enables_sqlite_foreign_keys(tmp_path):
+    manager = StateManager("foreign-key-project", data_dir=tmp_path)
+    await manager._ensure_tables()
+
+    async with manager._owned_engine.connect() as connection:
+        enabled = await connection.scalar(text("PRAGMA foreign_keys"))
+
+    assert enabled == 1
+    await manager._owned_engine.dispose()
 
 
 def test_workflow_state_has_typed_defaults_and_exact_allowed_events():
@@ -176,4 +189,3 @@ def test_marking_outline_changed_only_marks_an_existing_storyboard_stale():
     assert state.artifacts["intake"].needs_update is False
     assert state.artifacts["outline"].needs_update is False
     assert state.artifacts["storyboard"].needs_update is True
-

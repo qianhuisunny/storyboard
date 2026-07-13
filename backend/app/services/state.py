@@ -9,9 +9,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Literal, Union
 from pydantic import BaseModel, Field, model_validator
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
-from app.db.engine import AsyncSessionLocal
+from app.db.engine import AsyncSessionLocal, create_sqlite_async_engine
 from app.db.models import Base
 from app.db.repository import ProjectRepository
 
@@ -218,7 +218,7 @@ class StateManager:
         else:
             db_path = self.data_dir / "plotline.db"
             db_path.parent.mkdir(parents=True, exist_ok=True)
-            self._owned_engine = create_async_engine(
+            self._owned_engine = create_sqlite_async_engine(
                 f"sqlite+aiosqlite:///{db_path}",
                 echo=False,
             )
