@@ -221,11 +221,7 @@ async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get
         )
 
         # Also create project directory for uploads/links (still on filesystem)
-        project_dir = (
-            Path(__file__).parent.parent.parent
-            / "data"
-            / f"project_{request.projectId}"
-        )
+        project_dir = _project_root_dir(request.projectId)
         project_dir.mkdir(parents=True, exist_ok=True)
 
         return {
