@@ -126,6 +126,35 @@ async def test_stale_expected_id_conflict_does_not_create_a_version(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_concurrent_saves_from_same_expected_create_exactly_one_version(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    service = WorkflowService(sessions, _outline, _storyboard)
+    start = asyncio.Event()
+
+    async def save(content):
+        await start.wait()
+        return await service.process_event(
+            "workflow-project",
+            "save_intake",
+            {"content": content, "expected_version_id": None},
+        )
+
+    tasks = [
+        asyncio.create_task(save({"prompt": "First concurrent edit"})),
+        asyncio.create_task(save({"prompt": "Second concurrent edit"})),
+    ]
+    start.set()
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    assert sum(isinstance(result, dict) for result in results) == 1
+    assert sum(isinstance(result, VersionConflictError) for result in results) == 1
+    current = await service.get_project("workflow-project")
+    assert len(current["artifacts"]["intake"]["versions"]) == 1
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_duplicate_generation_is_rejected_while_first_job_is_blocked(tmp_path):
     engine, sessions = await _workflow_database(tmp_path)
     entered = asyncio.Event()
@@ -152,6 +181,57 @@ async def test_duplicate_generation_is_rejected_while_first_job_is_blocked(tmp_p
     assert exc_info.value.job["status"] == "running"
     release.set()
     await first
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_identical_approvals_start_only_one_generator(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    service_start = asyncio.Event()
+    second_generator_started = asyncio.Event()
+    release = asyncio.Event()
+    generator_calls = 0
+
+    async def blocked_outline(_context):
+        nonlocal generator_calls
+        generator_calls += 1
+        if generator_calls == 2:
+            second_generator_started.set()
+        service_start.set()
+        await release.wait()
+        return "Only generated outline"
+
+    service = WorkflowService(sessions, blocked_outline, _storyboard)
+    start = asyncio.Event()
+    payload = {"content": {"prompt": "Approve once"}, "expected_version_id": None}
+
+    async def approve():
+        await start.wait()
+        return await service.process_event(
+            "workflow-project", "approve_intake", payload
+        )
+
+    tasks = [asyncio.create_task(approve()), asyncio.create_task(approve())]
+    start.set()
+    await asyncio.wait_for(service_start.wait(), timeout=2)
+    second_generator_signal = asyncio.create_task(second_generator_started.wait())
+    await asyncio.wait(
+        [*tasks, second_generator_signal],
+        timeout=2,
+        return_when=asyncio.FIRST_COMPLETED,
+    )
+    release.set()
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    second_generator_signal.cancel()
+    await asyncio.gather(second_generator_signal, return_exceptions=True)
+
+    assert generator_calls == 1
+    assert sum(isinstance(result, dict) for result in results) == 1
+    assert sum(isinstance(result, DuplicateJobError) for result in results) == 1
+    current = await service.get_project("workflow-project")
+    assert len(current["artifacts"]["intake"]["versions"]) == 1
+    assert current["job"]["status"] == "idle"
 
     await engine.dispose()
 
@@ -242,6 +322,107 @@ async def test_late_result_is_history_only_when_input_and_job_have_changed(tmp_p
     assert response["artifacts"]["outline"]["versions"][0]["created_by"] == "ai"
     assert response["job"]["job_id"] == "replacement-job"
     assert response["job"]["status"] == "running"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_inverted_completion_race_keeps_new_result_current_and_job_idle(
+    tmp_path, monkeypatch
+):
+    engine, sessions = await _workflow_database(tmp_path)
+    old_entered = asyncio.Event()
+    new_entered = asyncio.Event()
+    release_old = asyncio.Event()
+    release_new = asyncio.Event()
+
+    async def controlled_outline(context):
+        if context.intake["prompt"] == "Old input":
+            old_entered.set()
+            await release_old.wait()
+            return "Old outline"
+        new_entered.set()
+        await release_new.wait()
+        return "New outline"
+
+    service = WorkflowService(sessions, controlled_outline, _storyboard)
+    old_task = asyncio.create_task(
+        service.process_event(
+            "workflow-project",
+            "approve_intake",
+            {"content": {"prompt": "Old input"}, "expected_version_id": None},
+        )
+    )
+    await asyncio.wait_for(old_entered.wait(), timeout=2)
+    old_state = await service.get_project("workflow-project")
+    old_intake_id = old_state["artifacts"]["intake"]["current_version_id"]
+    await service.process_event("workflow-project", "edit_intake", {})
+    saved_new = await service.process_event(
+        "workflow-project",
+        "save_intake",
+        {
+            "content": {"prompt": "New input"},
+            "expected_version_id": old_intake_id,
+        },
+    )
+    new_intake_id = saved_new["artifacts"]["intake"]["current_version_id"]
+    new_task = asyncio.create_task(
+        service.process_event(
+            "workflow-project",
+            "approve_intake",
+            {
+                "content": {"prompt": "New input"},
+                "expected_version_id": new_intake_id,
+            },
+        )
+    )
+
+    try:
+        await asyncio.wait_for(new_entered.wait(), timeout=0.5)
+    except asyncio.TimeoutError:
+        release_old.set()
+        release_new.set()
+        await asyncio.gather(old_task, new_task, return_exceptions=True)
+        pytest.fail("a newly approved input was rejected as a duplicate job")
+
+    original_create = ProjectRepository.create_artifact_version
+    both_at_insert = asyncio.Event()
+    new_inserted = asyncio.Event()
+    arrivals = 0
+
+    async def ordered_create(repo, *args, **kwargs):
+        nonlocal arrivals
+        content = kwargs.get("content", args[2] if len(args) > 2 else None)
+        if content in {"Old outline", "New outline"}:
+            arrivals += 1
+            if arrivals == 2:
+                both_at_insert.set()
+            try:
+                await asyncio.wait_for(both_at_insert.wait(), timeout=0.15)
+            except asyncio.TimeoutError:
+                pass
+            if content == "Old outline":
+                await asyncio.wait_for(new_inserted.wait(), timeout=1)
+            version = await original_create(repo, *args, **kwargs)
+            if content == "New outline":
+                new_inserted.set()
+            return version
+        return await original_create(repo, *args, **kwargs)
+
+    monkeypatch.setattr(ProjectRepository, "create_artifact_version", ordered_create)
+    release_new.set()
+    release_old.set()
+    results = await asyncio.gather(old_task, new_task, return_exceptions=True)
+    assert all(isinstance(result, dict) for result in results)
+
+    final = await service.get_project("workflow-project")
+    assert final["job"]["status"] == "idle"
+    assert final["artifacts"]["outline"]["current_content"] == "New outline"
+    async with sessions() as session:
+        repo = ProjectRepository(session)
+        versions = await repo.list_artifact_versions("workflow-project", "outline")
+        contents = [repo.parse_artifact_content(version) for version in versions]
+    assert sorted(contents) == ["New outline", "Old outline"]
 
     await engine.dispose()
 
@@ -517,5 +698,43 @@ async def test_canonical_response_has_history_aliases_flags_and_legacy_content(t
     }
     assert response["state"]["brief_locked"] is True
     assert response["state"]["has_storyboard"] is True
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_partial_migration_preserves_distinct_legacy_intake_aliases(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path, "partial-project")
+    legacy_intake = {"prompt": "Raw create input"}
+    legacy_brief = {"fields": {"viewer_outcome": {"value": "Distinct brief"}}}
+    async with sessions() as session:
+        repo = ProjectRepository(session)
+        outline = await repo.create_artifact_version(
+            "partial-project",
+            "outline",
+            "Versioned outline only",
+            "ai",
+            commit=False,
+        )
+        state = StoryboardState(
+            project_id="partial-project",
+            phase="gate2",
+            intake_form=legacy_intake,
+            story_brief=legacy_brief,
+            screen_outline="Legacy outline",
+        )
+        state.artifacts["outline"].current_version_id = outline.id
+        await repo.update_pipeline_state(
+            "partial-project", "gate2", "pending", state.model_dump(), commit=False
+        )
+        await session.commit()
+
+    response = await WorkflowService(sessions, _outline, _storyboard).get_project(
+        "partial-project"
+    )
+
+    assert response["data"]["intake_form"] == legacy_intake
+    assert response["data"]["story_brief"] == legacy_brief
+    assert response["data"]["screen_outline"] == "Versioned outline only"
 
     await engine.dispose()

@@ -63,6 +63,10 @@ class StoryboardWriter(BaseAgent):
         story_brief = state.story_brief or {}
         evidence_research = getattr(state, "evidence_research", None) or {}
         project_id = getattr(state, "project_id", None)
+        revision_instruction = kwargs.get("revision_instruction")
+        existing_storyboard = kwargs.get("existing_storyboard")
+        if existing_storyboard is None and revision_instruction:
+            existing_storyboard = getattr(state, "storyboard", None)
 
         # 1. Parse outline into sections (stores target_seconds on each section)
         sections = self.validate_outline_contract(outline_text)
@@ -93,6 +97,8 @@ class StoryboardWriter(BaseAgent):
             brief_context=brief_context,
             allowed_types=allowed_types,
             target_duration=target_duration,
+            revision_instruction=revision_instruction,
+            existing_storyboard=existing_storyboard,
         )
         all_screens = self._call_storyboard_llm(user_prompt, project_id)
         if not all_screens:
@@ -601,6 +607,8 @@ Return a JSON array of screens for this section only. Each element has exactly 7
         brief_context: dict,
         allowed_types: list,
         target_duration: float,
+        revision_instruction: Optional[str] = None,
+        existing_storyboard: Optional[list] = None,
     ) -> str:
         """Construct the user prompt for the full storyboard in one LLM call."""
 
@@ -632,6 +640,22 @@ Evidence research:
 
         sections_text = "\n\n".join(section_blocks)
 
+        revision_context = ""
+        if revision_instruction:
+            existing_text = json.dumps(
+                existing_storyboard or [], indent=2, ensure_ascii=False
+            )
+            revision_context = f"""
+
+=== REVISION REQUEST ===
+User instruction: {revision_instruction}
+
+=== EXISTING STORYBOARD ===
+{existing_text}
+
+Update the existing storyboard to satisfy the instruction. Preserve unaffected screens and details wherever possible.
+"""
+
         prompt = f"""Generate the COMPLETE storyboard for this video — all sections, all screens, in one pass.
 
 === STORY BRIEF ===
@@ -655,6 +679,7 @@ You may use any type from the allowed list as many times as needed. But do NOT d
 
 === SECTIONS WITH EVIDENCE ===
 {sections_text}
+{revision_context}
 
 === INSTRUCTIONS ===
 **Word budget (hard):** Each section above has a word budget — the approximate number of voiceover words that will produce the target duration at ~2.2 words/second. Stay within ±20% of each section's word budget. This is the primary duration control mechanism.

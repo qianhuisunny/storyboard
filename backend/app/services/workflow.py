@@ -2,11 +2,13 @@
 
 import asyncio
 import inspect
+from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Any, Awaitable, Callable, Optional
+from typing import Any, AsyncIterator, Awaitable, Callable, Optional
 from uuid import uuid4
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.engine import AsyncSessionLocal
@@ -116,16 +118,30 @@ async def _production_storyboard_generator(context: GenerationContext) -> Genera
 
     writer = orchestrator.agents["writer"]
     state = context.to_state()
-    content, evaluation = await asyncio.to_thread(
-        lambda: asyncio.run(
-            orchestrator.quality_gate.run_with_gate(
-                writer,
-                state,
-                stage="storyboard",
-                outline_for_cross_stage=context.outline,
+    if context.instruction:
+        content = await asyncio.to_thread(
+            writer.run,
+            state,
+            revision_instruction=context.instruction,
+            existing_storyboard=context.current_content or context.storyboard,
+        )
+        evaluation = await orchestrator.quality_gate.evaluate(
+            "storyboard",
+            context.intake,
+            content,
+            outline=context.outline,
+        )
+    else:
+        content, evaluation = await asyncio.to_thread(
+            lambda: asyncio.run(
+                orchestrator.quality_gate.run_with_gate(
+                    writer,
+                    state,
+                    stage="storyboard",
+                    outline_for_cross_stage=context.outline,
+                )
             )
         )
-    )
     orchestrator._raise_if_quality_gate_failed("Storyboard", evaluation)
     return GenerationResult(content, evaluation.to_dict())
 
@@ -239,14 +255,30 @@ class WorkflowService:
             intake_current = artifacts["intake"]["current_content"]
             outline_current = artifacts["outline"]["current_content"]
             storyboard_current = artifacts["storyboard"]["current_content"]
-            is_versioned = any(
-                state.artifacts[name].current_version_id for name in self.ARTIFACTS
+            intake_is_versioned = (
+                state.artifacts["intake"].current_version_id is not None
+            )
+            outline_is_versioned = (
+                state.artifacts["outline"].current_version_id is not None
+            )
+            storyboard_is_versioned = (
+                state.artifacts["storyboard"].current_version_id is not None
             )
             data = {
-                "intake_form": intake_current if is_versioned else state.intake_form,
-                "story_brief": intake_current if is_versioned else state.story_brief,
-                "screen_outline": outline_current,
-                "storyboard": storyboard_current,
+                "intake_form": (
+                    intake_current if intake_is_versioned else state.intake_form
+                ),
+                "story_brief": (
+                    intake_current if intake_is_versioned else state.story_brief
+                ),
+                "screen_outline": (
+                    outline_current if outline_is_versioned else state.screen_outline
+                ),
+                "storyboard": (
+                    storyboard_current
+                    if storyboard_is_versioned
+                    else state.storyboard
+                ),
                 "evidence_research": state.evidence_research,
                 "outline_eval": state.outline_eval,
                 "storyboard_eval": state.storyboard_eval,
@@ -283,14 +315,13 @@ class WorkflowService:
         artifact_type: str,
         payload: dict[str, Any],
     ) -> None:
-        async with self.sessionmaker() as session:
+        async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
             self._validate_event(event, state)
             self._require_content(event, state, payload)
             await self._save_human_artifact(repo, state, artifact_type, payload)
             await self._persist_state(repo, state)
-            await session.commit()
 
     async def _approve_and_start(
         self,
@@ -300,14 +331,23 @@ class WorkflowService:
         payload: dict[str, Any],
     ) -> tuple[GenerationContext, str]:
         artifact_type = "intake" if event == "approve_intake" else "outline"
-        async with self.sessionmaker() as session:
+        async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
-            self._reject_duplicate_job(event, state)
-            self._validate_event(event, state)
             self._require_content(event, state, payload)
-            await self._save_human_artifact(repo, state, artifact_type, payload)
             pointers = state.artifacts[artifact_type]
+            current_content = await self._content_for_pointer(
+                repo, pointers.current_version_id
+            )
+            candidate_input_id = (
+                pointers.current_version_id
+                if pointers.current_version_id is not None
+                and current_content == payload["content"]
+                else None
+            )
+            self._reject_duplicate_job(event, state, candidate_input_id)
+            self._validate_event(event, state)
+            await self._save_human_artifact(repo, state, artifact_type, payload)
             pointers.approved_version_id = pointers.current_version_id
             pointers.needs_update = False
             StateManager(project_id).mark_upstream_changed(state, artifact_type)
@@ -327,7 +367,6 @@ class WorkflowService:
                 pointers.approved_version_id,
             )
             await self._persist_state(repo, state)
-            await session.commit()
         return context, job_id
 
     async def _revise_and_start(
@@ -337,11 +376,9 @@ class WorkflowService:
         artifact_type: str,
         payload: dict[str, Any],
     ) -> tuple[GenerationContext, str]:
-        async with self.sessionmaker() as session:
+        async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
-            self._reject_duplicate_job(event, state)
-            self._validate_event(event, state)
             instruction = payload.get("instruction")
             if not isinstance(instruction, str) or not instruction.strip():
                 self._raise_invalid(event, state, "instruction is required")
@@ -353,6 +390,8 @@ class WorkflowService:
             input_version_id = state.artifacts[upstream_type].approved_version_id
             if input_version_id is None:
                 self._raise_invalid(event, state, "an approved upstream version is required")
+            self._reject_duplicate_job(event, state, input_version_id)
+            self._validate_event(event, state)
             current_content = await self._content_for_pointer(
                 repo, pointers.current_version_id
             )
@@ -372,7 +411,6 @@ class WorkflowService:
                 instruction=instruction.strip(),
             )
             await self._persist_state(repo, state)
-            await session.commit()
         return context, job_id
 
     async def _run_generation(
@@ -401,7 +439,7 @@ class WorkflowService:
             failed = await self.get_project(context.project_id)
             raise WorkflowGenerationError(str(error), failed["job"]) from error
 
-        async with self.sessionmaker() as session:
+        async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, context.project_id)
             version = await repo.create_artifact_version(
@@ -432,20 +470,18 @@ class WorkflowService:
                         state.storyboard_eval = evaluation
                 state.job = JobOverlay()
             await self._persist_state(repo, state)
-            await session.commit()
         return await self.get_project(context.project_id)
 
     async def _persist_generation_failure(
         self, project_id: str, job_id: str, message: str
     ) -> None:
-        async with self.sessionmaker() as session:
+        async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
             if state.job.status == "running" and state.job.job_id == job_id:
                 state.job.status = "failed"
                 state.job.error = message
                 await self._persist_state(repo, state)
-                await session.commit()
 
     async def _approve_storyboard(
         self,
@@ -453,7 +489,7 @@ class WorkflowService:
         event: str,
         payload: dict[str, Any],
     ) -> None:
-        async with self.sessionmaker() as session:
+        async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
             self._validate_event(event, state)
@@ -466,7 +502,6 @@ class WorkflowService:
             state.phase = "complete"
             state.job = JobOverlay()
             await self._persist_state(repo, state)
-            await session.commit()
 
     async def _keep_storyboard(
         self,
@@ -474,7 +509,7 @@ class WorkflowService:
         event: str,
         payload: dict[str, Any],
     ) -> None:
-        async with self.sessionmaker() as session:
+        async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
             self._validate_event(event, state)
@@ -499,7 +534,6 @@ class WorkflowService:
             pointers.needs_update = False
             self._set_legacy_content(state, "storyboard", content)
             await self._persist_state(repo, state)
-            await session.commit()
 
     async def _move_stage(self, project_id: str, event: str) -> None:
         targets = {
@@ -509,14 +543,25 @@ class WorkflowService:
             "reopen_outline": "outline",
             "reopen_storyboard": "storyboard",
         }
-        async with self.sessionmaker() as session:
+        async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
             self._validate_event(event, state)
             state.workflow_stage = targets[event]
             state.phase = targets[event]
             await self._persist_state(repo, state)
-            await session.commit()
+
+    @asynccontextmanager
+    async def _write_session(self) -> AsyncIterator[AsyncSession]:
+        """Acquire SQLite's write lock before reading any mutable state."""
+        async with self.sessionmaker() as session:
+            await session.execute(text("BEGIN IMMEDIATE"))
+            try:
+                yield session
+                await session.commit()
+            except BaseException:
+                await session.rollback()
+                raise
 
     async def _save_human_artifact(
         self,
@@ -650,12 +695,18 @@ class WorkflowService:
             message,
         )
 
-    def _reject_duplicate_job(self, event: str, state: StoryboardState) -> None:
+    def _reject_duplicate_job(
+        self,
+        event: str,
+        state: StoryboardState,
+        input_version_id: Optional[str],
+    ) -> None:
         kind = self.GENERATION_KIND.get(event)
         if (
             kind is not None
             and state.job.status == "running"
             and state.job.kind == kind
+            and state.job.input_version_id == input_version_id
         ):
             raise DuplicateJobError(state.job.model_dump())
 
@@ -678,13 +729,12 @@ class WorkflowService:
             else "storyboard"
         )
         content = payload["content"]
-        valid = (
-            isinstance(content, dict)
-            if artifact_type == "intake"
-            else isinstance(content, str) and bool(content.strip())
-            if artifact_type == "outline"
-            else isinstance(content, list)
-        )
+        if artifact_type == "intake":
+            valid = isinstance(content, dict)
+        elif artifact_type == "outline":
+            valid = isinstance(content, str) and bool(content.strip())
+        else:
+            valid = isinstance(content, list)
         if not valid:
             self._raise_invalid(
                 event, state, f"invalid {artifact_type} content structure"

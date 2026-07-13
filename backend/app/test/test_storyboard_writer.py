@@ -4,6 +4,10 @@ import pytest
 
 from app.services.agents.duration_calculator import DurationCalculator
 from app.services.agents.storyboard_writer import StoryboardWriter
+from app.services.workflow import (
+    GenerationContext,
+    _production_storyboard_generator,
+)
 
 
 VALID_OUTLINE = """Section 1 — Closing
@@ -120,3 +124,53 @@ def test_compute_word_budget_round_trip():
             assert abs(result["duration"] - target_sec) <= 1.5, (
                 f"Round-trip failed: {target_sec}s {screen_type} -> {budget} words -> {result['duration']}s"
             )
+
+
+@pytest.mark.asyncio
+async def test_production_revision_prompt_includes_existing_storyboard_and_instruction(
+    monkeypatch,
+):
+    from app.services.orchestrator import orchestrator
+
+    writer = orchestrator.agents["writer"]
+    captured_prompts = []
+    existing = [_make_screen("Preserve this existing screen")]
+    instruction = "Keep the opening and make the final action more specific."
+
+    def fake_storyboard_call(prompt, _project_id=None):
+        captured_prompts.append(prompt)
+        return [_make_screen("Updated final action")]
+
+    evaluation = SimpleNamespace(
+        passed=True,
+        composite_score=10.0,
+        attempt=0,
+        total_attempts=0,
+        to_dict=lambda: {"passed": True, "composite_score": 10.0},
+    )
+
+    async def fake_evaluate(*_args, **_kwargs):
+        return evaluation
+
+    monkeypatch.setattr(writer, "_call_storyboard_llm", fake_storyboard_call)
+    monkeypatch.setattr(orchestrator.quality_gate, "evaluate", fake_evaluate)
+    monkeypatch.setattr(
+        orchestrator, "_raise_if_quality_gate_failed", lambda *_args: None
+    )
+
+    await _production_storyboard_generator(
+        GenerationContext(
+            project_id="writer-revision-project",
+            kind="storyboard",
+            input_version_id="outline-v2",
+            intake={"duration": 0, "broll_type": ["slides"]},
+            outline=VALID_OUTLINE,
+            storyboard=existing,
+            current_content=existing,
+            instruction=instruction,
+        )
+    )
+
+    assert captured_prompts
+    assert instruction in captured_prompts[0]
+    assert "Preserve this existing screen" in captured_prompts[0]
