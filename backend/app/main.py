@@ -25,17 +25,26 @@ from app.utils.file_extraction import extract_text_from_pdf, extract_text_from_d
 from app.db import get_db, init_db, ProjectRepository
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Any, List, Literal, Optional
 import asyncio
 import json
 import os
-import httpx
 from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 from dotenv import load_dotenv
 import sentry_sdk
+from app.services.source_ingestion import (
+    MAX_EXTRACTED_CHARS,
+    MAX_UPLOAD_BYTES,
+    SourceIngestionError,
+    ensure_contained,
+    extract_with_timeout,
+    fetch_public_text,
+    truncate_utf8,
+    validate_upload_signature,
+)
 
 load_dotenv()
 
@@ -154,7 +163,8 @@ async def test_endpoint():
 
 def _project_root_dir(project_id: str) -> Path:
     """Filesystem directory for project-owned raw files such as uploads and links."""
-    return Path(__file__).parent.parent.parent / "data" / f"project_{project_id}"
+    data_root = Path(__file__).parent.parent.parent / "data"
+    return ensure_contained(data_root / f"project_{project_id}", data_root)
 
 
 async def _require_project(db: AsyncSession, project_id: str):
@@ -163,6 +173,15 @@ async def _require_project(db: AsyncSession, project_id: str):
     project = await repo.get_project(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
+    return project
+
+
+async def _require_exact_project_owner(
+    db: AsyncSession, project_id: str, request_user_id: Optional[str]
+):
+    project = await _require_project(db, project_id)
+    if not request_user_id or project.user_id != request_user_id:
+        raise HTTPException(status_code=403, detail="Project owner identity does not match")
     return project
 
 
@@ -199,11 +218,11 @@ async def _normalize_pipeline_event(project_id: str, event: str, payload: Option
 
 
 class ProjectRequest(BaseModel):
-    projectId: str
+    projectId: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
     typeId: int
-    typeName: str
-    userInput: str
-    userId: Optional[str] = None  # Clerk user ID for ownership
+    typeName: str = Field(max_length=255)
+    userInput: str = Field(max_length=6000)
+    userId: Optional[str] = Field(default=None, max_length=255)  # Clerk user ID for ownership
 
 
 @app.post("/api/create-project")
@@ -211,9 +230,23 @@ async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get
     """Create a new project in SQLite."""
     try:
         repo = ProjectRepository(db)
-        project = await repo.create_project(
+        requested_owner = request.userId or DEFAULT_ANONYMOUS_USER_ID
+        existing = await repo.get_project(request.projectId)
+        if existing:
+            if existing.user_id != requested_owner:
+                raise HTTPException(
+                    status_code=409,
+                    detail="Project ID is already owned by another user",
+                )
+            return {
+                "success": True,
+                "projectId": request.projectId,
+                "projectDir": str(_project_root_dir(request.projectId)),
+                "idempotent": True,
+            }
+        await repo.create_project(
             project_id=request.projectId,
-            user_id=request.userId or DEFAULT_ANONYMOUS_USER_ID,
+            user_id=requested_owner,
             title=request.userInput[:100] if request.userInput else "",
             type_id=request.typeId,
             type_name=request.typeName,
@@ -230,6 +263,8 @@ async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get
             "projectDir": str(project_dir),
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error creating project: {str(e)}")
 
@@ -361,10 +396,62 @@ async def save_stories_to_project(project_id: str, request: SaveStoriesRequest, 
 # ============================================================
 
 
+class CanonicalIntakeSource(BaseModel):
+    """Bounded source metadata stored in a canonical intake version."""
+
+    model_config = ConfigDict(extra="allow")
+
+    id: str = Field(min_length=1, max_length=128)
+    kind: str = Field(min_length=1, max_length=32)
+    name: str = Field(min_length=1, max_length=255)
+    status: Literal["pending", "processing", "ready", "failed"]
+    url: Optional[str] = Field(default=None, max_length=2048)
+    title: Optional[str] = Field(default=None, max_length=512)
+    path: Optional[str] = Field(default=None, max_length=512)
+    error: Optional[str] = Field(default=None, max_length=2000)
+
+    @model_validator(mode="after")
+    def validate_metadata_budget(self):
+        if serialized_size(self.model_dump()) > 15_000:
+            raise ValueError("Source metadata exceeds 15000 characters")
+        return self
+
+
+class CanonicalIntakeContent(BaseModel):
+    """Bounded canonical Create/Smart Intake content with compatible extras."""
+
+    model_config = ConfigDict(extra="allow")
+
+    prompt: str = Field(default="", max_length=6000)
+    note: Optional[str] = Field(default=None, max_length=20_000)
+    notes: Optional[str] = Field(default=None, max_length=20_000)
+    source_snapshot: Optional[str] = Field(default=None, max_length=100_000)
+    sources: list[CanonicalIntakeSource] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def validate_total_budget(self):
+        if serialized_size(self.model_dump()) > 250_000:
+            raise ValueError("Canonical intake payload exceeds 250000 characters")
+        return self
+
+
 class EventRequest(BaseModel):
     """Request body for event-based pipeline."""
     event: str  # submit, submit_guided_brief, submit_knowledge_share, chat_brief_approve, approve/brief_approve, edit/edit_brief, refine_outline, regenerate_section, restart
     payload: Optional[dict] = None
+
+    @model_validator(mode="after")
+    def validate_canonical_intake(self):
+        if self.event not in {"save_intake", "approve_intake"}:
+            return self
+        payload = self.payload or {}
+        content = payload.get("content")
+        if not isinstance(content, dict):
+            raise ValueError("Canonical intake content must be an object")
+        CanonicalIntakeContent.model_validate(content)
+        if serialized_size(payload) > 251_000:
+            raise ValueError("Canonical intake request exceeds 251000 characters")
+        return self
 
 
 class IntakeFormRequest(BaseModel):
@@ -433,11 +520,18 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
     try:
         await _require_project(db, project_id)
         if request.event in workflow_service.NEW_EVENTS:
-            return await workflow_service.process_event(
+            result = await workflow_service.process_event(
                 project_id,
                 request.event,
                 request.payload,
             )
+            if request.event == "save_intake":
+                prompt = (request.payload or {}).get("content", {}).get("prompt")
+                if isinstance(prompt, str):
+                    await ProjectRepository(db).update_project_intake_prompt(
+                        project_id, prompt
+                    )
+            return result
         normalized_event, normalized_payload = await _normalize_pipeline_event(
             project_id=project_id,
             event=request.event,
@@ -1073,18 +1167,21 @@ async def delete_project(project_id: str, user_id: Optional[str] = None, db: Asy
 
 
 @app.post("/api/project/{project_id}/upload")
-async def upload_file_to_project(project_id: str, file: UploadFile = FastAPIFile(...), db: AsyncSession = Depends(get_db)):
+async def upload_file_to_project(
+    project_id: str,
+    file: UploadFile = FastAPIFile(...),
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Upload a file to a project and extract its text content.
 
-    Supported formats: PDF, TXT, MD, DOC, DOCX
+    Supported formats: PDF, TXT, MD, DOCX
     Files are saved to data/project_{id}/uploads/
     """
     try:
+        await _require_exact_project_owner(db, project_id, x_user_id)
         repo = ProjectRepository(db)
-        project = await repo.get_project(project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
 
         # Find or create project directory
         project_dir = _project_root_dir(project_id)
@@ -1096,71 +1193,125 @@ async def upload_file_to_project(project_id: str, file: UploadFile = FastAPIFile
         uploads_dir.mkdir(exist_ok=True)
 
         # Validate file type
-        allowed_extensions = [".pdf", ".txt", ".md", ".doc", ".docx"]
+        allowed_extensions = [".pdf", ".txt", ".md", ".docx"]
         file_ext = Path(file.filename or "").suffix.lower()
         if file_ext not in allowed_extensions:
             raise HTTPException(
                 status_code=400,
                 detail=f"Unsupported file type. Allowed: {', '.join(allowed_extensions)}"
             )
+        declared_type = (file.content_type or "").lower()
+        expected_types = {
+            ".pdf": {"application/pdf"},
+            ".docx": {
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            },
+            ".txt": {"text/plain"},
+            ".md": {"text/plain", "text/markdown"},
+        }
+        if (
+            declared_type not in {"", "application/octet-stream"}
+            and declared_type not in expected_types[file_ext]
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="File type does not match its extension",
+            )
 
-        # Save file
-        file_path = uploads_dir / (file.filename or f"upload_{datetime.now().timestamp()}")
-        content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
+        # Client filenames are display metadata only. The on-disk name is
+        # unguessable, collision-safe, and asserted inside the project root.
+        file_path = ensure_contained(
+            uploads_dir / f"{uuid4().hex}{file_ext}", uploads_dir
+        )
+        size_bytes = 0
+        with file_path.open("wb") as destination:
+            while True:
+                chunk = await file.read(64 * 1024)
+                if not chunk:
+                    break
+                size_bytes += len(chunk)
+                if size_bytes > MAX_UPLOAD_BYTES:
+                    raise HTTPException(status_code=413, detail="Upload is too large")
+                destination.write(chunk)
+        validate_upload_signature(file_path, file_ext)
 
         # Extract text based on file type
         extracted_text = ""
         if file_ext == ".pdf":
-            extracted_text = extract_text_from_pdf(file_path)
+            extracted_text = await extract_with_timeout(
+                extract_text_from_pdf, file_path
+            )
         elif file_ext in [".txt", ".md"]:
-            extracted_text = content.decode("utf-8", errors="ignore")
-        elif file_ext in [".doc", ".docx"]:
-            extracted_text = extract_text_from_docx(file_path)
+            extracted_text = (
+                await asyncio.to_thread(
+                    file_path.read_text, "utf-8", "replace"
+                )
+            )[:MAX_EXTRACTED_CHARS]
+        elif file_ext == ".docx":
+            extracted_text = await extract_with_timeout(
+                extract_text_from_docx, file_path
+            )
+        if extracted_text.startswith("[Error extracting"):
+            raise SourceIngestionError("Source file could not be parsed safely")
+        extracted_text = truncate_utf8(extracted_text[:MAX_EXTRACTED_CHARS])
 
         # Save extracted text to a companion file
         text_file = file_path.with_suffix(".extracted.txt")
-        with open(text_file, "w", encoding="utf-8") as f:
-            f.write(extracted_text)
+        await asyncio.to_thread(
+            text_file.write_text,
+            extracted_text[:MAX_EXTRACTED_CHARS],
+            "utf-8",
+        )
+        display_name = Path(file.filename or "").name[:255] or file_path.name
         await repo.create_upload(
             project_id=project_id,
-            filename=file.filename or file_path.name,
+            filename=display_name,
             file_path=str(file_path.relative_to(project_dir)),
             content_type=file.content_type,
-            size_bytes=len(content),
+            size_bytes=size_bytes,
         )
         await repo.update_project_timestamp(project_id)
 
         return {
             "success": True,
-            "filename": file.filename,
-            "content": extracted_text[:50000],  # Limit to 50k chars
+            "filename": display_name,
+            "content": extracted_text[:MAX_EXTRACTED_CHARS],
             "path": str(file_path.relative_to(project_dir)),
         }
 
-    except HTTPException:
-        raise
+    except (HTTPException, SourceIngestionError) as error:
+        if "file_path" in locals() and file_path.exists():
+            file_path.unlink(missing_ok=True)
+            file_path.with_suffix(".extracted.txt").unlink(missing_ok=True)
+        if isinstance(error, HTTPException):
+            raise
+        raise HTTPException(status_code=400, detail=str(error))
     except Exception as e:
+        if "file_path" in locals() and file_path.exists():
+            file_path.unlink(missing_ok=True)
+            file_path.with_suffix(".extracted.txt").unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
 
 
 class FetchLinkRequest(BaseModel):
-    url: str
+    url: str = Field(min_length=1, max_length=2048)
 
 
 @app.post("/api/project/{project_id}/fetch-link")
-async def fetch_link_content(project_id: str, request: FetchLinkRequest, db: AsyncSession = Depends(get_db)):
+async def fetch_link_content(
+    project_id: str,
+    request: FetchLinkRequest,
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    db: AsyncSession = Depends(get_db),
+):
     """
     Fetch content from a URL and save it to the project.
 
     Extracts text content from web pages and saves metadata.
     """
     try:
+        await _require_exact_project_owner(db, project_id, x_user_id)
         repo = ProjectRepository(db)
-        project = await repo.get_project(project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
 
         # Find or create project directory
         project_dir = _project_root_dir(project_id)
@@ -1171,31 +1322,34 @@ async def fetch_link_content(project_id: str, request: FetchLinkRequest, db: Asy
         links_dir = project_dir / "links"
         links_dir.mkdir(exist_ok=True)
 
-        # Fetch the URL content
-        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
-            response = await client.get(
-                request.url,
-                headers={
-                    "User-Agent": "Mozilla/5.0 (compatible; Storyboard/1.0)"
-                }
-            )
-            response.raise_for_status()
-
-        title, text_content = extract_text_from_html(response.text)
+        fetched = await fetch_public_text(request.url)
+        if fetched.content_type in {"text/html", "application/xhtml+xml"}:
+            try:
+                title, text_content = await asyncio.wait_for(
+                    asyncio.to_thread(extract_text_from_html, fetched.text),
+                    timeout=10.0,
+                )
+            except asyncio.TimeoutError as error:
+                raise SourceIngestionError("Source extraction timed out") from error
+        else:
+            title, text_content = "", fetched.text.strip()
+        text_content = truncate_utf8(text_content[:MAX_EXTRACTED_CHARS])
         if not title:
-            title = request.url
+            title = fetched.final_url
+        title = truncate_utf8(title.strip(), 512)
 
         # Save the extracted content
-        from urllib.parse import urlparse
-        parsed_url = urlparse(request.url)
-        safe_filename = f"{parsed_url.netloc}_{datetime.now().timestamp()}.txt"
-        content_file = links_dir / safe_filename
+        content_file = ensure_contained(
+            links_dir / f"{uuid4().hex}.txt", links_dir
+        )
 
-        with open(content_file, "w", encoding="utf-8") as f:
-            f.write(f"URL: {request.url}\n")
-            f.write(f"Title: {title}\n")
-            f.write(f"Fetched: {datetime.now().isoformat()}\n")
-            f.write(f"\n---\n\n{text_content}")
+        companion = truncate_utf8(
+            f"URL: {fetched.final_url}\n"
+            f"Title: {title}\n"
+            f"Fetched: {datetime.now().isoformat()}\n"
+            f"\n---\n\n{text_content}"
+        )
+        await asyncio.to_thread(content_file.write_text, companion, "utf-8")
         await repo.create_upload(
             project_id=project_id,
             filename=title[:255],
@@ -1207,16 +1361,16 @@ async def fetch_link_content(project_id: str, request: FetchLinkRequest, db: Asy
 
         return {
             "success": True,
-            "url": request.url,
+            "url": fetched.final_url,
             "title": title,
-            "content": text_content[:50000],  # Limit to 50k chars
+            "content": text_content,
             "path": str(content_file.relative_to(project_dir)),
         }
 
-    except httpx.HTTPStatusError as e:
-        raise HTTPException(status_code=400, detail=f"Failed to fetch URL: {e.response.status_code}")
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=400, detail=f"Request failed: {str(e)}")
+    except SourceIngestionError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching link: {str(e)}")
 

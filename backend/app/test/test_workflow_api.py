@@ -245,6 +245,113 @@ async def test_created_project_persists_canonical_create_intake_across_reload(wo
 
 
 @pytest.mark.asyncio
+async def test_create_project_is_idempotent_for_exact_owner_only(workflow_api):
+    client, _ = workflow_api
+    request = {
+        "projectId": "idempotent-create",
+        "typeId": 1,
+        "typeName": "Video storyboard",
+        "userInput": "First prompt",
+        "userId": "anon_exact",
+    }
+
+    first = await client.post("/api/create-project", json=request)
+    repeated = await client.post("/api/create-project", json=request)
+    wrong_owner = await client.post(
+        "/api/create-project", json={**request, "userId": "user_other"}
+    )
+
+    assert first.status_code == repeated.status_code == 200
+    assert repeated.json()["projectId"] == request["projectId"]
+    assert wrong_owner.status_code == 409
+
+    traversal = await client.post(
+        "/api/create-project", json={**request, "projectId": "../../escape"}
+    )
+    assert traversal.status_code == 422
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("event", ["save_intake", "approve_intake"])
+@pytest.mark.parametrize(
+    "content",
+    [
+        {"prompt": "x" * 6001},
+        {"prompt": "ok", "note": "x" * 20001},
+        {"prompt": "ok", "notes": "x" * 20001},
+        {"prompt": "ok", "source_snapshot": "x" * 100001},
+        {
+            "prompt": "ok",
+            "sources": [
+                {"id": f"s-{index}", "kind": "text", "name": "Note", "status": "ready"}
+                for index in range(21)
+            ],
+        },
+        {
+            "prompt": "ok",
+            "sources": [
+                {
+                    "id": "s-1",
+                    "kind": "link",
+                    "name": "Link",
+                    "status": "ready",
+                    "url": "https://example.com/" + "x" * 2040,
+                }
+            ],
+        },
+        {
+            "prompt": "ok",
+            "sources": [
+                {
+                    "id": "s-metadata",
+                    "kind": "text",
+                    "name": "Metadata",
+                    "status": "ready",
+                    "metadata": "x" * 15_001,
+                }
+            ],
+        },
+        {"prompt": "ok", "custom": "x" * 250001},
+    ],
+)
+async def test_canonical_intake_rejects_oversized_fields_and_total(
+    workflow_api, event, content
+):
+    client, _ = workflow_api
+
+    response = await client.post(
+        "/api/project/api-project/event",
+        json={
+            "event": event,
+            "payload": {"content": content, "expected_version_id": None},
+        },
+    )
+
+    assert response.status_code in {413, 422}
+
+
+@pytest.mark.asyncio
+async def test_save_intake_updates_project_prompt_metadata(workflow_api):
+    client, _ = workflow_api
+    prompt = "A newly edited Create prompt"
+
+    saved = await client.post(
+        "/api/project/api-project/event",
+        json={
+            "event": "save_intake",
+            "payload": {
+                "content": {"prompt": prompt, "smart_intake_extra": {"kept": True}},
+                "expected_version_id": None,
+            },
+        },
+    )
+    project = await client.get("/api/project/api-project")
+
+    assert saved.status_code == 200
+    assert project.json()["project"]["userInput"] == prompt
+
+
+@pytest.mark.asyncio
 async def test_stage_autosave_and_workflow_transition_preserve_each_others_state(
     workflow_api, monkeypatch
 ):

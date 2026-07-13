@@ -112,6 +112,22 @@ class ProjectRepository:
         else:
             await self.session.flush()
 
+    async def update_project_intake_prompt(
+        self, project_id: str, prompt: str, commit: bool = True
+    ) -> None:
+        """Keep project-list metadata aligned with the canonical Create prompt."""
+        await self.session.execute(
+            update(Project).where(Project.id == project_id).values(
+                title=prompt[:100],
+                user_input=prompt,
+                updated_at=datetime.now(timezone.utc),
+            )
+        )
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
+
     # ---- Pipeline State ----
 
     async def get_pipeline_state(self, project_id: str) -> Optional[PipelineState]:

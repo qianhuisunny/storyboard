@@ -181,7 +181,10 @@ export default function StageLayout() {
   const previousStageIdRef = useRef<number | null>(null);
   const stageDataRef = useRef(stageData);
   const generateStageRef = useRef<(stageId: number, context?: string, feedback?: string) => Promise<void>>(async () => undefined);
-  stageDataRef.current = stageData;
+
+  useEffect(() => {
+    stageDataRef.current = stageData;
+  }, [stageData]);
 
   // Initialize analytics tracking
   const analytics = useAnalytics(projectId, userId ?? undefined);
@@ -496,7 +499,9 @@ export default function StageLayout() {
       setIsGenerating(false);
     }
   };
-  generateStageRef.current = generateStage;
+  useEffect(() => {
+    generateStageRef.current = generateStage;
+  });
 
   const updateStageStatus = (stageId: number, status: StageStatus) => {
     setStages((prev) =>

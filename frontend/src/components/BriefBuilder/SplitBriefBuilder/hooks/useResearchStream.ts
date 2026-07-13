@@ -240,7 +240,10 @@ export function useResearchPolling({
     }
     setIsPolling(false);
   }, []);
-  stopPollingRef.current = stopPolling;
+
+  useEffect(() => {
+    stopPollingRef.current = stopPolling;
+  }, [stopPolling]);
 
   useEffect(() => {
     return () => {

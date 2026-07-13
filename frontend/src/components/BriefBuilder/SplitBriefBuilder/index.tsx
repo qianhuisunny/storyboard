@@ -303,8 +303,11 @@ export function SplitBriefBuilder({
       unresolved_questions: [],
     });
   }, [onboardingData, state.gapAnswers]);
-  createFallbackBriefRef.current = createFallbackBrief;
-  generateFinalBriefRef.current = generateFinalBrief;
+
+  useEffect(() => {
+    createFallbackBriefRef.current = createFallbackBrief;
+    generateFinalBriefRef.current = generateFinalBrief;
+  }, [createFallbackBrief, generateFinalBrief]);
 
   // Handle send to storyboard
   const handleSendToStoryboard = useCallback(() => {
