@@ -6,7 +6,6 @@ import StageNavigation, { type Stage, type StageStatus } from "./StageNavigation
 import StageContent from "./StageContent";
 import SatisfactionRatingModal from "./SatisfactionRatingModal";
 import { useAnalytics } from "@/hooks/useAnalytics";
-import { getAnonymousUserId } from "@/lib/anonymousUser";
 import { isGuidedBriefType } from "@/lib/videoIntent";
 
 const INITIAL_STAGES: Stage[] = [
@@ -161,7 +160,8 @@ function deriveStageViewFromPipeline(
 
 export default function StageLayout() {
   const { projectId } = useParams<{ projectId: string }>();
-  const [userId] = useState(() => getAnonymousUserId());
+  const [userId, setUserId] = useState<string | null>(null);
+  const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const [stages, setStages] = useState<Stage[]>(INITIAL_STAGES);
@@ -181,7 +181,7 @@ export default function StageLayout() {
   const previousStageIdRef = useRef<number | null>(null);
 
   // Initialize analytics tracking
-  const analytics = useAnalytics(projectId, userId);
+  const analytics = useAnalytics(projectId, userId ?? undefined);
 
   // Load project context on mount
   useEffect(() => {
@@ -192,6 +192,23 @@ export default function StageLayout() {
       if (isLoadingStages) return;
 
       try {
+        setProjectLoadError(null);
+
+        // Project persistence is the source of truth for ownership. A local
+        // anonymous ID must never stand in for a Clerk-owned project.
+        const response = await fetch(`/api/project/${projectId}`);
+        if (!response.ok) {
+          throw new Error(`Project request failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        const project = data.success ? data.project : null;
+        const ownerId = typeof project?.userId === "string" ? project.userId.trim() : "";
+        if (!ownerId) {
+          throw new Error("Project owner identity is missing");
+        }
+        setUserId(ownerId);
+
         // Try to load from sessionStorage first
         const storedPrompt = sessionStorage.getItem("storyboardPrompt");
         const storedType = sessionStorage.getItem("storyboardType");
@@ -209,26 +226,20 @@ export default function StageLayout() {
             generateStage(1, storedPrompt);
           }
         } else {
-          // Load from API if not in session
-          const response = await fetch(`/api/project/${projectId}`);
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.project) {
-              setProjectContext({
-                userInput: data.project.userInput,
-                typeName: data.project.typeName,
-              });
+          setProjectContext({
+            userInput: project.userInput,
+            typeName: project.typeName,
+          });
 
-              // Start legacy generation only for old non-guided projects.
-              const projectIsGuidedBrief = isGuidedBriefType(data.project.typeName);
-              if (!stageData[1]?.aiVersion && !hasLoadedStages.current && data.project.userInput && !projectIsGuidedBrief) {
-                generateStage(1, data.project.userInput);
-              }
-            }
+          // Start legacy generation only for old non-guided projects.
+          const projectIsGuidedBrief = isGuidedBriefType(project.typeName);
+          if (!stageData[1]?.aiVersion && !hasLoadedStages.current && project.userInput && !projectIsGuidedBrief) {
+            generateStage(1, project.userInput);
           }
         }
       } catch (error) {
         console.error("Failed to load project:", error);
+        setProjectLoadError("Unable to verify this project's owner. Refresh to try again.");
       }
     };
 
@@ -364,7 +375,7 @@ export default function StageLayout() {
 
   // Track stage enter/exit for analytics
   useEffect(() => {
-    if (isLoadingStages) return;
+    if (isLoadingStages || !userId) return;
 
     const currentStage = stages.find((s) => s.id === currentStageId);
     const stageName = currentStage?.name || `Stage ${currentStageId}`;
@@ -387,7 +398,7 @@ export default function StageLayout() {
     return () => {
       // Exit tracking is handled on the next stage change
     };
-  }, [currentStageId, isLoadingStages, stages, analytics]);
+  }, [currentStageId, isLoadingStages, stages, analytics, userId]);
 
   const buildLegacyIntakeForm = useCallback((userInput: string, feedback?: string) => {
     const videoType = sessionStorage.getItem("storyboardType") || "1";
@@ -730,13 +741,18 @@ export default function StageLayout() {
 
       {/* Main Content — scroll container, full width (headers/footers span full; content areas self-constrain) */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-y-auto">
-        {isLoadingStages ? (
+        {projectLoadError ? (
+          <div className="flex-1 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
+            {projectLoadError}
+          </div>
+        ) : isLoadingStages || !userId ? (
           <div className="flex-1 flex items-center justify-center">
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : currentStage ? (
           <StageContent
             stage={currentStage}
+            userId={userId}
             aiContent={currentData.aiVersion}
             humanContent={currentData.humanVersion}
             previousStageOutput={previousStageOutput}
