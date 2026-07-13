@@ -477,7 +477,7 @@ export default function OnboardingPage() {
           </h1>
 
           <div className="rounded-xl border border-[#DEDCD4] bg-white px-5 pb-4 pt-5 shadow-[0_1px_3px_rgba(42,42,40,0.05)] sm:px-[22px]">
-            <div className="flex items-start gap-3">
+            <div className="mb-[18px] flex items-start gap-3">
               <Popover.Root>
                 <Popover.Trigger asChild>
                   <button type="button" aria-label="Attach source" disabled={isGenerating} className="mt-0.5 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-[10px] border border-[#DEDCD4] bg-[#F7F5F0] text-[#73736C] transition hover:border-[#A8C8AD] hover:text-[#3A6B47] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#3A6B47] disabled:cursor-not-allowed disabled:opacity-40">
@@ -508,6 +508,7 @@ export default function OnboardingPage() {
               <label className="sr-only" htmlFor="video-prompt">Describe your video</label>
               <textarea
                 id="video-prompt"
+                rows={1}
                 value={userInput}
                 onChange={(event) => setUserInput(event.target.value)}
                 maxLength={MAX_PROMPT_CHARS}
@@ -518,7 +519,7 @@ export default function OnboardingPage() {
                   }
                 }}
                 placeholder="Describe what you want to create…"
-                className="min-h-[88px] flex-1 resize-none border-0 bg-transparent pt-2 text-[16px] leading-6 outline-none placeholder:text-[#AAA79F] focus-visible:ring-0"
+                className="min-h-10 flex-1 resize-none border-0 bg-transparent pt-2 text-[16px] leading-6 outline-none placeholder:text-[#AAA79F] focus-visible:ring-0"
                 disabled={isGenerating}
               />
             </div>
