@@ -93,14 +93,22 @@ async def _production_outline_generator(context: GenerationContext) -> Generatio
     director = StoryboardDirector()
     state = context.to_state()
     if context.instruction:
-        content = await asyncio.to_thread(
-            director.refine_outline,
-            context.current_content,
-            context.instruction,
-            context.intake,
-        )
-        evaluation = await orchestrator.quality_gate.evaluate(
-            "outline", context.intake, content
+        def generate_revision(quality_feedback):
+            return director.refine_outline(
+                context.current_content,
+                context.instruction,
+                context.intake,
+                quality_feedback=quality_feedback,
+            )
+
+        content, evaluation = await asyncio.to_thread(
+            lambda: asyncio.run(
+                orchestrator.quality_gate.run_generator_with_gate(
+                    generate_revision,
+                    context.intake,
+                    stage="outline",
+                )
+            )
         )
     else:
         content, evaluation = await asyncio.to_thread(
@@ -122,17 +130,25 @@ async def _production_storyboard_generator(context: GenerationContext) -> Genera
     writer = StoryboardWriter()
     state = context.to_state()
     if context.instruction:
-        content = await asyncio.to_thread(
-            writer.run,
-            state,
-            revision_instruction=context.instruction,
-            existing_storyboard=context.current_content or context.storyboard,
-        )
-        evaluation = await orchestrator.quality_gate.evaluate(
-            "storyboard",
-            context.intake,
-            content,
-            outline=context.outline,
+        def generate_revision(quality_feedback):
+            kwargs = {
+                "revision_instruction": context.instruction,
+                "existing_storyboard": context.current_content
+                or context.storyboard,
+            }
+            if quality_feedback:
+                kwargs["quality_feedback"] = quality_feedback
+            return writer.run(state, **kwargs)
+
+        content, evaluation = await asyncio.to_thread(
+            lambda: asyncio.run(
+                orchestrator.quality_gate.run_generator_with_gate(
+                    generate_revision,
+                    context.intake,
+                    stage="storyboard",
+                    outline=context.outline,
+                )
+            )
         )
     else:
         content, evaluation = await asyncio.to_thread(

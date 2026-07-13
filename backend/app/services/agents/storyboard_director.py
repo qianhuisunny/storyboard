@@ -229,7 +229,14 @@ Return the complete outline. Keep every other section exactly unchanged and use 
         current_outline: str,
         instruction: str,
         story_brief: dict,
+        quality_feedback: Optional[str] = None,
     ) -> str:
+        feedback = ""
+        if quality_feedback:
+            feedback = (
+                "\n\n## HOLISTIC REVIEW FEEDBACK\n"
+                f"{quality_feedback}"
+            )
         prompt = f"""Revise an existing video outline from user feedback.
 
 {self._build_brief_context(story_brief)}
@@ -239,6 +246,7 @@ Return the complete outline. Keep every other section exactly unchanged and use 
 
 ## USER INSTRUCTION
 {instruction}
+{feedback}
 
 Return the complete revised outline. You may restructure sections when the instruction requires it, while preserving the exact section contract from the system prompt."""
         response = self.call_llm(prompt, max_tokens=8000, temperature=0.7)

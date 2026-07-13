@@ -12,7 +12,6 @@ from app.services.workflow import (
     WorkflowGenerationError,
     workflow_service,
 )
-from app.services.video_intent import LEGACY_ROUTE_ALIASES, VIDEO_INTENT_ROUTES
 from app.infra.quality_log import qlog
 from app.services.image_generator import ImageGenerator
 
@@ -370,7 +369,7 @@ class IntakeFormRequest(BaseModel):
 
 
 class ChatBriefRequest(BaseModel):
-    """Request body for chat-based content spine extraction."""
+    """Request body for chat-assisted Smart Intake completion."""
     messages: list
     fields_so_far: dict
     onboarding: dict
@@ -491,18 +490,26 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
 
 @app.post("/api/project/{project_id}/chat-brief")
 async def chat_brief(project_id: str, request: ChatBriefRequest):
-    """Phase 2 chat-based content spine extraction. Direct LLM call, no agent class."""
+    """Ask only for missing canonical Smart Intake values."""
     try:
         # Load system prompt
-        prompt_path = Path(__file__).parent.parent.parent / "prompts" / "chat_brief_prompt_v0603.md"
+        prompt_path = Path(__file__).parent.parent.parent / "prompts" / "chat_brief_prompt_v0712.md"
         if not prompt_path.exists():
             raise HTTPException(status_code=500, detail="Chat brief prompt not found")
         system_prompt = prompt_path.read_text(encoding="utf-8")
 
         # Build user prompt with context
+        allowed_fields = {
+            "viewer_outcome",
+            "target_audience",
+            "audience_level",
+            "delivery_tone",
+            "production_formats",
+        }
         fields_summary = "\n".join(
             f"- {k}: {v.get('value', v) if isinstance(v, dict) else v}"
             for k, v in request.fields_so_far.items()
+            if k in allowed_fields
             if (v.get("value") if isinstance(v, dict) else v)
         )
 
@@ -511,13 +518,30 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
             for m in request.messages
         )
 
+        def first_value(*names):
+            for name in names:
+                value = request.onboarding.get(name)
+                if value not in (None, "", []):
+                    return value
+            return ""
+
+        onboarding_values = (
+            ("Video goal", first_value("prompt", "topic", "description")),
+            ("Duration (seconds)", first_value("duration_seconds", "duration")),
+            ("Audience", first_value("target_audience", "audience")),
+            ("Platform", first_value("platform")),
+            ("Aspect ratio", first_value("aspect_ratio")),
+            ("Production formats", first_value("production_formats", "broll_type")),
+            ("Source context", first_value("source_snapshot", "source_context")),
+        )
+        onboarding_summary = "\n".join(
+            f"- {label}: {json.dumps(value, ensure_ascii=False) if isinstance(value, (list, dict)) else str(value)[:6000]}"
+            for label, value in onboarding_values
+            if value not in (None, "", [])
+        )
+
         user_prompt = f"""## ONBOARDING CONTEXT
-- Topic: {request.onboarding.get('topic', '')}
-- Duration: {request.onboarding.get('duration', 300)} seconds
-- Audience: {request.onboarding.get('audience', '')}
-- Intent Route: {request.onboarding.get('intent_route', '')}
-- Content Mode: {request.onboarding.get('content_mode', '')}
-- Source Context: {request.onboarding.get('source_context', '')[:6000]}
+{onboarding_summary or '(none provided)'}
 
 ## COLLECTED BRIEF FIELDS
 {fields_summary or '(none yet)'}
@@ -545,10 +569,17 @@ Respond with the next JSON message."""
             return {"reply": "I'm having trouble processing that. Could you try again?", "done": False, "extracted_fields": None}
 
         parsed = json.loads(json_match.group())
+        extracted_fields = parsed.get("extracted_fields")
+        if isinstance(extracted_fields, dict):
+            extracted_fields = {
+                key: value
+                for key, value in extracted_fields.items()
+                if key in allowed_fields
+            }
         return {
             "reply": parsed.get("reply", ""),
             "done": parsed.get("done", False),
-            "extracted_fields": parsed.get("extracted_fields"),
+            "extracted_fields": extracted_fields,
         }
 
     except json.JSONDecodeError:
@@ -613,15 +644,6 @@ async def start_pipeline(project_id: str, request: IntakeFormRequest, db: AsyncS
     """
     try:
         await _require_project(db, project_id)
-        video_type = str(request.intake_form.get("video_type", "")).strip().lower()
-        guided_names = {route.label.lower() for route in VIDEO_INTENT_ROUTES.values()}
-        guided_keys = set(VIDEO_INTENT_ROUTES.keys()) | set(LEGACY_ROUTE_ALIASES.keys())
-        if video_type in guided_names or video_type in guided_keys:
-            raise HTTPException(
-                status_code=400,
-                detail="Guided brief projects must use /api/project/{project_id}/event with submit_guided_brief, not /start.",
-            )
-
         result = await orchestrator.process_event(
             project_id=project_id,
             event="submit",

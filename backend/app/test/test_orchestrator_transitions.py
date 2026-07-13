@@ -78,7 +78,6 @@ class TestGateTransitions:
             story_brief={"fields": {
                 "viewer_outcome": {"value": "Learn ML", "source": "extracted", "confirmed": True},
                 "target_audience": {"value": "Engineers", "source": "extracted", "confirmed": True},
-                "core_talking_points": {"value": ["A", "B"], "source": "generated", "confirmed": True},
             }},
             brief_locked=True,
         )

@@ -1,6 +1,7 @@
 """Deterministic structural validation plus one holistic quality review."""
 
 import asyncio
+import inspect
 import json
 import re
 from dataclasses import dataclass, field
@@ -286,6 +287,14 @@ class QualityGate:
             purpose = self._outline_field(block, "Purpose")
             if not purpose:
                 issues.append(f"Section {section_number} is missing Purpose")
+            entry_assumption = self._outline_field(block, "Entry assumption")
+            if not entry_assumption:
+                issues.append(
+                    f"Section {section_number} is missing Entry assumption"
+                )
+            exit_state = self._outline_field(block, "Exit state")
+            if not exit_state:
+                issues.append(f"Section {section_number} is missing Exit state")
 
             duration_text = self._outline_field(block, "Duration")
             duration = self._parse_positive_integer(duration_text)
@@ -482,9 +491,7 @@ class QualityGate:
         review_passed = bool(raw.get("passed", False)) and score >= self.threshold
         feedback = str(raw.get("feedback", ""))
         result = QualityEvalResult(
-            # Structural validity controls pipeline blocking. A subjective miss
-            # remains explicit advisory metadata.
-            passed=True,
+            passed=review_passed,
             gut=GutScore(score=score, feedback=feedback),
             dimensions=None,
             composite_score=round(score, 1),
@@ -493,7 +500,7 @@ class QualityGate:
             strengths=self._string_list(raw.get("strengths")),
             issues=self._string_list(raw.get("issues")),
             deterministic_issues=[],
-            advisory=not review_passed,
+            advisory=False,
             review_passed=review_passed,
         )
         self._log_eval_event(stage, brief, output, result, outline)
@@ -512,21 +519,19 @@ class QualityGate:
         lines.append("Revise the output while preserving everything that already works.")
         return "\n".join(line for line in lines if line)
 
-    async def run_with_gate(
+    async def run_generator_with_gate(
         self,
-        agent: Any,
-        state: Any,
+        generate_with_feedback: Any,
+        brief: dict,
         stage: str,
-        outline_for_cross_stage: Any = None,
+        outline: Any = None,
     ) -> tuple[Any, QualityEvalResult]:
-        brief = state.story_brief or {}
         quality_feedback: Optional[str] = None
 
         for attempt in range(1, self.max_attempts + 1):
-            if quality_feedback:
-                output = agent.run(state, quality_feedback=quality_feedback)
-            else:
-                output = agent.run(state)
+            output = generate_with_feedback(quality_feedback)
+            if inspect.isawaitable(output):
+                output = await output
 
             structural_issues = self.validate_structure(stage, brief, output)
             if structural_issues:
@@ -542,8 +547,10 @@ class QualityGate:
                 )
                 continue
 
-            outline = outline_for_cross_stage if stage == "storyboard" else None
-            result = await self.evaluate(stage, brief, output, outline=outline)
+            review_outline = outline if stage == "storyboard" else None
+            result = await self.evaluate(
+                stage, brief, output, outline=review_outline
+            )
             result.attempt = attempt
             result.total_attempts = self.max_attempts
             if result.review_passed:
@@ -558,3 +565,22 @@ class QualityGate:
             quality_feedback = self.format_feedback_for_retry(result, attempt - 1)
 
         raise RuntimeError("Quality gate exhausted unexpectedly")
+
+    async def run_with_gate(
+        self,
+        agent: Any,
+        state: Any,
+        stage: str,
+        outline_for_cross_stage: Any = None,
+    ) -> tuple[Any, QualityEvalResult]:
+        def generate(quality_feedback: Optional[str]) -> Any:
+            if quality_feedback:
+                return agent.run(state, quality_feedback=quality_feedback)
+            return agent.run(state)
+
+        return await self.run_generator_with_gate(
+            generate,
+            state.story_brief or {},
+            stage,
+            outline=outline_for_cross_stage,
+        )

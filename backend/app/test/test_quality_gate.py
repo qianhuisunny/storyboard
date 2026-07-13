@@ -87,6 +87,16 @@ def test_outline_deterministic_validation_covers_contract_and_exact_duration():
     assert gate.validate_structure(
         "outline", {}, VALID_OUTLINE.replace("- Show the failed handoff.", "")
     )
+    assert gate.validate_structure(
+        "outline",
+        {},
+        VALID_OUTLINE.replace("None — cold open.", ""),
+    ) == ["Section 1 is missing Entry assumption"]
+    assert gate.validate_structure(
+        "outline",
+        {},
+        VALID_OUTLINE.replace("The viewer can run the check today.", ""),
+    ) == ["Section 2 is missing Exit state"]
 
 
 @pytest.mark.parametrize(
@@ -243,7 +253,47 @@ async def test_second_subjective_failure_is_advisory_and_nonblocking(monkeypatch
 
 
 @pytest.mark.asyncio
-async def test_direct_evaluate_subjective_miss_is_advisory_for_workflow_revision(monkeypatch):
+async def test_callback_runner_retries_subjective_miss_with_quality_feedback(monkeypatch):
+    gate = QualityGate()
+    feedback_calls = []
+    review_calls = []
+
+    def generate(feedback):
+        feedback_calls.append(feedback)
+        return VALID_OUTLINE
+
+    async def reviews(_stage, _prompt, label="holistic"):
+        review_calls.append(label)
+        if len(review_calls) == 1:
+            return {
+                "score": 6,
+                "passed": False,
+                "feedback": "Make the opening more specific.",
+                "strengths": [],
+                "issues": ["Generic opening"],
+            }
+        return {
+            "score": 8,
+            "passed": True,
+            "feedback": "Ready.",
+            "strengths": [],
+            "issues": [],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", reviews)
+    output, result = await gate.run_generator_with_gate(
+        generate, {"duration_seconds": 10}, "outline"
+    )
+
+    assert output == VALID_OUTLINE
+    assert result.passed is True
+    assert feedback_calls[0] is None
+    assert "Make the opening more specific." in feedback_calls[1]
+    assert len(review_calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_direct_evaluate_subjective_miss_remains_failed(monkeypatch):
     gate = QualityGate()
 
     async def low_review(*_args, **_kwargs):
@@ -260,10 +310,11 @@ async def test_direct_evaluate_subjective_miss_is_advisory_for_workflow_revision
         "outline", {"duration_seconds": 10}, VALID_OUTLINE
     )
 
-    assert result.passed is True
+    assert result.passed is False
     assert result.review_passed is False
-    assert result.advisory is True
-    StoryboardOrchestrator()._raise_if_quality_gate_failed("Outline", result)
+    assert result.advisory is False
+    with pytest.raises(ValueError, match="quality gate failed"):
+        StoryboardOrchestrator()._raise_if_quality_gate_failed("Outline", result)
 
 
 def test_orchestrator_blocks_structural_failure():

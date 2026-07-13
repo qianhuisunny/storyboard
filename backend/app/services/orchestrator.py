@@ -275,7 +275,7 @@ class StoryboardOrchestrator:
         if "fields" in state.story_brief:
             # New guided brief schema: {fields: {field_name: {value, source, confirmed}}}
             fields = state.story_brief.get("fields", {})
-            required_new = ["viewer_outcome", "target_audience", "core_talking_points"]
+            required_new = ["viewer_outcome", "target_audience"]
             missing = []
             for f in required_new:
                 field_data = fields.get(f, {})

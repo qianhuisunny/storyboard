@@ -1,7 +1,10 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from app.services.agents.storyboard_director import StoryboardDirector
+from app.services.workflow import GenerationContext, _production_outline_generator
 
 
 BANNED_PROMPT_TERMS = (
@@ -165,3 +168,147 @@ def test_director_active_system_prompt_keeps_exact_editable_outline_contract():
         assert label in prompt
     assert "Brief talking points covered" not in prompt
     _assert_no_banned_terms(prompt)
+
+
+@pytest.mark.asyncio
+async def test_production_outline_revision_retries_subjective_miss_with_feedback(
+    monkeypatch,
+):
+    from app.services.orchestrator import orchestrator
+
+    valid_outline = """Section 1 — Opening
+
+Purpose
+Frame the practical problem.
+
+Entry assumption
+None — cold open.
+
+Exit state
+The viewer recognizes the problem.
+
+Duration
+90
+
+Talking points
+- Show the failed pre-mortem.
+"""
+    generation_calls = []
+    review_calls = []
+
+    def fake_refine(
+        _director,
+        current_outline,
+        instruction,
+        story_brief,
+        quality_feedback=None,
+    ):
+        generation_calls.append(
+            (current_outline, instruction, story_brief, quality_feedback)
+        )
+        return valid_outline
+
+    async def review(_stage, _prompt, label="holistic"):
+        review_calls.append(label)
+        if len(review_calls) == 1:
+            return {
+                "score": 5,
+                "passed": False,
+                "feedback": "The opening needs a concrete scenario.",
+                "strengths": [],
+                "issues": ["Opening is generic"],
+            }
+        return {
+            "score": 9,
+            "passed": True,
+            "feedback": "Ready.",
+            "strengths": [],
+            "issues": [],
+        }
+
+    monkeypatch.setattr(StoryboardDirector, "refine_outline", fake_refine)
+    monkeypatch.setattr(orchestrator.quality_gate, "_async_call_eval", review)
+
+    result = await _production_outline_generator(
+        GenerationContext(
+            project_id="outline-revision-retry",
+            kind="outline",
+            input_version_id="intake-v1",
+            intake=_canonical_intake(),
+            outline=valid_outline,
+            current_content=valid_outline,
+            instruction="Make the opening more vivid",
+        )
+    )
+
+    assert result.content == valid_outline
+    assert len(generation_calls) == 2
+    assert generation_calls[0][3] is None
+    assert "concrete scenario" in generation_calls[1][3]
+    assert len(review_calls) == 2
+
+
+@pytest.mark.asyncio
+async def test_production_outline_revision_second_subjective_miss_is_advisory(
+    monkeypatch,
+):
+    from app.services.orchestrator import orchestrator
+
+    valid_outline = """Section 1 — Opening
+
+Purpose
+Frame the practical problem.
+
+Entry assumption
+None — cold open.
+
+Exit state
+The viewer recognizes the problem.
+
+Duration
+90
+
+Talking points
+- Show the failed pre-mortem.
+"""
+    generation_feedback = []
+
+    def fake_refine(
+        _director,
+        _current_outline,
+        _instruction,
+        _story_brief,
+        quality_feedback=None,
+    ):
+        generation_feedback.append(quality_feedback)
+        return valid_outline
+
+    async def low_review(*_args, **_kwargs):
+        return {
+            "score": 5,
+            "passed": False,
+            "feedback": "Still editorially weak.",
+            "strengths": [],
+            "issues": ["Weak opening"],
+        }
+
+    monkeypatch.setattr(StoryboardDirector, "refine_outline", fake_refine)
+    monkeypatch.setattr(orchestrator.quality_gate, "_async_call_eval", low_review)
+
+    result = await _production_outline_generator(
+        GenerationContext(
+            project_id="outline-revision-advisory",
+            kind="outline",
+            input_version_id="intake-v1",
+            intake=_canonical_intake(),
+            outline=valid_outline,
+            current_content=valid_outline,
+            instruction="Make the opening more vivid",
+        )
+    )
+
+    assert len(generation_feedback) == 2
+    assert "Still editorially weak." in generation_feedback[1]
+    assert result.evaluation["passed"] is True
+    assert result.evaluation["review_passed"] is False
+    assert result.evaluation["advisory"] is True

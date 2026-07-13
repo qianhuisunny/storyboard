@@ -220,6 +220,21 @@ def test_validate_outline_contract_rejects_invalid_duration():
         writer.validate_outline_contract(invalid_outline)
 
 
+@pytest.mark.parametrize(
+    ("label", "value"),
+    [
+        ("Entry assumption", "Viewer understands the core idea."),
+        ("Exit state", "Viewer knows exactly what to try next."),
+    ],
+)
+def test_validate_outline_contract_requires_viewer_state_fields(label, value):
+    writer = StoryboardWriter()
+    invalid_outline = VALID_OUTLINE.replace(f"{label}\n{value}", f"{label}\n")
+
+    with pytest.raises(ValueError, match=f"missing {label}"):
+        writer.validate_outline_contract(invalid_outline)
+
+
 def test_validate_outline_contract_parses_target_seconds():
     writer = StoryboardWriter()
     sections = writer.validate_outline_contract(VALID_OUTLINE)
@@ -297,6 +312,40 @@ def test_compute_word_budget_round_trip():
             )
 
 
+def test_writer_run_updates_existing_storyboard_without_explicit_instruction(
+    monkeypatch,
+):
+    writer = StoryboardWriter()
+    existing = [_make_screen("Preserve this approved opening.")]
+    captured_prompts = []
+    monkeypatch.setattr(
+        writer,
+        "_call_storyboard_llm",
+        lambda prompt, _project_id=None: captured_prompts.append(prompt)
+        or [_make_screen("Updated against the approved outline.")],
+    )
+    monkeypatch.setattr(
+        writer,
+        "_validate_and_retry_sections",
+        lambda screens, *_args, **_kwargs: screens,
+    )
+    state = SimpleNamespace(
+        screen_outline=VALID_OUTLINE,
+        story_brief={"production_formats": ["slides"], "duration_seconds": 7},
+        evidence_research=None,
+        project_id="existing-storyboard-update",
+        storyboard=existing,
+    )
+
+    writer.run(state)
+
+    assert captured_prompts
+    assert "EXISTING STORYBOARD" in captured_prompts[0]
+    assert "Preserve this approved opening." in captured_prompts[0]
+    assert "approved outline" in captured_prompts[0].lower()
+    assert "preserve unaffected screens" in captured_prompts[0].lower()
+
+
 @pytest.mark.asyncio
 async def test_production_revision_prompt_includes_existing_storyboard_and_instruction(
     monkeypatch,
@@ -311,21 +360,27 @@ async def test_production_revision_prompt_includes_existing_storyboard_and_instr
         captured_prompts.append(prompt)
         return [_make_screen("Updated final action")]
 
-    evaluation = SimpleNamespace(
-        passed=True,
-        composite_score=10.0,
-        attempt=0,
-        total_attempts=0,
-        to_dict=lambda: {"passed": True, "composite_score": 10.0},
-    )
-
-    async def fake_evaluate(*_args, **_kwargs):
-        return evaluation
-
     monkeypatch.setattr(
         StoryboardWriter, "_call_storyboard_llm", fake_storyboard_call
     )
-    monkeypatch.setattr(orchestrator.quality_gate, "evaluate", fake_evaluate)
+    callbacks = []
+
+    async def fake_callback_gate(generate, brief, stage, outline=None):
+        callbacks.append((brief, stage, outline))
+        content = generate(None)
+        return content, SimpleNamespace(
+            passed=True,
+            composite_score=10.0,
+            attempt=1,
+            total_attempts=2,
+            to_dict=lambda: {"passed": True, "composite_score": 10.0},
+        )
+
+    monkeypatch.setattr(
+        orchestrator.quality_gate,
+        "run_generator_with_gate",
+        fake_callback_gate,
+    )
     monkeypatch.setattr(
         orchestrator, "_raise_if_quality_gate_failed", lambda *_args: None
     )
@@ -344,8 +399,138 @@ async def test_production_revision_prompt_includes_existing_storyboard_and_instr
     )
 
     assert captured_prompts
+    assert callbacks
     assert instruction in captured_prompts[0]
     assert "Preserve this existing screen" in captured_prompts[0]
+
+
+@pytest.mark.asyncio
+async def test_production_approve_outline_uses_existing_storyboard_as_update_context(
+    monkeypatch,
+):
+    from app.services.orchestrator import orchestrator
+
+    existing = [_make_screen("Keep the existing opening on regeneration.")]
+    captured_prompts = []
+
+    monkeypatch.setattr(
+        StoryboardWriter,
+        "_call_storyboard_llm",
+        lambda _writer, prompt, _project_id=None: captured_prompts.append(prompt)
+        or [_make_screen("Regenerated body")],
+    )
+    monkeypatch.setattr(
+        StoryboardWriter,
+        "_validate_and_retry_sections",
+        lambda _writer, screens, *_args, **_kwargs: screens,
+    )
+
+    async def fake_run_with_gate(agent, state, stage, **_kwargs):
+        assert state.storyboard == existing
+        content = agent.run(state)
+        return content, SimpleNamespace(
+            passed=True,
+            composite_score=10.0,
+            attempt=1,
+            total_attempts=2,
+            to_dict=lambda: {"passed": True, "composite_score": 10.0},
+        )
+
+    monkeypatch.setattr(
+        orchestrator.quality_gate, "run_with_gate", fake_run_with_gate
+    )
+
+    await _production_storyboard_generator(
+        GenerationContext(
+            project_id="approve-outline-existing-storyboard",
+            kind="storyboard",
+            input_version_id="outline-v3",
+            intake={"duration_seconds": 7, "production_formats": ["slides"]},
+            outline=VALID_OUTLINE,
+            storyboard=existing,
+        )
+    )
+
+    assert captured_prompts
+    assert "Keep the existing opening on regeneration." in captured_prompts[0]
+
+
+@pytest.mark.asyncio
+async def test_production_storyboard_revision_retries_structural_miss_with_feedback(
+    monkeypatch,
+):
+    from app.services.orchestrator import orchestrator
+
+    calls = []
+    original_review = orchestrator.quality_gate._async_call_eval
+
+    def fake_run(_writer, _state, **kwargs):
+        calls.append(kwargs)
+        return [] if len(calls) == 1 else [_make_screen("Recovered revision")]
+
+    async def passing_review(*_args, **_kwargs):
+        return {
+            "score": 9,
+            "passed": True,
+            "feedback": "Ready",
+            "strengths": [],
+            "issues": [],
+        }
+
+    monkeypatch.setattr(StoryboardWriter, "run", fake_run)
+    monkeypatch.setattr(orchestrator.quality_gate, "_async_call_eval", passing_review)
+    try:
+        result = await _production_storyboard_generator(
+            GenerationContext(
+                project_id="writer-revision-retry",
+                kind="storyboard",
+                input_version_id="outline-v2",
+                intake={"duration_seconds": 7, "production_formats": ["slides"]},
+                outline=VALID_OUTLINE,
+                storyboard=[_make_screen("Existing")],
+                current_content=[_make_screen("Existing")],
+                instruction="Sharpen the ending",
+            )
+        )
+    finally:
+        orchestrator.quality_gate._async_call_eval = original_review
+
+    assert result.content == [_make_screen("Recovered revision")]
+    assert len(calls) == 2
+    assert calls[0]["revision_instruction"] == "Sharpen the ending"
+    assert "quality_feedback" not in calls[0]
+    assert "structural" in calls[1]["quality_feedback"].lower()
+
+
+@pytest.mark.asyncio
+async def test_production_storyboard_revision_second_structural_miss_blocks(
+    monkeypatch,
+):
+    calls = []
+
+    def invalid_run(_writer, _state, **kwargs):
+        calls.append(kwargs)
+        return []
+
+    monkeypatch.setattr(StoryboardWriter, "run", invalid_run)
+
+    with pytest.raises(ValueError, match="quality gate failed"):
+        await _production_storyboard_generator(
+            GenerationContext(
+                project_id="writer-revision-blocked",
+                kind="storyboard",
+                input_version_id="outline-v2",
+                intake={"duration_seconds": 7, "production_formats": ["slides"]},
+                outline=VALID_OUTLINE,
+                storyboard=[_make_screen("Existing")],
+                current_content=[_make_screen("Existing")],
+                instruction="Sharpen the ending",
+            )
+        )
+
+    assert len(calls) == 2
+    assert "quality_feedback" not in calls[0]
+    assert "structural" in calls[1]["quality_feedback"].lower()
 
 
 @pytest.mark.asyncio

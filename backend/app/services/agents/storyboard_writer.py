@@ -66,7 +66,7 @@ class StoryboardWriter(BaseAgent):
         revision_instruction = kwargs.get("revision_instruction")
         existing_storyboard = kwargs.get("existing_storyboard")
         quality_feedback = kwargs.get("quality_feedback")
-        if existing_storyboard is None and revision_instruction:
+        if existing_storyboard is None:
             existing_storyboard = getattr(state, "storyboard", None)
 
         # 1. Parse outline into sections (stores target_seconds on each section)
@@ -305,6 +305,12 @@ class StoryboardWriter(BaseAgent):
                 errors.append(f"Section {section_number} is missing a title")
             if not section.get("purpose", "").strip():
                 errors.append(f"Section {section_number} is missing Purpose")
+            if not section.get("entry_assumption", "").strip():
+                errors.append(
+                    f"Section {section_number} is missing Entry assumption"
+                )
+            if not section.get("exit_state", "").strip():
+                errors.append(f"Section {section_number} is missing Exit state")
             duration_raw = section.get("duration_range", "")
             target_sec = self._parse_target_seconds(duration_raw)
             if not duration_raw.strip():
@@ -777,19 +783,22 @@ Evidence research:
         sections_text = "\n\n".join(section_blocks)
 
         revision_context = ""
-        if revision_instruction and existing_storyboard is not None:
+        if existing_storyboard:
             existing_text = json.dumps(
                 existing_storyboard, indent=2, ensure_ascii=False
             )
+            instruction_text = (
+                f"\nUser instruction: {revision_instruction}\n"
+                if revision_instruction
+                else ""
+            )
             revision_context = f"""
-
-=== REVISION REQUEST ===
-User instruction: {revision_instruction}
 
 === EXISTING STORYBOARD ===
 {existing_text}
+{instruction_text}
 
-Update the existing storyboard instead of regenerating it from scratch. Preserve unaffected screens and their exact details. Return the complete updated storyboard using the same exact screen schema.
+Update the existing storyboard against the approved outline instead of regenerating it from scratch. Preserve unaffected screens and their exact details. Return the complete updated storyboard using the same exact screen schema.
 """
         elif revision_instruction:
             revision_context = f"""

@@ -45,4 +45,3 @@ Return JSON only:
   "misconception": "Most viewers think X, but actually Y."
 }
 ```
-
