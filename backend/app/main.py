@@ -19,6 +19,7 @@ from app.services.image_generator import ImageGenerator
 from app.utils.json_extractor import extract_json_from_text, convert_to_story_format
 from app.utils.file_extraction import extract_text_from_pdf, extract_text_from_docx, extract_text_from_html
 from app.db import get_db, init_db, ProjectRepository
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from typing import List, Optional
@@ -818,6 +819,9 @@ class SaveStagesRequest(BaseModel):
 async def save_stages(project_id: str, request: SaveStagesRequest, db: AsyncSession = Depends(get_db)):
     """Save all stage data for a project (auto-save endpoint)."""
     try:
+        # Acquire SQLite's writer lock before reading mutable pipeline state so
+        # autosave cannot overwrite a concurrent workflow transition.
+        await db.execute(text("BEGIN IMMEDIATE"))
         repo = ProjectRepository(db)
         project = await repo.get_project(project_id)
         if not project:
@@ -833,6 +837,7 @@ async def save_stages(project_id: str, request: SaveStagesRequest, db: AsyncSess
                     stage_id=stage_id,
                     ai_version=ai_ver,
                     human_version=human_ver,
+                    commit=False,
                 )
 
         ps = await repo.get_pipeline_state(project_id)
@@ -840,13 +845,20 @@ async def save_stages(project_id: str, request: SaveStagesRequest, db: AsyncSess
             state_data = repo.parse_state_data(ps)
             state_data["currentStageId"] = request.currentStageId
             state_data["stageStatuses"] = [s.model_dump() for s in request.stageStatuses]
-            await repo.update_pipeline_state(project_id, ps.phase, ps.status, state_data)
+            await repo.update_pipeline_state(
+                project_id, ps.phase, ps.status, state_data, commit=False
+            )
 
-        await repo.update_project_timestamp(project_id)
+        await repo.update_project_timestamp(project_id, commit=False)
+        await db.commit()
         now = datetime.now().isoformat()
         return {"success": True, "message": "Stages saved successfully", "lastSaved": now}
 
+    except HTTPException:
+        await db.rollback()
+        raise
     except Exception as e:
+        await db.rollback()
         raise HTTPException(status_code=500, detail=f"Error saving stages: {str(e)}")
 
 

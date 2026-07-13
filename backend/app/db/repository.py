@@ -80,13 +80,18 @@ class ProjectRepository:
         await self.session.commit()
         return True
 
-    async def update_project_timestamp(self, project_id: str):
+    async def update_project_timestamp(
+        self, project_id: str, commit: bool = True
+    ):
         await self.session.execute(
             update(Project).where(Project.id == project_id).values(
                 updated_at=datetime.now(timezone.utc)
             )
         )
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
 
     # ---- Pipeline State ----
 
@@ -253,6 +258,7 @@ class ProjectRepository:
         self, project_id: str, stage_id: int,
         ai_version: Optional[str] = None,
         human_version: Optional[str] = None,
+        commit: bool = True,
     ):
         snap = await self.get_stage_snapshot(project_id, stage_id)
         if snap:
@@ -268,7 +274,10 @@ class ProjectRepository:
                 ai_version=ai_version, human_version=human_version,
             )
             self.session.add(snap)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
 
     # ---- Chat Messages ----
 

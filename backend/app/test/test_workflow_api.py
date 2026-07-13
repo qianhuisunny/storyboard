@@ -1,5 +1,7 @@
 """HTTP contract tests for workflow events and canonical pipeline state."""
 
+import asyncio
+
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
@@ -181,3 +183,85 @@ async def test_get_pipeline_state_hydrates_legacy_aliases(workflow_api):
     assert body["data"]["screen_outline"] == legacy["screen_outline"]
     assert body["data"]["storyboard"] == legacy["storyboard"]
     assert body["artifacts"]["storyboard"]["current_content"] == legacy["storyboard"]
+
+
+@pytest.mark.asyncio
+async def test_stage_autosave_and_workflow_transition_preserve_each_others_state(
+    workflow_api, monkeypatch
+):
+    client, service = workflow_api
+    stage_at_update = asyncio.Event()
+    release_stage = asyncio.Event()
+    original_update = ProjectRepository.update_pipeline_state
+    paused = False
+
+    async def pause_stage_update(
+        repo, project_id, phase, status, state_data, commit=True
+    ):
+        nonlocal paused
+        if not paused and "currentStageId" in state_data:
+            paused = True
+            stage_at_update.set()
+            await release_stage.wait()
+        return await original_update(
+            repo,
+            project_id,
+            phase,
+            status,
+            state_data,
+            commit=commit,
+        )
+
+    monkeypatch.setattr(
+        ProjectRepository, "update_pipeline_state", pause_stage_update
+    )
+
+    stage_save = asyncio.create_task(
+        client.post(
+            "/api/project/api-project/stages",
+            json={
+                "stages": {
+                    "2": {
+                        "aiVersion": "autosaved AI outline",
+                        "humanVersion": "autosaved human outline",
+                    }
+                },
+                "currentStageId": 2,
+                "stageStatuses": [
+                    {"id": 1, "status": "approved"},
+                    {"id": 2, "status": "in_progress"},
+                ],
+            },
+        )
+    )
+    await asyncio.wait_for(stage_at_update.wait(), timeout=2)
+    workflow_save = asyncio.create_task(
+        service.process_event(
+            "api-project",
+            "save_intake",
+            {
+                "content": {"prompt": "Concurrent workflow edit"},
+                "expected_version_id": None,
+            },
+        )
+    )
+
+    await asyncio.sleep(0.1)
+    release_stage.set()
+    stage_response, workflow_response = await asyncio.gather(
+        stage_save, workflow_save
+    )
+
+    assert stage_response.status_code == 200
+    assert workflow_response["artifacts"]["intake"]["current_version_id"]
+    async with service.sessionmaker() as session:
+        repo = ProjectRepository(session)
+        row = await repo.get_pipeline_state("api-project")
+        raw = repo.parse_state_data(row)
+        snapshot = await repo.get_stage_snapshot("api-project", 2)
+
+    assert raw["currentStageId"] == 2
+    assert raw["stageStatuses"][-1] == {"id": 2, "status": "in_progress"}
+    assert raw["artifacts"]["intake"]["current_version_id"]
+    assert snapshot.ai_version == "autosaved AI outline"
+    assert snapshot.human_version == "autosaved human outline"

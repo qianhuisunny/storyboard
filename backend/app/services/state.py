@@ -8,7 +8,7 @@ No pipeline state is written to `state.json`.
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Literal, Union
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
 from app.db.engine import AsyncSessionLocal, create_sqlite_async_engine
@@ -56,6 +56,8 @@ class JobOverlay(BaseModel):
     job_id: Optional[str] = None
     kind: Optional[Literal["outline", "storyboard"]] = None
     input_version_id: Optional[str] = None
+    target_version_id: Optional[str] = None
+    started_at: Optional[str] = None
     error: Optional[str] = None
 
 
@@ -69,6 +71,9 @@ class RevisionRecord(BaseModel):
 
 class StoryboardState(BaseModel):
     """Complete state for a storyboard project through the pipeline."""
+
+    model_config = ConfigDict(extra="allow")
+
     project_id: str
     phase: Literal[
         "intake",         # Initial state, waiting for intake form

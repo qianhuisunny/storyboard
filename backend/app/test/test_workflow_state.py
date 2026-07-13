@@ -61,6 +61,21 @@ def test_workflow_state_has_typed_defaults_and_exact_allowed_events():
         assert manager.allowed_events(state) == expected_events
 
 
+def test_workflow_state_round_trips_unknown_stage_metadata():
+    state = StoryboardState(
+        project_id="extra-state-project",
+        currentStageId=3,
+        stageStatuses=[{"id": 3, "status": "in_progress"}],
+        future_metadata={"owner": "frontend"},
+    )
+
+    dumped = state.model_dump()
+
+    assert dumped["currentStageId"] == 3
+    assert dumped["stageStatuses"] == [{"id": 3, "status": "in_progress"}]
+    assert dumped["future_metadata"] == {"owner": "frontend"}
+
+
 @pytest.mark.parametrize(
     ("legacy_phase", "workflow_stage"),
     [

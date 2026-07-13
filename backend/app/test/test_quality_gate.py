@@ -90,6 +90,34 @@ async def test_run_with_gate_retries_failed_output():
 
 
 @pytest.mark.asyncio
+async def test_run_with_gate_restores_prompt_when_retry_agent_raises():
+    gate = QualityGate(max_attempts=2)
+
+    class ExplodingRetryAgent(DummyAgent):
+        def run(self, state):
+            self.calls += 1
+            if self.calls == 2:
+                raise RuntimeError("retry generation failed")
+            return "first outline"
+
+    agent = ExplodingRetryAgent()
+
+    async def fake_evaluate(stage, brief, output, outline=None):
+        return _failed_grade()
+
+    gate.evaluate = fake_evaluate
+
+    with pytest.raises(RuntimeError, match="retry generation failed"):
+        await gate.run_with_gate(
+            agent=agent,
+            state=type("State", (), {"story_brief": {}})(),
+            stage="outline",
+        )
+
+    assert agent.system_prompt == "SYSTEM"
+
+
+@pytest.mark.asyncio
 async def test_orchestrator_stops_when_outline_quality_gate_fails(make_orchestrator, make_state, patch_state_manager):
     orch = make_orchestrator()
     orch.quality_gate = FailingQualityGate()

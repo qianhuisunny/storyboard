@@ -4,7 +4,7 @@ import asyncio
 import inspect
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, AsyncIterator, Awaitable, Callable, Optional
 from uuid import uuid4
 
@@ -57,6 +57,7 @@ class GenerationContext:
     kind: str
     input_version_id: str
     intake: dict
+    target_version_id: Optional[str] = None
     outline: Any = None
     storyboard: Any = None
     current_content: Any = None
@@ -86,9 +87,10 @@ Generator = Callable[[GenerationContext], Awaitable[ArtifactContent] | ArtifactC
 
 async def _production_outline_generator(context: GenerationContext) -> GenerationResult:
     """Use only methods that exist on the current Director and QualityGate."""
+    from app.services.agents.storyboard_director import StoryboardDirector
     from app.services.orchestrator import orchestrator
 
-    director = orchestrator.agents["director"]
+    director = StoryboardDirector()
     state = context.to_state()
     if context.instruction:
         content = await asyncio.to_thread(
@@ -114,9 +116,10 @@ async def _production_outline_generator(context: GenerationContext) -> Generatio
 
 async def _production_storyboard_generator(context: GenerationContext) -> GenerationResult:
     """Run the current Writer with existing storyboard included in its state."""
+    from app.services.agents.storyboard_writer import StoryboardWriter
     from app.services.orchestrator import orchestrator
 
-    writer = orchestrator.agents["writer"]
+    writer = StoryboardWriter()
     state = context.to_state()
     if context.instruction:
         content = await asyncio.to_thread(
@@ -147,6 +150,7 @@ async def _production_storyboard_generator(context: GenerationContext) -> Genera
 
 
 class WorkflowService:
+    JOB_LEASE_DURATION = timedelta(minutes=15)
     NEW_EVENTS = {
         "save_intake",
         "approve_intake",
@@ -255,9 +259,6 @@ class WorkflowService:
             intake_current = artifacts["intake"]["current_content"]
             outline_current = artifacts["outline"]["current_content"]
             storyboard_current = artifacts["storyboard"]["current_content"]
-            intake_is_versioned = (
-                state.artifacts["intake"].current_version_id is not None
-            )
             outline_is_versioned = (
                 state.artifacts["outline"].current_version_id is not None
             )
@@ -266,10 +267,14 @@ class WorkflowService:
             )
             data = {
                 "intake_form": (
-                    intake_current if intake_is_versioned else state.intake_form
+                    state.intake_form
+                    if state.intake_form is not None
+                    else intake_current
                 ),
                 "story_brief": (
-                    intake_current if intake_is_versioned else state.story_brief
+                    state.story_brief
+                    if state.story_brief is not None
+                    else intake_current
                 ),
                 "screen_outline": (
                     outline_current if outline_is_versioned else state.screen_outline
@@ -318,6 +323,11 @@ class WorkflowService:
         async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
+            materialized = await self._materialize_legacy_artifacts(repo, state)
+            payload = self._accept_materialized_expected(
+                payload, artifact_type, materialized, state
+            )
+            self._expire_generation_lease(state)
             self._validate_event(event, state)
             self._require_content(event, state, payload)
             await self._save_human_artifact(repo, state, artifact_type, payload)
@@ -334,6 +344,11 @@ class WorkflowService:
         async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
+            materialized = await self._materialize_legacy_artifacts(repo, state)
+            payload = self._accept_materialized_expected(
+                payload, artifact_type, materialized, state
+            )
+            self._expire_generation_lease(state)
             self._require_content(event, state, payload)
             pointers = state.artifacts[artifact_type]
             current_content = await self._content_for_pointer(
@@ -359,6 +374,8 @@ class WorkflowService:
                 job_id=job_id,
                 kind=target,
                 input_version_id=pointers.approved_version_id,
+                target_version_id=state.artifacts[target].current_version_id,
+                started_at=datetime.now(timezone.utc).isoformat(),
             )
             context = await self._generation_context(
                 repo,
@@ -379,6 +396,11 @@ class WorkflowService:
         async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
+            materialized = await self._materialize_legacy_artifacts(repo, state)
+            payload = self._accept_materialized_expected(
+                payload, artifact_type, materialized, state
+            )
+            self._expire_generation_lease(state)
             instruction = payload.get("instruction")
             if not isinstance(instruction, str) or not instruction.strip():
                 self._raise_invalid(event, state, "instruction is required")
@@ -401,6 +423,8 @@ class WorkflowService:
                 job_id=job_id,
                 kind=artifact_type,
                 input_version_id=input_version_id,
+                target_version_id=pointers.current_version_id,
+                started_at=datetime.now(timezone.utc).isoformat(),
             )
             context = await self._generation_context(
                 repo,
@@ -432,12 +456,27 @@ class WorkflowService:
                 content = generated
                 evaluation = None
             self._validate_generated_content(context.kind, content)
+        except asyncio.CancelledError:
+            await asyncio.shield(
+                self._persist_generation_failure(
+                    context.project_id, job_id, "Generation cancelled"
+                )
+            )
+            raise
         except Exception as error:
-            await self._persist_generation_failure(
+            failed_job = await self._persist_generation_failure(
                 context.project_id, job_id, str(error)
             )
-            failed = await self.get_project(context.project_id)
-            raise WorkflowGenerationError(str(error), failed["job"]) from error
+            if failed_job is None:
+                failed_job = JobOverlay(
+                    status="failed",
+                    job_id=job_id,
+                    kind=context.kind,
+                    input_version_id=context.input_version_id,
+                    target_version_id=context.target_version_id,
+                    error=str(error),
+                ).model_dump()
+            raise WorkflowGenerationError(str(error), failed_job) from error
 
         async with self._write_session() as session:
             repo = ProjectRepository(session)
@@ -451,12 +490,21 @@ class WorkflowService:
                 commit=False,
             )
             input_type = "intake" if context.kind == "outline" else "outline"
-            is_current = (
+            owns_job = (
                 state.job.status == "running"
                 and state.job.job_id == job_id
+                and state.job.kind == context.kind
+            )
+            is_current = (
+                owns_job
                 and state.job.input_version_id == context.input_version_id
+                and state.job.target_version_id == context.target_version_id
                 and state.artifacts[input_type].approved_version_id
                 == context.input_version_id
+                and state.artifacts[input_type].current_version_id
+                == context.input_version_id
+                and state.artifacts[context.kind].current_version_id
+                == context.target_version_id
             )
             if is_current:
                 pointers = state.artifacts[context.kind]
@@ -468,13 +516,14 @@ class WorkflowService:
                         state.outline_eval = evaluation
                     else:
                         state.storyboard_eval = evaluation
+            if owns_job:
                 state.job = JobOverlay()
             await self._persist_state(repo, state)
         return await self.get_project(context.project_id)
 
     async def _persist_generation_failure(
         self, project_id: str, job_id: str, message: str
-    ) -> None:
+    ) -> Optional[dict[str, Any]]:
         async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
@@ -482,6 +531,8 @@ class WorkflowService:
                 state.job.status = "failed"
                 state.job.error = message
                 await self._persist_state(repo, state)
+                return state.job.model_dump()
+        return None
 
     async def _approve_storyboard(
         self,
@@ -492,10 +543,26 @@ class WorkflowService:
         async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
+            materialized = await self._materialize_legacy_artifacts(repo, state)
+            payload = self._accept_materialized_expected(
+                payload, "storyboard", materialized, state
+            )
+            self._expire_generation_lease(state)
             self._validate_event(event, state)
             self._require_content(event, state, payload)
-            await self._save_human_artifact(repo, state, "storyboard", payload)
             pointers = state.artifacts["storyboard"]
+            self._check_expected(pointers.current_version_id, payload)
+            current_content = await self._content_for_pointer(
+                repo, pointers.current_version_id
+            )
+            if pointers.needs_update and current_content == payload["content"]:
+                self._raise_invalid(
+                    event,
+                    state,
+                    "The storyboard is stale and unchanged; use keep_storyboard "
+                    "to explicitly keep it against the new outline.",
+                )
+            await self._save_human_artifact(repo, state, "storyboard", payload)
             pointers.approved_version_id = pointers.current_version_id
             pointers.needs_update = False
             state.workflow_stage = "complete"
@@ -512,6 +579,11 @@ class WorkflowService:
         async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
+            materialized = await self._materialize_legacy_artifacts(repo, state)
+            payload = self._accept_materialized_expected(
+                payload, "storyboard", materialized, state
+            )
+            self._expire_generation_lease(state)
             self._validate_event(event, state)
             pointers = state.artifacts["storyboard"]
             self._check_expected(pointers.current_version_id, payload)
@@ -546,6 +618,8 @@ class WorkflowService:
         async with self._write_session() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
+            await self._materialize_legacy_artifacts(repo, state)
+            self._expire_generation_lease(state)
             self._validate_event(event, state)
             state.workflow_stage = targets[event]
             state.phase = targets[event]
@@ -573,13 +647,27 @@ class WorkflowService:
         pointers = state.artifacts[artifact_type]
         self._check_expected(pointers.current_version_id, payload)
         content = payload["content"]
-        current_content = await self._content_for_pointer(
-            repo, pointers.current_version_id
-        )
-        if pointers.current_version_id is not None and current_content == content:
-            return pointers.current_version_id
-
         based_on = self._human_based_on(state, artifact_type)
+        current_version = (
+            await repo.get_artifact_version(pointers.current_version_id)
+            if pointers.current_version_id is not None
+            else None
+        )
+        current_content = (
+            repo.parse_artifact_content(current_version)
+            if current_version is not None
+            else None
+        )
+        same_lineage = (
+            artifact_type == "intake"
+            or (
+                current_version is not None
+                and current_version.based_on_version_id == based_on
+            )
+        )
+        if current_version is not None and current_content == content and same_lineage:
+            return current_version.id
+
         version = await repo.create_artifact_version(
             state.project_id,
             artifact_type,
@@ -612,6 +700,88 @@ class WorkflowService:
             or state.artifacts["storyboard"].current_version_id
         )
 
+    async def _materialize_legacy_artifacts(
+        self, repo: ProjectRepository, state: StoryboardState
+    ) -> set[str]:
+        """Create immutable versions for legacy content under the write lock."""
+        materialized: set[str] = set()
+        for artifact_type in self.ARTIFACTS:
+            pointers = state.artifacts[artifact_type]
+            legacy_content = self._legacy_content(state, artifact_type)
+            if pointers.current_version_id is None and legacy_content is not None:
+                if artifact_type == "intake":
+                    based_on = None
+                elif artifact_type == "outline":
+                    based_on = (
+                        state.artifacts["intake"].approved_version_id
+                        or state.artifacts["intake"].current_version_id
+                    )
+                else:
+                    based_on = (
+                        state.artifacts["outline"].approved_version_id
+                        or state.artifacts["outline"].current_version_id
+                    )
+                version = await repo.create_artifact_version(
+                    state.project_id,
+                    artifact_type,
+                    legacy_content,
+                    created_by="migration",
+                    based_on_version_id=based_on,
+                    commit=False,
+                )
+                pointers.current_version_id = version.id
+                materialized.add(artifact_type)
+
+            if (
+                pointers.current_version_id is not None
+                and pointers.approved_version_id is None
+                and self._legacy_is_approved(state, artifact_type)
+            ):
+                pointers.approved_version_id = pointers.current_version_id
+
+        return materialized
+
+    def _accept_materialized_expected(
+        self,
+        payload: dict[str, Any],
+        artifact_type: str,
+        materialized: set[str],
+        state: StoryboardState,
+    ) -> dict[str, Any]:
+        if (
+            artifact_type in materialized
+            and payload.get("expected_version_id") is None
+        ):
+            return {
+                **payload,
+                "expected_version_id": state.artifacts[
+                    artifact_type
+                ].current_version_id,
+            }
+        return payload
+
+    def _expire_generation_lease(self, state: StoryboardState) -> bool:
+        if state.job.status != "running":
+            return False
+
+        try:
+            started_at = datetime.fromisoformat(state.job.started_at or "")
+            if started_at.tzinfo is None:
+                started_at = started_at.replace(tzinfo=timezone.utc)
+            expired = (
+                datetime.now(timezone.utc) - started_at
+                >= self.JOB_LEASE_DURATION
+            )
+        except (TypeError, ValueError):
+            expired = True
+
+        if not expired:
+            return False
+
+        state.job.status = "failed"
+        state.job.error = "Generation job lease expired"
+        return True
+
     async def _generation_context(
         self,
         repo: ProjectRepository,
@@ -642,6 +812,7 @@ class WorkflowService:
             kind=kind,
             input_version_id=input_version_id,
             intake=intake,
+            target_version_id=state.job.target_version_id,
             outline=outline,
             storyboard=storyboard,
             current_content=current_content,
@@ -760,8 +931,17 @@ class WorkflowService:
         self, state: StoryboardState, artifact_type: str, content: Any
     ) -> None:
         if artifact_type == "intake":
-            state.intake_form = content
-            state.story_brief = content
+            if state.intake_form is None and state.story_brief is None:
+                state.intake_form = content
+                state.story_brief = content
+            elif state.intake_form is not None and state.story_brief is not None:
+                if state.intake_form == state.story_brief:
+                    state.intake_form = content
+                state.story_brief = content
+            elif state.story_brief is not None:
+                state.story_brief = content
+            else:
+                state.intake_form = content
         elif artifact_type == "outline":
             state.screen_outline = content
         else:
@@ -769,7 +949,11 @@ class WorkflowService:
 
     def _legacy_content(self, state: StoryboardState, artifact_type: str) -> Any:
         if artifact_type == "intake":
-            return state.story_brief or state.intake_form
+            return (
+                state.story_brief
+                if state.story_brief is not None
+                else state.intake_form
+            )
         if artifact_type == "outline":
             return state.screen_outline
         return state.storyboard

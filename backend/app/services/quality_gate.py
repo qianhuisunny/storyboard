@@ -312,8 +312,10 @@ class QualityGate:
             if feedback_block:
                 original_prompt = agent.system_prompt
                 agent.system_prompt = original_prompt + "\n\n" + feedback_block
-                output = agent.run(state)
-                agent.system_prompt = original_prompt
+                try:
+                    output = agent.run(state)
+                finally:
+                    agent.system_prompt = original_prompt
             else:
                 output = agent.run(state)
 

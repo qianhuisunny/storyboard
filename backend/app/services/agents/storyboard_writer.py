@@ -110,7 +110,8 @@ class StoryboardWriter(BaseAgent):
         if target_duration > 0:
             all_screens = self._validate_and_retry_sections(
                 all_screens, sections, all_evidence, brief_context,
-                allowed_types, project_id,
+                allowed_types, project_id, revision_instruction,
+                existing_storyboard,
             )
 
         # 7. Ensure sequential numbering
@@ -409,7 +410,8 @@ class StoryboardWriter(BaseAgent):
 
     def _validate_and_retry_sections(
         self, screens, sections, all_evidence, brief_context,
-        allowed_types, project_id,
+        allowed_types, project_id, revision_instruction=None,
+        existing_storyboard=None,
     ) -> list:
         """Validate each section's duration; retry individual failing sections."""
         screens_by_section: dict[int, list] = {}
@@ -437,6 +439,7 @@ class StoryboardWriter(BaseAgent):
             retry_screens = self._retry_section(
                 section, sec_screens, validation, all_evidence,
                 brief_context, allowed_types, project_id,
+                revision_instruction, existing_storyboard,
             )
             if retry_screens is not None:
                 screens_by_section[sec_num] = retry_screens
@@ -456,6 +459,7 @@ class StoryboardWriter(BaseAgent):
     def _retry_section(
         self, section, current_screens, validation, all_evidence,
         brief_context, allowed_types, project_id,
+        revision_instruction=None, existing_storyboard=None,
     ) -> Optional[list]:
         """Retry generation for a single failing section. Returns new screens or None."""
         title = section.get("title", "")
@@ -472,6 +476,21 @@ class StoryboardWriter(BaseAgent):
             adjust = "SHORTEN voiceover text — cut filler, tighten phrasing, remove redundant screens."
         else:
             adjust = "EXPAND voiceover text — add detail, examples, or split concepts across more screens."
+
+        revision_context = ""
+        if revision_instruction:
+            revision_context += (
+                "\nOriginal revision request (continue to follow it exactly):\n"
+                f"{revision_instruction}\n"
+            )
+        if existing_storyboard is not None:
+            revision_context += (
+                "\nExisting storyboard supplied for this revision:\n"
+                f"{json.dumps(existing_storyboard, ensure_ascii=False, indent=2)}\n"
+            )
+        current_screen_context = json.dumps(
+            current_screens, ensure_ascii=False, indent=2
+        )
 
         prompt = f"""Rewrite ONLY the screens for Section {section['section_number']} — {title}.
 
@@ -490,6 +509,10 @@ Audience: {brief_context['target_audience']} (level: {brief_context['audience_le
 Intent route: {brief_context['intent_route']}
 Content mode: {brief_context['content_mode']}
 Tone: {brief_context['delivery_tone']}
+
+Current generated screens for this section:
+{current_screen_context}
+{revision_context}
 
 {adjust}
 

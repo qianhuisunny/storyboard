@@ -1,3 +1,4 @@
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -6,6 +7,7 @@ from app.services.agents.duration_calculator import DurationCalculator
 from app.services.agents.storyboard_writer import StoryboardWriter
 from app.services.workflow import (
     GenerationContext,
+    _production_outline_generator,
     _production_storyboard_generator,
 )
 
@@ -132,12 +134,11 @@ async def test_production_revision_prompt_includes_existing_storyboard_and_instr
 ):
     from app.services.orchestrator import orchestrator
 
-    writer = orchestrator.agents["writer"]
     captured_prompts = []
     existing = [_make_screen("Preserve this existing screen")]
     instruction = "Keep the opening and make the final action more specific."
 
-    def fake_storyboard_call(prompt, _project_id=None):
+    def fake_storyboard_call(_writer, prompt, _project_id=None):
         captured_prompts.append(prompt)
         return [_make_screen("Updated final action")]
 
@@ -152,7 +153,9 @@ async def test_production_revision_prompt_includes_existing_storyboard_and_instr
     async def fake_evaluate(*_args, **_kwargs):
         return evaluation
 
-    monkeypatch.setattr(writer, "_call_storyboard_llm", fake_storyboard_call)
+    monkeypatch.setattr(
+        StoryboardWriter, "_call_storyboard_llm", fake_storyboard_call
+    )
     monkeypatch.setattr(orchestrator.quality_gate, "evaluate", fake_evaluate)
     monkeypatch.setattr(
         orchestrator, "_raise_if_quality_gate_failed", lambda *_args: None
@@ -174,3 +177,105 @@ async def test_production_revision_prompt_includes_existing_storyboard_and_instr
     assert captured_prompts
     assert instruction in captured_prompts[0]
     assert "Preserve this existing screen" in captured_prompts[0]
+
+
+@pytest.mark.asyncio
+async def test_production_adapters_use_fresh_agents_for_concurrent_jobs(monkeypatch):
+    from app.services.agents.storyboard_director import StoryboardDirector
+    from app.services.orchestrator import orchestrator
+
+    agent_ids = {"outline": [], "storyboard": []}
+
+    async def fake_run_with_gate(
+        agent, _state, stage, outline_for_cross_stage=None
+    ):
+        agent_ids[stage].append(id(agent))
+        output = (
+            VALID_OUTLINE
+            if isinstance(agent, StoryboardDirector)
+            else [_make_screen("Concurrent storyboard")]
+        )
+        result = SimpleNamespace(
+            passed=True,
+            composite_score=10.0,
+            to_dict=lambda: {"passed": True, "composite_score": 10.0},
+        )
+        return output, result
+
+    monkeypatch.setattr(
+        orchestrator.quality_gate, "run_with_gate", fake_run_with_gate
+    )
+
+    outline_context = GenerationContext(
+        project_id="concurrent-outline",
+        kind="outline",
+        input_version_id="intake-v1",
+        intake={"prompt": "Concurrent"},
+    )
+    storyboard_context = GenerationContext(
+        project_id="concurrent-storyboard",
+        kind="storyboard",
+        input_version_id="outline-v1",
+        intake={"duration": 0, "broll_type": ["slides"]},
+        outline=VALID_OUTLINE,
+    )
+
+    await asyncio.gather(
+        _production_outline_generator(outline_context),
+        _production_outline_generator(outline_context),
+        _production_storyboard_generator(storyboard_context),
+        _production_storyboard_generator(storyboard_context),
+    )
+
+    assert len(set(agent_ids["outline"])) == 2
+    assert len(set(agent_ids["storyboard"])) == 2
+
+
+def test_duration_retry_keeps_revision_and_existing_screen_context(monkeypatch):
+    writer = StoryboardWriter()
+    overlong_voiceover = " ".join(
+        ["The current draft needs focused revision." for _ in range(12)]
+    )
+    existing = [_make_screen("Distinct existing screen to preserve")]
+    instruction = "Keep the original example and sharpen only the closing action."
+    retry_prompts = []
+
+    monkeypatch.setattr(
+        writer,
+        "_call_storyboard_llm",
+        lambda _prompt, _project_id=None: [_make_screen(overlong_voiceover)],
+    )
+
+    def fake_retry(prompt, **_kwargs):
+        retry_prompts.append(prompt)
+        return "not valid json"
+
+    monkeypatch.setattr(writer, "call_llm", fake_retry)
+    monkeypatch.setattr(writer, "_extract_json", lambda _response: None)
+
+    state = SimpleNamespace(
+        screen_outline=VALID_OUTLINE,
+        story_brief={
+            "fields": {
+                "duration": {
+                    "value": "10",
+                    "source": "extracted",
+                    "confirmed": True,
+                }
+            }
+        },
+        evidence_research=None,
+        project_id="duration-retry-revision",
+        storyboard=existing,
+    )
+
+    writer.run(
+        state,
+        revision_instruction=instruction,
+        existing_storyboard=existing,
+    )
+
+    assert retry_prompts
+    assert instruction in retry_prompts[0]
+    assert "Distinct existing screen to preserve" in retry_prompts[0]
+    assert "The current draft needs focused revision" in retry_prompts[0]
