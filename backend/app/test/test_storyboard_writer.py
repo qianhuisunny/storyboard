@@ -400,6 +400,10 @@ async def test_legacy_list_outline_is_migrated_and_passes_quality_gate(
     assert all(screen["section_number"] == 1 for screen in output)
     assert all(screen["section_title"] == "Legacy Section 1" for screen in output)
     assert output[0]["voiceover_text"] == "Keep this persisted opening."
+    assert output[0]["visual_direction"] == [
+        "Persisted diagram",
+        "Persisted diagram",
+    ]
     assert output[0]["legacy_note"] == "must survive migration"
 
 

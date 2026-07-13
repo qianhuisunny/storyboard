@@ -963,6 +963,15 @@ Follow your system prompt rules strictly. Every sentence of voiceover must teach
                 visual_direction = [visual_direction]
             elif not isinstance(visual_direction, list):
                 visual_direction = []
+            if (
+                len(visual_direction) == 1
+                and isinstance(visual_direction[0], str)
+                and visual_direction[0].strip()
+            ):
+                # Persisted pre-v0712 storyboards allowed one visual direction.
+                # Repeat that exact direction to satisfy the current 2–4 item
+                # production contract without inventing new legacy content.
+                visual_direction = [visual_direction[0], visual_direction[0]]
             action_notes = screen.get("action_notes")
             if not isinstance(action_notes, str):
                 action_notes = screen.get("Notes") or ""

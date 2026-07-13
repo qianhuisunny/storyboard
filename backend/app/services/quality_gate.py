@@ -434,12 +434,26 @@ class QualityGate:
                 issues.append(
                     f"Screen {index} screen_type is outside selected production formats"
                 )
-            if not isinstance(screen.get("voiceover_text"), str):
-                issues.append(f"Screen {index} voiceover_text must be a string")
-            if not isinstance(screen.get("visual_direction"), list):
+            voiceover_text = screen.get("voiceover_text")
+            if not isinstance(voiceover_text, str) or not voiceover_text.strip():
+                issues.append(
+                    f"Screen {index} voiceover_text must be a non-empty string"
+                )
+            visual_direction = screen.get("visual_direction")
+            if not isinstance(visual_direction, list):
                 issues.append(f"Screen {index} visual_direction must be a list")
-            if not isinstance(screen.get("action_notes"), str):
-                issues.append(f"Screen {index} action_notes must be a string")
+            elif not 2 <= len(visual_direction) <= 4 or any(
+                not isinstance(item, str) or not item.strip()
+                for item in visual_direction
+            ):
+                issues.append(
+                    f"Screen {index} visual_direction must contain 2 to 4 non-empty strings"
+                )
+            action_notes = screen.get("action_notes")
+            if not isinstance(action_notes, str) or not action_notes.strip():
+                issues.append(
+                    f"Screen {index} action_notes must be a non-empty string"
+                )
 
             if "duration" in screen:
                 duration = screen["duration"]

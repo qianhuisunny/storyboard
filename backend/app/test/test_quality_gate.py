@@ -50,7 +50,10 @@ def _screen(number: int = 1, **updates) -> dict:
         "section_title": "Set up",
         "screen_type": "slides",
         "voiceover_text": "Here is the failed handoff and why it matters.",
-        "visual_direction": ["Two-column handoff diagram"],
+        "visual_direction": [
+            "Two-column handoff diagram",
+            "Missing owner highlighted in red",
+        ],
         "action_notes": "Reveal the missing owner.",
     }
     screen.update(updates)
@@ -130,6 +133,53 @@ def test_outline_sections_must_be_unique_and_sequential(outline):
 )
 def test_storyboard_deterministic_validation_rejects_structural_errors(storyboard):
     assert QualityGate().validate_structure("storyboard", {}, storyboard)
+
+
+@pytest.mark.parametrize(
+    ("updates", "expected_issue"),
+    [
+        ({"voiceover_text": ""}, "voiceover_text must be a non-empty string"),
+        ({"voiceover_text": "  \n"}, "voiceover_text must be a non-empty string"),
+        ({"action_notes": ""}, "action_notes must be a non-empty string"),
+        ({"action_notes": " \t "}, "action_notes must be a non-empty string"),
+        (
+            {"visual_direction": []},
+            "visual_direction must contain 2 to 4 non-empty strings",
+        ),
+        (
+            {"visual_direction": ["Only one visual"]},
+            "visual_direction must contain 2 to 4 non-empty strings",
+        ),
+        (
+            {
+                "visual_direction": [
+                    "Visual one",
+                    "Visual two",
+                    "Visual three",
+                    "Visual four",
+                    "Visual five",
+                ]
+            },
+            "visual_direction must contain 2 to 4 non-empty strings",
+        ),
+        (
+            {"visual_direction": ["Concrete visual", "  "]},
+            "visual_direction must contain 2 to 4 non-empty strings",
+        ),
+        (
+            {"visual_direction": ["Concrete visual", 42]},
+            "visual_direction must contain 2 to 4 non-empty strings",
+        ),
+    ],
+)
+def test_storyboard_deterministic_validation_requires_production_content(
+    updates, expected_issue
+):
+    issues = QualityGate().validate_structure(
+        "storyboard", {}, [_screen(**updates)]
+    )
+
+    assert any(expected_issue in issue for issue in issues)
 
 
 def test_storyboard_deterministic_validation_accepts_server_computed_fields_as_optional():
@@ -388,6 +438,56 @@ async def test_second_structural_failure_remains_blocking_and_skips_review(monke
     assert result.attempt == 2
     assert result.total_attempts == 2
     assert len(review_calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_storyboard_second_attempt_with_empty_production_content_is_blocking(
+    monkeypatch,
+):
+    gate = QualityGate()
+    valid_storyboard = [
+        _screen(),
+        _screen(2, section_number=2, section_title="Act"),
+    ]
+    invalid_storyboard = [
+        _screen(voiceover_text="   "),
+        _screen(2, section_number=2, section_title="Act"),
+    ]
+    generated = iter([valid_storyboard, invalid_storyboard])
+    feedback_calls = []
+    review_calls = []
+
+    def generate(feedback):
+        feedback_calls.append(feedback)
+        return next(generated)
+
+    async def low_review(*_args, **_kwargs):
+        review_calls.append(True)
+        return {
+            "score": 5,
+            "passed": False,
+            "feedback": "The opening still needs work.",
+            "strengths": [],
+            "issues": ["Opening lacks specificity"],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", low_review)
+
+    output, result = await gate.run_generator_with_gate(
+        generate,
+        {},
+        "storyboard",
+        outline=VALID_OUTLINE,
+    )
+
+    assert output == invalid_storyboard
+    assert len(feedback_calls) == 2
+    assert "The opening still needs work." in feedback_calls[1]
+    assert len(review_calls) == 1
+    assert result.passed is False
+    assert result.review_passed is False
+    assert result.advisory is False
+    assert any("voiceover_text" in issue for issue in result.deterministic_issues)
 
 
 @pytest.mark.asyncio
