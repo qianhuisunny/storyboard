@@ -45,7 +45,7 @@ export default defineConfig({
     // Uses real Chrome to avoid Google OAuth blocking
     {
       name: 'setup',
-      testMatch: /auth\.setup\.ts/,
+      testMatch: /(?:^|[\\/])auth\.setup\.ts$/,
       use: {
         channel: 'chrome', // Use installed Chrome instead of Chromium
       },
@@ -53,15 +53,23 @@ export default defineConfig({
     // API tests - no auth needed, no UI
     {
       name: 'api',
-      testMatch: /api-.*\.spec\.ts/,
+      testMatch: /(?:^|[\\/])api-[^\\/]*\.spec\.ts$/,
       use: {
         ...devices['Desktop Chrome'],
       },
     },
-    // UI tests - depend on setup for auth
+    // Current canonical mocked UI tests do not require an authenticated browser.
     {
       name: 'chromium',
-      testMatch: /(?:storyboard-.*|plotline-workflow)\.spec\.ts/,
+      testMatch: /(?:^|[\\/])(?:create-project|smart-intake|plotline-workflow)\.spec\.ts$/,
+      use: {
+        ...devices['Desktop Chrome'],
+      },
+    },
+    // Retained legacy storyboard specs still exercise the signed-in surface.
+    {
+      name: 'chromium-auth',
+      testMatch: /(?:^|[\\/])storyboard-[^\\/]*\.spec\.ts$/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: '.auth/user.json',

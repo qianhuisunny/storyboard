@@ -201,6 +201,8 @@ export interface WorkflowJob {
   job_id: string | null;
   kind: WorkflowJobKind;
   input_version_id: string | null;
+  target_version_id?: string | null;
+  started_at?: string | null;
   error?: string | null;
 }
 

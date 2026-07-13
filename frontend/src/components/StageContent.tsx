@@ -501,25 +501,27 @@ export default function StageContent({
 
   // For Draft stage, parse the AI content into production screens array
   const draftData = useMemo<ProductionScreen[]>(() => {
-    if (stage.id !== 3 || !aiContent) return [];
+    const authoritativeContent = humanContent ?? aiContent;
+    if (stage.id !== 3 || !authoritativeContent) return [];
     try {
-      const parsed = typeof aiContent === "string" ? JSON.parse(aiContent) : aiContent;
+      const parsed = typeof authoritativeContent === "string" ? JSON.parse(authoritativeContent) : authoritativeContent;
       return parseProductionScreens(parsed);
     } catch {
       return [];
     }
-  }, [stage.id, aiContent]);
+  }, [stage.id, humanContent, aiContent]);
 
   // For Review stage, parse the AI content into production screens array
   const reviewData = useMemo<ProductionScreen[]>(() => {
-    if (stage.id !== 4 || !aiContent) return [];
+    const authoritativeContent = humanContent ?? aiContent;
+    if (stage.id !== 4 || !authoritativeContent) return [];
     try {
-      const parsed = typeof aiContent === "string" ? JSON.parse(aiContent) : aiContent;
+      const parsed = typeof authoritativeContent === "string" ? JSON.parse(authoritativeContent) : authoritativeContent;
       return parseProductionScreens(parsed);
     } catch {
       return [];
     }
-  }, [stage.id, aiContent]);
+  }, [stage.id, humanContent, aiContent]);
 
 
   // Track brief updates for the Brief stage
@@ -544,7 +546,7 @@ export default function StageContent({
     if (stage.id === 2) setLocalOutlineText(null);
     if (stage.id === 3) setLocalDraft(null);
     if (stage.id === 4) setLocalReview(null);
-  }, [aiContent, stage.id]);
+  }, [aiContent, humanContent, stage.id]);
 
   // Quality gate evals
   const [outlineEval, setOutlineEval] = useState<QualityEvalResult | null>(null);

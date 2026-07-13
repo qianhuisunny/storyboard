@@ -102,7 +102,7 @@ export default function UserView({
       {/* Header with Summary */}
       <header className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border bg-background">
         <div className="w-full">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-1">
                 Storyboard Draft
@@ -113,7 +113,7 @@ export default function UserView({
             </div>
 
             {/* Stats Summary */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
                 <Clock className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-medium">

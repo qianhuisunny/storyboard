@@ -135,7 +135,7 @@ export default function PanelCard({
     >
       {/* Card Header - Always visible */}
       <div
-        className="flex items-center gap-4 px-5 py-4 cursor-pointer"
+        className="flex flex-wrap items-center gap-3 px-3 py-4 sm:flex-nowrap sm:gap-4 sm:px-5 cursor-pointer"
         onClick={onToggleExpand}
       >
         <div className="flex-shrink-0 w-10 h-10 rounded-full bg-muted flex items-center justify-center text-base font-semibold text-muted-foreground">
@@ -153,10 +153,10 @@ export default function PanelCard({
         <img
           src={visualSrc}
           alt=""
-          className="flex-shrink-0 w-14 h-10 object-cover rounded border border-border/50"
+          className="hidden flex-shrink-0 w-14 h-10 object-cover rounded border border-border/50 sm:block"
           onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
         />
-        <div className="flex-1 min-w-0">
+        <div className="order-last w-full min-w-0 sm:order-none sm:flex-1 sm:w-auto">
           <p className="text-base text-foreground truncate">
             {screen.voiceover_text || "(No voiceover)"}
           </p>
@@ -183,9 +183,9 @@ export default function PanelCard({
       {/* Expanded Content — Two-column layout */}
       {isExpanded && (
         <div className="border-t border-border">
-          <div className="flex">
+          <div className="flex flex-col md:flex-row">
             {/* Left: Visual Preview — fixed 320px width, 16:9 aspect */}
-            <div className="relative bg-muted/30 border-r border-border overflow-hidden rounded-bl-lg flex-shrink-0 w-[320px]">
+            <div className="relative w-full bg-muted/30 border-b border-border overflow-hidden flex-shrink-0 md:w-[320px] md:border-b-0 md:border-r md:rounded-bl-lg">
               <div className={cn(
                 "relative w-full aspect-video",
                 isGenerating && "visual-shimmer"
@@ -277,7 +277,7 @@ export default function PanelCard({
               </div>
 
               {/* Footer */}
-              <div className="px-5 py-2.5 border-t border-border/50 flex items-center justify-between">
+              <div className="px-3 sm:px-5 py-2.5 border-t border-border/50 flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-0.5">
                   <button onClick={onMoveUp} disabled={isFirst} className={cn("p-1.5 rounded hover:bg-muted", isFirst && "opacity-30 cursor-not-allowed")}>
                     <ArrowUp className="w-4 h-4" />

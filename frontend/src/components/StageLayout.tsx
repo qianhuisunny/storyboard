@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
+import * as Dialog from "@radix-ui/react-dialog";
 import { AlertCircle, Menu, X, Cloud, CloudOff, Loader2, RefreshCw, Copy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StageNavigation, { type Stage, type StageStatus } from "./StageNavigation";
@@ -259,6 +260,9 @@ export default function StageLayout() {
   const hasLoadedStages = useRef(false);
   const workflowLoadGenerationRef = useRef(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveStatusIdleTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const reloadLatestButtonRef = useRef<HTMLButtonElement | null>(null);
+  const conflictRestoreFocusRef = useRef<HTMLElement | null>(null);
   const previousStageIdRef = useRef<number | null>(null);
   const stageDataRef = useRef(stageData);
   const workflowStateRef = useRef(workflowState);
@@ -273,6 +277,11 @@ export default function StageLayout() {
   useEffect(() => {
     workflowStateRef.current = workflowState;
   }, [workflowState]);
+
+  useEffect(() => () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    if (saveStatusIdleTimeoutRef.current) clearTimeout(saveStatusIdleTimeoutRef.current);
+  }, [projectId]);
 
   const usesCanonicalWorkflow = Boolean(
     workflowLoadState === "canonical"
@@ -495,6 +504,9 @@ export default function StageLayout() {
 
   const surfaceWorkflowError = useCallback((caught: unknown, stageId: 2 | 3, content: string) => {
     if (caught instanceof WorkflowConflictError && caught.code === "version_conflict") {
+      conflictRestoreFocusRef.current = document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
       suppressedConflictContentRef.current = content;
       setVersionConflict({ stageId, message: caught.message });
       setSaveStatus("error");
@@ -519,6 +531,7 @@ export default function StageLayout() {
       return null;
     }
 
+    if (saveStatusIdleTimeoutRef.current) clearTimeout(saveStatusIdleTimeoutRef.current);
     setSaveStatus("saving");
     setWorkflowActionError(null);
     const request = sendWorkflowEvent(projectId, `save_${artifactType}`, {
@@ -540,7 +553,11 @@ export default function StageLayout() {
         suppressedConflictContentRef.current = null;
       }
       setSaveStatus("saved");
-      setTimeout(() => setSaveStatus("idle"), 1800);
+      if (saveStatusIdleTimeoutRef.current) clearTimeout(saveStatusIdleTimeoutRef.current);
+      saveStatusIdleTimeoutRef.current = setTimeout(() => {
+        saveStatusIdleTimeoutRef.current = null;
+        setSaveStatus("idle");
+      }, 1800);
       return nextWorkflow;
     }).catch((caught: unknown) => {
       surfaceWorkflowError(caught, stageId, content);
@@ -589,7 +606,7 @@ export default function StageLayout() {
     content: string,
     instruction: string,
   ) => {
-    if (!projectId || isWorkflowActionPending) return;
+    if (!projectId || isWorkflowActionPending || workflowStateRef.current?.job.status === "running") return;
     const stageId = artifactType === "outline" ? 2 : 3;
     setIsWorkflowActionPending(true);
     setWorkflowActionError(null);
@@ -615,7 +632,7 @@ export default function StageLayout() {
     artifactType: EditableArtifact,
     content: string,
   ) => {
-    if (!projectId || isWorkflowActionPending) return;
+    if (!projectId || isWorkflowActionPending || workflowStateRef.current?.job.status === "running") return;
     const stageId = artifactType === "outline" ? 2 : 3;
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     setIsWorkflowActionPending(true);
@@ -643,22 +660,28 @@ export default function StageLayout() {
   }, [handleWorkflowChange, isWorkflowActionPending, projectId, surfaceWorkflowError]);
 
   const handleKeepStoryboard = useCallback(async () => {
-    if (!projectId || isWorkflowActionPending) return;
+    if (!projectId || isWorkflowActionPending || workflowStateRef.current?.job.status === "running") return;
     const current = workflowStateRef.current;
     const storyboard = current?.artifacts.storyboard;
     if (!current || !storyboard?.current_version_id) return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     setIsWorkflowActionPending(true);
     setWorkflowActionError(null);
     try {
+      const editableContent = stageDataRef.current[3]?.humanVersion
+        ?? stringifyForStageData(storyboard.current_content);
+      const latest = await ensureLatestArtifact("storyboard", editableContent);
+      const latestStoryboard = latest?.artifacts.storyboard;
+      if (!latestStoryboard?.current_version_id) return;
       handleWorkflowChange(await sendWorkflowEvent(projectId, "keep_storyboard", {
-        expected_version_id: storyboard.current_version_id,
+        expected_version_id: latestStoryboard.current_version_id,
       }));
     } catch (caught) {
       surfaceWorkflowError(caught, 3, stringifyForStageData(storyboard.current_content));
     } finally {
       setIsWorkflowActionPending(false);
     }
-  }, [handleWorkflowChange, isWorkflowActionPending, projectId, surfaceWorkflowError]);
+  }, [ensureLatestArtifact, handleWorkflowChange, isWorkflowActionPending, projectId, surfaceWorkflowError]);
 
   const reloadVersionConflict = useCallback(async () => {
     if (!projectId) return;
@@ -687,6 +710,7 @@ export default function StageLayout() {
   const saveStages = useCallback(async () => {
     if (!projectId || usesCanonicalWorkflow || Object.keys(stageData).length === 0) return;
 
+    if (saveStatusIdleTimeoutRef.current) clearTimeout(saveStatusIdleTimeoutRef.current);
     setSaveStatus("saving");
     try {
       const response = await fetch(`/api/project/${projectId}/stages`, {
@@ -701,8 +725,10 @@ export default function StageLayout() {
 
       if (response.ok) {
         setSaveStatus("saved");
-        // Reset to idle after 2 seconds
-        setTimeout(() => setSaveStatus("idle"), 2000);
+        saveStatusIdleTimeoutRef.current = setTimeout(() => {
+          saveStatusIdleTimeoutRef.current = null;
+          setSaveStatus("idle");
+        }, 2000);
       } else {
         setSaveStatus("error");
       }
@@ -1059,23 +1085,9 @@ export default function StageLayout() {
   const jobAppliesToCurrentStage = usesCanonicalWorkflow
     && activeJobStageId === currentStageId
     && workflowState?.job.status !== "idle";
+  const workflowMutationLocked = isWorkflowActionPending || workflowState?.job.status === "running";
 
-  const handleRetryCurrentJob = async () => {
-    if (workflowState?.job.kind === "outline") {
-      await handleRetryOutline();
-      return;
-    }
-    const storyboard = workflowState?.artifacts.storyboard;
-    if (workflowState?.job.kind === "storyboard" && storyboard?.current_content) {
-      await handleCanonicalRevise(
-        "storyboard",
-        stringifyForStageData(storyboard.current_content),
-        "Regenerate the storyboard for the currently approved outline.",
-      );
-    }
-  };
-
-  const handleRetryOutline = async () => {
+  const handleRetryInitialOutline = async () => {
     if (!projectId || !workflowState || workflowState.job.kind !== "outline") return;
     setIsRetryingJob(true);
     setWorkflowActionError(null);
@@ -1109,6 +1121,81 @@ export default function StageLayout() {
       }
     } finally {
       setIsRetryingJob(false);
+    }
+  };
+
+  const handleRetryInitialStoryboard = async () => {
+    if (!projectId || !workflowState || workflowState.job.kind !== "storyboard") return;
+    setIsRetryingJob(true);
+    setWorkflowActionError(null);
+    try {
+      let editableWorkflow = workflowState;
+      if (editableWorkflow.workflow_stage !== "outline") {
+        const reopenEvent = editableWorkflow.workflow_stage === "complete" ? "reopen_outline" : "edit_outline";
+        editableWorkflow = await sendWorkflowEvent(projectId, reopenEvent, {});
+        handleWorkflowChange(editableWorkflow);
+      }
+      const outline = editableWorkflow.artifacts.outline;
+      if (!outline.current_version_id || outline.current_content == null) {
+        throw new Error("The current Outline version is unavailable.");
+      }
+      const next = await sendWorkflowGenerationEvent(
+        projectId,
+        "approve_outline",
+        {
+          content: outline.current_content,
+          expected_version_id: outline.current_version_id,
+        },
+        handleWorkflowChange,
+      );
+      handleWorkflowChange(next);
+    } catch (caught) {
+      setWorkflowActionError(caught instanceof Error ? caught.message : "Could not retry storyboard generation.");
+      try {
+        handleWorkflowChange(await getWorkflow(projectId));
+      } catch {
+        // Preserve the actionable retry error if refresh also fails.
+      }
+    } finally {
+      setIsRetryingJob(false);
+    }
+  };
+
+  const handleRetryCurrentJob = async () => {
+    if (!workflowState || workflowState.job.status !== "failed") return;
+    const { job, artifacts } = workflowState;
+    if (job.kind === "outline") {
+      if (
+        artifacts.outline.current_version_id
+        && artifacts.outline.current_content != null
+        && job.input_version_id
+        && job.target_version_id === artifacts.outline.current_version_id
+      ) {
+        await handleCanonicalRevise(
+          "outline",
+          stringifyForStageData(artifacts.outline.current_content),
+          "Retry the most recent outline revision.",
+        );
+        return;
+      }
+      await handleRetryInitialOutline();
+      return;
+    }
+    if (job.kind === "storyboard") {
+      if (
+        artifacts.storyboard.current_version_id
+        && artifacts.storyboard.current_content != null
+        && job.input_version_id
+        && job.target_version_id === artifacts.storyboard.current_version_id
+      ) {
+        await handleCanonicalRevise(
+          "storyboard",
+          stringifyForStageData(artifacts.storyboard.current_content),
+          "Retry the most recent storyboard revision.",
+        );
+        return;
+      }
+      await handleRetryInitialStoryboard();
     }
   };
 
@@ -1259,7 +1346,7 @@ export default function StageLayout() {
                       variant="outline"
                       size="sm"
                       className="mt-3 border-red-200 bg-white"
-                      disabled={isRetryingJob || isWorkflowActionPending}
+                      disabled={isRetryingJob || workflowMutationLocked}
                       onClick={() => void handleRetryCurrentJob()}
                     >
                       {isRetryingJob ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
@@ -1284,17 +1371,17 @@ export default function StageLayout() {
                     <Button
                       type="button"
                       size="sm"
-                      disabled={isWorkflowActionPending}
+                      disabled={workflowMutationLocked}
                       onClick={() => void handleCanonicalRevise(
                         "storyboard",
                         stringifyForStageData(workflowState.artifacts.storyboard.current_content),
                         "Regenerate the storyboard for the currently approved outline.",
                       )}
                     >
-                      {isWorkflowActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                      {workflowMutationLocked ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
                       Regenerate storyboard
                     </Button>
-                    <Button type="button" size="sm" variant="outline" disabled={isWorkflowActionPending} onClick={() => void handleKeepStoryboard()}>
+                    <Button type="button" size="sm" variant="outline" disabled={workflowMutationLocked} onClick={() => void handleKeepStoryboard()}>
                       Keep as-is
                     </Button>
                   </div>
@@ -1317,7 +1404,7 @@ export default function StageLayout() {
                 onWorkflowChange={handleWorkflowChange}
                 onCanonicalApprove={handleCanonicalApprove}
                 onCanonicalRevise={handleCanonicalRevise}
-                isWorkflowActionPending={isWorkflowActionPending}
+                isWorkflowActionPending={workflowMutationLocked}
               />
             )}
           </>
@@ -1331,19 +1418,34 @@ export default function StageLayout() {
         onSubmit={handleRatingSubmit}
       />
 
-      {versionConflict && (
-        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1C2118]/45 p-4">
-          <div
-            role="alertdialog"
-            aria-label="Version conflict"
-            aria-modal="true"
-            className="w-full max-w-md rounded-2xl border border-[#D9DDD2] bg-white p-6 shadow-2xl"
-          >
+      <Dialog.Root
+        open={Boolean(versionConflict)}
+        onOpenChange={(open) => {
+          if (!open) setVersionConflict(null);
+        }}
+      >
+        {versionConflict && (
+          <Dialog.Portal>
+            <Dialog.Overlay className="fixed inset-0 z-[80] bg-[#1C2118]/45" />
+            <Dialog.Content
+              role="alertdialog"
+              aria-label="Version conflict"
+              className="fixed left-1/2 top-1/2 z-[81] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-[#D9DDD2] bg-white p-6 shadow-2xl"
+              onOpenAutoFocus={(event) => {
+                event.preventDefault();
+                reloadLatestButtonRef.current?.focus();
+              }}
+              onCloseAutoFocus={(event) => {
+                event.preventDefault();
+                conflictRestoreFocusRef.current?.focus();
+                conflictRestoreFocusRef.current = null;
+              }}
+            >
             <div className="flex items-start gap-3">
               <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
               <div>
-                <h2 className="font-medium text-[#1C2118]">Version conflict</h2>
-                <p className="mt-2 text-sm leading-6 text-[#626B58]">{versionConflict.message}</p>
+                <Dialog.Title className="font-medium text-[#1C2118]">Version conflict</Dialog.Title>
+                <Dialog.Description className="mt-2 text-sm leading-6 text-[#626B58]">{versionConflict.message}</Dialog.Description>
                 <p className="mt-2 text-sm leading-6 text-[#626B58]">Reload the canonical version, or keep your local copy open without overwriting the newer work.</p>
               </div>
             </div>
@@ -1352,14 +1454,15 @@ export default function StageLayout() {
                 <Copy className="mr-2 h-4 w-4" />
                 Keep my copy
               </Button>
-              <Button type="button" onClick={() => void reloadVersionConflict()}>
+              <Button ref={reloadLatestButtonRef} type="button" onClick={() => void reloadVersionConflict()}>
                 <RotateCcw className="mr-2 h-4 w-4" />
                 Reload latest
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+            </Dialog.Content>
+          </Dialog.Portal>
+        )}
+      </Dialog.Root>
     </div>
   );
 }
