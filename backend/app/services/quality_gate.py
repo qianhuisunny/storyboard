@@ -2,13 +2,17 @@
 
 import asyncio
 import inspect
-import json
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Optional
 
 from app.infra.llm_gateway import llm
+from app.services.production_formats import (
+    VALID_SCREEN_TYPES,
+    normalize_production_formats,
+)
+from app.services.prompt_context import render_prompt_value
 
 
 PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
@@ -16,19 +20,6 @@ PROMPTS_DIR = Path(__file__).parent.parent.parent.parent / "prompts"
 STAGE_PROMPTS = {
     "outline": "OUTLINE_EVAL_PROMPT_v0712.md",
     "storyboard": "STORYBOARD_EVAL_PROMPT_v0712.md",
-}
-
-VALID_SCREEN_TYPES = {
-    "screen_recording",
-    "slides",
-    "whiteboard_animation",
-    "whiteboard",
-    "code_editor",
-    "stock_footage",
-    "real_world",
-    "talking_head",
-    "talking_head_with_split_screens",
-    "talking_head_left_with_notes",
 }
 
 STORYBOARD_REQUIRED_FIELDS = {
@@ -195,15 +186,14 @@ class QualityGate:
 
     def _canonical_brief_context(self, brief: dict) -> dict[str, Any]:
         definitions = (
-            ("prompt", ("prompt", "topic", "description")),
+            ("prompt", ("prompt", "topic", "description", "video_goal")),
             ("viewer_outcome", ("viewer_outcome",)),
             ("target_audience", ("target_audience",)),
             ("audience_level", ("audience_level",)),
             ("platform", ("platform",)),
             ("aspect_ratio", ("aspect_ratio",)),
             ("delivery_tone", ("delivery_tone",)),
-            ("production_formats", ("production_formats", "broll_type")),
-            ("source_snapshot", ("source_snapshot", "source_context")),
+            ("source_snapshot", ("source_snapshot", "source_context", "key_points")),
             ("sources", ("sources",)),
         )
         context = {}
@@ -214,7 +204,21 @@ class QualityGate:
         duration = self._requested_duration(brief)
         if duration is not None:
             context["duration_seconds"] = duration
+        formats_provided, formats = self._selected_production_formats(brief)
+        if formats_provided and formats:
+            context["production_formats"] = formats
         return context
+
+    @staticmethod
+    def _parse_section_duration(value: Any) -> Optional[int]:
+        if not isinstance(value, str):
+            return None
+        match = re.fullmatch(
+            r"\s*([1-9]\d*)\s*(?:seconds?|secs?|s)?\s*",
+            value,
+            re.IGNORECASE,
+        )
+        return int(match.group(1)) if match else None
 
     def _build_brief_context(self, brief: dict) -> str:
         context = self._canonical_brief_context(brief)
@@ -236,12 +240,22 @@ class QualityGate:
             if key not in context:
                 continue
             value = context[key]
-            if isinstance(value, (list, tuple, dict)):
-                rendered = json.dumps(value, ensure_ascii=False, indent=2)
-            else:
-                rendered = str(value)
+            cap = 4000 if key in {"source_snapshot", "sources"} else 1000
+            rendered = render_prompt_value(value, cap)
             lines.append(f"{label}: {rendered}")
-        return "\n".join(lines) or "No additional intake values were provided."
+        context_text = "\n".join(lines) or "No additional intake values were provided."
+        return render_prompt_value(context_text, 10000)
+
+    @staticmethod
+    def _outline_sections(output: Any) -> list[tuple[int, str]]:
+        if not isinstance(output, str):
+            return []
+        return [
+            (int(match.group(1)), match.group(2).strip())
+            for match in re.finditer(
+                r"^Section\s+(\d+)\s*[—–-]\s*(.+)$", output, re.MULTILINE
+            )
+        ]
 
     @staticmethod
     def _outline_field(block: str, label: str) -> str:
@@ -275,6 +289,9 @@ class QualityGate:
             return ["Could not parse any Section blocks"]
 
         issues = []
+        numbers = [int(header.group(1)) for header in headers]
+        if numbers != list(range(1, len(headers) + 1)):
+            issues.append("Outline section numbers must be unique and sequential from 1")
         total_duration = 0
         for index, header in enumerate(headers):
             section_number = int(header.group(1))
@@ -297,7 +314,7 @@ class QualityGate:
                 issues.append(f"Section {section_number} is missing Exit state")
 
             duration_text = self._outline_field(block, "Duration")
-            duration = self._parse_positive_integer(duration_text)
+            duration = self._parse_section_duration(duration_text)
             if duration is None:
                 issues.append(
                     f"Section {section_number} Duration must be a positive integer number of seconds"
@@ -324,12 +341,46 @@ class QualityGate:
                 )
         return issues
 
-    @staticmethod
-    def _validate_storyboard(output: Any) -> list[str]:
+    def _brief_has_field(self, brief: dict, name: str) -> bool:
+        if name in (brief or {}):
+            return True
+        fields = (brief or {}).get("fields", {})
+        return isinstance(fields, dict) and name in fields
+
+    def _selected_production_formats(self, brief: dict) -> tuple[bool, list[str]]:
+        canonical_present = self._brief_has_field(brief, "production_formats")
+        legacy_present = self._brief_has_field(brief, "broll_type")
+        if canonical_present:
+            raw = self._extract_aliases(brief, ("production_formats",), [])
+        elif legacy_present:
+            raw = self._extract_aliases(brief, ("broll_type",), [])
+        else:
+            return False, []
+        allowed = normalize_production_formats(raw)
+        if not canonical_present:
+            on_camera = self._extract_aliases(brief, ("on_camera_presence",), "")
+            if str(on_camera).strip().lower() not in {"", "no", "none", "false", "0"}:
+                if "talking_head" not in allowed:
+                    allowed.append("talking_head")
+        return True, allowed
+
+    def _validate_storyboard(
+        self, brief: dict, output: Any, outline: Any = None
+    ) -> list[str]:
         if not isinstance(output, list) or not output:
             return ["Storyboard must be a non-empty list"]
 
         issues = []
+        formats_provided, allowed_types = self._selected_production_formats(brief)
+        parsed_outline_sections = self._outline_sections(outline)
+        outline_sections = dict(parsed_outline_sections) if outline is not None else {}
+        if outline is not None:
+            outline_numbers = [number for number, _title in parsed_outline_sections]
+            if outline_numbers != list(range(1, len(parsed_outline_sections) + 1)):
+                issues.append(
+                    "Approved outline section numbers must be unique and sequential from 1"
+                )
+        seen_sections = set()
         for index, screen in enumerate(output, start=1):
             if not isinstance(screen, dict):
                 issues.append(f"Screen {index} must be an object")
@@ -353,12 +404,29 @@ class QualityGate:
                 or section_number <= 0
             ):
                 issues.append(f"Screen {index} has an invalid section_number")
+            else:
+                seen_sections.add(section_number)
+                if outline is not None and section_number not in outline_sections:
+                    issues.append(
+                        f"Screen {index} references unknown outline section {section_number}"
+                    )
             if not isinstance(screen.get("section_title"), str) or not screen.get(
                 "section_title", ""
             ).strip():
                 issues.append(f"Screen {index} has an invalid section_title")
+            elif section_number in outline_sections and screen.get(
+                "section_title", ""
+            ).strip() != outline_sections[section_number]:
+                issues.append(
+                    f"Screen {index} section_title must match outline title "
+                    f"{outline_sections[section_number]!r}"
+                )
             if screen.get("screen_type") not in VALID_SCREEN_TYPES:
                 issues.append(f"Screen {index} has an invalid screen_type")
+            elif formats_provided and screen.get("screen_type") not in allowed_types:
+                issues.append(
+                    f"Screen {index} screen_type is outside selected production formats"
+                )
             if not isinstance(screen.get("voiceover_text"), str):
                 issues.append(f"Screen {index} voiceover_text must be a string")
             if not isinstance(screen.get("visual_direction"), list):
@@ -374,13 +442,21 @@ class QualityGate:
                     or duration <= 0
                 ):
                     issues.append(f"Screen {index} duration must be positive")
+        if outline is not None:
+            for section_number in outline_sections:
+                if section_number not in seen_sections:
+                    issues.append(
+                        f"Storyboard is missing outline section {section_number}"
+                    )
         return issues
 
-    def validate_structure(self, stage: str, brief: dict, output: Any) -> list[str]:
+    def validate_structure(
+        self, stage: str, brief: dict, output: Any, outline: Any = None
+    ) -> list[str]:
         if stage == "outline":
             return self._validate_outline(brief, output)
         if stage == "storyboard":
-            return self._validate_storyboard(output)
+            return self._validate_storyboard(brief, output, outline=outline)
         raise ValueError(f"Unsupported quality stage: {stage}")
 
     def _call_eval(self, stage: str, user_prompt: str, label: str = "holistic") -> dict:
@@ -400,27 +476,50 @@ class QualityGate:
         return await asyncio.to_thread(self._call_eval, stage, user_prompt, label)
 
     @staticmethod
-    def _format_output(output: Any) -> str:
-        if isinstance(output, (list, dict)):
-            return json.dumps(output, indent=2, ensure_ascii=False)
-        return str(output)
+    def _format_output(output: Any, max_chars: int = 12000) -> str:
+        return render_prompt_value(output, max_chars)
 
     def _build_review_prompt(
-        self, stage: str, brief: dict, output: Any, outline: Any = None
+        self,
+        stage: str,
+        brief: dict,
+        output: Any,
+        outline: Any = None,
+        revision_artifact: Any = None,
+        revision_instruction: Optional[str] = None,
     ) -> str:
+        # Intake (10k), artifact/outline (20k), and revision context (10k)
+        # remain under a 40k contextual budget before fixed instructions.
         if stage == "storyboard" and outline is not None:
             artifact = (
-                f"## APPROVED OUTLINE\n{self._format_output(outline)}\n\n"
+                f"## APPROVED OUTLINE\n{self._format_output(outline, 8000)}\n\n"
                 f"## STORYBOARD\n{self._format_output(output)}"
             )
         else:
             label = "OUTLINE" if stage == "outline" else "STORYBOARD"
             artifact = f"## {label}\n{self._format_output(output)}"
+        revision_context = ""
+        if revision_artifact is not None or revision_instruction:
+            revision_context = (
+                "\n\n## REVISION CONTRACT\n"
+                "Judge exact compliance with the user instruction and preservation of "
+                "unaffected content.\n"
+            )
+            if revision_instruction:
+                revision_context += (
+                    "User instruction:\n"
+                    f"{render_prompt_value(revision_instruction, 2000)}\n"
+                )
+            if revision_artifact is not None:
+                revision_context += (
+                    "Prior artifact:\n"
+                    f"{self._format_output(revision_artifact, 8000)}"
+                )
         return (
             "Review this artifact holistically for usefulness, coherence, specificity, "
             "grounding, audience fit, production readiness, and completion.\n\n"
             f"## APPROVED INTAKE\n{self._build_brief_context(brief)}\n\n"
-            f"{artifact}\n\n"
+            f"{artifact}{revision_context}\n\n"
             "Return the exact JSON object required by the system prompt."
         )
 
@@ -431,7 +530,10 @@ class QualityGate:
         return [str(item) for item in value if str(item).strip()]
 
     def _structural_failure_result(
-        self, issues: list[str], attempt: int = 0
+        self,
+        issues: list[str],
+        attempt: int = 1,
+        total_attempts: int = 1,
     ) -> QualityEvalResult:
         feedback = "Structural validation failed: " + "; ".join(issues)
         return QualityEvalResult(
@@ -440,7 +542,7 @@ class QualityGate:
             dimensions=None,
             composite_score=0.0,
             attempt=attempt,
-            total_attempts=self.max_attempts,
+            total_attempts=total_attempts,
             issues=list(issues),
             deterministic_issues=list(issues),
             advisory=False,
@@ -450,11 +552,20 @@ class QualityGate:
     def _log_eval_event(
         self, stage: str, brief: dict, output: Any, result: QualityEvalResult,
         outline: Any = None,
+        revision_artifact: Any = None,
+        revision_instruction: Optional[str] = None,
     ) -> None:
         try:
             from app.infra.quality_log import qlog
 
-            context = self._build_review_prompt(stage, brief, output, outline)
+            context = self._build_review_prompt(
+                stage,
+                brief,
+                output,
+                outline,
+                revision_artifact=revision_artifact,
+                revision_instruction=revision_instruction,
+            )
             qlog.log_eval(
                 project_id=brief.get("project_id", "unknown"),
                 stage=stage,
@@ -474,14 +585,66 @@ class QualityGate:
         brief: dict,
         output: Any,
         outline: Any = None,
+        revision_artifact: Any = None,
+        revision_instruction: Optional[str] = None,
     ) -> QualityEvalResult:
-        structural_issues = self.validate_structure(stage, brief, output)
+        structural_issues = self.validate_structure(
+            stage, brief, output, outline=outline
+        )
         if structural_issues:
             result = self._structural_failure_result(structural_issues)
-            self._log_eval_event(stage, brief, output, result, outline)
+            self._log_eval_event(
+                stage,
+                brief,
+                output,
+                result,
+                outline,
+                revision_artifact,
+                revision_instruction,
+            )
             return result
 
-        prompt = self._build_review_prompt(stage, brief, output, outline)
+        result = await self._holistic_result(
+            stage,
+            brief,
+            output,
+            outline=outline,
+            revision_artifact=revision_artifact,
+            revision_instruction=revision_instruction,
+            attempt=1,
+            total_attempts=1,
+        )
+        self._log_eval_event(
+            stage,
+            brief,
+            output,
+            result,
+            outline,
+            revision_artifact,
+            revision_instruction,
+        )
+        return result
+
+    async def _holistic_result(
+        self,
+        stage: str,
+        brief: dict,
+        output: Any,
+        outline: Any = None,
+        revision_artifact: Any = None,
+        revision_instruction: Optional[str] = None,
+        attempt: int = 1,
+        total_attempts: int = 1,
+    ) -> QualityEvalResult:
+        """Run only the subjective review; callers own final metadata and logging."""
+        prompt = self._build_review_prompt(
+            stage,
+            brief,
+            output,
+            outline,
+            revision_artifact=revision_artifact,
+            revision_instruction=revision_instruction,
+        )
         raw = await self._async_call_eval(stage, prompt, label="holistic")
         try:
             score = float(raw.get("score", 0))
@@ -490,21 +653,19 @@ class QualityGate:
         score = max(0.0, min(10.0, score))
         review_passed = bool(raw.get("passed", False)) and score >= self.threshold
         feedback = str(raw.get("feedback", ""))
-        result = QualityEvalResult(
+        return QualityEvalResult(
             passed=review_passed,
             gut=GutScore(score=score, feedback=feedback),
             dimensions=None,
             composite_score=round(score, 1),
-            attempt=0,
-            total_attempts=0,
+            attempt=attempt,
+            total_attempts=total_attempts,
             strengths=self._string_list(raw.get("strengths")),
             issues=self._string_list(raw.get("issues")),
             deterministic_issues=[],
             advisory=False,
             review_passed=review_passed,
         )
-        self._log_eval_event(stage, brief, output, result, outline)
-        return result
 
     def format_feedback_for_retry(
         self, result: QualityEvalResult, attempt: int
@@ -525,6 +686,8 @@ class QualityGate:
         brief: dict,
         stage: str,
         outline: Any = None,
+        revision_artifact: Any = None,
+        revision_instruction: Optional[str] = None,
     ) -> tuple[Any, QualityEvalResult]:
         quality_feedback: Optional[str] = None
 
@@ -533,10 +696,24 @@ class QualityGate:
             if inspect.isawaitable(output):
                 output = await output
 
-            structural_issues = self.validate_structure(stage, brief, output)
+            review_outline = outline if stage == "storyboard" else None
+            structural_issues = self.validate_structure(
+                stage, brief, output, outline=review_outline
+            )
             if structural_issues:
                 result = self._structural_failure_result(
-                    structural_issues, attempt=attempt
+                    structural_issues,
+                    attempt=attempt,
+                    total_attempts=self.max_attempts,
+                )
+                self._log_eval_event(
+                    stage,
+                    brief,
+                    output,
+                    result,
+                    review_outline,
+                    revision_artifact,
+                    revision_instruction,
                 )
                 if attempt == self.max_attempts:
                     return output, result
@@ -547,21 +724,52 @@ class QualityGate:
                 )
                 continue
 
-            review_outline = outline if stage == "storyboard" else None
-            result = await self.evaluate(
-                stage, brief, output, outline=review_outline
+            result = await self._holistic_result(
+                stage,
+                brief,
+                output,
+                outline=review_outline,
+                revision_artifact=revision_artifact,
+                revision_instruction=revision_instruction,
+                attempt=attempt,
+                total_attempts=self.max_attempts,
             )
-            result.attempt = attempt
-            result.total_attempts = self.max_attempts
             if result.review_passed:
                 result.advisory = False
+                self._log_eval_event(
+                    stage,
+                    brief,
+                    output,
+                    result,
+                    review_outline,
+                    revision_artifact,
+                    revision_instruction,
+                )
                 return output, result
             if attempt == self.max_attempts:
                 # The output is structurally safe. Keep the low holistic review
                 # visible, but do not block the workflow after the one retry.
                 result.passed = True
                 result.advisory = True
+                self._log_eval_event(
+                    stage,
+                    brief,
+                    output,
+                    result,
+                    review_outline,
+                    revision_artifact,
+                    revision_instruction,
+                )
                 return output, result
+            self._log_eval_event(
+                stage,
+                brief,
+                output,
+                result,
+                review_outline,
+                revision_artifact,
+                revision_instruction,
+            )
             quality_feedback = self.format_feedback_for_retry(result, attempt - 1)
 
         raise RuntimeError("Quality gate exhausted unexpectedly")

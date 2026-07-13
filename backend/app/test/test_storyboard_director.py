@@ -108,6 +108,37 @@ def test_director_supports_legacy_nested_fields_and_aliases_without_fabricated_v
     _assert_no_banned_terms(prompt)
 
 
+def test_director_maps_flat_legacy_goal_and_key_points_to_bounded_source_context():
+    director = StoryboardDirector()
+    prompt = director._build_prompt(
+        {
+            "video_goal": "Teach teams to recover a failed deploy",
+            "target_audience": "Engineering leads",
+            "key_points": ["Stop the rollout", "Restore service", "Debrief"],
+        }
+    )
+
+    assert "Teach teams to recover a failed deploy" in prompt
+    assert "Stop the rollout" in prompt
+    assert "Restore service" in prompt
+
+
+def test_director_caps_large_source_values_with_visible_marker():
+    director = StoryboardDirector()
+    huge = "source-detail-" * 5000
+
+    prompt = director._build_prompt(
+        {
+            "video_goal": "Explain the source",
+            "source_snapshot": huge,
+            "sources": [{"content": huge}],
+        }
+    )
+
+    assert "[truncated]" in prompt
+    assert len(prompt) < 25000
+
+
 def test_director_run_threads_quality_feedback_without_mutating_system_prompt(monkeypatch):
     director = StoryboardDirector()
     original_system_prompt = director.system_prompt
@@ -209,7 +240,7 @@ Talking points
         return valid_outline
 
     async def review(_stage, _prompt, label="holistic"):
-        review_calls.append(label)
+        review_calls.append((label, _prompt))
         if len(review_calls) == 1:
             return {
                 "score": 5,
@@ -246,6 +277,8 @@ Talking points
     assert generation_calls[0][3] is None
     assert "concrete scenario" in generation_calls[1][3]
     assert len(review_calls) == 2
+    assert all("Make the opening more vivid" in prompt for _, prompt in review_calls)
+    assert all(valid_outline in prompt for _, prompt in review_calls)
 
 
 @pytest.mark.asyncio

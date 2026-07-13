@@ -107,6 +107,8 @@ async def _production_outline_generator(context: GenerationContext) -> Generatio
                     generate_revision,
                     context.intake,
                     stage="outline",
+                    revision_artifact=context.current_content,
+                    revision_instruction=context.instruction,
                 )
             )
         )
@@ -147,6 +149,9 @@ async def _production_storyboard_generator(context: GenerationContext) -> Genera
                     context.intake,
                     stage="storyboard",
                     outline=context.outline,
+                    revision_artifact=context.current_content
+                    or context.storyboard,
+                    revision_instruction=context.instruction,
                 )
             )
         )

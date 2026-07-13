@@ -166,6 +166,16 @@ def test_writer_screen_types_prefer_canonical_formats_with_legacy_fallback():
     ]
 
 
+def test_writer_postprocess_enforces_selected_formats_even_for_known_types():
+    writer = StoryboardWriter()
+    screen = _make_screen("Keep the visual format constrained.")
+    screen["screen_type"] = "stock_footage"
+
+    processed = writer._post_process_screens([screen], ["slides"])
+
+    assert {item["screen_type"] for item in processed} == {"slides"}
+
+
 def test_writer_update_prompt_preserves_unaffected_screens_and_exact_schema():
     writer = StoryboardWriter()
     intake = _canonical_intake()
@@ -246,6 +256,63 @@ def test_validate_outline_contract_handles_legacy_range():
     legacy_outline = VALID_OUTLINE.replace("7", "0:05–0:08")
     sections = writer.validate_outline_contract(legacy_outline)
     assert sections[0]["target_seconds"] == 6  # midpoint of 5-8
+
+
+@pytest.mark.parametrize("duration", ["0", "-1", "7.5", "7.0", "0 seconds"])
+def test_validate_outline_contract_requires_positive_integer_duration(duration):
+    writer = StoryboardWriter()
+    outline = VALID_OUTLINE.replace("Duration\n7", f"Duration\n{duration}")
+
+    with pytest.raises(ValueError, match="invalid Duration value"):
+        writer.validate_outline_contract(outline)
+
+
+def test_validate_outline_contract_requires_sequential_unique_sections():
+    writer = StoryboardWriter()
+    duplicate = VALID_OUTLINE + VALID_OUTLINE.replace(
+        "Section 1 — Closing", "Section 1 — Duplicate"
+    )
+
+    with pytest.raises(ValueError, match="sequential"):
+        writer.validate_outline_contract(duplicate)
+
+
+def test_writer_maps_flat_legacy_goal_and_key_points_into_bounded_context():
+    writer = StoryboardWriter()
+    context = writer._extract_brief_context(
+        {
+            "video_goal": "Explain safer launches",
+            "key_points": ["Use a rollback plan", "Name an owner"],
+        }
+    )
+
+    rendered = writer._format_brief_context_for_prompt(context)
+    assert context["prompt"] == "Explain safer launches"
+    assert context["source_snapshot"] == [
+        "Use a rollback plan",
+        "Name an owner",
+    ]
+    assert "Use a rollback plan" in rendered
+
+
+def test_writer_prompt_caps_large_source_outline_existing_and_section_contexts():
+    writer = StoryboardWriter()
+    huge = "large-source-value-" * 5000
+    sections = writer.validate_outline_contract(VALID_OUTLINE)
+    writer._compute_section_budgets(sections, ["slides"])
+    prompt = writer._build_full_storyboard_prompt(
+        sections=sections,
+        all_evidence={},
+        full_outline=VALID_OUTLINE + huge,
+        brief_context={"source_snapshot": huge, "sources": [huge]},
+        allowed_types=["slides"],
+        target_duration=7,
+        revision_instruction="Preserve the first screen.",
+        existing_storyboard=[_make_screen(huge)],
+    )
+
+    assert "[truncated]" in prompt
+    assert len(prompt) < 50000
 
 
 def test_post_process_splits_overlong_voiceover_into_multiple_screens():
@@ -365,8 +432,23 @@ async def test_production_revision_prompt_includes_existing_storyboard_and_instr
     )
     callbacks = []
 
-    async def fake_callback_gate(generate, brief, stage, outline=None):
-        callbacks.append((brief, stage, outline))
+    async def fake_callback_gate(
+        generate,
+        brief,
+        stage,
+        outline=None,
+        revision_artifact=None,
+        revision_instruction=None,
+    ):
+        callbacks.append(
+            (
+                brief,
+                stage,
+                outline,
+                revision_artifact,
+                revision_instruction,
+            )
+        )
         content = generate(None)
         return content, SimpleNamespace(
             passed=True,
@@ -400,6 +482,8 @@ async def test_production_revision_prompt_includes_existing_storyboard_and_instr
 
     assert captured_prompts
     assert callbacks
+    assert callbacks[0][3] == existing
+    assert callbacks[0][4] == instruction
     assert instruction in captured_prompts[0]
     assert "Preserve this existing screen" in captured_prompts[0]
 

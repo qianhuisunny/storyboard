@@ -101,6 +101,76 @@ def test_brief_builder_maps_legacy_input_aliases_to_canonical_output():
     ] == ["whiteboard_animation"]
 
 
+def test_confirmed_fields_override_intake_and_scalar_provenance_is_explicit():
+    builder = BriefBuilder()
+    state = SimpleNamespace(
+        intake_form={
+            "viewer_outcome": "Original generated outcome",
+            "target_audience": "Original audience",
+        }
+    )
+
+    fields = builder.run(
+        state,
+        round=1,
+        confirmed_fields={"viewer_outcome": "User-edited outcome"},
+    )["fields"]
+
+    assert fields["viewer_outcome"] == {
+        "value": "User-edited outcome",
+        "source": "extracted",
+        "confirmed": True,
+    }
+    assert fields["target_audience"] == {
+        "value": "Original audience",
+        "source": "extracted",
+        "confirmed": False,
+    }
+
+
+def test_brief_builder_preserves_supplied_envelope_metadata():
+    builder = BriefBuilder()
+    state = SimpleNamespace(
+        intake_form={
+            "delivery_tone": {
+                "value": "Warm",
+                "source": "inferred",
+                "confirmed": False,
+                "confidence": 0.7,
+            }
+        }
+    )
+    confirmed = {
+        "delivery_tone": {
+            "value": "Direct",
+            "source": "user",
+            "confirmed": True,
+            "confidence": 1.0,
+        }
+    }
+
+    field = builder.run(state, round=2, confirmed_fields=confirmed)["fields"][
+        "delivery_tone"
+    ]
+
+    assert field == confirmed["delivery_tone"]
+
+
+def test_confirmed_duration_minutes_override_intake_seconds_with_provenance():
+    builder = BriefBuilder()
+    state = SimpleNamespace(intake_form={"duration_seconds": 120})
+
+    field = builder.run(
+        state, round=1, confirmed_fields={"duration_minutes": 3}
+    )["fields"]["duration"]
+
+    assert field == {
+        "value": "180",
+        "source": "extracted",
+        "confirmed": True,
+    }
+
+
 def test_all_active_prompts_and_services_exclude_retired_taxonomy():
     root = Path(__file__).parents[3]
     active_files = list((root / "prompts").glob("*.md")) + [

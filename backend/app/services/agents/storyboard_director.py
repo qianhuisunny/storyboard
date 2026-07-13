@@ -1,8 +1,10 @@
 """Storyboard Director agent for human-editable video outlines."""
 
-import json
 import re
 from typing import Any, Optional
+
+from app.services.prompt_context import render_prompt_value
+from app.services.production_formats import normalize_production_formats
 
 from .base import BaseAgent
 
@@ -13,14 +15,14 @@ class StoryboardDirector(BaseAgent):
     prompt_file = "storyboard_director_prompt_v0712.md"
 
     _CONTEXT_FIELDS = (
-        ("prompt", ("prompt", "topic", "description")),
+        ("prompt", ("prompt", "topic", "description", "video_goal")),
         ("viewer_outcome", ("viewer_outcome",)),
         ("target_audience", ("target_audience",)),
         ("audience_level", ("audience_level",)),
         ("platform", ("platform",)),
         ("aspect_ratio", ("aspect_ratio",)),
         ("delivery_tone", ("delivery_tone",)),
-        ("source_snapshot", ("source_snapshot", "source_context")),
+        ("source_snapshot", ("source_snapshot", "source_context", "key_points")),
         ("sources", ("sources",)),
     )
 
@@ -100,13 +102,7 @@ class StoryboardDirector(BaseAgent):
         if is_legacy:
             raw = self._read_aliases(story_brief, ("broll_type",), [])
 
-        if isinstance(raw, str):
-            raw = [raw]
-        formats = []
-        for item in raw or []:
-            normalized = str(item).strip()
-            if normalized and normalized not in formats:
-                formats.append(normalized)
+        formats = normalize_production_formats(raw)
 
         if is_legacy:
             on_camera = self._read_aliases(
@@ -136,10 +132,9 @@ class StoryboardDirector(BaseAgent):
         return context
 
     @staticmethod
-    def _format_value(value: Any) -> str:
-        if isinstance(value, (dict, list, tuple)):
-            return json.dumps(value, indent=2, ensure_ascii=False)
-        return str(value)
+    def _format_value(key: str, value: Any) -> str:
+        cap = 8000 if key == "source_snapshot" else 6000 if key == "sources" else 2000
+        return render_prompt_value(value, cap)
 
     def _build_brief_context(self, story_brief: dict) -> str:
         context = self._canonical_context(story_brief)
@@ -157,7 +152,7 @@ class StoryboardDirector(BaseAgent):
             ("sources", "SOURCES"),
         )
         blocks = [
-            f"{label}\n{self._format_value(context[key])}"
+            f"{label}\n{self._format_value(key, context[key])}"
             for key, label in labels
             if key in context
         ]
@@ -170,7 +165,7 @@ class StoryboardDirector(BaseAgent):
         if quality_feedback:
             feedback = (
                 "\n\n## REVIEW FEEDBACK TO ADDRESS\n"
-                f"{quality_feedback}"
+                f"{render_prompt_value(quality_feedback, 4000)}"
             )
         return (
             "Generate a complete video outline from the approved intake. Decide the "
@@ -214,11 +209,11 @@ class StoryboardDirector(BaseAgent):
 {self._build_brief_context(story_brief)}
 
 ## CURRENT OUTLINE
-{current_outline}
+{render_prompt_value(current_outline, 12000)}
 
 ## TASK
 Regenerate only Section {section_number} based on this instruction:
-{instruction}
+{render_prompt_value(instruction, 4000)}
 
 Return the complete outline. Keep every other section exactly unchanged and use the exact section contract from the system prompt."""
         response = self.call_llm(prompt, max_tokens=8000, temperature=0.7)
@@ -235,17 +230,17 @@ Return the complete outline. Keep every other section exactly unchanged and use 
         if quality_feedback:
             feedback = (
                 "\n\n## HOLISTIC REVIEW FEEDBACK\n"
-                f"{quality_feedback}"
+                f"{render_prompt_value(quality_feedback, 4000)}"
             )
         prompt = f"""Revise an existing video outline from user feedback.
 
 {self._build_brief_context(story_brief)}
 
 ## CURRENT OUTLINE
-{current_outline}
+{render_prompt_value(current_outline, 12000)}
 
 ## USER INSTRUCTION
-{instruction}
+{render_prompt_value(instruction, 4000)}
 {feedback}
 
 Return the complete revised outline. You may restructure sections when the instruction requires it, while preserving the exact section contract from the system prompt."""

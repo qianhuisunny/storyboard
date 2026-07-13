@@ -14,14 +14,20 @@ from app.services.workflow import (
 )
 from app.infra.quality_log import qlog
 from app.services.image_generator import ImageGenerator
+from app.services.prompt_context import (
+    render_prompt_value,
+    serialized_size,
+    truncate_prompt_text,
+)
 
 from app.utils.json_extractor import extract_json_from_text, convert_to_story_format
 from app.utils.file_extraction import extract_text_from_pdf, extract_text_from_docx, extract_text_from_html
 from app.db import get_db, init_db, ProjectRepository
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
-from typing import List, Optional
+from pydantic import BaseModel, Field, model_validator
+from typing import Any, List, Literal, Optional
+import asyncio
 import json
 import os
 import httpx
@@ -368,11 +374,22 @@ class IntakeFormRequest(BaseModel):
     intake_form: dict
 
 
+class ChatBriefMessage(BaseModel):
+    role: Literal["user", "ai", "assistant"]
+    content: str = Field(max_length=6000)
+
+
 class ChatBriefRequest(BaseModel):
     """Request body for chat-assisted Smart Intake completion."""
-    messages: list
-    fields_so_far: dict
-    onboarding: dict
+    messages: list[ChatBriefMessage] = Field(default_factory=list, max_length=20)
+    fields_so_far: dict[str, Any] = Field(default_factory=dict, max_length=100)
+    onboarding: dict[str, Any] = Field(default_factory=dict, max_length=100)
+
+    @model_validator(mode="after")
+    def validate_total_size(self):
+        if serialized_size(self.model_dump()) > 50_000:
+            raise ValueError("Chat brief payload exceeds 50000 characters")
+        return self
 
 
 class PersistedChatMessage(BaseModel):
@@ -489,9 +506,20 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
 
 
 @app.post("/api/project/{project_id}/chat-brief")
-async def chat_brief(project_id: str, request: ChatBriefRequest):
+async def chat_brief(
+    project_id: str,
+    request: ChatBriefRequest,
+    x_user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    db: AsyncSession = Depends(get_db),
+):
     """Ask only for missing canonical Smart Intake values."""
     try:
+        project = await _require_project(db, project_id)
+        if not _can_access_project_owner(project.user_id, x_user_id):
+            raise HTTPException(
+                status_code=403, detail="Not authorized to access this project"
+            )
+
         # Load system prompt
         prompt_path = Path(__file__).parent.parent.parent / "prompts" / "chat_brief_prompt_v0712.md"
         if not prompt_path.exists():
@@ -506,17 +534,18 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
             "delivery_tone",
             "production_formats",
         }
-        fields_summary = "\n".join(
-            f"- {k}: {v.get('value', v) if isinstance(v, dict) else v}"
+        fields_summary = render_prompt_value("\n".join(
+            f"- {k}: {render_prompt_value(v.get('value', v) if isinstance(v, dict) else v, 3000)}"
             for k, v in request.fields_so_far.items()
             if k in allowed_fields
             if (v.get("value") if isinstance(v, dict) else v)
-        )
+        ), 10000)
 
-        conversation = "\n".join(
-            f"{'AI' if m.get('role') == 'ai' else 'User'}: {m.get('content', '')}"
+        conversation = render_prompt_value("\n".join(
+            f"{'AI' if m.role in {'ai', 'assistant'} else 'User'}: "
+            f"{render_prompt_value(m.content, 3000)}"
             for m in request.messages
-        )
+        ), 16000)
 
         def first_value(*names):
             for name in names:
@@ -534,12 +563,14 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
             ("Production formats", first_value("production_formats", "broll_type")),
             ("Source context", first_value("source_snapshot", "source_context")),
         )
-        onboarding_summary = "\n".join(
-            f"- {label}: {json.dumps(value, ensure_ascii=False) if isinstance(value, (list, dict)) else str(value)[:6000]}"
+        onboarding_summary = render_prompt_value("\n".join(
+            f"- {label}: {render_prompt_value(value, 4000)}"
             for label, value in onboarding_values
             if value not in (None, "", [])
-        )
+        ), 14000)
 
+        # Onboarding, collected fields, and conversation are independently
+        # capped so this prompt stays below roughly 40k contextual characters.
         user_prompt = f"""## ONBOARDING CONTEXT
 {onboarding_summary or '(none provided)'}
 
@@ -552,7 +583,8 @@ async def chat_brief(project_id: str, request: ChatBriefRequest):
 Respond with the next JSON message."""
 
         from app.infra.llm_gateway import llm
-        response_text = llm.chat(
+        response_text = await asyncio.to_thread(
+            llm.chat,
             category="storyboard",
             label="chat_brief",
             system_prompt=system_prompt,
@@ -562,13 +594,18 @@ Respond with the next JSON message."""
             max_tokens=1000,
         )
 
-        # Parse JSON from response
-        import re
-        json_match = re.search(r'\{[\s\S]*\}', response_text)
-        if not json_match:
+        extraction = extract_json_from_text(response_text, validate=False)
+        parsed = next(
+            (
+                item
+                for item in (extraction.data or [])
+                if isinstance(item, dict)
+            ),
+            None,
+        )
+        if not extraction.success or not isinstance(parsed, dict):
             return {"reply": "I'm having trouble processing that. Could you try again?", "done": False, "extracted_fields": None}
 
-        parsed = json.loads(json_match.group())
         extracted_fields = parsed.get("extracted_fields")
         if isinstance(extracted_fields, dict):
             extracted_fields = {
@@ -577,13 +614,13 @@ Respond with the next JSON message."""
                 if key in allowed_fields
             }
         return {
-            "reply": parsed.get("reply", ""),
-            "done": parsed.get("done", False),
+            "reply": truncate_prompt_text(parsed.get("reply", ""), 6000),
+            "done": bool(parsed.get("done", False)),
             "extracted_fields": extracted_fields,
         }
 
-    except json.JSONDecodeError:
-        return {"reply": "I had trouble understanding that. Could you rephrase?", "done": False, "extracted_fields": None}
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Chat brief error: {str(e)}")
 

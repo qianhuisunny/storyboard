@@ -2,6 +2,7 @@
 Orchestrator transition tests for the streamlined Knowledge Share flow.
 """
 import pytest
+from app.services.agents.storyboard_director import StoryboardDirector
 from app.services.state import StateManager, StoryboardState
 from app.test.conftest import MOCK_INTAKE_FORM, MOCK_OUTLINE, MOCK_STORYBOARD
 
@@ -86,6 +87,41 @@ class TestGateTransitions:
         assert result["success"] is True
         assert result["phase"] == "gate2"
         assert result.get("screen_outline") is not None
+
+    async def test_gate1_flat_legacy_brief_retains_goal_and_key_points_in_director_prompt(
+        self, make_orchestrator, make_state, patch_state_manager
+    ):
+        orch = make_orchestrator()
+        captured = []
+
+        class CapturingDirector:
+            prompt_file = StoryboardDirector.prompt_file
+
+            def run(self, state, **_kwargs):
+                captured.append(StoryboardDirector()._build_prompt(state.story_brief))
+                return MOCK_OUTLINE
+
+        orch.agents["director"] = CapturingDirector()
+        manager = StateManager("test-project")
+        flat_brief = {
+            "video_goal": "Teach safe deployments",
+            "target_audience": "Engineering leads",
+            "key_points": ["Stop the rollout", "Restore service"],
+        }
+        await manager.save(
+            make_state(
+                phase="gate1",
+                story_brief=flat_brief,
+                brief_locked=True,
+            )
+        )
+
+        result = await orch.process_event("test-project", "approve", {})
+
+        assert result["success"] is True
+        assert "Teach safe deployments" in captured[0]
+        assert "Stop the rollout" in captured[0]
+        assert (await manager.load()).story_brief == flat_brief
 
     async def test_gate2_approve_generates_storyboard(self, make_orchestrator, make_state, patch_state_manager):
         orch = make_orchestrator()

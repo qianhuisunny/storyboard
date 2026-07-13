@@ -39,12 +39,6 @@ class BriefBuilder(BaseAgent):
         raise ValueError(f"Invalid round: {round}. Must be 1, 2, or 3.")
 
     @staticmethod
-    def _unwrap(value: Any) -> Any:
-        if isinstance(value, dict) and "value" in value:
-            return value["value"]
-        return value
-
-    @staticmethod
     def _present(value: Any) -> bool:
         if value is None:
             return False
@@ -54,93 +48,124 @@ class BriefBuilder(BaseAgent):
             return bool(value)
         return True
 
-    def _read(
+    def _resolve_field(
         self,
         intake: dict,
         confirmed_fields: dict,
         aliases: tuple[str, ...],
-        default: Any = "",
-    ) -> Any:
-        for source in (intake or {}, confirmed_fields or {}):
+        empty_value: Any = "",
+    ) -> tuple[dict, Optional[str]]:
+        """Resolve confirmed edits first while retaining field provenance."""
+        for source, is_confirmed in (
+            (confirmed_fields or {}, True),
+            (intake or {}, False),
+        ):
             for name in aliases:
                 if name not in source:
                     continue
-                value = self._unwrap(source[name])
-                if self._present(value):
-                    return value
-        return default
+                raw = source[name]
+                if isinstance(raw, dict) and "value" in raw:
+                    field = dict(raw)
+                    field.setdefault("source", "extracted")
+                    field.setdefault("confirmed", is_confirmed)
+                    return field, name
+                return (
+                    {
+                        "value": raw,
+                        "source": "extracted" if self._present(raw) else "empty",
+                        "confirmed": is_confirmed,
+                    },
+                    name,
+                )
+        return (
+            {"value": empty_value, "source": "empty", "confirmed": False},
+            None,
+        )
+
+    def _field_for(
+        self,
+        intake: dict,
+        confirmed_fields: dict,
+        aliases: tuple[str, ...],
+        empty_value: Any = "",
+    ) -> dict:
+        field, _alias = self._resolve_field(
+            intake, confirmed_fields, aliases, empty_value
+        )
+        return field
 
     @staticmethod
-    def _field(value: Any, empty_value: Any = "") -> dict:
-        present = BriefBuilder._present(value)
-        return {
-            "value": value if present else empty_value,
-            "source": "extracted" if present else "empty",
-            "confirmed": False,
-        }
+    def _replace_value(field: dict, value: Any, empty_value: Any = "") -> dict:
+        updated = dict(field)
+        updated["value"] = value if BriefBuilder._present(value) else empty_value
+        return updated
 
-    def _duration(self, intake: dict, confirmed_fields: dict) -> str:
-        value = self._read(
+    def _duration_field(self, intake: dict, confirmed_fields: dict) -> dict:
+        field, alias = self._resolve_field(
             intake,
             confirmed_fields,
-            ("duration_seconds", "duration", "desired_length"),
+            (
+                "duration_seconds",
+                "duration",
+                "desired_length",
+                "duration_minutes",
+            ),
         )
+        value = field["value"]
+        if alias == "duration_minutes" and self._present(value):
+            try:
+                value = float(value) * 60
+            except (TypeError, ValueError):
+                value = ""
         if not self._present(value):
-            minutes = self._read(
-                intake, confirmed_fields, ("duration_minutes",), None
-            )
-            if self._present(minutes):
-                try:
-                    value = float(minutes) * 60
-                except (TypeError, ValueError):
-                    value = ""
-        if not self._present(value):
-            return ""
+            return self._replace_value(field, "")
         try:
             numeric = float(value)
             if numeric > 0 and numeric.is_integer():
-                return str(int(numeric))
+                value = str(int(numeric))
         except (TypeError, ValueError):
             pass
-        return str(value)
+        return self._replace_value(field, str(value))
 
     def _round_one_fields(
         self, intake: dict, confirmed_fields: dict
     ) -> dict:
-        values = {
-            "viewer_outcome": self._read(
+        return {
+            "viewer_outcome": self._field_for(
                 intake, confirmed_fields, ("viewer_outcome",)
             ),
-            "target_audience": self._read(
+            "target_audience": self._field_for(
                 intake, confirmed_fields, ("target_audience", "audience")
             ),
-            "duration": self._duration(intake, confirmed_fields),
-            "platform": self._read(
+            "duration": self._duration_field(intake, confirmed_fields),
+            "platform": self._field_for(
                 intake, confirmed_fields, ("platform",)
             ),
-            "aspect_ratio": self._read(
+            "aspect_ratio": self._field_for(
                 intake, confirmed_fields, ("aspect_ratio",)
             ),
         }
-        return {name: self._field(value) for name, value in values.items()}
 
     def _round_two_fields(
         self, intake: dict, confirmed_fields: dict
     ) -> dict:
-        formats = self._read(
+        formats_field = self._field_for(
             intake,
             confirmed_fields,
             ("production_formats", "broll_type"),
             [],
         )
+        formats = formats_field["value"]
         if isinstance(formats, str):
             formats = [formats] if formats.strip() else []
         return {
-            "audience_level": self._field(
-                self._read(intake, confirmed_fields, ("audience_level",))
+            "audience_level": self._field_for(
+                intake, confirmed_fields, ("audience_level",)
             ),
-            "delivery_tone": self._field(
-                self._read(intake, confirmed_fields, ("delivery_tone",))
+            "delivery_tone": self._field_for(
+                intake, confirmed_fields, ("delivery_tone",)
             ),
-            "production_formats": self._field(formats, []),
+            "production_formats": self._replace_value(
+                formats_field, formats, []
+            ),
         }

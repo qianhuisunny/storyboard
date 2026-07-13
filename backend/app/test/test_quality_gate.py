@@ -1,4 +1,5 @@
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -85,6 +86,9 @@ def test_outline_deterministic_validation_covers_contract_and_exact_duration():
         "outline", {}, VALID_OUTLINE.replace("4", "0", 1)
     )
     assert gate.validate_structure(
+        "outline", {}, VALID_OUTLINE.replace("Duration\n4", "Duration\n4.0")
+    )
+    assert gate.validate_structure(
         "outline", {}, VALID_OUTLINE.replace("- Show the failed handoff.", "")
     )
     assert gate.validate_structure(
@@ -97,6 +101,19 @@ def test_outline_deterministic_validation_covers_contract_and_exact_duration():
         {},
         VALID_OUTLINE.replace("The viewer can run the check today.", ""),
     ) == ["Section 2 is missing Exit state"]
+
+
+@pytest.mark.parametrize(
+    "outline",
+    [
+        VALID_OUTLINE.replace("Section 2", "Section 3"),
+        VALID_OUTLINE.replace("Section 2", "Section 1"),
+    ],
+)
+def test_outline_sections_must_be_unique_and_sequential(outline):
+    issues = QualityGate().validate_structure("outline", {}, outline)
+
+    assert any("sequential" in issue.lower() for issue in issues)
 
 
 @pytest.mark.parametrize(
@@ -126,6 +143,66 @@ def test_storyboard_deterministic_validation_accepts_server_computed_fields_as_o
     ) == []
 
 
+def test_storyboard_rejects_screen_type_outside_selected_formats():
+    gate = QualityGate()
+
+    issues = gate.validate_structure(
+        "storyboard",
+        {"production_formats": ["slides"]},
+        [_screen(screen_type="stock_footage")],
+    )
+
+    assert any("selected production formats" in issue for issue in issues)
+
+
+def test_storyboard_normalizes_legacy_production_format_aliases():
+    gate = QualityGate()
+
+    assert gate.validate_structure(
+        "storyboard",
+        {"production_formats": ["whiteboard"]},
+        [_screen(screen_type="whiteboard_animation")],
+    ) == []
+
+
+@pytest.mark.parametrize(
+    ("screens", "expected"),
+    [
+        ([_screen()], "missing outline section 2"),
+        (
+            [
+                _screen(),
+                _screen(
+                    2,
+                    section_number=3,
+                    section_title="Unknown",
+                ),
+            ],
+            "unknown outline section 3",
+        ),
+        (
+            [
+                _screen(),
+                _screen(
+                    2,
+                    section_number=2,
+                    section_title="Wrong title",
+                ),
+            ],
+            "must match outline title",
+        ),
+    ],
+)
+def test_storyboard_cross_stage_structure_matches_every_outline_section(
+    screens, expected
+):
+    issues = QualityGate().validate_structure(
+        "storyboard", {}, screens, outline=VALID_OUTLINE
+    )
+
+    assert any(expected in issue.lower() for issue in issues)
+
+
 @pytest.mark.asyncio
 async def test_evaluate_runs_one_holistic_review_without_dimensions_and_includes_outline(monkeypatch):
     gate = QualityGate()
@@ -145,7 +222,10 @@ async def test_evaluate_runs_one_holistic_review_without_dimensions_and_includes
     result = await gate.evaluate(
         "storyboard",
         {"prompt": "Explain handoffs", "duration_seconds": 10},
-        [_screen()],
+        [
+            _screen(),
+            _screen(2, section_number=2, section_title="Act"),
+        ],
         outline=VALID_OUTLINE,
     )
 
@@ -160,6 +240,82 @@ async def test_evaluate_runs_one_holistic_review_without_dimensions_and_includes
     assert result.strengths == ["Concrete visual progression"]
     assert result.issues == []
     assert result.to_dict()["review_passed"] is True
+    assert result.attempt == 1
+    assert result.total_attempts == 1
+
+
+@pytest.mark.asyncio
+async def test_review_prompt_includes_bounded_revision_instruction_and_prior_artifact(
+    monkeypatch,
+):
+    gate = QualityGate()
+    prompts = []
+
+    async def fake_call(_stage, prompt, label="holistic"):
+        prompts.append(prompt)
+        return {
+            "score": 9,
+            "passed": True,
+            "feedback": "Instruction followed.",
+            "strengths": [],
+            "issues": [],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", fake_call)
+    prior = "Prior opening that must stay." + ("x" * 30000)
+    instruction = "Change only the final action and preserve the opening."
+
+    await gate.evaluate(
+        "outline",
+        {"duration_seconds": 10},
+        VALID_OUTLINE,
+        revision_artifact=prior,
+        revision_instruction=instruction,
+    )
+
+    assert instruction in prompts[0]
+    assert "Prior opening that must stay." in prompts[0]
+    assert "[truncated]" in prompts[0]
+    assert len(prompts[0]) < len(prior)
+
+
+@pytest.mark.asyncio
+async def test_runner_logs_final_per_attempt_metadata_including_advisory(
+    monkeypatch,
+):
+    gate = QualityGate()
+    logged_scores = []
+    fake_qlog = SimpleNamespace(
+        log_eval=lambda **kwargs: logged_scores.append(kwargs["scores"])
+    )
+    monkeypatch.setattr("app.infra.quality_log.qlog", fake_qlog)
+
+    async def low_review(*_args, **_kwargs):
+        return {
+            "score": 5,
+            "passed": False,
+            "feedback": "Still generic.",
+            "strengths": [],
+            "issues": ["Generic opening"],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", low_review)
+    _output, result = await gate.run_generator_with_gate(
+        lambda _feedback: VALID_OUTLINE,
+        {"project_id": "qlog-contract", "duration_seconds": 10},
+        "outline",
+    )
+
+    assert len(logged_scores) == 2
+    assert logged_scores[0]["attempt"] == 1
+    assert logged_scores[0]["total_attempts"] == 2
+    assert logged_scores[0]["passed"] is False
+    assert logged_scores[0]["advisory"] is False
+    assert logged_scores[1] == result.to_dict()
+    assert logged_scores[1]["attempt"] == 2
+    assert logged_scores[1]["total_attempts"] == 2
+    assert logged_scores[1]["passed"] is True
+    assert logged_scores[1]["advisory"] is True
 
 
 @pytest.mark.asyncio
