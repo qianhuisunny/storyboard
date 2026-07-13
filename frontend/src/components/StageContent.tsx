@@ -14,7 +14,7 @@ import { ReviewBuilder } from "./ReviewBuilder";
 import type { QualityEvalResult } from "./QualityScore";
 import { VIDEO_INTENT_ROUTES, isGuidedBriefType } from "@/lib/videoIntent";
 import SmartIntakeBuilder from "./SmartIntakeBuilder";
-import { isCanonicalIntakeContent, type WorkflowResponse } from "@/lib/workflow";
+import { isCanonicalIntakeArtifact, type WorkflowResponse } from "@/lib/workflow";
 
 // Feature flag for new split-screen brief builder
 const USE_SPLIT_BRIEF_BUILDER = true;
@@ -337,6 +337,9 @@ export default function StageContent({
 
   // Get onboarding data for SplitBriefBuilder
   const onboardingData = useMemo(() => getOnboardingDataFromSession(), []);
+  const isCanonicalWorkflow = Boolean(
+    workflow && isCanonicalIntakeArtifact(workflow.artifacts.intake),
+  );
 
   const currentContent = humanContent ?? aiContent ?? "";
   const hasChanges = humanContent !== null && humanContent !== aiContent;
@@ -355,6 +358,7 @@ export default function StageContent({
   // Check if this project should use the guided intent-aware brief flow.
   // Priority: session storage onboarding data → saved brief content (for existing projects)
   const isGuidedBrief = useMemo(() => {
+    if (isCanonicalWorkflow) return false;
     if (onboardingData) {
       return Boolean(onboardingData.intentRoute) || isGuidedBriefType(onboardingData.videoType);
     }
@@ -373,7 +377,7 @@ export default function StageContent({
       }
     }
     return false;
-  }, [onboardingData, humanContent, aiContent, stage.id]);
+  }, [isCanonicalWorkflow, onboardingData, humanContent, aiContent, stage.id]);
 
   useEffect(() => {
     if (Object.keys(guidedBriefFields).length > 0 || Object.keys(savedGuidedBriefFields).length === 0) return;
@@ -382,7 +386,7 @@ export default function StageContent({
 
   // Initialize guided brief flow
   useEffect(() => {
-    if (isGuidedBrief && projectId && USE_GUIDED_BRIEF_FLOW && stage.id === 1 && !guidedBriefInitStartedRef.current) {
+    if (!isCanonicalWorkflow && isGuidedBrief && projectId && USE_GUIDED_BRIEF_FLOW && stage.id === 1 && !guidedBriefInitStartedRef.current) {
       let active = true;
       guidedBriefInitStartedRef.current = true;
 
@@ -413,7 +417,7 @@ export default function StageContent({
         guidedBriefInitStartedRef.current = false;
       };
     }
-  }, [isGuidedBrief, projectId, stage.id, stage.status, onboardingData]);
+  }, [isCanonicalWorkflow, isGuidedBrief, projectId, stage.id, stage.status, onboardingData]);
 
   // Handle brief approval for guided brief projects
   const handleGuidedBriefApprove = useCallback(
@@ -751,13 +755,12 @@ export default function StageContent({
     }
   };
 
-  const canonicalIntake = workflow?.artifacts.intake.current_content;
   if (
     stage.id === 1
     && projectId
     && workflow
     && onWorkflowChange
-    && isCanonicalIntakeContent(canonicalIntake)
+    && isCanonicalWorkflow
   ) {
     return (
       <SmartIntakeBuilder

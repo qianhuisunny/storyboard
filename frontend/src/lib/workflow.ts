@@ -97,6 +97,16 @@ export function isCanonicalIntakeContent(value: unknown): value is CanonicalInta
   return typeof intake.prompt === "string" && Array.isArray(intake.sources);
 }
 
+export function isCanonicalIntakeArtifact(
+  value: unknown,
+): value is ArtifactState<CanonicalIntakeContent> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const artifact = value as Partial<ArtifactState<unknown>>;
+  return typeof artifact.current_version_id === "string"
+    && artifact.current_version_id.length > 0
+    && isCanonicalIntakeContent(artifact.current_content);
+}
+
 async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
   try {
     const body = await response.json() as {
@@ -144,10 +154,15 @@ async function parseWorkflowResponse(response: Response): Promise<WorkflowRespon
   return body;
 }
 
-export async function getWorkflow(projectId: string, fetchImpl: typeof fetch = fetch): Promise<WorkflowResponse> {
+export async function getWorkflow(
+  projectId: string,
+  fetchImpl: typeof fetch = fetch,
+  signal?: AbortSignal,
+): Promise<WorkflowResponse> {
   await ensureSession(fetchImpl);
   const response = await fetchImpl(`/api/project/${projectId}/pipeline-state`, {
     credentials: "same-origin",
+    signal,
   });
   return parseWorkflowResponse(response);
 }
@@ -166,4 +181,45 @@ export async function sendWorkflowEvent(
     body: JSON.stringify({ event, payload }),
   });
   return parseWorkflowResponse(response);
+}
+
+export async function sendWorkflowGenerationEvent(
+  projectId: string,
+  event: string,
+  payload: Record<string, unknown>,
+  onObservedWorkflow: (workflow: WorkflowResponse) => void,
+  fetchImpl: typeof fetch = fetch,
+): Promise<WorkflowResponse> {
+  let settled = false;
+  const outcomePromise = sendWorkflowEvent(projectId, event, payload, fetchImpl).then(
+    (workflow) => {
+      settled = true;
+      return { workflow } as const;
+    },
+    (error: unknown) => {
+      settled = true;
+      return { error } as const;
+    },
+  );
+
+  // Generation endpoints return only after the generator completes. Observe the
+  // committed job overlay while that request remains in flight so navigation and
+  // refresh use backend state rather than a component-local spinner.
+  for (let attempt = 0; attempt < 20 && !settled; attempt += 1) {
+    if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 75));
+    try {
+      const observed = await getWorkflow(projectId, fetchImpl);
+      if (observed.job.status !== "idle") {
+        onObservedWorkflow(observed);
+        break;
+      }
+    } catch {
+      // The original event remains authoritative; a transient observation
+      // failure should not turn a successful generation into an error.
+    }
+  }
+
+  const outcome = await outcomePromise;
+  if ("error" in outcome) throw outcome.error;
+  return outcome.workflow;
 }

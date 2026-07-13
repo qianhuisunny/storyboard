@@ -2,10 +2,10 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 
 type IntakeContent = {
   prompt: string;
-  duration_seconds: number;
-  platform: string;
-  aspect_ratio: string;
-  source_snapshot: string;
+  duration_seconds?: number;
+  platform?: string;
+  aspect_ratio?: string;
+  source_snapshot?: string;
   sources: Array<Record<string, unknown>>;
   viewer_outcome?: string;
   target_audience?: string;
@@ -16,10 +16,29 @@ type IntakeContent = {
 
 type WorkflowEvent = {
   event: string;
-  payload: {
+  payload: Partial<{
     content: IntakeContent;
     expected_version_id: string | null;
-  };
+  }>;
+};
+
+type WorkflowJob = {
+  status: "idle" | "running" | "failed";
+  job_id: string | null;
+  kind: "outline" | "storyboard" | null;
+  input_version_id: string | null;
+  error: string | null;
+};
+
+type MockSmartIntakeOptions = {
+  conflictOnSave?: boolean;
+  deferApproval?: boolean;
+  failFirstApproval?: boolean;
+  initialContent?: IntakeContent;
+  initialOutline?: string | null;
+  initialStage?: "intake" | "outline";
+  initialVersionId?: string | null;
+  stageSnapshots?: Record<string, unknown>;
 };
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -53,8 +72,12 @@ function artifact<T>(currentVersionId: string | null, currentContent: T | null) 
 
 function workflowBody(
   content: IntakeContent,
-  versionId: string,
-  options: { stage?: "intake" | "outline"; outline?: string | null } = {},
+  versionId: string | null,
+  options: {
+    stage?: "intake" | "outline";
+    outline?: string | null;
+    job?: WorkflowJob;
+  } = {},
 ) {
   const stage = options.stage ?? "intake";
   const outline = options.outline ?? null;
@@ -65,8 +88,8 @@ function workflowBody(
     phase: stage,
     allowed_events: stage === "intake"
       ? ["save_intake", "approve_intake"]
-      : ["save_outline", "revise_outline", "approve_outline", "reopen_intake"],
-    job: { status: "idle", job_id: null, kind: null, input_version_id: null, error: null },
+      : ["save_outline", "revise_outline", "approve_outline", "edit_intake"],
+    job: options.job ?? { status: "idle", job_id: null, kind: null, input_version_id: null, error: null },
     artifacts: {
       intake: {
         ...artifact(versionId, content),
@@ -93,8 +116,8 @@ async function fulfillJson(route: Route, body: unknown, status = 200) {
   });
 }
 
-async function mockSmartIntake(page: Page, deferApproval = false, conflictOnSave = false) {
-  let content: IntakeContent = {
+async function mockSmartIntake(page: Page, options: MockSmartIntakeOptions = {}) {
+  let content: IntakeContent = structuredClone(options.initialContent ?? {
     prompt: "Explain our product launch process",
     duration_seconds: 300,
     platform: "youtube",
@@ -102,11 +125,22 @@ async function mockSmartIntake(page: Page, deferApproval = false, conflictOnSave
     source_snapshot: "Launch notes",
     sources: [{ id: "source-1", kind: "upload", name: "launch-notes.pdf", status: "ready" }],
     target_audience: "",
-  };
-  let versionId = "intake-v1";
-  let workflow = workflowBody(content, versionId);
+  });
+  let versionId = options.initialVersionId === undefined ? "intake-v1" : options.initialVersionId;
+  let workflow = workflowBody(content, versionId, {
+    stage: options.initialStage,
+    outline: options.initialOutline,
+  });
   const events: WorkflowEvent[] = [];
   let releaseApproval: (() => void) | null = null;
+  let approvalAttempts = 0;
+  const deletedSourceRequests: string[] = [];
+
+  page.on("request", (request) => {
+    if (request.method() === "DELETE" && request.url().includes(`/api/project/${PROJECT_ID}`)) {
+      deletedSourceRequests.push(request.url());
+    }
+  });
 
   await page.route("**/api/session", (route) => fulfillJson(route, { success: true }));
   await page.route(`**/api/project/${PROJECT_ID}`, (route) => fulfillJson(route, {
@@ -118,24 +152,49 @@ async function mockSmartIntake(page: Page, deferApproval = false, conflictOnSave
     },
   }));
   await page.route(`**/api/project/${PROJECT_ID}/stages`, (route) => {
-    if (route.request().method() === "GET") return fulfillJson(route, { success: true, stages: {} });
+    if (route.request().method() === "GET") {
+      return fulfillJson(route, { success: true, stages: options.stageSnapshots ?? {} });
+    }
     return fulfillJson(route, { success: true });
   });
   await page.route(`**/api/project/${PROJECT_ID}/pipeline-state`, (route) => fulfillJson(route, workflow));
   await page.route(`**/api/project/${PROJECT_ID}/event`, async (route) => {
     const request = route.request().postDataJSON() as WorkflowEvent;
     events.push(request);
-    if (conflictOnSave && request.event === "save_intake") {
+    if (request.event === "submit_guided_brief") {
+      await fulfillJson(route, { detail: "Legacy guided flow must not run" }, 500);
+      return;
+    }
+    if (request.event === "edit_intake") {
+      workflow = workflowBody(content, versionId, { stage: "intake", outline: workflow.artifacts.outline.current_content });
+      await fulfillJson(route, workflow);
+      return;
+    }
+    if (options.conflictOnSave && request.event === "save_intake") {
       await fulfillJson(route, {
         detail: { code: "version_conflict", current_version_id: "intake-v9" },
       }, 409);
       return;
     }
+    if (!request.payload.content) throw new Error(`${request.event} requires content in this mock`);
     content = structuredClone(request.payload.content);
     versionId = `intake-v${events.length + 1}`;
 
     if (request.event === "approve_intake") {
-      if (deferApproval) {
+      approvalAttempts += 1;
+      const priorOutline = workflow.artifacts.outline.current_content;
+      workflow = workflowBody(content, versionId, {
+        stage: "outline",
+        outline: priorOutline,
+        job: {
+          status: "running",
+          job_id: `outline-job-${approvalAttempts}`,
+          kind: "outline",
+          input_version_id: versionId,
+          error: null,
+        },
+      });
+      if (options.deferApproval) {
         await new Promise<void>((resolve) => {
           const timeout = setTimeout(resolve, 12_000);
           releaseApproval = () => {
@@ -143,6 +202,32 @@ async function mockSmartIntake(page: Page, deferApproval = false, conflictOnSave
             resolve();
           };
         });
+      }
+      if (options.failFirstApproval && approvalAttempts === 1) {
+        workflow = workflowBody(content, versionId, {
+          stage: "outline",
+          outline: priorOutline,
+          job: {
+            status: "failed",
+            job_id: "outline-job-1",
+            kind: "outline",
+            input_version_id: versionId,
+            error: "Quality provider timed out",
+          },
+        });
+        await fulfillJson(route, {
+          detail: {
+            code: "workflow_generation_failed",
+            message: "Quality provider timed out",
+            job: workflow.job,
+          },
+        }, 502);
+        return;
+      }
+      if (options.failFirstApproval && approvalAttempts > 1) {
+        // Model a real generator boundary so the UI can observe the committed
+        // running job before the event request returns its final artifact.
+        await new Promise((resolve) => setTimeout(resolve, 150));
       }
       workflow = workflowBody(content, versionId, { stage: "outline", outline: OUTLINE });
       await fulfillJson(route, workflow);
@@ -155,6 +240,7 @@ async function mockSmartIntake(page: Page, deferApproval = false, conflictOnSave
 
   return {
     events,
+    deletedSourceRequests,
     releaseApproval: () => {
       if (!releaseApproval) throw new Error("Approval request has not started");
       releaseApproval();
@@ -171,7 +257,7 @@ test("Smart Intake keeps known Create values editable and asks only unanswered p
   await expect(page.getByLabel("Duration")).toHaveValue("300");
   await expect(page.getByLabel("Platform")).toHaveValue("youtube");
   await expect(page.getByLabel("Aspect ratio")).toHaveValue("16:9");
-  await expect(page.getByText("launch-notes.pdf")).toBeVisible();
+  await expect(page.getByLabel("Source name launch-notes.pdf")).toHaveValue("launch-notes.pdf");
 
   await expect(page.getByText("What should viewers be able to do or understand?")).toBeVisible();
   await expect(page.getByText("Who is this for?")).toBeVisible();
@@ -223,7 +309,7 @@ test("Save persists edited canonical intake without moving stages and refresh re
 });
 
 test("Save and Generate Outline sends current edits, shows the job overlay, and lands on editable Outline", async ({ page }) => {
-  const mock = await mockSmartIntake(page, true);
+  const mock = await mockSmartIntake(page, { deferApproval: true });
   await page.goto(`/storyboard/${PROJECT_ID}`);
 
   await page.getByLabel("Viewer outcome").fill("Confidently run the launch workflow");
@@ -235,6 +321,7 @@ test("Save and Generate Outline sends current edits, shows the job overlay, and 
   await page.getByRole("button", { name: "Save & Generate Outline" }).click();
 
   await expect(page.getByRole("status", { name: "Outline generation status" })).toContainText("Generating your outline");
+  await expect(page.getByRole("button", { name: /Outline Generating/ })).toBeVisible();
   expect(mock.events[0]).toMatchObject({
     event: "approve_intake",
     payload: {
@@ -255,7 +342,7 @@ test("Save and Generate Outline sends current edits, shows the job overlay, and 
 });
 
 test("a 409 save conflict is parsed centrally and never advances Smart Intake", async ({ page }) => {
-  await mockSmartIntake(page, false, true);
+  await mockSmartIntake(page, { conflictOnSave: true });
   await page.goto(`/storyboard/${PROJECT_ID}`);
 
   await page.getByLabel("Video brief").fill("A conflicting local edit");
@@ -266,4 +353,193 @@ test("a 409 save conflict is parsed centrally and never advances Smart Intake", 
   );
   await expect(page.getByRole("heading", { name: "Smart Intake" })).toBeVisible();
   await expect(page.getByLabel("Video brief")).toHaveValue("A conflicting local edit");
+});
+
+test("canonical intake requires a persisted artifact pointer before replacing the legacy brief flow", async ({ page }) => {
+  await mockSmartIntake(page, { initialVersionId: null });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await expect(page.getByRole("heading", { name: "Smart Intake" })).toHaveCount(0);
+  await expect(page.getByText("Loading project... Generation will start automatically.")).toBeVisible();
+});
+
+test("clearing optional Create controls omits them from the next canonical version", async ({ page }) => {
+  const mock = await mockSmartIntake(page);
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await page.getByLabel("Duration").selectOption("");
+  await page.getByLabel("Platform").selectOption("");
+  await page.getByLabel("Aspect ratio").selectOption("");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+
+  const savedContent = mock.events[0].payload.content;
+  expect(savedContent).toBeDefined();
+  expect(savedContent).not.toHaveProperty("duration_seconds");
+  expect(savedContent).not.toHaveProperty("platform");
+  expect(savedContent).not.toHaveProperty("aspect_ratio");
+});
+
+test("sources can be renamed or removed from intake without deleting stored files", async ({ page }) => {
+  const mock = await mockSmartIntake(page);
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await page.getByLabel("Source name launch-notes.pdf").fill("Launch playbook.pdf");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(mock.events[0].payload.content?.sources).toMatchObject([
+    { id: "source-1", name: "Launch playbook.pdf" },
+  ]);
+
+  await page.getByRole("button", { name: "Remove Launch playbook.pdf" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(mock.events[1].payload.content?.sources).toEqual([]);
+  expect(mock.deletedSourceRequests).toEqual([]);
+});
+
+test("Saved becomes dirty on the next edit and refresh discards the unsaved copy", async ({ page }) => {
+  await mockSmartIntake(page);
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await page.getByLabel("Video brief").fill("Saved canonical copy");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+
+  await page.getByLabel("Video brief").fill("Unsaved local copy");
+  await expect(page.getByText("Saved", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Unsaved changes", { exact: true })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByLabel("Video brief")).toHaveValue("Saved canonical copy");
+});
+
+test("generation failure reloads the persisted job, preserves the last outline, and retries through edit_intake", async ({ page }) => {
+  const previousOutline = OUTLINE.replace("A clearer launch", "Last valid outline");
+  const mock = await mockSmartIntake(page, {
+    failFirstApproval: true,
+    initialOutline: previousOutline,
+  });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+  await page.getByRole("button", { name: "Save & Generate Outline" }).click();
+
+  await expect(page.getByRole("alert")).toContainText("Quality provider timed out");
+  await expect(page.locator('[contenteditable="true"]').filter({ hasText: "Last valid outline" }).first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("alert")).toContainText("Quality provider timed out");
+  await expect(page.locator('[contenteditable="true"]').filter({ hasText: "Last valid outline" }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Retry outline" }).click();
+  await expect(page.getByRole("status", { name: "Outline generation status" })).toContainText("Generating your outline");
+  await expect(page.locator('[contenteditable="true"]').filter({ hasText: "A clearer launch" }).first()).toBeVisible();
+  expect(mock.events.map((event) => event.event)).toEqual([
+    "approve_intake",
+    "edit_intake",
+    "approve_intake",
+  ]);
+});
+
+test("canonical hydration ignores old snapshots when no outline artifact exists", async ({ page }) => {
+  const oldSnapshot = OUTLINE.replace("A clearer launch", "Snapshot must not win");
+  await mockSmartIntake(page, {
+    initialStage: "outline",
+    initialOutline: null,
+    stageSnapshots: {
+      2: { aiVersion: oldSnapshot, humanVersion: null },
+    },
+  });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await expect(page.getByText("Snapshot must not win")).toHaveCount(0);
+});
+
+test("canonical projects suppress legacy guided initialization even with stale onboarding keys", async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem("storyboardPrompt", "Stale prompt");
+    sessionStorage.setItem("storyboardTypeName", "YouTube Explainer");
+    sessionStorage.setItem("storyboardIntentRoute", "knowledge_share");
+  });
+  const mock = await mockSmartIntake(page);
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+  await expect(page.getByRole("heading", { name: "Smart Intake" })).toBeVisible();
+  await page.waitForTimeout(300);
+
+  expect(mock.events.filter((event) => event.event === "submit_guided_brief")).toEqual([]);
+});
+
+test("sidebar back navigation reopens Intake before allowing a canonical save", async ({ page }) => {
+  const mock = await mockSmartIntake(page, { initialStage: "outline", initialOutline: OUTLINE });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await page.getByRole("button", { name: /Smart Intake Approved/ }).click();
+  await expect(page.getByRole("heading", { name: "Smart Intake" })).toBeVisible();
+  await page.getByLabel("Video brief").fill("Edited after outline");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+
+  expect(mock.events.map((event) => event.event)).toEqual(["edit_intake", "save_intake"]);
+  expect(mock.events[1].payload.content?.prompt).toBe("Edited after outline");
+});
+
+test("persisted custom audience level and tone remain visible and editable", async ({ page }) => {
+  await mockSmartIntake(page, {
+    initialContent: {
+      prompt: "Expert launch brief",
+      duration_seconds: 300,
+      platform: "youtube",
+      aspect_ratio: "16:9",
+      sources: [],
+      audience_level: "subject_matter_experts",
+      delivery_tone: "measured and technical",
+    },
+  });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await expect(page.getByLabel("Custom audience level")).toHaveValue("subject_matter_experts");
+  await expect(page.getByLabel("Custom delivery tone")).toHaveValue("measured and technical");
+  await page.getByLabel("Custom audience level").fill("senior operators");
+  await page.getByLabel("Custom delivery tone").fill("direct and calm");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+});
+
+test("Smart Intake controls stay within a narrow mobile viewport", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await mockSmartIntake(page);
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await expect(page.getByRole("heading", { name: "Smart Intake" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Save & Generate Outline" })).toBeVisible();
+  const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test("late workflow hydration from project A cannot overwrite project B", async ({ page }) => {
+  const projectA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const projectB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+  let releaseA: (() => void) | null = null;
+  let markAStarted: (() => void) | null = null;
+  const aStarted = new Promise<void>((resolve) => { markAStarted = resolve; });
+
+  await page.route("**/api/session", (route) => fulfillJson(route, { success: true }));
+  await page.route(/\/api\/project\/[a-f0-9-]+$/, (route) => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-1);
+    return fulfillJson(route, { success: true, project: { id, userInput: id === projectA ? "Project A" : "Project B", typeName: "Video storyboard" } });
+  });
+  await page.route(/\/api\/project\/[a-f0-9-]+\/stages$/, (route) => fulfillJson(route, { success: true, stages: {} }));
+  await page.route(/\/api\/project\/[a-f0-9-]+\/pipeline-state$/, async (route) => {
+    const id = new URL(route.request().url()).pathname.split("/").at(-2);
+    if (id === projectA) {
+      markAStarted?.();
+      await new Promise<void>((resolve) => { releaseA = resolve; });
+    }
+    const prompt = id === projectA ? "Project A late response" : "Project B current response";
+    await fulfillJson(route, workflowBody({ prompt, sources: [] }, `${id}-v1`));
+  });
+
+  await page.goto(`/storyboard/${projectA}`);
+  await aStarted;
+  await page.evaluate((path) => {
+    history.pushState({}, "", path);
+    window.dispatchEvent(new PopStateEvent("popstate"));
+  }, `/storyboard/${projectB}`);
+  await expect(page.getByLabel("Video brief")).toHaveValue("Project B current response");
+  releaseA?.();
+  await page.waitForTimeout(300);
+  await expect(page.getByLabel("Video brief")).toHaveValue("Project B current response");
 });

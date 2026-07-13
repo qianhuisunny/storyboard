@@ -11,6 +11,8 @@ test("real backend persists versioned Create intake and project metadata", async
       data: { legacy_user_id: `anon_${crypto.randomUUID()}` },
     });
     expect(session.ok()).toBeTruthy();
+    expect(session.headers()["set-cookie"]).toContain("plotline_session=");
+    expect(session.headers()["set-cookie"]).toContain("HttpOnly");
     const created = await request.post(`${BACKEND_URL}/api/create-project`, {
       data: {
         projectId,
@@ -47,9 +49,42 @@ test("real backend persists versioned Create intake and project metadata", async
     expect(state.artifacts.intake.current_version_id).toBe(versionId);
     expect(state.artifacts.intake.current_content.prompt).toBe(prompt);
 
+    const clearedPrompt = "Real API cleared Create options";
+    const cleared = await request.post(`${BACKEND_URL}/api/project/${projectId}/event`, {
+      data: {
+        event: "save_intake",
+        payload: {
+          content: {
+            prompt: clearedPrompt,
+            sources: [],
+            target_audience: "",
+          },
+          expected_version_id: versionId,
+        },
+      },
+    });
+    expect(cleared.ok()).toBeTruthy();
+    const clearedBody = await cleared.json();
+    expect(clearedBody.artifacts.intake.current_content).toEqual({
+      prompt: clearedPrompt,
+      sources: [],
+      target_audience: "",
+    });
+
+    const invalid = await request.post(`${BACKEND_URL}/api/project/${projectId}/event`, {
+      data: {
+        event: "save_intake",
+        payload: {
+          content: { prompt: "Invalid", sources: [], platform: "television" },
+          expected_version_id: clearedBody.artifacts.intake.current_version_id,
+        },
+      },
+    });
+    expect(invalid.status()).toBe(422);
+
     const project = await request.get(`${BACKEND_URL}/api/project/${projectId}`);
     const projectBody = (await project.json()).project;
-    expect(projectBody.userInput).toBe(prompt);
+    expect(projectBody.userInput).toBe(clearedPrompt);
     expect(projectBody.userId).toBeUndefined();
   } finally {
     await request.delete(`${BACKEND_URL}/api/project/${projectId}`);

@@ -366,6 +366,9 @@ class WorkflowService:
                         "new outline.",
                     )
             await self._save_human_artifact(repo, state, artifact_type, payload)
+            await self._sync_intake_project_metadata(
+                repo, project_id, artifact_type, payload
+            )
             await self._persist_state(repo, state)
 
     async def _approve_and_start(
@@ -398,6 +401,9 @@ class WorkflowService:
             self._reject_duplicate_job(event, state, candidate_input_id)
             self._validate_event(event, state)
             await self._save_human_artifact(repo, state, artifact_type, payload)
+            await self._sync_intake_project_metadata(
+                repo, project_id, artifact_type, payload
+            )
             pointers.approved_version_id = pointers.current_version_id
             pointers.needs_update = False
             StateManager(project_id).mark_upstream_changed(state, artifact_type)
@@ -719,6 +725,25 @@ class WorkflowService:
                 state, artifact_type
             )
         return version.id
+
+    async def _sync_intake_project_metadata(
+        self,
+        repo: ProjectRepository,
+        project_id: str,
+        artifact_type: str,
+        payload: dict[str, Any],
+    ) -> None:
+        """Update project-list metadata in the same transaction as intake."""
+        if artifact_type != "intake":
+            return
+        content = payload.get("content")
+        prompt = content.get("prompt") if isinstance(content, dict) else None
+        if isinstance(prompt, str):
+            await repo.update_project_intake_prompt(
+                project_id,
+                prompt,
+                commit=False,
+            )
 
     def _human_based_on(
         self, state: StoryboardState, artifact_type: str

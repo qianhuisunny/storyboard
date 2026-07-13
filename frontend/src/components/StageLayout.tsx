@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Menu, X, Cloud, CloudOff, Loader2 } from "lucide-react";
+import { AlertCircle, Menu, X, Cloud, CloudOff, Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StageNavigation, { type Stage, type StageStatus } from "./StageNavigation";
 import StageContent from "./StageContent";
@@ -11,7 +11,9 @@ import { getAnonymousUserId } from "@/lib/anonymousUser";
 import { ensureSession } from "@/lib/session";
 import {
   getWorkflow,
-  isCanonicalIntakeContent,
+  isCanonicalIntakeArtifact,
+  sendWorkflowEvent,
+  sendWorkflowGenerationEvent,
   type WorkflowResponse,
 } from "@/lib/workflow";
 
@@ -93,11 +95,8 @@ function hydrateStageDataFromPipeline(
   return next;
 }
 
-function hydrateStageDataFromWorkflow(
-  restoredData: Record<number, StageData>,
-  workflow: WorkflowResponse,
-): Record<number, StageData> {
-  const next = { ...restoredData };
+function hydrateStageDataFromWorkflow(workflow: WorkflowResponse): Record<number, StageData> {
+  const next: Record<number, StageData> = {};
   const intake = workflow.artifacts.intake.current_content;
   const outline = workflow.artifacts.outline.current_content;
   const storyboard = workflow.artifacts.storyboard.current_content;
@@ -241,7 +240,10 @@ export default function StageLayout() {
   const [isLoadingStages, setIsLoadingStages] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [workflowState, setWorkflowState] = useState<WorkflowResponse | null>(null);
+  const [workflowActionError, setWorkflowActionError] = useState<string | null>(null);
+  const [isRetryingJob, setIsRetryingJob] = useState(false);
   const hasLoadedStages = useRef(false);
+  const workflowLoadGenerationRef = useRef(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousStageIdRef = useRef<number | null>(null);
   const stageDataRef = useRef(stageData);
@@ -252,7 +254,7 @@ export default function StageLayout() {
   }, [stageData]);
 
   const usesCanonicalWorkflow = Boolean(
-    workflowState && isCanonicalIntakeContent(workflowState.artifacts.intake.current_content),
+    workflowState && isCanonicalIntakeArtifact(workflowState.artifacts.intake),
   );
 
   // Initialize analytics tracking
@@ -260,6 +262,8 @@ export default function StageLayout() {
 
   // Load project context on mount
   useEffect(() => {
+    const controller = new AbortController();
+    let active = true;
     const loadProject = async () => {
       if (!projectId) return;
 
@@ -272,12 +276,13 @@ export default function StageLayout() {
 
         // Project persistence is the source of truth for ownership. A local
         // anonymous ID must never stand in for a Clerk-owned project.
-        const response = await fetch(`/api/project/${projectId}`);
+        const response = await fetch(`/api/project/${projectId}`, { signal: controller.signal });
         if (!response.ok) {
           throw new Error(`Project request failed: ${response.status}`);
         }
 
         const data = await response.json();
+        if (!active) return;
         const project = data.success ? data.project : null;
         if (!project?.id) throw new Error("Project data is missing");
 
@@ -294,7 +299,7 @@ export default function StageLayout() {
           // Start legacy generation only for old non-guided projects.
           const storedTypeName = sessionStorage.getItem("storyboardTypeName");
           const isGuidedBrief = Boolean(sessionStorage.getItem("storyboardIntentRoute")) || isGuidedBriefType(storedTypeName);
-          if (!stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && !isGuidedBrief) {
+          if (!usesCanonicalWorkflow && !stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && !isGuidedBrief) {
             void generateStageRef.current(1, storedPrompt);
           }
         } else {
@@ -305,51 +310,76 @@ export default function StageLayout() {
 
           // Start legacy generation only for old non-guided projects.
           const projectIsGuidedBrief = isGuidedBriefType(project.typeName);
-          if (!stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && project.userInput && !projectIsGuidedBrief) {
+          if (!usesCanonicalWorkflow && !stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && project.userInput && !projectIsGuidedBrief) {
             void generateStageRef.current(1, project.userInput);
           }
         }
       } catch (error) {
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) return;
         console.error("Failed to load project:", error);
         setProjectLoadError("Unable to verify this project's owner. Refresh to try again.");
       }
     };
 
     loadProject();
-  }, [projectId, isLoadingStages]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [projectId, isLoadingStages, usesCanonicalWorkflow]);
 
   // Load saved stages on mount
   useEffect(() => {
+    const generation = ++workflowLoadGenerationRef.current;
+    const controller = new AbortController();
+    const isCurrentLoad = () => workflowLoadGenerationRef.current === generation;
+
+    setIsLoadingStages(true);
+    setWorkflowState(null);
+    setStageData({});
+    setStages(INITIAL_STAGES);
+    setCurrentStageId(1);
+    setProjectContext(null);
+    setProjectLoadError(null);
+    setWorkflowActionError(null);
+    hasLoadedStages.current = false;
+
     const loadSavedStages = async () => {
       if (!projectId) return;
 
-      // StrictMode double-mount guard: ref survives remount but state resets.
-      // Always fetch and restore — skip only the "already loaded" early return.
       try {
-        await ensureSession();
-        const [stagesResponse, pipelinePayload] = await Promise.all([
-          fetch(`/api/project/${projectId}/stages`),
-          getWorkflow(projectId),
-        ]);
-
-        const stagesPayload = stagesResponse.ok ? await stagesResponse.json() : {};
+        const pipelinePayload = await getWorkflow(projectId, fetch, controller.signal);
+        if (!isCurrentLoad()) return;
         setWorkflowState(pipelinePayload);
 
+        const isCanonicalWorkflow = isCanonicalIntakeArtifact(pipelinePayload.artifacts.intake);
+        let stagesPayload: {
+          stages?: Record<string, StageData>;
+          currentStageId?: number;
+          stageStatuses?: unknown;
+        } = {};
         const restoredData: Record<number, StageData> = {};
-        if (stagesPayload.stages && Object.keys(stagesPayload.stages).length > 0) {
-          for (const [key, value] of Object.entries(stagesPayload.stages)) {
-            restoredData[parseInt(key)] = value as StageData;
+
+        // Canonical version pointers are the sole source of truth. Legacy stage
+        // snapshots are consulted only for projects that have not migrated.
+        if (!isCanonicalWorkflow) {
+          const stagesResponse = await fetch(`/api/project/${projectId}/stages`, {
+            signal: controller.signal,
+          });
+          if (!isCurrentLoad()) return;
+          stagesPayload = stagesResponse.ok ? await stagesResponse.json() : {};
+          if (stagesPayload.stages && Object.keys(stagesPayload.stages).length > 0) {
+            for (const [key, value] of Object.entries(stagesPayload.stages)) {
+              restoredData[parseInt(key)] = value;
+            }
           }
         }
 
-        const canonicalIntake = pipelinePayload.artifacts.intake.current_content;
-        const isCanonicalWorkflow = isCanonicalIntakeContent(canonicalIntake);
         const hydratedData = isCanonicalWorkflow
-          ? hydrateStageDataFromWorkflow(restoredData, pipelinePayload)
+          ? hydrateStageDataFromWorkflow(pipelinePayload)
           : hydrateStageDataFromPipeline(restoredData, pipelinePayload as PipelineStateResponse);
-        if (Object.keys(hydratedData).length > 0) {
-          setStageData(hydratedData);
-        }
+        if (!isCurrentLoad()) return;
+        setStageData(hydratedData);
 
         const derivedStageView = isCanonicalWorkflow
           ? deriveStageViewFromWorkflow(pipelinePayload)
@@ -373,9 +403,10 @@ export default function StageLayout() {
           }
 
           if (stagesPayload.stageStatuses && Array.isArray(stagesPayload.stageStatuses)) {
+            const savedStageStatuses = stagesPayload.stageStatuses;
             setStages((prev) =>
               prev.map((s) => {
-                const savedStatus = stagesPayload.stageStatuses.find(
+                const savedStatus = savedStageStatuses.find(
                   (ss: { id: number; status: StageStatus }) => ss.id === s.id
                 );
                 if (!savedStatus) return s;
@@ -391,19 +422,23 @@ export default function StageLayout() {
           Boolean(pipelinePayload?.state?.has_story_brief);
         console.log("Restored saved stages:", { stages: stagesPayload, pipeline: pipelinePayload });
       } catch (error) {
+        if (!isCurrentLoad() || (error instanceof DOMException && error.name === "AbortError")) return;
         console.error("Failed to load saved stages:", error);
       } finally {
-        setIsLoadingStages(false);
+        if (isCurrentLoad()) setIsLoadingStages(false);
       }
     };
 
-    loadSavedStages();
+    void loadSavedStages();
+    return () => {
+      controller.abort();
+    };
   }, [projectId]);
 
   const handleWorkflowChange = useCallback((nextWorkflow: WorkflowResponse) => {
     setWorkflowState(nextWorkflow);
-    if (!isCanonicalIntakeContent(nextWorkflow.artifacts.intake.current_content)) return;
-    setStageData((current) => hydrateStageDataFromWorkflow(current, nextWorkflow));
+    if (!isCanonicalIntakeArtifact(nextWorkflow.artifacts.intake)) return;
+    setStageData(hydrateStageDataFromWorkflow(nextWorkflow));
     const stageView = deriveStageViewFromWorkflow(nextWorkflow);
     setCurrentStageId(stageView.currentStageId);
     setStages((current) => current.map((stage) => ({
@@ -592,9 +627,32 @@ export default function StageLayout() {
     );
   };
 
-  const handleStageSelect = (stageId: number) => {
-    setCurrentStageId(stageId);
+  const handleStageSelect = async (stageId: number) => {
     setIsMobileMenuOpen(false);
+    if (!projectId || !workflowState || !usesCanonicalWorkflow) {
+      setCurrentStageId(stageId);
+      return;
+    }
+
+    const targetStage = ({ 1: "intake", 2: "outline", 3: "storyboard", 4: "complete" } as const)[stageId as 1 | 2 | 3 | 4];
+    if (!targetStage || targetStage === workflowState.workflow_stage) return;
+
+    let event: string | null = null;
+    if (workflowState.workflow_stage === "complete") {
+      event = ({ intake: "reopen_intake", outline: "reopen_outline", storyboard: "reopen_storyboard" } as const)[targetStage as "intake" | "outline" | "storyboard"] ?? null;
+    } else if (targetStage === "intake" && ["outline", "storyboard"].includes(workflowState.workflow_stage)) {
+      event = "edit_intake";
+    } else if (targetStage === "outline" && workflowState.workflow_stage === "storyboard") {
+      event = "edit_outline";
+    }
+
+    if (!event || !workflowState.allowed_events.includes(event)) return;
+    setWorkflowActionError(null);
+    try {
+      handleWorkflowChange(await sendWorkflowEvent(projectId, event, {}));
+    } catch (caught) {
+      setWorkflowActionError(caught instanceof Error ? caught.message : "Could not reopen this stage.");
+    }
   };
 
   const handleApprove = async (
@@ -744,6 +802,51 @@ export default function StageLayout() {
 
   const currentStage = stages.find((s) => s.id === currentStageId);
   const currentData = stageData[currentStageId] || { aiVersion: null, humanVersion: null };
+  const activeJobStageId = workflowState?.job.kind === "outline"
+    ? 2
+    : workflowState?.job.kind === "storyboard"
+    ? 3
+    : null;
+  const jobAppliesToCurrentStage = usesCanonicalWorkflow
+    && activeJobStageId === currentStageId
+    && workflowState?.job.status !== "idle";
+
+  const handleRetryOutline = async () => {
+    if (!projectId || !workflowState || workflowState.job.kind !== "outline") return;
+    setIsRetryingJob(true);
+    setWorkflowActionError(null);
+    try {
+      let editableWorkflow = workflowState;
+      if (editableWorkflow.workflow_stage !== "intake") {
+        const reopenEvent = editableWorkflow.workflow_stage === "complete" ? "reopen_intake" : "edit_intake";
+        editableWorkflow = await sendWorkflowEvent(projectId, reopenEvent, {});
+        handleWorkflowChange(editableWorkflow);
+      }
+      const intake = editableWorkflow.artifacts.intake;
+      if (!isCanonicalIntakeArtifact(intake)) {
+        throw new Error("The current Smart Intake version is unavailable.");
+      }
+      const next = await sendWorkflowGenerationEvent(
+        projectId,
+        "approve_intake",
+        {
+          content: intake.current_content,
+          expected_version_id: intake.current_version_id,
+        },
+        handleWorkflowChange,
+      );
+      handleWorkflowChange(next);
+    } catch (caught) {
+      setWorkflowActionError(caught instanceof Error ? caught.message : "Could not retry outline generation.");
+      try {
+        handleWorkflowChange(await getWorkflow(projectId));
+      } catch {
+        // Preserve the actionable retry error if refresh also fails.
+      }
+    } finally {
+      setIsRetryingJob(false);
+    }
+  };
 
   // For stages > 1, get the previous stage's output to pass as context
   // Use humanVersion as fallback for guided brief flow which writes to humanVersion.
@@ -842,19 +945,65 @@ export default function StageLayout() {
             <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
           </div>
         ) : currentStage ? (
-          <StageContent
-            stage={currentStage}
-            aiContent={currentData.aiVersion}
-            humanContent={currentData.humanVersion}
-            previousStageOutput={previousStageOutput}
-            isGenerating={isGenerating}
-            onApprove={handleApprove}
-            onRegenerate={handleRegenerate}
-            onContentChange={handleContentChange}
-            onStoryboardGeneratingChange={handleStoryboardGeneratingChange}
-            workflow={workflowState}
-            onWorkflowChange={handleWorkflowChange}
-          />
+          <>
+            {workflowActionError && (
+              <p role="alert" className="m-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+                {workflowActionError}
+              </p>
+            )}
+            {jobAppliesToCurrentStage && workflowState?.job.status === "running" && (
+              <div
+                role="status"
+                aria-label={`${workflowState.job.kind === "outline" ? "Outline" : "Storyboard"} generation status`}
+                className="m-4 rounded-2xl border border-[#C9D8C8] bg-[#F1F6F1] px-5 py-4 text-[#274F32]"
+              >
+                <div className="flex items-center gap-3">
+                  <Loader2 className="h-5 w-5 shrink-0 animate-spin" />
+                  <div>
+                    <p className="font-medium">Generating your {workflowState.job.kind}</p>
+                    <p className="mt-0.5 text-sm text-[#526A57]">Your last saved version stays available while Plotline works.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            {jobAppliesToCurrentStage && workflowState?.job.status === "failed" && (
+              <div role="alert" className="m-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <p className="font-medium">Outline generation failed</p>
+                    <p className="mt-1 text-sm">{workflowState.job.error || "Plotline could not generate the outline."}</p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="mt-3 border-red-200 bg-white"
+                      disabled={isRetryingJob}
+                      onClick={() => void handleRetryOutline()}
+                    >
+                      {isRetryingJob ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                      Retry outline
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {!(jobAppliesToCurrentStage && workflowState?.job.status === "running" && !hasStageContent(currentData)) && (
+              <StageContent
+                stage={currentStage}
+                aiContent={currentData.aiVersion}
+                humanContent={currentData.humanVersion}
+                previousStageOutput={previousStageOutput}
+                isGenerating={isGenerating}
+                onApprove={handleApprove}
+                onRegenerate={handleRegenerate}
+                onContentChange={handleContentChange}
+                onStoryboardGeneratingChange={handleStoryboardGeneratingChange}
+                workflow={workflowState}
+                onWorkflowChange={handleWorkflowChange}
+              />
+            )}
+          </>
         ) : null}
       </div>
 

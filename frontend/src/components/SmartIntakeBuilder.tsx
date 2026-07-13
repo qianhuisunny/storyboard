@@ -2,8 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, FileText, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  getWorkflow,
+  sendWorkflowGenerationEvent,
   sendWorkflowEvent,
   type CanonicalIntakeContent,
+  type CanonicalIntakeSource,
   type ProductionFormat,
   type WorkflowResponse,
 } from "@/lib/workflow";
@@ -25,6 +28,7 @@ type IntakeDraft = {
   audience_level: string;
   delivery_tone: string;
   production_formats: ProductionFormat[];
+  sources: CanonicalIntakeSource[];
 };
 
 const DURATION_OPTIONS = [60, 90, 120, 180, 240, 300, 600, 900, 1200] as const;
@@ -55,6 +59,7 @@ function initialDraft(content: CanonicalIntakeContent): IntakeDraft {
     audience_level: content.audience_level ?? "",
     delivery_tone: content.delivery_tone ?? "",
     production_formats: content.production_formats ?? [],
+    sources: (content.sources ?? []).map((source) => ({ ...source })),
   };
 }
 
@@ -103,6 +108,39 @@ function ChoiceGroup<T extends string>({
   );
 }
 
+function ChoiceWithCustom<T extends string>({
+  label,
+  customLabel,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  customLabel: string;
+  options: readonly T[];
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  const isPreset = options.some((option) => option === value);
+  return (
+    <div className="space-y-3">
+      <ChoiceGroup
+        label={label}
+        options={options}
+        selected={isPreset ? value as T : ""}
+        onSelect={onChange}
+      />
+      <input
+        aria-label={customLabel}
+        value={isPreset ? "" : value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="Or enter your own"
+        className="h-11 w-full rounded-xl border border-[#D9DDD2] bg-[#FBFBF8] px-4 text-sm text-[#1C2118] outline-none transition focus:border-[#3A6B47] focus:ring-2 focus:ring-[#3A6B47]/15"
+      />
+    </div>
+  );
+}
+
 function FormatChoiceGroup({
   selected,
   onToggle,
@@ -147,7 +185,6 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
   const content = intakeArtifact.current_content as CanonicalIntakeContent;
   const [draft, setDraft] = useState<IntakeDraft>(() => initialDraft(content));
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
-  const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -163,16 +200,23 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
   }), [content]);
   const hasKnownDirection = Object.values(missing).some((isMissing) => !isMissing);
   const hasMissingDirection = Object.values(missing).some(Boolean);
+  const isDirty = useMemo(
+    () => JSON.stringify(draft) !== JSON.stringify(initialDraft(content)),
+    [content, draft],
+  );
 
   const buildContent = (): CanonicalIntakeContent => {
     const next: CanonicalIntakeContent = {
       ...content,
       prompt: draft.prompt.trim(),
-      duration_seconds: draft.duration_seconds,
-      platform: draft.platform,
-      aspect_ratio: draft.aspect_ratio,
-      sources: content.sources ?? [],
+      sources: draft.sources.map((source) => ({ ...source })),
     };
+    if (draft.duration_seconds === undefined) delete next.duration_seconds;
+    else next.duration_seconds = draft.duration_seconds;
+    if (draft.platform === undefined) delete next.platform;
+    else next.platform = draft.platform;
+    if (draft.aspect_ratio === undefined) delete next.aspect_ratio;
+    else next.aspect_ratio = draft.aspect_ratio;
     const optionalText = ["viewer_outcome", "target_audience", "audience_level", "delivery_tone"] as const;
     for (const key of optionalText) {
       if (draft[key].trim() || Object.prototype.hasOwnProperty.call(content, key)) next[key] = draft[key].trim();
@@ -193,19 +237,26 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
     }
     setError(null);
     setSaveState("saving");
-    setIsGenerating(event === "approve_intake");
     try {
-      const next = await sendWorkflowEvent(projectId, event, {
+      const payload = {
         content: buildContent(),
         expected_version_id: intakeArtifact.current_version_id,
-      });
+      };
+      const next = event === "approve_intake"
+        ? await sendWorkflowGenerationEvent(projectId, event, payload, onWorkflowChange)
+        : await sendWorkflowEvent(projectId, event, payload);
       setSaveState("saved");
       onWorkflowChange(next);
     } catch (caught) {
       setSaveState("idle");
       setError(caught instanceof Error ? caught.message : "Could not save Smart Intake.");
-    } finally {
-      setIsGenerating(false);
+      if (event === "approve_intake") {
+        try {
+          onWorkflowChange(await getWorkflow(projectId));
+        } catch {
+          // Keep the original request error visible if refresh also fails.
+        }
+      }
     }
   };
 
@@ -217,22 +268,6 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
         : [...current.production_formats, format],
     }));
   };
-
-  if (isGenerating) {
-    return (
-      <div className="flex min-h-[420px] flex-1 items-center justify-center bg-[#F7F6F1] p-6">
-        <div role="status" aria-label="Outline generation status" className="max-w-sm text-center">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[#E8F0E9]">
-            <Loader2 className="h-6 w-6 animate-spin text-[#3A6B47]" />
-          </div>
-          <h2 className="mt-5 font-serif text-2xl text-[#1C2118]">Generating your outline</h2>
-          <p className="mt-2 text-sm leading-6 text-[#626B58]">
-            Plotline is shaping your brief and source material into an editable story structure.
-          </p>
-        </div>
-      </div>
-    );
-  }
 
   const textField = (key: "viewer_outcome" | "target_audience", label: string) => (
     <textarea
@@ -284,7 +319,12 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
                 <select
                   aria-label="Duration"
                   value={draft.duration_seconds ?? ""}
-                  onChange={(event) => setDraft((current) => ({ ...current, duration_seconds: Number(event.target.value) as IntakeDraft["duration_seconds"] }))}
+                  onChange={(event) => setDraft((current) => ({
+                    ...current,
+                    duration_seconds: event.target.value
+                      ? Number(event.target.value) as IntakeDraft["duration_seconds"]
+                      : undefined,
+                  }))}
                   className="h-11 w-full rounded-xl border border-[#D9DDD2] bg-white px-3 text-sm outline-none focus:border-[#3A6B47] focus:ring-2 focus:ring-[#3A6B47]/15"
                 >
                   <option value="">Not set</option>
@@ -296,7 +336,12 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
                 <select
                   aria-label="Platform"
                   value={draft.platform ?? ""}
-                  onChange={(event) => setDraft((current) => ({ ...current, platform: event.target.value as IntakeDraft["platform"] }))}
+                  onChange={(event) => setDraft((current) => ({
+                    ...current,
+                    platform: event.target.value
+                      ? event.target.value as IntakeDraft["platform"]
+                      : undefined,
+                  }))}
                   className="h-11 w-full rounded-xl border border-[#D9DDD2] bg-white px-3 text-sm outline-none focus:border-[#3A6B47] focus:ring-2 focus:ring-[#3A6B47]/15"
                 >
                   <option value="">Not set</option>
@@ -308,7 +353,12 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
                 <select
                   aria-label="Aspect ratio"
                   value={draft.aspect_ratio ?? ""}
-                  onChange={(event) => setDraft((current) => ({ ...current, aspect_ratio: event.target.value as IntakeDraft["aspect_ratio"] }))}
+                  onChange={(event) => setDraft((current) => ({
+                    ...current,
+                    aspect_ratio: event.target.value
+                      ? event.target.value as IntakeDraft["aspect_ratio"]
+                      : undefined,
+                  }))}
                   className="h-11 w-full rounded-xl border border-[#D9DDD2] bg-white px-3 text-sm outline-none focus:border-[#3A6B47] focus:ring-2 focus:ring-[#3A6B47]/15"
                 >
                   <option value="">Not set</option>
@@ -316,14 +366,49 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
                 </select>
               </label>
             </div>
-            {content.sources.length > 0 && (
+            {draft.sources.length > 0 && (
               <div className="mt-5 border-t border-[#E1E3DB] pt-4">
                 <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[#626B58]">Sources</p>
-                <ul className="mt-2 flex flex-wrap gap-2">
-                  {content.sources.map((source) => (
-                    <li key={source.id} className="flex items-center gap-1.5 rounded-full border border-[#D9DDD2] bg-white px-3 py-1.5 text-xs text-[#4E5848]">
-                      <FileText className="h-3.5 w-3.5" aria-hidden="true" />
-                      {source.name}
+                <ul className="mt-3 space-y-2">
+                  {draft.sources.map((source) => (
+                    <li key={source.id} className="flex flex-col gap-2 rounded-xl border border-[#D9DDD2] bg-white p-3 sm:flex-row sm:items-center">
+                      <FileText className="hidden h-4 w-4 shrink-0 text-[#626B58] sm:block" aria-hidden="true" />
+                      <input
+                        aria-label={`Source name ${source.name}`}
+                        value={source.name}
+                        onChange={(event) => setDraft((current) => ({
+                          ...current,
+                          sources: current.sources.map((item) => item.id === source.id
+                            ? { ...item, name: event.target.value }
+                            : item),
+                        }))}
+                        className="h-10 min-w-0 flex-1 rounded-lg border border-[#E1E3DB] bg-[#FBFBF8] px-3 text-sm outline-none focus:border-[#3A6B47] focus:ring-2 focus:ring-[#3A6B47]/15"
+                      />
+                      {source.kind === "link" && (
+                        <input
+                          aria-label={`Source URL ${source.name}`}
+                          value={source.url ?? ""}
+                          onChange={(event) => setDraft((current) => ({
+                            ...current,
+                            sources: current.sources.map((item) => item.id === source.id
+                              ? { ...item, url: event.target.value }
+                              : item),
+                          }))}
+                          className="h-10 min-w-0 flex-[1.4] rounded-lg border border-[#E1E3DB] bg-[#FBFBF8] px-3 text-sm outline-none focus:border-[#3A6B47] focus:ring-2 focus:ring-[#3A6B47]/15"
+                        />
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        aria-label={`Remove ${source.name}`}
+                        onClick={() => setDraft((current) => ({
+                          ...current,
+                          sources: current.sources.filter((item) => item.id !== source.id),
+                        }))}
+                        className="self-end text-[#626B58] hover:text-red-700 sm:self-auto"
+                      >
+                        Remove
+                      </Button>
                     </li>
                   ))}
                 </ul>
@@ -352,22 +437,24 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
               {!missing.audience_level && (
                 <div>
                   <p className="mb-2 text-sm font-medium">Audience level</p>
-                  <ChoiceGroup
+                  <ChoiceWithCustom
                     label="Audience level"
+                    customLabel="Custom audience level"
                     options={LEVEL_OPTIONS}
-                    selected={draft.audience_level as typeof LEVEL_OPTIONS[number]}
-                    onSelect={(value) => setDraft((current) => ({ ...current, audience_level: value }))}
+                    value={draft.audience_level}
+                    onChange={(value) => setDraft((current) => ({ ...current, audience_level: value }))}
                   />
                 </div>
               )}
               {!missing.delivery_tone && (
                 <div>
                   <p className="mb-2 text-sm font-medium">Delivery tone</p>
-                  <ChoiceGroup
+                  <ChoiceWithCustom
                     label="Delivery tone"
+                    customLabel="Custom delivery tone"
                     options={TONE_OPTIONS}
-                    selected={draft.delivery_tone as typeof TONE_OPTIONS[number]}
-                    onSelect={(value) => setDraft((current) => ({ ...current, delivery_tone: value }))}
+                    value={draft.delivery_tone}
+                    onChange={(value) => setDraft((current) => ({ ...current, delivery_tone: value }))}
                   />
                 </div>
               )}
@@ -397,21 +484,23 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
                 )}
                 {missing.audience_level && (
                   <QuestionCard title="How familiar is your audience?">
-                    <ChoiceGroup
+                    <ChoiceWithCustom
                       label="Audience level"
+                      customLabel="Custom audience level"
                       options={LEVEL_OPTIONS}
-                      selected={draft.audience_level as typeof LEVEL_OPTIONS[number]}
-                      onSelect={(value) => setDraft((current) => ({ ...current, audience_level: value }))}
+                      value={draft.audience_level}
+                      onChange={(value) => setDraft((current) => ({ ...current, audience_level: value }))}
                     />
                   </QuestionCard>
                 )}
                 {missing.delivery_tone && (
                   <QuestionCard title="How should it sound?">
-                    <ChoiceGroup
+                    <ChoiceWithCustom
                       label="Delivery tone"
+                      customLabel="Custom delivery tone"
                       options={TONE_OPTIONS}
-                      selected={draft.delivery_tone as typeof TONE_OPTIONS[number]}
-                      onSelect={(value) => setDraft((current) => ({ ...current, delivery_tone: value }))}
+                      value={draft.delivery_tone}
+                      onChange={(value) => setDraft((current) => ({ ...current, delivery_tone: value }))}
                     />
                   </QuestionCard>
                 )}
@@ -430,7 +519,8 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
 
       <footer className="shrink-0 border-t border-[#D9DDD2] bg-[#FBFBF8] px-5 py-4 sm:px-10">
         <div className="flex w-full max-w-4xl flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-end">
-          {saveState === "saved" && <span className="mr-auto flex items-center gap-1.5 text-sm text-[#3A6B47]"><Check className="h-4 w-4" />Saved</span>}
+          {saveState === "saved" && !isDirty && <span className="mr-auto flex items-center gap-1.5 text-sm text-[#3A6B47]"><Check className="h-4 w-4" />Saved</span>}
+          {isDirty && <span className="mr-auto text-sm text-[#626B58]">Unsaved changes</span>}
           <Button type="button" variant="outline" disabled={saveState === "saving"} onClick={() => void submit("save_intake")}>
             {saveState === "saving" ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
             Save

@@ -361,6 +361,34 @@ async def test_save_intake_updates_project_prompt_metadata(workflow_api):
 
 
 @pytest.mark.asyncio
+async def test_approve_intake_updates_project_metadata_before_generation_failure(
+    workflow_api,
+):
+    client, service = workflow_api
+    prompt = "Approved Smart Intake metadata"
+
+    async def failing(_context):
+        raise RuntimeError("outline provider unavailable")
+
+    service.outline_generator = failing
+    approved = await client.post(
+        "/api/project/api-project/event",
+        json={
+            "event": "approve_intake",
+            "payload": {
+                "content": {"prompt": prompt, "sources": []},
+                "expected_version_id": None,
+            },
+        },
+    )
+    project = await client.get("/api/project/api-project")
+
+    assert approved.status_code == 502
+    assert project.json()["project"]["userInput"] == prompt
+    assert project.json()["project"]["title"] == prompt
+
+
+@pytest.mark.asyncio
 async def test_stage_autosave_and_workflow_transition_preserve_each_others_state(
     workflow_api, monkeypatch
 ):

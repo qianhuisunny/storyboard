@@ -347,6 +347,7 @@ async def get_project(
 
         project_data = {
             "id": project.id,
+            "title": project.title,
             "type": project.type_id,
             "typeName": project.type_name,
             "userInput": project.user_input,
@@ -637,12 +638,6 @@ async def process_pipeline_event(
                 request.event,
                 request.payload,
             )
-            if request.event == "save_intake":
-                prompt = (request.payload or {}).get("content", {}).get("prompt")
-                if isinstance(prompt, str):
-                    await ProjectRepository(db).update_project_intake_prompt(
-                        project_id, prompt
-                    )
             return result
         normalized_event, normalized_payload = await _normalize_pipeline_event(
             project_id=project_id,
