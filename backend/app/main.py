@@ -46,11 +46,13 @@ def _is_local_anonymous_user(user_id: Optional[str]) -> bool:
     return not user_id or user_id == DEFAULT_ANONYMOUS_USER_ID or user_id.startswith("anon_")
 
 
-def _can_access_project_owner(owner_user_id: str, request_user_id: Optional[str]) -> bool:
+def _can_access_project_owner(
+    owner_user_id: str, request_user_id: Optional[str]
+) -> bool:
     if owner_user_id == (request_user_id or DEFAULT_ANONYMOUS_USER_ID):
         return True
     if _is_local_anonymous_user(request_user_id):
-        return owner_user_id in {"", DEFAULT_ANONYMOUS_USER_ID} or owner_user_id.startswith("user_")
+        return owner_user_id in {"", DEFAULT_ANONYMOUS_USER_ID}
     return False
 
 

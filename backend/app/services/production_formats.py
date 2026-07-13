@@ -16,6 +16,8 @@ VALID_SCREEN_TYPES = {
     "talking_head_left_with_notes",
 }
 
+DEFAULT_PRODUCTION_FORMATS = ("slides", "whiteboard_animation")
+
 LEGACY_PRODUCTION_FORMAT_MAP = {
     "slides": "slides",
     "whiteboard_animation": "whiteboard_animation",
@@ -44,3 +46,19 @@ def normalize_production_formats(value: Any) -> list[str]:
         if mapped in VALID_SCREEN_TYPES and mapped not in normalized:
             normalized.append(mapped)
     return normalized
+
+
+def resolve_production_formats(
+    value: Any,
+    *,
+    fallback_when_empty: bool,
+    additional: Any = None,
+) -> list[str]:
+    """Resolve normalized selections and one shared deterministic fallback."""
+    resolved = normalize_production_formats(value)
+    for item in normalize_production_formats(additional):
+        if item not in resolved:
+            resolved.append(item)
+    if not resolved and fallback_when_empty:
+        return list(DEFAULT_PRODUCTION_FORMATS)
+    return resolved

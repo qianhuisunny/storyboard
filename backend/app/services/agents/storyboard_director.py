@@ -4,7 +4,7 @@ import re
 from typing import Any, Optional
 
 from app.services.prompt_context import render_prompt_value
-from app.services.production_formats import normalize_production_formats
+from app.services.production_formats import resolve_production_formats
 
 from .base import BaseAgent
 
@@ -102,16 +102,21 @@ class StoryboardDirector(BaseAgent):
         if is_legacy:
             raw = self._read_aliases(story_brief, ("broll_type",), [])
 
-        formats = normalize_production_formats(raw)
+        additional = []
 
         if is_legacy:
             on_camera = self._read_aliases(
                 story_brief, ("on_camera_presence",), ""
             )
             if str(on_camera).strip().lower() not in {"", "no", "none", "false", "0"}:
-                if "talking_head" not in formats:
-                    formats.append("talking_head")
-        return formats
+                additional.append("talking_head")
+        return resolve_production_formats(
+            raw,
+            fallback_when_empty=self._has_field(
+                story_brief, "production_formats"
+            ),
+            additional=additional,
+        )
 
     def _canonical_context(self, story_brief: dict) -> dict[str, Any]:
         context: dict[str, Any] = {}

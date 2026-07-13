@@ -315,6 +315,94 @@ def test_writer_prompt_caps_large_source_outline_existing_and_section_contexts()
     assert len(prompt) < 50000
 
 
+def test_section_retry_caps_title_purpose_and_talking_points(monkeypatch):
+    writer = StoryboardWriter()
+    huge = "oversized-section-value-" * 2000
+    captured = []
+    monkeypatch.setattr(
+        writer,
+        "call_llm",
+        lambda prompt, **_kwargs: captured.append(prompt) or "[]",
+    )
+
+    result = writer._retry_section(
+        {
+            "section_number": 1,
+            "title": huge,
+            "purpose": huge,
+            "talking_points": [huge, huge],
+            "target_seconds": 7,
+            "word_budget": 15,
+        },
+        [_make_screen("Current screen")],
+        {"direction": "under", "deviation_percent": 40},
+        {},
+        {},
+        ["slides"],
+        "retry-budget",
+    )
+
+    assert result is None
+    assert "[truncated]" in captured[0]
+    assert len(captured[0]) < 22000
+
+
+@pytest.mark.asyncio
+async def test_legacy_list_outline_is_migrated_and_passes_quality_gate(
+    monkeypatch,
+):
+    from app.services.quality_gate import QualityGate
+
+    legacy_outline = [
+        {
+            "screen_number": 7,
+            "voiceover_text": "Keep this persisted opening.",
+            "screen_type": "slides",
+            "duration": 4,
+            "visual_direction": ["Persisted diagram"],
+            "action_notes": "Persisted direction.",
+            "legacy_note": "must survive migration",
+        },
+        {
+            "screen_number": 9,
+            "voiceover_text": "Keep this persisted ending.",
+            "screen_type": "slides",
+            "duration": 4,
+            "visual_direction": ["Persisted checklist"],
+            "action_notes": "Persisted ending direction.",
+        },
+    ]
+    state = SimpleNamespace(
+        screen_outline=legacy_outline,
+        story_brief={"production_formats": []},
+    )
+    gate = QualityGate()
+
+    async def passing_review(*_args, **_kwargs):
+        return {
+            "score": 9,
+            "passed": True,
+            "feedback": "Legacy content migrated safely.",
+            "strengths": [],
+            "issues": [],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", passing_review)
+    output, result = await gate.run_with_gate(
+        StoryboardWriter(),
+        state,
+        "storyboard",
+        outline_for_cross_stage=legacy_outline,
+    )
+
+    assert result.passed is True
+    assert [screen["screen_number"] for screen in output] == [1, 2]
+    assert all(screen["section_number"] == 1 for screen in output)
+    assert all(screen["section_title"] == "Legacy Section 1" for screen in output)
+    assert output[0]["voiceover_text"] == "Keep this persisted opening."
+    assert output[0]["legacy_note"] == "must survive migration"
+
+
 def test_post_process_splits_overlong_voiceover_into_multiple_screens():
     writer = StoryboardWriter()
     long_voiceover = " ".join(

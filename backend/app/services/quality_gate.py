@@ -8,9 +8,10 @@ from pathlib import Path
 from typing import Any, Optional
 
 from app.infra.llm_gateway import llm
+from app.services.legacy_storyboard import legacy_outline_sections
 from app.services.production_formats import (
     VALID_SCREEN_TYPES,
-    normalize_production_formats,
+    resolve_production_formats,
 )
 from app.services.prompt_context import render_prompt_value
 
@@ -248,6 +249,8 @@ class QualityGate:
 
     @staticmethod
     def _outline_sections(output: Any) -> list[tuple[int, str]]:
+        if isinstance(output, list):
+            return legacy_outline_sections(output)
         if not isinstance(output, str):
             return []
         return [
@@ -356,12 +359,16 @@ class QualityGate:
             raw = self._extract_aliases(brief, ("broll_type",), [])
         else:
             return False, []
-        allowed = normalize_production_formats(raw)
+        additional = []
         if not canonical_present:
             on_camera = self._extract_aliases(brief, ("on_camera_presence",), "")
             if str(on_camera).strip().lower() not in {"", "no", "none", "false", "0"}:
-                if "talking_head" not in allowed:
-                    allowed.append("talking_head")
+                additional.append("talking_head")
+        allowed = resolve_production_formats(
+            raw,
+            fallback_when_empty=True,
+            additional=additional,
+        )
         return True, allowed
 
     def _validate_storyboard(

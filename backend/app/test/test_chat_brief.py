@@ -45,8 +45,12 @@ async def chat_api(tmp_path):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     async with sessions() as session:
-        await ProjectRepository(session).create_project(
+        repo = ProjectRepository(session)
+        await repo.create_project(
             "chat-project", "owner-123", "Chat API"
+        )
+        await repo.create_project(
+            "clerk-project", "user_clerk_123", "Clerk-owned Chat API"
         )
 
     async def override_get_db():
@@ -164,9 +168,14 @@ async def test_chat_brief_rejects_missing_and_unauthorized_projects_before_llm(
         headers={"X-User-ID": "intruder"},
         json=_payload(),
     )
+    headerless_clerk = await chat_api.post(
+        "/api/project/clerk-project/chat-brief",
+        json=_payload(),
+    )
 
     assert missing.status_code == 404
     assert forbidden.status_code == 403
+    assert headerless_clerk.status_code == 403
     assert calls == []
 
 

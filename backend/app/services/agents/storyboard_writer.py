@@ -8,7 +8,8 @@ post-processes with DurationCalculator → returns production-ready screen list.
 import re
 from typing import Any, Optional
 
-from app.services.production_formats import normalize_production_formats
+from app.services.legacy_storyboard import legacy_section_assignments
+from app.services.production_formats import resolve_production_formats
 from app.services.prompt_context import render_prompt_value
 
 from .base import BaseAgent
@@ -406,7 +407,12 @@ class StoryboardWriter(BaseAgent):
         if duration is not None:
             context["duration_seconds"] = duration
 
-        formats = self._get_allowed_screen_types(story_brief, fallback=False)
+        formats_declared = self._brief_has_field(
+            story_brief, "production_formats"
+        ) or self._brief_has_field(story_brief, "broll_type")
+        formats = self._get_allowed_screen_types(
+            story_brief, fallback=formats_declared
+        )
         if formats:
             context["production_formats"] = formats
         return context
@@ -426,21 +432,21 @@ class StoryboardWriter(BaseAgent):
         if isinstance(formats, str):
             formats = [formats] if formats else []
 
-        allowed = normalize_production_formats(formats)
-
+        additional = []
         if uses_legacy_fields:
             on_camera = self._extract_brief_aliases(
                 story_brief, ("on_camera_presence",), ""
             )
             if str(on_camera).strip().lower() not in {
                 "", "no", "none", "false", "0"
-            } and "talking_head" not in allowed:
-                allowed.append("talking_head")
+            }:
+                additional.append("talking_head")
 
-        if fallback and not allowed:
-            allowed = ["slides", "whiteboard_animation"]
-
-        return allowed
+        return resolve_production_formats(
+            formats,
+            fallback_when_empty=fallback,
+            additional=additional,
+        )
 
     @staticmethod
     def _parse_positive_duration(value: Any) -> Optional[float]:
@@ -536,6 +542,8 @@ class StoryboardWriter(BaseAgent):
     ) -> Optional[list]:
         """Retry generation for a single failing section. Returns new screens or None."""
         title = section.get("title", "")
+        title_prompt = render_prompt_value(title, 500)
+        purpose_prompt = render_prompt_value(section.get("purpose", ""), 2000)
         target_sec = section.get("target_seconds", 0)
         word_budget = section.get("word_budget", 0)
         direction = validation["direction"]
@@ -543,7 +551,12 @@ class StoryboardWriter(BaseAgent):
 
         evidence = all_evidence.get(title, [])
         evidence_text = self._format_evidence_for_prompt(evidence)
-        tp_text = "\n".join(f"- {tp}" for tp in section.get("talking_points", []))
+        tp_text = render_prompt_value(
+            "\n".join(
+                f"- {tp}" for tp in section.get("talking_points", [])
+            ),
+            5000,
+        )
 
         if direction == "over":
             adjust = "SHORTEN voiceover text — cut filler, tighten phrasing, remove redundant screens."
@@ -569,13 +582,13 @@ class StoryboardWriter(BaseAgent):
         current_screen_context = render_prompt_value(current_screens, 6000)
 
         intake_context = self._format_brief_context_for_prompt(brief_context)
-        prompt = f"""Rewrite ONLY the screens for Section {section['section_number']} — {title}.
+        prompt = f"""Rewrite ONLY the screens for Section {section['section_number']} — {title_prompt}.
 
 The current section is {deviation:.0f}% {direction} its {target_sec}s target.
 Word budget for this section: ~{word_budget} words.
 
 Section details:
-Purpose: {section.get('purpose', '')}
+Purpose: {purpose_prompt}
 Talking points:
 {tp_text}
 
@@ -594,7 +607,7 @@ Current generated screens for this section:
 Return a JSON array of screens for this section only. Each element has exactly 7 fields:
 - screen_number (integer)
 - section_number ({section['section_number']})
-- section_title ("{title}")
+- section_title ("{title_prompt}")
 - screen_type (one of: {', '.join(allowed_types)})
 - voiceover_text
 - visual_direction (array of 2-4 elements)
@@ -904,17 +917,78 @@ Follow your system prompt rules strictly. Every sentence of voiceover must teach
         """Backward compat: process pre-built screen list by adding visual assets."""
         storyboard = []
         allowed_types = self._get_allowed_screen_types(story_brief)
-        for screen in screen_list:
-            screen_type = screen.get("screen_type", "slides")
-            if screen_type not in allowed_types:
+        formats_declared = self._brief_has_field(
+            story_brief, "production_formats"
+        ) or self._brief_has_field(story_brief, "broll_type")
+        assignments = legacy_section_assignments(screen_list)
+        for index, (screen, section) in enumerate(
+            zip(screen_list, assignments), start=1
+        ):
+            if not isinstance(screen, dict):
+                raise ValueError("Legacy storyboard screens must be objects")
+            migrated = dict(screen)
+            original_screen_number = screen.get("screen_number")
+            if (
+                original_screen_number != index
+                and original_screen_number is not None
+            ):
+                migrated.setdefault("legacy_screen_number", original_screen_number)
+            original_section_number = screen.get("section_number")
+            if (
+                original_section_number != section[0]
+                and original_section_number is not None
+            ):
+                migrated.setdefault("legacy_section_number", original_section_number)
+            original_section_title = screen.get("section_title")
+            if (
+                original_section_title
+                and str(original_section_title).strip() != section[1]
+            ):
+                migrated.setdefault("legacy_section_title", original_section_title)
+
+            original_screen_type = screen.get("screen_type", "slides")
+            resolved_type = resolve_production_formats(
+                [original_screen_type], fallback_when_empty=False
+            )
+            screen_type = resolved_type[0] if resolved_type else allowed_types[0]
+            if formats_declared and screen_type not in allowed_types:
                 screen_type = allowed_types[0]
-            storyboard.append({
-                "screen_number": screen.get("screen_number", 1),
-                "screen_type": screen_type,
-                "duration": screen.get("duration", 6.0),
-                "voiceover_text": screen.get("voiceover_text", ""),
-                "visual_direction": screen.get("visual_direction", []),
-                "on_screen_visual": PLACEHOLDER_IMAGES.get(screen_type, "/placeholders/slides_and_diagrams.png"),
-                "action_notes": screen.get("action_notes", ""),
-            })
+            if screen_type != original_screen_type:
+                migrated.setdefault("legacy_screen_type", original_screen_type)
+            voiceover = screen.get("voiceover_text")
+            if not isinstance(voiceover, str):
+                voiceover = screen.get("voiceover") or screen.get("Description") or ""
+            visual_direction = screen.get("visual_direction", [])
+            if isinstance(visual_direction, str):
+                visual_direction = [visual_direction]
+            elif not isinstance(visual_direction, list):
+                visual_direction = []
+            action_notes = screen.get("action_notes")
+            if not isinstance(action_notes, str):
+                action_notes = screen.get("Notes") or ""
+            duration = screen.get("duration", 6.0)
+            if (
+                isinstance(duration, bool)
+                or not isinstance(duration, (int, float))
+                or duration <= 0
+            ):
+                duration = 6.0
+
+            migrated.update(
+                {
+                    "screen_number": index,
+                    "section_number": section[0],
+                    "section_title": section[1],
+                    "screen_type": screen_type,
+                    "duration": duration,
+                    "voiceover_text": str(voiceover),
+                    "visual_direction": visual_direction,
+                    "on_screen_visual": screen.get("on_screen_visual")
+                    or PLACEHOLDER_IMAGES.get(
+                        screen_type, "/placeholders/slides_and_diagrams.png"
+                    ),
+                    "action_notes": str(action_notes),
+                }
+            )
+            storyboard.append(migrated)
         return storyboard

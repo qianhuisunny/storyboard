@@ -165,6 +165,23 @@ def test_storyboard_normalizes_legacy_production_format_aliases():
     ) == []
 
 
+def test_explicit_empty_canonical_formats_share_writer_fallback_with_gate():
+    from app.services.agents.storyboard_writer import StoryboardWriter
+
+    brief = {"production_formats": []}
+    writer_types = StoryboardWriter()._get_allowed_screen_types(brief)
+    formats_provided, gate_types = QualityGate()._selected_production_formats(brief)
+
+    assert formats_provided is True
+    assert writer_types == gate_types == ["slides", "whiteboard_animation"]
+    assert QualityGate().validate_structure(
+        "storyboard", brief, [_screen(screen_type="slides")]
+    ) == []
+    assert QualityGate().validate_structure(
+        "storyboard", brief, [_screen(screen_type="stock_footage")]
+    )
+
+
 @pytest.mark.parametrize(
     ("screens", "expected"),
     [
