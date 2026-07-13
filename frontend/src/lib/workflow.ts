@@ -70,15 +70,14 @@ function blockContentForExactSource(
   return normalized.slice(header.length + 1).trim();
 }
 
-function contentFromSingleFallbackBlock(block: string): string {
-  const normalized = block.replace(/\r\n/g, "\n").trim();
+function hasRecognizedSourceHeader(block: string): boolean {
+  const normalized = block.replace(/\r\n/g, "\n");
   const firstNewline = normalized.indexOf("\n");
-  if (firstNewline < 0) return normalized;
+  if (firstNewline < 0) return false;
   const firstLine = normalized.slice(0, firstNewline);
-  const isKnownHeader = ["[File: ", "[Link: ", "[Note: "].some(
+  return ["[File: ", "[Link: ", "[Note: "].some(
     (prefix) => firstLine.startsWith(prefix) && firstLine.endsWith("]"),
   );
-  return isKnownHeader ? normalized.slice(firstNewline + 1).trim() : normalized;
 }
 
 export function normalizeCanonicalSourceContents(
@@ -125,14 +124,11 @@ export function sourceContentsFromIntake(
 
   const readySources = content.sources.filter((source) => source.status === "ready");
   const snapshot = typeof content.source_snapshot === "string"
-    ? content.source_snapshot.trim()
+    ? content.source_snapshot
     : "";
-  if (!snapshot) return { sourceContents: {}, complete: true };
+  if (!snapshot.trim()) return { sourceContents: {}, complete: true };
 
-  const startsWithKnownHeader = ["[File: ", "[Link: ", "[Note: "].some(
-    (prefix) => snapshot.startsWith(prefix),
-  );
-  if (readySources.length === 1 && !startsWithKnownHeader) {
+  if (readySources.length === 1 && !hasRecognizedSourceHeader(snapshot)) {
     return {
       sourceContents: normalizeCanonicalSourceContents(
         content.sources,
@@ -164,8 +160,12 @@ export function sourceContentsFromIntake(
   }
 
   const unmatchedSources = readySources.filter((source) => !usedSourceIds.has(source.id));
-  if (unmatchedSections.length === 1 && unmatchedSources.length === 1) {
-    const fallback = contentFromSingleFallbackBlock(unmatchedSections[0]);
+  if (
+    unmatchedSections.length === 1
+    && unmatchedSources.length === 1
+    && !hasRecognizedSourceHeader(unmatchedSections[0])
+  ) {
+    const fallback = unmatchedSections[0].replace(/\r\n/g, "\n").trim();
     if (fallback) migrated[unmatchedSources[0].id] = fallback;
     unmatchedSections.length = 0;
   }

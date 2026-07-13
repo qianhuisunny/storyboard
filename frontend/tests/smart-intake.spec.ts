@@ -518,6 +518,60 @@ test("incomplete legacy migration preserves unrelated saves and fails closed aft
   expect(mock.events[1].payload.content).not.toHaveProperty("source_snapshot");
 });
 
+test("an orphaned source header is never reassigned to the only retained source", async ({ page }) => {
+  const legacySnapshot = "[Note: Removed B]\nSECRET REMOVED B CONTEXT";
+  const mock = await mockSmartIntake(page, {
+    initialContent: {
+      prompt: "Reject orphaned source context",
+      sources: [
+        { id: "source-a", kind: "text", name: "Source A", status: "ready" },
+      ],
+      source_snapshot: legacySnapshot,
+    },
+  });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await page.getByLabel("Video brief").fill("Unrelated prompt save");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(mock.events[0].payload.content?.source_snapshot).toBe(legacySnapshot);
+  expect(mock.events[0].payload.content).not.toHaveProperty("source_contents");
+
+  await page.getByLabel("Source name Source A").fill("Renamed Source A");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(mock.events[1].payload.content).not.toHaveProperty("source_contents");
+  expect(mock.events[1].payload.content).not.toHaveProperty("source_snapshot");
+});
+
+test("an orphaned header beside an exact block stays incomplete and is dropped on source edit", async ({ page }) => {
+  const exactBlock = "[Note: Source B]\nSAFE SOURCE B CONTEXT";
+  const orphanBlock = "[Note: Removed C]\nSECRET REMOVED C CONTEXT";
+  const legacySnapshot = `${exactBlock}\n\n---\n\n${orphanBlock}`;
+  const mock = await mockSmartIntake(page, {
+    initialContent: {
+      prompt: "Keep only exactly matched context",
+      sources: [
+        { id: "source-a", kind: "text", name: "Source A", status: "ready" },
+        { id: "source-b", kind: "text", name: "Source B", status: "ready" },
+      ],
+      source_snapshot: legacySnapshot,
+    },
+  });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await page.getByLabel("Video brief").fill("Another unrelated prompt save");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(mock.events[0].payload.content?.source_snapshot).toBe(legacySnapshot);
+  expect(mock.events[0].payload.content).not.toHaveProperty("source_contents");
+
+  await page.getByRole("button", { name: "Remove Source A" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  expect(mock.events[1].payload.content?.source_contents).toEqual({
+    "source-b": "SAFE SOURCE B CONTEXT",
+  });
+  expect(mock.events[1].payload.content?.source_snapshot).toBe(exactBlock);
+  expect(mock.events[1].payload.content?.source_snapshot).not.toContain("SECRET");
+});
+
 test("Saved becomes dirty on the next edit and refresh discards the unsaved copy", async ({ page }) => {
   await mockSmartIntake(page);
   await page.goto(`/storyboard/${PROJECT_ID}`);
