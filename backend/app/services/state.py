@@ -25,6 +25,10 @@ LEGACY_WORKFLOW_STAGES: dict[str, WorkflowStage] = {
     "research": "intake",
     "brief": "intake",
     "brief_chat": "intake",
+    "brief_round1": "intake",
+    "brief_round2": "intake",
+    "brief_round3": "intake",
+    "angle_selection": "intake",
     "brief_review": "intake",
     "gate1": "intake",
     "outline": "outline",
@@ -81,6 +85,10 @@ class StoryboardState(BaseModel):
         "research",       # Reserved for future researcher reintroduction
         "brief",          # Brief Builder is running (legacy)
         "brief_chat",     # Active chat-assisted guided brief building
+        "brief_round1",   # Historical guided brief round 1
+        "brief_round2",   # Historical guided brief round 2
+        "brief_round3",   # Historical guided brief round 3
+        "angle_selection",  # Historical research angle selection
         "brief_review",   # NEW: Final brief review before locking
         "gate1",          # Human review of Story Brief
         "outline",        # Storyboard Director is running

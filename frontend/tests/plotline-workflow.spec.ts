@@ -383,10 +383,116 @@ async function mockWorkflow(page: Page, options: MockOptions = {}) {
   };
 }
 
+type LegacyPhase =
+  | "brief_round1"
+  | "brief_round2"
+  | "brief_round3"
+  | "angle_selection"
+  | "review"
+  | "done";
+
+async function mockLegacyProject(
+  page: Page,
+  phase: LegacyPhase,
+  stages: Record<string, { aiVersion: string | null; humanVersion: string | null }> = {},
+) {
+  const workflowStage: Stage = phase === "done"
+    ? "complete"
+    : phase === "review"
+    ? "storyboard"
+    : "intake";
+  const storyBrief = {
+    fields: {
+      topic: {
+        value: `Historical ${phase} brief`,
+        source: "extracted",
+        confirmed: false,
+      },
+    },
+  };
+  const body = {
+    success: true,
+    project_id: PROJECT_ID,
+    workflow_stage: workflowStage,
+    phase,
+    allowed_events: allowedEvents(workflowStage),
+    job: { status: "idle", job_id: null, kind: null, input_version_id: null, error: null },
+    artifacts: {
+      intake: { ...emptyArtifact<typeof storyBrief>(), current_content: storyBrief },
+      outline: { ...emptyArtifact<string>(), current_content: OUTLINE },
+      storyboard: { ...emptyArtifact<typeof STORYBOARD>(), current_content: structuredClone(STORYBOARD) },
+    },
+    state: { has_story_brief: true, has_screen_outline: true, has_storyboard: true },
+    data: {
+      story_brief: storyBrief,
+      screen_outline: OUTLINE,
+      storyboard: structuredClone(STORYBOARD),
+    },
+  };
+
+  await page.route("**/api/session", (route) => json(route, { success: true }));
+  await page.route(`**/api/project/${PROJECT_ID}`, (route) => json(route, {
+    success: true,
+    project: { id: PROJECT_ID, userInput: `Historical ${phase} project`, typeName: "Legacy" },
+  }));
+  await page.route(`**/api/project/${PROJECT_ID}/stages`, (route) => json(route, {
+    success: true,
+    stages,
+    currentStageId: 4,
+    stageStatuses: [
+      { id: 1, status: "approved" },
+      { id: 2, status: "approved" },
+      { id: 3, status: "approved" },
+      { id: 4, status: "needs_review" },
+    ],
+  }));
+  await page.route(`**/api/project/${PROJECT_ID}/pipeline-state`, (route) => json(route, body));
+}
+
 async function editFirstStoryboardVoiceover(page: Page, value: string) {
   await page.getByRole("button", { name: "Edit", exact: true }).first().click();
   await page.locator("textarea").first().fill(value);
   await page.getByRole("button", { name: "Done", exact: true }).first().click();
+}
+
+test("legacy review phase opens Storyboard despite an approved Stage 3 snapshot", async ({ page }) => {
+  await mockLegacyProject(page, "review", {
+    "3": { aiVersion: JSON.stringify(STORYBOARD), humanVersion: null },
+  });
+
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await expect(page.getByRole("heading", { name: "Storyboard Draft" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Review & Share" })).toHaveCount(0);
+});
+
+for (const [caseName, snapshots] of [
+  ["without snapshots", {}],
+  ["with a Stage 3 snapshot", { "3": { aiVersion: JSON.stringify(STORYBOARD), humanVersion: null } }],
+] as const) {
+  test(`legacy done renders retained storyboard on Complete ${caseName}`, async ({ page }) => {
+    await mockLegacyProject(page, "done", snapshots);
+
+    await page.goto(`/storyboard/${PROJECT_ID}`);
+
+    await expect(page.getByRole("heading", { name: "Review & Share" })).toBeVisible();
+    await expect(page.getByRole("row", { name: /A calm launch starts before launch day\./ })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Complete Approved/ })).toBeVisible();
+  });
+}
+
+for (const phase of ["brief_round1", "brief_round2", "brief_round3", "angle_selection"] as const) {
+  test(`historical ${phase} hydrates as in-progress Smart Intake`, async ({ page }) => {
+    await mockLegacyProject(page, phase);
+
+    await page.goto(`/storyboard/${PROJECT_ID}`);
+
+    const smartIntake = page.getByRole("button", { name: /Smart Intake/ });
+    await expect(smartIntake).toContainText("In progress");
+    await expect(page.getByRole("heading", { name: "Smart Intake", exact: true })).toBeVisible();
+    await expect(page.getByText(`Historical ${phase} brief`, { exact: false })).toBeVisible();
+    await expect(page.getByText("Loading project... Generation will start automatically.")).toHaveCount(0);
+  });
 }
 
 async function editOutlineTitle(page: Page, nextTitle: string) {

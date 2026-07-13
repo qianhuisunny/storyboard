@@ -35,6 +35,10 @@ async def _legacy_database(tmp_path, project_id: str, phase: str, state_data: di
 @pytest.mark.parametrize(
     ("legacy_phase", "workflow_stage"),
     [
+        ("brief_round1", "intake"),
+        ("brief_round2", "intake"),
+        ("brief_round3", "intake"),
+        ("angle_selection", "intake"),
         ("gate1", "intake"),
         ("gate2", "outline"),
         ("review", "storyboard"),

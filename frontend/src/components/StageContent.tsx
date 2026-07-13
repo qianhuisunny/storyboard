@@ -142,7 +142,16 @@ async function initializeGuidedBriefProject(
       };
     }
 
-    if (stateData.phase === "brief_chat" || stateData.phase === "brief_review") {
+    const activeBriefPhases = [
+      "brief_chat",
+      "brief_round1",
+      "brief_round2",
+      "brief_round3",
+      "angle_selection",
+      "brief_review",
+    ];
+
+    if (activeBriefPhases.includes(stateData.phase)) {
       console.log("[Brief] Restoring chat brief state, fields:", Object.keys(briefFields));
       return {
         briefFields,
@@ -150,7 +159,7 @@ async function initializeGuidedBriefProject(
       };
     }
 
-    if (stateData.phase && !["intake", "brief_chat", "brief_review"].includes(stateData.phase)) {
+    if (stateData.phase && stateData.phase !== "intake" && !activeBriefPhases.includes(stateData.phase)) {
       console.log(
         "[Brief] Project already past brief stage, phase:",
         stateData.phase,

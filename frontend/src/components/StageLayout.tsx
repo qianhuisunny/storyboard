@@ -100,6 +100,7 @@ function hydrateStageDataFromPipeline(
   fillStageFromPipeline(next, 1, pipelineData.story_brief, "humanVersion");
   fillStageFromPipeline(next, 2, pipelineData.screen_outline, "aiVersion");
   fillStageFromPipeline(next, 3, pipelineData.storyboard, "aiVersion");
+  fillStageFromPipeline(next, 4, pipelineData.storyboard, "aiVersion");
 
   return next;
 }
@@ -158,34 +159,13 @@ function deriveStageViewFromWorkflow(workflow: WorkflowResponse): {
   return { currentStageId, stageStatuses };
 }
 
-function stageStatusesFromList(statuses: unknown): Record<number, StageStatus> {
-  if (!Array.isArray(statuses)) return {};
-  return statuses.reduce<Record<number, StageStatus>>((acc, status) => {
-    if (
-      status &&
-      typeof status === "object" &&
-      "id" in status &&
-      "status" in status
-    ) {
-      const stageId = Number((status as { id: unknown }).id);
-      const stageStatus = (status as { status: StageStatus }).status;
-      if (stageId && ["not_started", "in_progress", "needs_review", "approved", "generating"].includes(stageStatus)) {
-        acc[stageId] = stageStatus;
-      }
-    }
-    return acc;
-  }, {});
-}
-
 function deriveStageViewFromPipeline(
   pipelineState: PipelineStateResponse | null,
   savedCurrentStageId?: number,
-  savedStageStatuses?: unknown,
 ): { currentStageId: number; stageStatuses: Record<number, StageStatus> } | null {
   const phase = pipelineState?.phase;
   if (!phase) return null;
 
-  const savedStatuses = stageStatusesFromList(savedStageStatuses);
   const stageStatuses: Record<number, StageStatus> = {
     1: "not_started",
     2: "not_started",
@@ -197,7 +177,13 @@ function deriveStageViewFromPipeline(
 
   if (phase === "intake") {
     currentStageId = 1;
-  } else if (phase === "brief_chat") {
+  } else if ([
+    "brief_chat",
+    "brief_round1",
+    "brief_round2",
+    "brief_round3",
+    "angle_selection",
+  ].includes(phase)) {
     currentStageId = 1;
     stageStatuses[1] = "in_progress";
   } else if (phase === "brief_review" || phase === "gate1") {
@@ -208,17 +194,10 @@ function deriveStageViewFromPipeline(
     stageStatuses[1] = "approved";
     stageStatuses[2] = phase === "outline_research" ? "generating" : "needs_review";
   } else if (phase === "review") {
+    currentStageId = 3;
     stageStatuses[1] = "approved";
     stageStatuses[2] = "approved";
-    const stage3WasApproved = savedStatuses[3] === "approved" || (savedCurrentStageId || 0) >= 4;
-    if (stage3WasApproved) {
-      currentStageId = 4;
-      stageStatuses[3] = "approved";
-      stageStatuses[4] = "needs_review";
-    } else {
-      currentStageId = 3;
-      stageStatuses[3] = "needs_review";
-    }
+    stageStatuses[3] = "needs_review";
   } else if (phase === "done") {
     currentStageId = 4;
     stageStatuses[1] = "approved";
@@ -423,7 +402,6 @@ export default function StageLayout() {
           : deriveStageViewFromPipeline(
               pipelinePayload as PipelineStateResponse,
               stagesPayload.currentStageId,
-              stagesPayload.stageStatuses,
             );
 
         if (derivedStageView) {

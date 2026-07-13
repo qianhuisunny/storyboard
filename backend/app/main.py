@@ -60,11 +60,6 @@ def _frontend_stage_view(phase: Optional[str], state_data: dict) -> tuple[int, l
     """Map backend pipeline phase to the four-stage frontend status model."""
     saved_current_stage = int(state_data.get("currentStageId") or 1)
     saved_statuses = state_data.get("stageStatuses") or []
-    stage3_approved = any(
-        status.get("id") == 3 and status.get("status") == "approved"
-        for status in saved_statuses
-        if isinstance(status, dict)
-    )
     statuses = [
         {"id": 1, "status": "not_started"},
         {"id": 2, "status": "not_started"},
@@ -72,8 +67,17 @@ def _frontend_stage_view(phase: Optional[str], state_data: dict) -> tuple[int, l
         {"id": 4, "status": "not_started"},
     ]
 
-    if phase in {"brief_chat", "brief_review", "gate1"}:
-        statuses[0]["status"] = "needs_review" if phase != "brief_chat" else "in_progress"
+    if phase in {
+        "brief_chat",
+        "brief_round1",
+        "brief_round2",
+        "brief_round3",
+        "angle_selection",
+    }:
+        statuses[0]["status"] = "in_progress"
+        return 1, statuses
+    if phase in {"brief_review", "gate1"}:
+        statuses[0]["status"] = "needs_review"
         return 1, statuses
     if phase in {"gate2", "outline_research"}:
         statuses[0]["status"] = "approved"
@@ -82,10 +86,6 @@ def _frontend_stage_view(phase: Optional[str], state_data: dict) -> tuple[int, l
     if phase == "review":
         statuses[0]["status"] = "approved"
         statuses[1]["status"] = "approved"
-        if stage3_approved or saved_current_stage >= 4:
-            statuses[2]["status"] = "approved"
-            statuses[3]["status"] = "needs_review"
-            return 4, statuses
         statuses[2]["status"] = "needs_review"
         return 3, statuses
     if phase == "done":

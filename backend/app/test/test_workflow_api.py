@@ -22,7 +22,18 @@ async def _outline(context):
 
 
 async def _storyboard(context):
-    return [{"screen_number": 1, "voiceover": context.outline}]
+    return [
+        {
+            "screen_number": 1,
+            "section_number": 1,
+            "section_title": "Canonical lifecycle",
+            "narrative_role": "body",
+            "screen_type": "slides",
+            "duration": 12,
+            "voiceover_text": context.outline,
+            "visual_direction": ["A simple four-stage workflow diagram"],
+        }
+    ]
 
 
 @pytest_asyncio.fixture
@@ -327,10 +338,22 @@ async def test_cookie_session_api_smoke_reaches_complete_with_mocked_agents(
     )
     assert storyboard_response.status_code == 200
     storyboard = storyboard_response.json()["artifacts"]["storyboard"]
+    assert storyboard["current_content"] == [
+        {
+            "screen_number": 1,
+            "section_number": 1,
+            "section_title": "Canonical lifecycle",
+            "narrative_role": "body",
+            "screen_type": "slides",
+            "duration": 12,
+            "voiceover_text": "Outline: Exercise the canonical API lifecycle",
+            "visual_direction": ["A simple four-stage workflow diagram"],
+        }
+    ]
     edited_storyboard = [
         {
             **storyboard["current_content"][0],
-            "voiceover": "Saved through the canonical API before completion",
+            "voiceover_text": "Saved through the canonical API before completion",
         }
     ]
 
