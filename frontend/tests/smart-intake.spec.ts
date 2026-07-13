@@ -542,6 +542,31 @@ test("an orphaned source header is never reassigned to the only retained source"
   expect(mock.events[1].payload.content).not.toHaveProperty("source_snapshot");
 });
 
+for (const orphan of [
+  { caseName: "header-only", snapshot: "[Note: Removed B]" },
+  { caseName: "leading whitespace", snapshot: "  [Note: Removed B]\nSECRET INDENTED CONTEXT" },
+  { caseName: "a closing bracket in its name", snapshot: "[Note: Removed ] B]\nSECRET BRACKETED CONTEXT" },
+]) {
+  test(`an orphaned ${orphan.caseName} source header cannot use free-form fallback`, async ({ page }) => {
+    const mock = await mockSmartIntake(page, {
+      initialContent: {
+        prompt: "Recognize every legacy source header",
+        sources: [
+          { id: "source-a", kind: "text", name: "Source A", status: "ready" },
+        ],
+        source_snapshot: orphan.snapshot,
+      },
+    });
+    await page.goto(`/storyboard/${PROJECT_ID}`);
+
+    await page.getByLabel("Video brief").fill(`Unrelated save for ${orphan.caseName}`);
+    await page.getByRole("button", { name: "Save", exact: true }).click();
+
+    expect(mock.events[0].payload.content?.source_snapshot).toBe(orphan.snapshot);
+    expect(mock.events[0].payload.content).not.toHaveProperty("source_contents");
+  });
+}
+
 test("an orphaned header beside an exact block stays incomplete and is dropped on source edit", async ({ page }) => {
   const exactBlock = "[Note: Source B]\nSAFE SOURCE B CONTEXT";
   const orphanBlock = "[Note: Removed C]\nSECRET REMOVED C CONTEXT";

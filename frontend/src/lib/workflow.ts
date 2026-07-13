@@ -71,13 +71,8 @@ function blockContentForExactSource(
 }
 
 function hasRecognizedSourceHeader(block: string): boolean {
-  const normalized = block.replace(/\r\n/g, "\n");
-  const firstNewline = normalized.indexOf("\n");
-  if (firstNewline < 0) return false;
-  const firstLine = normalized.slice(0, firstNewline);
-  return ["[File: ", "[Link: ", "[Note: "].some(
-    (prefix) => firstLine.startsWith(prefix) && firstLine.endsWith("]"),
-  );
+  const normalized = block.replace(/\r\n/g, "\n").trimStart();
+  return /^\[(?:File|Link|Note): [^\n]*\](?:\n|$)/.test(normalized);
 }
 
 export function normalizeCanonicalSourceContents(
