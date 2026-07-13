@@ -231,6 +231,7 @@ test("Create uses complete RadioGroup and Tabs keyboard semantics and persists c
     platform: "short_form",
     aspect_ratio: "9:16",
     source_snapshot: "",
+    source_contents: {},
     sources: [],
   });
 });
@@ -377,6 +378,10 @@ test("Continue saves latest prompt and removals, excludes failures, then navigat
   expect(saves.at(-1)?.content.sources).toEqual([
     expect.objectContaining({ kind: "text", status: "ready" }),
   ]);
+  const retainedSourceContents = saves.at(-1)?.content.source_contents as Record<string, string>;
+  expect(Object.values(retainedSourceContents)).toEqual([
+    "Keep this note",
+  ]);
 });
 
 test("Continue cannot race an active retry", async ({ page }) => {
@@ -447,7 +452,11 @@ test("frontend bounds prompt, notes, source count, and canonical snapshot", asyn
   await expect(page).toHaveURL(/\/storyboard\/[0-9a-f-]{36}$/);
 
   const snapshot = saves.at(-1)?.content.source_snapshot as string;
+  const sourceContents = saves.at(-1)?.content.source_contents as Record<string, string>;
   expect(snapshot.length).toBeLessThanOrEqual(100_000);
   expect(snapshot).toContain("[source snapshot truncated]");
+  expect(Object.keys(sourceContents)).toHaveLength(5);
+  expect(Object.values(sourceContents).every((value) => value.length <= 50_000)).toBe(true);
+  expect(Object.values(sourceContents).reduce((total, value) => total + value.length, 0)).toBeLessThanOrEqual(100_000);
   expect(JSON.stringify(saves.at(-1)?.content).length).toBeLessThanOrEqual(250_000);
 });

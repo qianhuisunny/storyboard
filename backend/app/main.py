@@ -515,6 +515,7 @@ class CanonicalIntakeContent(BaseModel):
     note: Optional[str] = Field(default=None, max_length=20_000)
     notes: Optional[str] = Field(default=None, max_length=20_000)
     source_snapshot: Optional[str] = Field(default=None, max_length=100_000)
+    source_contents: Optional[dict[str, str]] = Field(default=None, max_length=20)
     sources: list[CanonicalIntakeSource] = Field(default_factory=list, max_length=20)
     viewer_outcome: Optional[str] = Field(default=None, max_length=6000)
     target_audience: Optional[str] = Field(default=None, max_length=6000)
@@ -533,6 +534,24 @@ class CanonicalIntakeContent(BaseModel):
 
     @model_validator(mode="after")
     def validate_total_budget(self):
+        source_ids = [source.id for source in self.sources]
+        if len(source_ids) != len(set(source_ids)):
+            raise ValueError("Canonical source IDs must be unique")
+        if self.source_contents is not None:
+            ready_source_ids = {
+                source.id for source in self.sources if source.status == "ready"
+            }
+            total_source_chars = 0
+            for source_id, extracted in self.source_contents.items():
+                if not source_id or len(source_id) > 128:
+                    raise ValueError("Source content IDs must be 1 to 128 characters")
+                if source_id not in ready_source_ids:
+                    raise ValueError("Source content must belong to a retained ready source")
+                if len(extracted) > 50_000:
+                    raise ValueError("Source content exceeds 50000 characters")
+                total_source_chars += len(extracted)
+            if total_source_chars > 100_000:
+                raise ValueError("Structured source content exceeds 100000 characters")
         if serialized_size(self.model_dump()) > 250_000:
             raise ValueError("Canonical intake payload exceeds 250000 characters")
         return self

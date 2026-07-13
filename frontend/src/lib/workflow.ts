@@ -24,6 +24,7 @@ export interface CanonicalIntakeContent {
   note?: string;
   notes?: string;
   source_snapshot?: string;
+  source_contents?: Record<string, string>;
   sources: CanonicalIntakeSource[];
   viewer_outcome?: string;
   target_audience?: string;
@@ -35,6 +36,86 @@ export interface CanonicalIntakeContent {
   call_to_action?: string;
   constraints?: string[];
   smart_intake_extra?: Record<string, string | number | boolean | string[]>;
+}
+
+export const MAX_SOURCE_CONTENT_CHARS = 50_000;
+export const MAX_SOURCE_CONTENT_TOTAL_CHARS = 100_000;
+export const MAX_SOURCE_SNAPSHOT_CHARS = 100_000;
+
+const SOURCE_CONTENT_TRUNCATION_MARKER = "\n…[source content truncated]";
+const SOURCE_SNAPSHOT_TRUNCATION_MARKER = "\n…[source snapshot truncated]";
+
+function truncateWithMarker(value: string, limit: number, marker: string): string {
+  if (value.length <= limit) return value;
+  if (limit <= marker.length) return value.slice(0, limit);
+  return value.slice(0, limit - marker.length) + marker;
+}
+
+export function normalizeCanonicalSourceContents(
+  sources: CanonicalIntakeSource[],
+  sourceContents: Record<string, string>,
+): Record<string, string> {
+  const normalized: Record<string, string> = {};
+  let remaining = MAX_SOURCE_CONTENT_TOTAL_CHARS;
+  for (const source of sources.slice(0, 20)) {
+    if (source.status !== "ready" || remaining <= 0) continue;
+    const raw = sourceContents[source.id];
+    if (typeof raw !== "string" || !raw.trim()) continue;
+    const perSource = truncateWithMarker(
+      raw.trim(),
+      MAX_SOURCE_CONTENT_CHARS,
+      SOURCE_CONTENT_TRUNCATION_MARKER,
+    );
+    const bounded = truncateWithMarker(
+      perSource,
+      remaining,
+      SOURCE_CONTENT_TRUNCATION_MARKER,
+    );
+    if (!bounded) break;
+    normalized[source.id] = bounded;
+    remaining -= bounded.length;
+  }
+  return normalized;
+}
+
+export function sourceContentsFromIntake(
+  content: CanonicalIntakeContent,
+): Record<string, string> {
+  if (content.source_contents !== undefined) {
+    return normalizeCanonicalSourceContents(content.sources, content.source_contents);
+  }
+
+  const readySources = content.sources.filter((source) => source.status === "ready");
+  const sections = typeof content.source_snapshot === "string"
+    ? content.source_snapshot.split(/\r?\n\r?\n---\r?\n\r?\n/)
+    : [];
+  const migrated: Record<string, string> = {};
+  readySources.forEach((source, index) => {
+    const section = sections[index];
+    if (!section) return;
+    const match = section.match(/^\[(?:File|Link|Note):[^\]]*\]\r?\n([\s\S]*)$/);
+    const extracted = (match?.[1] ?? "").trim();
+    if (extracted) migrated[source.id] = extracted;
+  });
+  return normalizeCanonicalSourceContents(content.sources, migrated);
+}
+
+export function deriveCanonicalSourceSnapshot(
+  sources: CanonicalIntakeSource[],
+  sourceContents: Record<string, string>,
+): string {
+  const blocks = sources.flatMap((source) => {
+    if (source.status !== "ready") return [];
+    const extracted = sourceContents[source.id];
+    if (!extracted) return [];
+    const label = source.kind === "link" ? "Link" : source.kind === "upload" ? "File" : "Note";
+    return [`[${label}: ${source.name}]\n${extracted}`];
+  });
+  return truncateWithMarker(
+    blocks.join("\n\n---\n\n"),
+    MAX_SOURCE_SNAPSHOT_CHARS,
+    SOURCE_SNAPSHOT_TRUNCATION_MARKER,
+  );
 }
 
 export interface ArtifactState<T> {
@@ -190,6 +271,15 @@ export async function sendWorkflowGenerationEvent(
   onObservedWorkflow: (workflow: WorkflowResponse) => void,
   fetchImpl: typeof fetch = fetch,
 ): Promise<WorkflowResponse> {
+  let previousJobId: string | null = null;
+  try {
+    const before = await getWorkflow(projectId, fetchImpl);
+    previousJobId = before.job.job_id;
+  } catch {
+    // The event can still proceed. Polling below accepts only a running job,
+    // never a pre-existing terminal overlay.
+  }
+
   let settled = false;
   const outcomePromise = sendWorkflowEvent(projectId, event, payload, fetchImpl).then(
     (workflow) => {
@@ -209,7 +299,11 @@ export async function sendWorkflowGenerationEvent(
     if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 75));
     try {
       const observed = await getWorkflow(projectId, fetchImpl);
-      if (observed.job.status !== "idle") {
+      if (
+        observed.job.status === "running"
+        && typeof observed.job.job_id === "string"
+        && observed.job.job_id !== previousJobId
+      ) {
         onObservedWorkflow(observed);
         break;
       }

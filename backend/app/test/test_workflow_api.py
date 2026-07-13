@@ -12,6 +12,7 @@ from app.db.engine import get_db
 from app.db.models import AnonymousSession, Base
 from app.db.repository import ProjectRepository
 from app.main import app
+from app.services.agents.storyboard_director import StoryboardDirector
 from app.services.workflow import WorkflowService
 from app.services.session_auth import SESSION_COOKIE, hash_session_token
 
@@ -292,6 +293,30 @@ async def test_create_project_is_idempotent_for_session_and_rejects_claimed_owne
         {
             "prompt": "ok",
             "sources": [
+                {"id": "s-1", "kind": "text", "name": "Note", "status": "ready"}
+            ],
+            "source_contents": {"s-1": "x" * 50_001},
+        },
+        {
+            "prompt": "ok",
+            "sources": [
+                {"id": f"c-{index}", "kind": "text", "name": "Note", "status": "ready"}
+                for index in range(3)
+            ],
+            "source_contents": {
+                f"c-{index}": "x" * 40_000 for index in range(3)
+            },
+        },
+        {
+            "prompt": "ok",
+            "sources": [
+                {"id": "kept", "kind": "text", "name": "Kept", "status": "ready"}
+            ],
+            "source_contents": {"removed": "must not survive"},
+        },
+        {
+            "prompt": "ok",
+            "sources": [
                 {"id": f"s-{index}", "kind": "text", "name": "Note", "status": "ready"}
                 for index in range(21)
             ],
@@ -386,6 +411,51 @@ async def test_approve_intake_updates_project_metadata_before_generation_failure
     assert approved.status_code == 502
     assert project.json()["project"]["userInput"] == prompt
     assert project.json()["project"]["title"] == prompt
+
+
+@pytest.mark.asyncio
+async def test_real_approve_threads_only_retained_structured_source_context_to_director(
+    workflow_api,
+):
+    client, service = workflow_api
+    prompts: list[str] = []
+
+    async def capture_outline(context):
+        prompts.append(StoryboardDirector()._build_prompt(context.intake))
+        return "Section 1 — Retained source"
+
+    service.outline_generator = capture_outline
+    content = {
+        "prompt": "Use only retained source context",
+        "sources": [
+            {
+                "id": "source-1",
+                "kind": "link",
+                "name": "Renamed launch playbook",
+                "url": "https://example.com/launch",
+                "path": "links/launch.txt",
+                "status": "ready",
+            }
+        ],
+        "source_contents": {"source-1": "Retained launch guidance"},
+        "source_snapshot": (
+            "[Link: Renamed launch playbook]\nRetained launch guidance"
+        ),
+    }
+
+    response = await client.post(
+        "/api/project/api-project/event",
+        json={
+            "event": "approve_intake",
+            "payload": {"content": content, "expected_version_id": None},
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json()["artifacts"]["intake"]["current_content"] == content
+    assert "Renamed launch playbook" in prompts[0]
+    assert "Retained launch guidance" in prompts[0]
+    assert "REMOVED SECRET CONTEXT" not in prompts[0]
 
 
 @pytest.mark.asyncio

@@ -2,9 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Check, FileText, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
+  deriveCanonicalSourceSnapshot,
   getWorkflow,
+  normalizeCanonicalSourceContents,
   sendWorkflowGenerationEvent,
   sendWorkflowEvent,
+  sourceContentsFromIntake,
   type CanonicalIntakeContent,
   type CanonicalIntakeSource,
   type ProductionFormat,
@@ -29,6 +32,7 @@ type IntakeDraft = {
   delivery_tone: string;
   production_formats: ProductionFormat[];
   sources: CanonicalIntakeSource[];
+  source_contents: Record<string, string>;
 };
 
 const DURATION_OPTIONS = [60, 90, 120, 180, 240, 300, 600, 900, 1200] as const;
@@ -60,6 +64,7 @@ function initialDraft(content: CanonicalIntakeContent): IntakeDraft {
     delivery_tone: content.delivery_tone ?? "",
     production_formats: content.production_formats ?? [],
     sources: (content.sources ?? []).map((source) => ({ ...source })),
+    source_contents: sourceContentsFromIntake(content),
   };
 }
 
@@ -209,8 +214,21 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
     const next: CanonicalIntakeContent = {
       ...content,
       prompt: draft.prompt.trim(),
-      sources: draft.sources.map((source) => ({ ...source })),
+      sources: draft.sources.map((source) => ({
+        ...source,
+        name: source.name.trim(),
+        ...(source.title !== undefined ? { title: source.name.trim() } : {}),
+      })),
     };
+    const sourceContents = normalizeCanonicalSourceContents(
+      next.sources,
+      draft.source_contents,
+    );
+    const sourceSnapshot = deriveCanonicalSourceSnapshot(next.sources, sourceContents);
+    if (Object.keys(sourceContents).length > 0) next.source_contents = sourceContents;
+    else delete next.source_contents;
+    if (sourceSnapshot) next.source_snapshot = sourceSnapshot;
+    else delete next.source_snapshot;
     if (draft.duration_seconds === undefined) delete next.duration_seconds;
     else next.duration_seconds = draft.duration_seconds;
     if (draft.platform === undefined) delete next.platform;
@@ -233,6 +251,10 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
   const submit = async (event: "save_intake" | "approve_intake") => {
     if (!draft.prompt.trim()) {
       setError("Add a video brief before continuing.");
+      return;
+    }
+    if (draft.sources.some((source) => !source.name.trim())) {
+      setError("Give every retained source a name before continuing.");
       return;
     }
     setError(null);
@@ -376,10 +398,15 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
                       <input
                         aria-label={`Source name ${source.name}`}
                         value={source.name}
+                        maxLength={255}
                         onChange={(event) => setDraft((current) => ({
                           ...current,
                           sources: current.sources.map((item) => item.id === source.id
-                            ? { ...item, name: event.target.value }
+                            ? {
+                                ...item,
+                                name: event.target.value,
+                                ...(item.title !== undefined ? { title: event.target.value } : {}),
+                              }
                             : item),
                         }))}
                         className="h-10 min-w-0 flex-1 rounded-lg border border-[#E1E3DB] bg-[#FBFBF8] px-3 text-sm outline-none focus:border-[#3A6B47] focus:ring-2 focus:ring-[#3A6B47]/15"
@@ -388,13 +415,8 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
                         <input
                           aria-label={`Source URL ${source.name}`}
                           value={source.url ?? ""}
-                          onChange={(event) => setDraft((current) => ({
-                            ...current,
-                            sources: current.sources.map((item) => item.id === source.id
-                              ? { ...item, url: event.target.value }
-                              : item),
-                          }))}
-                          className="h-10 min-w-0 flex-[1.4] rounded-lg border border-[#E1E3DB] bg-[#FBFBF8] px-3 text-sm outline-none focus:border-[#3A6B47] focus:ring-2 focus:ring-[#3A6B47]/15"
+                          readOnly
+                          className="h-10 min-w-0 flex-[1.4] rounded-lg border border-[#E1E3DB] bg-[#F3F3EF] px-3 text-sm text-[#626B58] outline-none"
                         />
                       )}
                       <Button

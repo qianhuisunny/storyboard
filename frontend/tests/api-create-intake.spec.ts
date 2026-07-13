@@ -32,8 +32,11 @@ test("real backend persists versioned Create intake and project metadata", async
             duration_seconds: 120,
             platform: "youtube",
             aspect_ratio: "16:9",
-            source_snapshot: "",
-            sources: [],
+            source_snapshot: "[Note: Renamed source]\nRetained real API context",
+            source_contents: { "source-real": "Retained real API context" },
+            sources: [
+              { id: "source-real", kind: "text", name: "Renamed source", status: "ready" },
+            ],
           },
           expected_version_id: null,
         },
@@ -48,6 +51,10 @@ test("real backend persists versioned Create intake and project metadata", async
     const state = await reloaded.json();
     expect(state.artifacts.intake.current_version_id).toBe(versionId);
     expect(state.artifacts.intake.current_content.prompt).toBe(prompt);
+    expect(state.artifacts.intake.current_content.source_contents).toEqual({
+      "source-real": "Retained real API context",
+    });
+    expect(state.artifacts.intake.current_content.source_snapshot).toContain("Renamed source");
 
     const clearedPrompt = "Real API cleared Create options";
     const cleared = await request.post(`${BACKEND_URL}/api/project/${projectId}/event`, {

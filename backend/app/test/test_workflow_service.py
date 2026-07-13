@@ -211,7 +211,9 @@ async def test_upstream_current_edit_during_generation_prevents_promotion(tmp_pa
     await asyncio.wait_for(entered.wait(), timeout=2)
     running = await service.get_project("workflow-project")
     old_intake_id = running["artifacts"]["intake"]["current_version_id"]
-    await service.process_event("workflow-project", "edit_intake", {})
+    moved = await service.process_event("workflow-project", "edit_intake", {})
+    assert moved["job"]["status"] == "running"
+    assert moved["job"]["job_id"] == running["job"]["job_id"]
     await service.process_event(
         "workflow-project",
         "save_intake",
@@ -400,6 +402,65 @@ async def test_generation_failure_preserves_current_and_persists_failed_job(tmp_
     assert failed["artifacts"]["outline"]["current_content"] == "Last valid outline"
     assert failed["job"]["status"] == "failed"
     assert failed["job"]["error"] == "director unavailable"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_failed_outline_retry_gets_a_fresh_job_identity_after_edit_intake(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+
+    async def failing_outline(_context):
+        raise RuntimeError("first outline failed")
+
+    service = WorkflowService(sessions, failing_outline, _storyboard)
+    content = {"prompt": "Retry the canonical intake", "sources": []}
+    with pytest.raises(WorkflowGenerationError, match="first outline failed"):
+        await service.process_event(
+            "workflow-project",
+            "approve_intake",
+            {"content": content, "expected_version_id": None},
+        )
+
+    failed = await service.get_project("workflow-project")
+    failed_job_id = failed["job"]["job_id"]
+    assert failed["job"]["status"] == "failed"
+
+    editable = await service.process_event("workflow-project", "edit_intake", {})
+    assert editable["workflow_stage"] == "intake"
+    assert editable["job"]["status"] == "idle"
+    assert editable["job"]["job_id"] is None
+
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    async def recovered_outline(_context):
+        entered.set()
+        await release.wait()
+        return "Fresh outline after retry"
+
+    service.outline_generator = recovered_outline
+    retry = asyncio.create_task(
+        service.process_event(
+            "workflow-project",
+            "approve_intake",
+            {
+                "content": content,
+                "expected_version_id": editable["artifacts"]["intake"]["current_version_id"],
+            },
+        )
+    )
+    await asyncio.wait_for(entered.wait(), timeout=2)
+    running = await service.get_project("workflow-project")
+    assert running["job"]["status"] == "running"
+    assert running["job"]["job_id"] != failed_job_id
+
+    release.set()
+    completed = await retry
+    assert completed["job"]["status"] == "idle"
+    assert completed["artifacts"]["outline"]["current_content"] == (
+        "Fresh outline after retry"
+    )
 
     await engine.dispose()
 

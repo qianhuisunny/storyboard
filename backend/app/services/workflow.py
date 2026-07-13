@@ -662,6 +662,8 @@ class WorkflowService:
             await self._materialize_legacy_artifacts(repo, state)
             self._expire_generation_lease(state)
             self._validate_event(event, state)
+            if state.job.status == "failed":
+                state.job = JobOverlay()
             state.workflow_stage = targets[event]
             state.phase = targets[event]
             await self._persist_state(repo, state)

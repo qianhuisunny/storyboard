@@ -139,6 +139,32 @@ def test_director_caps_large_source_values_with_visible_marker():
     assert len(prompt) < 25000
 
 
+def test_director_uses_rederived_snapshot_not_orphaned_structured_source_entries():
+    director = StoryboardDirector()
+    prompt = director._build_prompt(
+        {
+            "prompt": "Build from retained context",
+            "sources": [
+                {
+                    "id": "kept",
+                    "name": "Renamed source",
+                    "kind": "text",
+                    "status": "ready",
+                }
+            ],
+            "source_contents": {
+                "kept": "Retained guidance",
+                "removed": "REMOVED SECRET CONTEXT",
+            },
+            "source_snapshot": "[Note: Renamed source]\nRetained guidance",
+        }
+    )
+
+    assert "Renamed source" in prompt
+    assert "Retained guidance" in prompt
+    assert "REMOVED SECRET CONTEXT" not in prompt
+
+
 def test_director_run_threads_quality_feedback_without_mutating_system_prompt(monkeypatch):
     director = StoryboardDirector()
     original_system_prompt = director.system_prompt

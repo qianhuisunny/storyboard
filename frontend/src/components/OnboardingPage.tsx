@@ -27,7 +27,12 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ensureSession } from "@/lib/session";
-import type { WorkflowResponse } from "@/lib/workflow";
+import {
+  deriveCanonicalSourceSnapshot,
+  normalizeCanonicalSourceContents,
+  type CanonicalIntakeSource,
+  type WorkflowResponse,
+} from "@/lib/workflow";
 
 type SourceKind = "file" | "link" | "text";
 type SourceStatus = "pending" | "processing" | "ready" | "failed";
@@ -65,7 +70,6 @@ const RATIO_OPTIONS = [
 
 const MAX_PROMPT_CHARS = 6_000;
 const MAX_NOTE_CHARS = 20_000;
-const MAX_SOURCE_SNAPSHOT_CHARS = 100_000;
 const MAX_INTAKE_CHARS = 250_000;
 const MAX_SOURCES = 20;
 const MAX_SOURCE_URL_CHARS = 2_048;
@@ -253,7 +257,7 @@ export default function OnboardingPage() {
     return allocatedProjectId;
   };
 
-  const persistedSources = (items: Source[]) => items.map((source) => ({
+  const persistedSources = (items: Source[]): CanonicalIntakeSource[] => items.map((source) => ({
     id: source.id,
     kind: source.type === "file" ? "upload" : source.type,
     name: source.name.slice(0, 255),
@@ -264,24 +268,22 @@ export default function OnboardingPage() {
     ...(source.error ? { error: source.error } : {}),
   }));
 
-  const sourceSnapshot = (items: Source[]) => {
-    const snapshot = items
-    .filter((source) => source.status === "ready" && source.extractedContent)
-    .map((source) => `[${source.type === "link" ? "Link" : source.type === "file" ? "File" : "Note"}: ${source.name}]\n${source.extractedContent}`)
-    .join("\n\n---\n\n");
-    if (snapshot.length <= MAX_SOURCE_SNAPSHOT_CHARS) return snapshot;
-    const marker = "\n…[source snapshot truncated]";
-    return snapshot.slice(0, MAX_SOURCE_SNAPSHOT_CHARS - marker.length) + marker;
-  };
-
   const intakeContent = (items: Source[]) => {
+    const persisted = persistedSources(items);
+    const rawSourceContents = Object.fromEntries(
+      items
+        .filter((source) => source.status === "ready" && source.extractedContent)
+        .map((source) => [source.id, source.extractedContent as string]),
+    );
+    const sourceContents = normalizeCanonicalSourceContents(persisted, rawSourceContents);
     const content = {
       prompt: userInput.trim(),
       duration_seconds: selectedDuration,
       platform,
       aspect_ratio: aspectRatio,
-      source_snapshot: sourceSnapshot(items),
-      sources: persistedSources(items),
+      source_snapshot: deriveCanonicalSourceSnapshot(persisted, sourceContents),
+      source_contents: sourceContents,
+      sources: persisted,
     };
     if (JSON.stringify(content).length > MAX_INTAKE_CHARS) {
       throw new Error("Project setup is too large. Remove or shorten a source.");

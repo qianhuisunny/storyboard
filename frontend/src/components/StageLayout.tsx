@@ -45,6 +45,7 @@ interface PipelineStateResponse {
 }
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
+type WorkflowLoadState = "loading" | "canonical" | "legacy" | "error";
 
 function stringifyForStageData(content: unknown): string {
   return typeof content === "string" ? content : JSON.stringify(content, null, 2);
@@ -240,6 +241,9 @@ export default function StageLayout() {
   const [isLoadingStages, setIsLoadingStages] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [workflowState, setWorkflowState] = useState<WorkflowResponse | null>(null);
+  const [workflowLoadState, setWorkflowLoadState] = useState<WorkflowLoadState>("loading");
+  const [workflowLoadError, setWorkflowLoadError] = useState<string | null>(null);
+  const [workflowLoadAttempt, setWorkflowLoadAttempt] = useState(0);
   const [workflowActionError, setWorkflowActionError] = useState<string | null>(null);
   const [isRetryingJob, setIsRetryingJob] = useState(false);
   const hasLoadedStages = useRef(false);
@@ -254,7 +258,9 @@ export default function StageLayout() {
   }, [stageData]);
 
   const usesCanonicalWorkflow = Boolean(
-    workflowState && isCanonicalIntakeArtifact(workflowState.artifacts.intake),
+    workflowLoadState === "canonical"
+    && workflowState
+    && isCanonicalIntakeArtifact(workflowState.artifacts.intake),
   );
 
   // Initialize analytics tracking
@@ -268,7 +274,7 @@ export default function StageLayout() {
       if (!projectId) return;
 
       // Wait for stages to finish loading before deciding to generate
-      if (isLoadingStages) return;
+      if (isLoadingStages || workflowLoadState === "loading" || workflowLoadState === "error") return;
 
       try {
         setProjectLoadError(null);
@@ -299,7 +305,7 @@ export default function StageLayout() {
           // Start legacy generation only for old non-guided projects.
           const storedTypeName = sessionStorage.getItem("storyboardTypeName");
           const isGuidedBrief = Boolean(sessionStorage.getItem("storyboardIntentRoute")) || isGuidedBriefType(storedTypeName);
-          if (!usesCanonicalWorkflow && !stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && !isGuidedBrief) {
+          if (workflowLoadState === "legacy" && !stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && !isGuidedBrief) {
             void generateStageRef.current(1, storedPrompt);
           }
         } else {
@@ -310,7 +316,7 @@ export default function StageLayout() {
 
           // Start legacy generation only for old non-guided projects.
           const projectIsGuidedBrief = isGuidedBriefType(project.typeName);
-          if (!usesCanonicalWorkflow && !stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && project.userInput && !projectIsGuidedBrief) {
+          if (workflowLoadState === "legacy" && !stageDataRef.current[1]?.aiVersion && !hasLoadedStages.current && project.userInput && !projectIsGuidedBrief) {
             void generateStageRef.current(1, project.userInput);
           }
         }
@@ -326,7 +332,7 @@ export default function StageLayout() {
       active = false;
       controller.abort();
     };
-  }, [projectId, isLoadingStages, usesCanonicalWorkflow]);
+  }, [projectId, isLoadingStages, workflowLoadState]);
 
   // Load saved stages on mount
   useEffect(() => {
@@ -335,6 +341,8 @@ export default function StageLayout() {
     const isCurrentLoad = () => workflowLoadGenerationRef.current === generation;
 
     setIsLoadingStages(true);
+    setWorkflowLoadState("loading");
+    setWorkflowLoadError(null);
     setWorkflowState(null);
     setStageData({});
     setStages(INITIAL_STAGES);
@@ -353,6 +361,7 @@ export default function StageLayout() {
         setWorkflowState(pipelinePayload);
 
         const isCanonicalWorkflow = isCanonicalIntakeArtifact(pipelinePayload.artifacts.intake);
+        setWorkflowLoadState(isCanonicalWorkflow ? "canonical" : "legacy");
         let stagesPayload: {
           stages?: Record<string, StageData>;
           currentStageId?: number;
@@ -424,6 +433,10 @@ export default function StageLayout() {
       } catch (error) {
         if (!isCurrentLoad() || (error instanceof DOMException && error.name === "AbortError")) return;
         console.error("Failed to load saved stages:", error);
+        setWorkflowLoadState("error");
+        setWorkflowLoadError(
+          error instanceof Error ? error.message : "The workflow request failed.",
+        );
       } finally {
         if (isCurrentLoad()) setIsLoadingStages(false);
       }
@@ -433,11 +446,14 @@ export default function StageLayout() {
     return () => {
       controller.abort();
     };
-  }, [projectId]);
+  }, [projectId, workflowLoadAttempt]);
 
   const handleWorkflowChange = useCallback((nextWorkflow: WorkflowResponse) => {
     setWorkflowState(nextWorkflow);
-    if (!isCanonicalIntakeArtifact(nextWorkflow.artifacts.intake)) return;
+    const isCanonical = isCanonicalIntakeArtifact(nextWorkflow.artifacts.intake);
+    setWorkflowLoadState(isCanonical ? "canonical" : "legacy");
+    setWorkflowLoadError(null);
+    if (!isCanonical) return;
     setStageData(hydrateStageDataFromWorkflow(nextWorkflow));
     const stageView = deriveStageViewFromWorkflow(nextWorkflow);
     setCurrentStageId(stageView.currentStageId);
@@ -936,7 +952,24 @@ export default function StageLayout() {
 
       {/* Main Content — scroll container, full width (headers/footers span full; content areas self-constrain) */}
       <div className="flex-1 flex flex-col min-h-0 min-w-0 overflow-y-auto">
-        {projectLoadError ? (
+        {workflowLoadState === "error" ? (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <div role="alert" className="max-w-md rounded-2xl border border-red-200 bg-red-50 p-5 text-center text-red-800">
+              <AlertCircle className="mx-auto h-6 w-6" />
+              <h2 className="mt-3 font-medium">Could not load workflow state</h2>
+              <p className="mt-1 text-sm">{workflowLoadError || "The workflow request failed."}</p>
+              <Button
+                type="button"
+                variant="outline"
+                className="mt-4 border-red-200 bg-white"
+                onClick={() => setWorkflowLoadAttempt((attempt) => attempt + 1)}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Retry workflow
+              </Button>
+            </div>
+          </div>
+        ) : projectLoadError ? (
           <div className="flex-1 flex items-center justify-center p-6 text-center text-sm text-muted-foreground">
             {projectLoadError}
           </div>

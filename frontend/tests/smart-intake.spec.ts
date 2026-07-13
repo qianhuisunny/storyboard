@@ -6,6 +6,7 @@ type IntakeContent = {
   platform?: string;
   aspect_ratio?: string;
   source_snapshot?: string;
+  source_contents?: Record<string, string>;
   sources: Array<Record<string, unknown>>;
   viewer_outcome?: string;
   target_audience?: string;
@@ -39,6 +40,8 @@ type MockSmartIntakeOptions = {
   initialStage?: "intake" | "outline";
   initialVersionId?: string | null;
   stageSnapshots?: Record<string, unknown>;
+  staleFailedReadAfterEdit?: boolean;
+  transientPipelineFailure?: boolean;
 };
 
 const PROJECT_ID = "11111111-1111-4111-8111-111111111111";
@@ -135,10 +138,17 @@ async function mockSmartIntake(page: Page, options: MockSmartIntakeOptions = {})
   let releaseApproval: (() => void) | null = null;
   let approvalAttempts = 0;
   const deletedSourceRequests: string[] = [];
+  const legacyStartRequests: string[] = [];
+  let pipelineAttempts = 0;
+  let staleFailedWorkflow: ReturnType<typeof workflowBody> | null = null;
+  let serveStaleFailedRead = false;
 
   page.on("request", (request) => {
     if (request.method() === "DELETE" && request.url().includes(`/api/project/${PROJECT_ID}`)) {
       deletedSourceRequests.push(request.url());
+    }
+    if (request.method() === "POST" && request.url().endsWith(`/api/project/${PROJECT_ID}/start`)) {
+      legacyStartRequests.push(request.url());
     }
   });
 
@@ -157,7 +167,17 @@ async function mockSmartIntake(page: Page, options: MockSmartIntakeOptions = {})
     }
     return fulfillJson(route, { success: true });
   });
-  await page.route(`**/api/project/${PROJECT_ID}/pipeline-state`, (route) => fulfillJson(route, workflow));
+  await page.route(`**/api/project/${PROJECT_ID}/pipeline-state`, (route) => {
+    pipelineAttempts += 1;
+    if (options.transientPipelineFailure && pipelineAttempts === 1) {
+      return fulfillJson(route, { detail: "Pipeline temporarily unavailable" }, 503);
+    }
+    if (serveStaleFailedRead && staleFailedWorkflow) {
+      serveStaleFailedRead = false;
+      return fulfillJson(route, staleFailedWorkflow);
+    }
+    return fulfillJson(route, workflow);
+  });
   await page.route(`**/api/project/${PROJECT_ID}/event`, async (route) => {
     const request = route.request().postDataJSON() as WorkflowEvent;
     events.push(request);
@@ -167,6 +187,7 @@ async function mockSmartIntake(page: Page, options: MockSmartIntakeOptions = {})
     }
     if (request.event === "edit_intake") {
       workflow = workflowBody(content, versionId, { stage: "intake", outline: workflow.artifacts.outline.current_content });
+      serveStaleFailedRead = Boolean(options.staleFailedReadAfterEdit);
       await fulfillJson(route, workflow);
       return;
     }
@@ -215,6 +236,7 @@ async function mockSmartIntake(page: Page, options: MockSmartIntakeOptions = {})
             error: "Quality provider timed out",
           },
         });
+        staleFailedWorkflow = structuredClone(workflow);
         await fulfillJson(route, {
           detail: {
             code: "workflow_generation_failed",
@@ -241,6 +263,7 @@ async function mockSmartIntake(page: Page, options: MockSmartIntakeOptions = {})
   return {
     events,
     deletedSourceRequests,
+    legacyStartRequests,
     releaseApproval: () => {
       if (!releaseApproval) throw new Error("Approval request has not started");
       releaseApproval();
@@ -380,18 +403,51 @@ test("clearing optional Create controls omits them from the next canonical versi
 });
 
 test("sources can be renamed or removed from intake without deleting stored files", async ({ page }) => {
-  const mock = await mockSmartIntake(page);
+  const mock = await mockSmartIntake(page, {
+    initialContent: {
+      prompt: "Source-aware launch",
+      sources: [
+        {
+          id: "source-1",
+          kind: "link",
+          name: "launch-notes.pdf",
+          url: "https://example.com/launch",
+          path: "links/launch.txt",
+          status: "ready",
+        },
+        {
+          id: "source-2",
+          kind: "upload",
+          name: "private-appendix.pdf",
+          path: "uploads/private.pdf",
+          status: "ready",
+        },
+      ],
+      source_snapshot: "[Link: launch-notes.pdf]\nKeep this launch guidance.\n\n---\n\n[File: private-appendix.pdf]\nREMOVED SECRET CONTEXT",
+    },
+  });
   await page.goto(`/storyboard/${PROJECT_ID}`);
 
+  await expect(page.getByLabel("Source URL launch-notes.pdf")).toHaveAttribute("readonly", "");
   await page.getByLabel("Source name launch-notes.pdf").fill("Launch playbook.pdf");
+  await page.getByRole("button", { name: "Remove private-appendix.pdf" }).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   expect(mock.events[0].payload.content?.sources).toMatchObject([
     { id: "source-1", name: "Launch playbook.pdf" },
   ]);
+  expect(mock.events[0].payload.content?.source_contents).toEqual({
+    "source-1": "Keep this launch guidance.",
+  });
+  expect(mock.events[0].payload.content?.source_snapshot).toBe(
+    "[Link: Launch playbook.pdf]\nKeep this launch guidance.",
+  );
+  expect(mock.events[0].payload.content?.source_snapshot).not.toContain("REMOVED SECRET CONTEXT");
 
   await page.getByRole("button", { name: "Remove Launch playbook.pdf" }).click();
   await page.getByRole("button", { name: "Save", exact: true }).click();
   expect(mock.events[1].payload.content?.sources).toEqual([]);
+  expect(mock.events[1].payload.content).not.toHaveProperty("source_contents");
+  expect(mock.events[1].payload.content).not.toHaveProperty("source_snapshot");
   expect(mock.deletedSourceRequests).toEqual([]);
 });
 
@@ -416,6 +472,7 @@ test("generation failure reloads the persisted job, preserves the last outline, 
   const mock = await mockSmartIntake(page, {
     failFirstApproval: true,
     initialOutline: previousOutline,
+    staleFailedReadAfterEdit: true,
   });
   await page.goto(`/storyboard/${PROJECT_ID}`);
   await page.getByRole("button", { name: "Save & Generate Outline" }).click();
@@ -434,6 +491,26 @@ test("generation failure reloads the persisted job, preserves the last outline, 
     "edit_intake",
     "approve_intake",
   ]);
+});
+
+test("pipeline hydration fails closed and retries without starting a legacy flow", async ({ page }) => {
+  await page.addInitScript(() => {
+    sessionStorage.setItem("storyboardPrompt", "Stale legacy prompt");
+    sessionStorage.setItem("storyboardType", "1");
+    sessionStorage.setItem("storyboardTypeName", "Product Release");
+  });
+  const mock = await mockSmartIntake(page, { transientPipelineFailure: true });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await expect(page.getByRole("alert")).toContainText("Could not load workflow state");
+  await expect(page.getByRole("button", { name: "Retry workflow" })).toBeVisible();
+  await page.waitForTimeout(250);
+  expect(mock.legacyStartRequests).toEqual([]);
+  expect(mock.events).toEqual([]);
+
+  await page.getByRole("button", { name: "Retry workflow" }).click();
+  await expect(page.getByRole("heading", { name: "Smart Intake" })).toBeVisible();
+  expect(mock.legacyStartRequests).toEqual([]);
 });
 
 test("canonical hydration ignores old snapshots when no outline artifact exists", async ({ page }) => {
