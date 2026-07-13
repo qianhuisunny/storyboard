@@ -185,6 +185,10 @@ class StoryboardOrchestrator:
             ("brief_review", "brief_approve"): self._handle_brief_approve,
             ("brief_review", "edit"): self._handle_edit_brief,
             ("brief_chat", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_round1", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_round2", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_round3", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("angle_selection", "chat_brief_approve"): self._handle_chat_brief_approve,
             ("brief_review", "chat_brief_approve"): self._handle_chat_brief_approve,
         }
         return handlers.get((phase, event))

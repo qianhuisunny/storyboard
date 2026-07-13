@@ -136,6 +136,26 @@ def test_legacy_phase_maps_to_closest_workflow_stage(legacy_phase, workflow_stag
     assert set(state.artifacts) == {"intake", "outline", "storyboard"}
 
 
+@pytest.mark.parametrize(
+    "phase",
+    ["brief_round1", "brief_round2", "brief_round3", "angle_selection"],
+)
+def test_historical_briefing_phase_accepts_chat_brief_approval_transition(phase):
+    manager = StateManager("historical-brief")
+    state = StoryboardState(
+        project_id="historical-brief",
+        phase=phase,
+        story_brief={"fields": {"topic": {"value": "Retain me"}}},
+    )
+
+    transitioned = manager.transition(state, "chat_brief_approve")
+
+    assert transitioned.phase == "gate1"
+    assert transitioned.story_brief == {
+        "fields": {"topic": {"value": "Retain me"}}
+    }
+
+
 @pytest.mark.asyncio
 async def test_state_manager_hydrates_legacy_row_without_losing_content(tmp_path):
     project_id = "persisted-legacy-project"

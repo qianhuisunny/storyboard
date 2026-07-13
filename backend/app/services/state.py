@@ -215,6 +215,10 @@ class StateManager:
         ("intake", "submit_guided_brief"): "brief_chat",
         ("intake", "submit_knowledge_share"): "brief_chat",
         ("brief_chat", "chat_brief_approve"): "gate1",
+        ("brief_round1", "chat_brief_approve"): "gate1",
+        ("brief_round2", "chat_brief_approve"): "gate1",
+        ("brief_round3", "chat_brief_approve"): "gate1",
+        ("angle_selection", "chat_brief_approve"): "gate1",
         ("brief_review", "chat_brief_approve"): "gate1",
         ("brief_review", "brief_approve"): "gate1",                # Legacy compatibility
         ("brief_review", "approve"): "gate1",                      # Public alias for final brief approval

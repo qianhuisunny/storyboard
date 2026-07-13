@@ -15,6 +15,8 @@ from app.main import app
 from app.services.agents.storyboard_director import StoryboardDirector
 from app.services.workflow import WorkflowService
 from app.services.session_auth import SESSION_COOKIE, hash_session_token
+from app.services.state import StateManager
+from app.test.conftest import MOCK_OUTLINE
 
 
 async def _outline(context):
@@ -206,6 +208,79 @@ async def test_get_pipeline_state_hydrates_legacy_aliases(workflow_api):
     assert body["data"]["screen_outline"] == legacy["screen_outline"]
     assert body["data"]["storyboard"] == legacy["storyboard"]
     assert body["artifacts"]["storyboard"]["current_content"] == legacy["storyboard"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "phase",
+    ["brief_round1", "brief_round2", "brief_round3", "angle_selection"],
+)
+async def test_historical_brief_approval_api_reaches_outline_without_losing_content(
+    phase, workflow_api, monkeypatch, make_orchestrator
+):
+    client, service = workflow_api
+    retained = {
+        "topic": {
+            "value": f"Retained {phase} topic",
+            "source": "extracted",
+            "confirmed": False,
+        }
+    }
+    legacy = {
+        "project_id": "api-project",
+        "phase": phase,
+        "story_brief": {"fields": retained, "legacy_marker": phase},
+    }
+    async with service.sessionmaker() as session:
+        await ProjectRepository(session).update_pipeline_state(
+            "api-project", phase, "pending", legacy
+        )
+
+    def use_workflow_database(self, project_id, data_dir=None):
+        self.project_id = project_id
+        self.data_dir = data_dir
+        self._owned_engine = None
+        self._sessionmaker = service.sessionmaker
+
+    monkeypatch.setattr(StateManager, "__init__", use_workflow_database)
+    monkeypatch.setattr("app.main.orchestrator", make_orchestrator())
+    confirmed = {
+        "viewer_outcome": {
+            "value": "Advance through the API",
+            "source": "extracted",
+            "confirmed": True,
+        },
+        "target_audience": {
+            "value": "Legacy project owners",
+            "source": "extracted",
+            "confirmed": True,
+        },
+    }
+
+    finalized = await client.post(
+        "/api/project/api-project/event",
+        json={
+            "event": "chat_brief_approve",
+            "payload": {"all_fields": confirmed},
+        },
+    )
+
+    assert finalized.status_code == 200
+    assert finalized.json()["phase"] == "gate1"
+    assert finalized.json()["story_brief"] == {
+        "fields": {**retained, **confirmed},
+        "legacy_marker": phase,
+    }
+
+    outlined = await client.post(
+        "/api/project/api-project/event",
+        json={"event": "approve", "payload": {}},
+    )
+    assert outlined.status_code == 200
+    assert outlined.json()["phase"] == "gate2"
+    assert outlined.json()["screen_outline"] == MOCK_OUTLINE
+    persisted = await StateManager("api-project").load()
+    assert persisted.story_brief == finalized.json()["story_brief"]
 
 
 @pytest.mark.asyncio

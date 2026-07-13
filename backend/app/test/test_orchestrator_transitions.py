@@ -33,6 +33,60 @@ class TestKnowledgeShareTransitions:
         assert result.get("story_brief") is not None
         assert result.get("brief_locked") is False
 
+    @pytest.mark.parametrize(
+        "phase",
+        ["brief_round1", "brief_round2", "brief_round3", "angle_selection"],
+    )
+    async def test_restored_brief_phase_uses_existing_approval_path_to_outline(
+        self, phase, make_orchestrator, patch_state_manager
+    ):
+        orch = make_orchestrator()
+        manager = StateManager("test-project")
+        retained = {
+            "topic": {
+                "value": f"Retained {phase} topic",
+                "source": "extracted",
+                "confirmed": False,
+            }
+        }
+        await manager.save(StoryboardState(
+            project_id="test-project",
+            phase=phase,
+            story_brief={"fields": retained, "legacy_marker": phase},
+        ))
+        confirmed = {
+            "viewer_outcome": {
+                "value": "Advance the restored brief",
+                "source": "extracted",
+                "confirmed": True,
+            },
+            "target_audience": {
+                "value": "Legacy project owners",
+                "source": "extracted",
+                "confirmed": True,
+            },
+        }
+
+        finalized = await orch.process_event(
+            "test-project",
+            "chat_brief_approve",
+            {"all_fields": confirmed},
+        )
+
+        assert finalized["success"] is True
+        assert finalized["phase"] == "gate1"
+        assert finalized["story_brief"] == {
+            "fields": {**retained, **confirmed},
+            "legacy_marker": phase,
+        }
+
+        outlined = await orch.process_event("test-project", "approve", {})
+        assert outlined["success"] is True
+        assert outlined["phase"] == "gate2"
+        assert outlined["screen_outline"] == MOCK_OUTLINE
+        persisted = await manager.load()
+        assert persisted.story_brief == finalized["story_brief"]
+
     async def test_approve_alias_from_brief_review_routes_to_brief_approve(self, make_orchestrator, patch_state_manager):
         orch = make_orchestrator()
         manager = StateManager("test-project")

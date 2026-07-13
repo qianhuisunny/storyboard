@@ -395,6 +395,7 @@ async function mockLegacyProject(
   page: Page,
   phase: LegacyPhase,
   stages: Record<string, { aiVersion: string | null; humanVersion: string | null }> = {},
+  options: { guidedBrief?: boolean; eventLog?: string[] } = {},
 ) {
   const workflowStage: Stage = phase === "done"
     ? "complete"
@@ -408,6 +409,12 @@ async function mockLegacyProject(
         source: "extracted",
         confirmed: false,
       },
+      ...(options.guidedBrief ? {
+        video_type: { value: "knowledge_sharing", source: "extracted", confirmed: false },
+        viewer_outcome: { value: "Advance the restored brief", source: "extracted", confirmed: false },
+        target_audience: { value: "Legacy project owners", source: "extracted", confirmed: false },
+        core_talking_points: { value: ["Retain the original context"], source: "generated", confirmed: false },
+      } : {}),
     },
   };
   const body = {
@@ -446,7 +453,40 @@ async function mockLegacyProject(
       { id: 4, status: "needs_review" },
     ],
   }));
+  await page.route(`**/api/project/${PROJECT_ID}/chat-messages`, (route) => json(route, {
+    success: true,
+    messages: [],
+  }));
   await page.route(`**/api/project/${PROJECT_ID}/pipeline-state`, (route) => json(route, body));
+  await page.route(`**/api/project/${PROJECT_ID}/event`, async (route) => {
+    const request = route.request().postDataJSON() as {
+      event: string;
+      payload?: { all_fields?: typeof storyBrief.fields };
+    };
+    options.eventLog?.push(request.event);
+    if (request.event === "chat_brief_approve") {
+      await json(route, {
+        success: true,
+        phase: "gate1",
+        story_brief: {
+          ...storyBrief,
+          fields: request.payload?.all_fields ?? storyBrief.fields,
+        },
+      });
+      return;
+    }
+    if (request.event === "approve") {
+      await json(route, {
+        success: true,
+        phase: "gate2",
+        screen_outline: OUTLINE,
+      });
+      return;
+    }
+    await json(route, body);
+  });
+
+  return { storyBrief };
 }
 
 async function editFirstStoryboardVoiceover(page: Page, value: string) {
@@ -494,6 +534,29 @@ for (const phase of ["brief_round1", "brief_round2", "brief_round3", "angle_sele
     await expect(page.getByText("Loading project... Generation will start automatically.")).toHaveCount(0);
   });
 }
+
+test("a restored historical brief approves through the existing path to Outline", async ({ page }) => {
+  const eventLog: string[] = [];
+  const { storyBrief } = await mockLegacyProject(page, "brief_round3", {}, {
+    guidedBrief: true,
+    eventLog,
+  });
+  await page.addInitScript(({ projectId, fields }) => {
+    sessionStorage.setItem(`chat-brief-${projectId}`, JSON.stringify({
+      messages: [],
+      phase: 3,
+      questionIndex: 0,
+      fields,
+    }));
+  }, { projectId: PROJECT_ID, fields: storyBrief.fields });
+
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+  await page.getByRole("button", { name: "Approve & Continue to Outline" }).click();
+
+  await expect(page.getByRole("heading", { name: "Video Outline", level: 2 })).toBeVisible();
+  expect(eventLog).toEqual(["chat_brief_approve", "approve"]);
+  await expect(page.getByText("Failed to approve brief")).toHaveCount(0);
+});
 
 async function editOutlineTitle(page: Page, nextTitle: string) {
   const title = page.locator('[contenteditable="true"]').filter({ hasText: "A calm launch" }).first();
