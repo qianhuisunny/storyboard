@@ -28,6 +28,7 @@ import os
 import httpx
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 from dotenv import load_dotenv
 import sentry_sdk
 
@@ -843,10 +844,17 @@ async def save_stages(project_id: str, request: SaveStagesRequest, db: AsyncSess
         ps = await repo.get_pipeline_state(project_id)
         if ps:
             state_data = repo.parse_state_data(ps)
+            expected_revision = state_data.get("state_revision")
             state_data["currentStageId"] = request.currentStageId
             state_data["stageStatuses"] = [s.model_dump() for s in request.stageStatuses]
+            state_data["state_revision"] = str(uuid4())
             await repo.update_pipeline_state(
-                project_id, ps.phase, ps.status, state_data, commit=False
+                project_id,
+                ps.phase,
+                ps.status,
+                state_data,
+                commit=False,
+                expected_revision=expected_revision,
             )
 
         await repo.update_project_timestamp(project_id, commit=False)

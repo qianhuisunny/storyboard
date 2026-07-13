@@ -19,6 +19,20 @@ from .models import (
 )
 
 
+_NO_REVISION_CHECK = object()
+
+
+class PipelineStateConflictError(Exception):
+    """Raised when a pipeline-state compare-and-swap loses a race."""
+
+    def __init__(self, project_id: str, expected_revision: Optional[str]):
+        self.project_id = project_id
+        self.expected_revision = expected_revision
+        super().__init__(
+            f"Pipeline state changed while processing project {project_id}"
+        )
+
+
 class ProjectRepository:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -36,7 +50,12 @@ class ProjectRepository:
         )
         self.session.add(project)
         # Also create initial pipeline state
-        ps = PipelineState(project_id=project_id, phase="intake", status="pending", state_data="{}")
+        ps = PipelineState(
+            project_id=project_id,
+            phase="intake",
+            status="pending",
+            state_data=json.dumps({"state_revision": str(uuid4())}),
+        )
         self.session.add(ps)
         if commit:
             await self.session.commit()
@@ -104,7 +123,38 @@ class ProjectRepository:
     async def update_pipeline_state(
         self, project_id: str, phase: str, status: str, state_data: dict,
         commit: bool = True,
+        expected_revision: Any = _NO_REVISION_CHECK,
     ):
+        if expected_revision is not _NO_REVISION_CHECK:
+            revision_value = func.json_extract(
+                PipelineState.state_data, "$.state_revision"
+            )
+            revision_match = (
+                revision_value.is_(None)
+                if expected_revision is None
+                else revision_value == expected_revision
+            )
+            result = await self.session.execute(
+                update(PipelineState)
+                .where(
+                    PipelineState.project_id == project_id,
+                    revision_match,
+                )
+                .values(
+                    phase=phase,
+                    status=status,
+                    state_data=json.dumps(state_data),
+                    updated_at=datetime.now(timezone.utc),
+                )
+            )
+            if result.rowcount != 1:
+                raise PipelineStateConflictError(project_id, expected_revision)
+            if commit:
+                await self.session.commit()
+            else:
+                await self.session.flush()
+            return None
+
         ps = await self.get_pipeline_state(project_id)
         if ps:
             ps.phase = phase

@@ -9,7 +9,8 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from app.db import engine as db_engine
 from app.db.models import Base
 from app.db.repository import ProjectRepository
-from app.services.state import JobOverlay, StoryboardState
+from app.services.orchestrator import StoryboardOrchestrator
+from app.services.state import JobOverlay, StateManager, StoryboardState
 from app.services.workflow import (
     DuplicateJobError,
     InvalidWorkflowEvent,
@@ -502,6 +503,87 @@ async def test_cancelled_generation_persists_failure_and_preserves_current(tmp_p
 
 
 @pytest.mark.asyncio
+async def test_legacy_generation_cannot_overwrite_concurrent_canonical_save(
+    tmp_path, monkeypatch
+):
+    engine, sessions = await _workflow_database(tmp_path)
+
+    def bind_state_manager(self, project_id, data_dir=None):
+        self.project_id = project_id
+        self.data_dir = None
+        self._owned_engine = None
+        self._sessionmaker = sessions
+
+    monkeypatch.setattr(StateManager, "__init__", bind_state_manager)
+    manager = StateManager("workflow-project")
+    legacy = await manager.load()
+    legacy.phase = "gate1"
+    legacy.workflow_stage = "intake"
+    legacy.story_brief = {
+        "fields": {
+            "viewer_outcome": {"value": "Understand CAS"},
+            "target_audience": {"value": "Backend engineers"},
+            "core_talking_points": {"value": ["Load", "Generate", "CAS"]},
+        }
+    }
+    await manager.save(legacy)
+
+    entered = asyncio.Event()
+    release = asyncio.Event()
+
+    class BlockingQualityGate:
+        model = "test-model"
+
+        async def run_with_gate(self, agent, state, stage, **kwargs):
+            entered.set()
+            await release.wait()
+
+            class PassingEvaluation:
+                passed = True
+                attempt = 1
+                composite_score = 10.0
+
+                @staticmethod
+                def to_dict():
+                    return {"passed": True, "composite_score": 10.0}
+
+            return "Legacy outline that must not overwrite canonical state", PassingEvaluation()
+
+    legacy_orchestrator = StoryboardOrchestrator()
+    legacy_orchestrator.quality_gate = BlockingQualityGate()
+    legacy_task = asyncio.create_task(
+        legacy_orchestrator.process_event("workflow-project", "approve", {})
+    )
+    await asyncio.wait_for(entered.wait(), timeout=2)
+
+    service = WorkflowService(sessions, _outline, _storyboard)
+    canonical = await service.process_event(
+        "workflow-project",
+        "save_intake",
+        {
+            "content": {"prompt": "Canonical edit wins"},
+            "expected_version_id": None,
+        },
+    )
+    canonical_intake_id = canonical["artifacts"]["intake"][
+        "current_version_id"
+    ]
+    release.set()
+    legacy_result = await legacy_task
+
+    assert legacy_result["success"] is False
+    assert "changed" in legacy_result["error"].lower()
+    final = await service.get_project("workflow-project")
+    assert final["artifacts"]["intake"]["current_version_id"] == canonical_intake_id
+    assert final["artifacts"]["intake"]["current_content"] == {
+        "prompt": "Canonical edit wins"
+    }
+    assert final["data"]["screen_outline"] is None
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_late_result_is_history_only_when_input_and_job_have_changed(tmp_path):
     engine, sessions = await _workflow_database(tmp_path)
     entered = asyncio.Event()
@@ -787,6 +869,94 @@ async def test_stale_unchanged_storyboard_requires_keep_override(tmp_path):
     override = kept["artifacts"]["storyboard"]
     assert override["versions"][-1]["is_override"] is True
     assert override["versions"][-1]["based_on_version_id"] == new_outline_id
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_unchanged_stale_storyboard_cannot_save_around_keep_override(
+    tmp_path,
+):
+    engine, sessions = await _workflow_database(tmp_path)
+    service = WorkflowService(sessions, _outline, _storyboard)
+    storyboard_stage = await _reach_storyboard(service)
+    storyboard = storyboard_stage["artifacts"]["storyboard"]
+    new_outline_id = await _make_storyboard_stale(sessions)
+
+    with pytest.raises(InvalidWorkflowEvent, match="keep_storyboard"):
+        await service.process_event(
+            "workflow-project",
+            "save_storyboard",
+            {
+                "content": storyboard["current_content"],
+                "expected_version_id": storyboard["current_version_id"],
+            },
+        )
+
+    still_stale = await service.get_project("workflow-project")
+    assert still_stale["artifacts"]["storyboard"]["needs_update"] is True
+    assert (
+        still_stale["artifacts"]["storyboard"]["current_version_id"]
+        == storyboard["current_version_id"]
+    )
+    with pytest.raises(InvalidWorkflowEvent, match="keep_storyboard"):
+        await service.process_event(
+            "workflow-project",
+            "approve_storyboard",
+            {
+                "content": storyboard["current_content"],
+                "expected_version_id": storyboard["current_version_id"],
+            },
+        )
+
+    kept = await service.process_event(
+        "workflow-project",
+        "keep_storyboard",
+        {"expected_version_id": storyboard["current_version_id"]},
+    )
+    override = kept["artifacts"]["storyboard"]
+    assert override["versions"][-1]["is_override"] is True
+    assert override["versions"][-1]["based_on_version_id"] == new_outline_id
+
+    completed = await service.process_event(
+        "workflow-project",
+        "approve_storyboard",
+        {
+            "content": override["current_content"],
+            "expected_version_id": override["current_version_id"],
+        },
+    )
+    assert completed["workflow_stage"] == "complete"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
+async def test_edited_stale_storyboard_saves_as_normal_bound_human_version(
+    tmp_path,
+):
+    engine, sessions = await _workflow_database(tmp_path)
+    service = WorkflowService(sessions, _outline, _storyboard)
+    storyboard_stage = await _reach_storyboard(service)
+    storyboard = storyboard_stage["artifacts"]["storyboard"]
+    new_outline_id = await _make_storyboard_stale(sessions)
+    edited = [{"screen_number": 1, "voiceover": "Edited for the new outline"}]
+
+    saved = await service.process_event(
+        "workflow-project",
+        "save_storyboard",
+        {
+            "content": edited,
+            "expected_version_id": storyboard["current_version_id"],
+        },
+    )
+
+    current = saved["artifacts"]["storyboard"]
+    assert current["current_content"] == edited
+    assert current["needs_update"] is False
+    assert current["versions"][-1]["created_by"] == "human"
+    assert current["versions"][-1]["is_override"] is False
+    assert current["versions"][-1]["based_on_version_id"] == new_outline_id
 
     await engine.dispose()
 

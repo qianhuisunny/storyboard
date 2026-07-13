@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy import text
 
-from app.db.repository import ProjectRepository
+from app.db.repository import PipelineStateConflictError, ProjectRepository
 from app.services.state import (
     ArtifactPointers,
     JobOverlay,
@@ -74,6 +74,36 @@ def test_workflow_state_round_trips_unknown_stage_metadata():
     assert dumped["currentStageId"] == 3
     assert dumped["stageStatuses"] == [{"id": 3, "status": "in_progress"}]
     assert dumped["future_metadata"] == {"owner": "frontend"}
+
+
+@pytest.mark.asyncio
+async def test_state_manager_rejects_second_save_from_stale_loaded_revision(
+    tmp_path,
+):
+    manager = StateManager("state-cas-project", data_dir=tmp_path)
+    first = await manager.load()
+    second = await manager.load()
+
+    first.artifacts["intake"].current_version_id = "canonical-intake-v1"
+    first.job = JobOverlay(
+        status="running",
+        job_id="canonical-job",
+        kind="outline",
+        input_version_id="canonical-intake-v1",
+    )
+    await manager.save(first)
+
+    second.story_brief = {"prompt": "stale legacy overwrite"}
+    with pytest.raises(PipelineStateConflictError):
+        await manager.save(second)
+
+    current = await manager.load()
+    assert current.artifacts["intake"].current_version_id == "canonical-intake-v1"
+    assert current.job.job_id == "canonical-job"
+    assert current.story_brief is None
+    assert current.state_revision == first.state_revision
+
+    await manager._owned_engine.dispose()
 
 
 @pytest.mark.parametrize(

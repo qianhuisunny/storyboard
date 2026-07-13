@@ -8,6 +8,7 @@ No pipeline state is written to `state.json`.
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Literal, Union
+from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
@@ -98,6 +99,7 @@ class StoryboardState(BaseModel):
         default_factory=default_artifact_pointers
     )
     job: JobOverlay = Field(default_factory=JobOverlay)
+    state_revision: Optional[str] = None
 
     # Accumulated data through pipeline
     intake_form: Optional[dict] = None
@@ -271,19 +273,36 @@ class StateManager:
                     project_id=self.project_id,
                     user_id="",
                     title="",
+                    commit=False,
                 )
-            await repo.update_pipeline_state(
-                project_id=self.project_id,
-                phase=state.phase,
-                status="pending",
-                state_data=state.model_dump(),
-            )
+            ps = await repo.get_pipeline_state(self.project_id)
+            if ps is None:
+                state.state_revision = str(uuid4())
+                await repo.update_pipeline_state(
+                    project_id=self.project_id,
+                    phase=state.phase,
+                    status="pending",
+                    state_data=state.model_dump(),
+                )
+            else:
+                expected_revision = repo.parse_state_data(ps).get(
+                    "state_revision"
+                )
+                state.state_revision = str(uuid4())
+                await repo.update_pipeline_state(
+                    project_id=self.project_id,
+                    phase=state.phase,
+                    status="pending",
+                    state_data=state.model_dump(),
+                    expected_revision=expected_revision,
+                )
         return state
 
     async def save(self, state: StoryboardState) -> None:
         """Persist state to SQLite."""
         await self._ensure_tables()
         state.updated_at = datetime.now(timezone.utc).isoformat()
+        expected_revision = state.state_revision
         async with self._sessionmaker() as session:
             repo = ProjectRepository(session)
             project = await repo.get_project(self.project_id)
@@ -292,14 +311,25 @@ class StateManager:
                     project_id=self.project_id,
                     user_id="",
                     title="",
+                    commit=False,
+                )
+                ps = await repo.get_pipeline_state(self.project_id)
+                expected_revision = repo.parse_state_data(ps).get(
+                    "state_revision"
                 )
             status = "completed" if state.phase == "done" else "pending"
-            await repo.update_pipeline_state(
-                project_id=self.project_id,
-                phase=state.phase,
-                status=status,
-                state_data=state.model_dump(),
-            )
+            state.state_revision = str(uuid4())
+            try:
+                await repo.update_pipeline_state(
+                    project_id=self.project_id,
+                    phase=state.phase,
+                    status=status,
+                    state_data=state.model_dump(),
+                    expected_revision=expected_revision,
+                )
+            except BaseException:
+                state.state_revision = expected_revision
+                raise
 
     def transition(self, state: StoryboardState, event: str) -> StoryboardState:
         """

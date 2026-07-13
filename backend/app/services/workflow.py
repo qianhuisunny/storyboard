@@ -330,6 +330,20 @@ class WorkflowService:
             self._expire_generation_lease(state)
             self._validate_event(event, state)
             self._require_content(event, state, payload)
+            if artifact_type == "storyboard":
+                pointers = state.artifacts["storyboard"]
+                self._check_expected(pointers.current_version_id, payload)
+                current_content = await self._content_for_pointer(
+                    repo, pointers.current_version_id
+                )
+                if pointers.needs_update and current_content == payload["content"]:
+                    self._raise_invalid(
+                        event,
+                        state,
+                        "The storyboard is stale and unchanged; use "
+                        "keep_storyboard to explicitly keep it against the "
+                        "new outline.",
+                    )
             await self._save_human_artifact(repo, state, artifact_type, payload)
             await self._persist_state(repo, state)
 
@@ -841,13 +855,20 @@ class WorkflowService:
     ) -> None:
         state.updated_at = datetime.now(timezone.utc).isoformat()
         status = "completed" if state.workflow_stage == "complete" else "pending"
-        await repo.update_pipeline_state(
-            state.project_id,
-            phase=state.phase,
-            status=status,
-            state_data=state.model_dump(),
-            commit=False,
-        )
+        expected_revision = state.state_revision
+        state.state_revision = str(uuid4())
+        try:
+            await repo.update_pipeline_state(
+                state.project_id,
+                phase=state.phase,
+                status=status,
+                state_data=state.model_dump(),
+                commit=False,
+                expected_revision=expected_revision,
+            )
+        except BaseException:
+            state.state_revision = expected_revision
+            raise
 
     def _validate_event(self, event: str, state: StoryboardState) -> None:
         if event not in StateManager(state.project_id).allowed_events(state):

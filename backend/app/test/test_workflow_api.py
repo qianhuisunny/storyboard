@@ -190,13 +190,19 @@ async def test_stage_autosave_and_workflow_transition_preserve_each_others_state
     workflow_api, monkeypatch
 ):
     client, service = workflow_api
+    async with service.sessionmaker() as session:
+        repo = ProjectRepository(session)
+        initial_row = await repo.get_pipeline_state("api-project")
+        initial_revision = repo.parse_state_data(initial_row).get("state_revision")
+    assert initial_revision is not None
+
     stage_at_update = asyncio.Event()
     release_stage = asyncio.Event()
     original_update = ProjectRepository.update_pipeline_state
     paused = False
 
     async def pause_stage_update(
-        repo, project_id, phase, status, state_data, commit=True
+        repo, project_id, phase, status, state_data, commit=True, **kwargs
     ):
         nonlocal paused
         if not paused and "currentStageId" in state_data:
@@ -210,6 +216,7 @@ async def test_stage_autosave_and_workflow_transition_preserve_each_others_state
             status,
             state_data,
             commit=commit,
+            **kwargs,
         )
 
     monkeypatch.setattr(
@@ -263,5 +270,6 @@ async def test_stage_autosave_and_workflow_transition_preserve_each_others_state
     assert raw["currentStageId"] == 2
     assert raw["stageStatuses"][-1] == {"id": 2, "status": "in_progress"}
     assert raw["artifacts"]["intake"]["current_version_id"]
+    assert raw["state_revision"] != initial_revision
     assert snapshot.ai_version == "autosaved AI outline"
     assert snapshot.human_version == "autosaved human outline"
