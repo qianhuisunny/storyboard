@@ -6,6 +6,70 @@ from app.db.repository import ProjectRepository
 from app.main import _frontend_stage_summary, _frontend_stage_view
 
 
+@pytest.mark.parametrize(
+    ("workflow_stage", "expected_stage", "expected_progress"),
+    [
+        ("intake", 1, 0),
+        ("outline", 2, 25),
+        ("storyboard", 3, 50),
+        ("complete", 4, 100),
+    ],
+)
+def test_canonical_workflow_stage_drives_project_history_progress(
+    workflow_stage, expected_stage, expected_progress
+):
+    state_data = {
+        "workflow_stage": workflow_stage,
+        "currentStageId": 1,
+        "stageStatuses": [
+            {"id": stage_id, "status": "not_started"}
+            for stage_id in range(1, 5)
+        ],
+    }
+
+    assert _frontend_stage_summary("brief_chat", state_data) == (
+        expected_stage,
+        expected_progress,
+    )
+
+
+@pytest.mark.parametrize(
+    ("phase", "expected_stage", "expected_progress"),
+    [
+        ("intake", 1, 0),
+        ("outline", 2, 25),
+        ("storyboard", 3, 50),
+        ("complete", 4, 100),
+    ],
+)
+def test_canonical_phase_drives_project_history_without_workflow_stage(
+    phase, expected_stage, expected_progress
+):
+    assert _frontend_stage_summary(phase, {}) == (
+        expected_stage,
+        expected_progress,
+    )
+
+
+def test_unmapped_legacy_phase_keeps_saved_frontend_progress():
+    saved_statuses = [
+        {"id": 1, "status": "approved"},
+        {"id": 2, "status": "approved"},
+        {"id": 3, "status": "in_progress"},
+        {"id": 4, "status": "not_started"},
+    ]
+    state_data = {
+        "currentStageId": 3,
+        "stageStatuses": saved_statuses,
+    }
+
+    current_stage, statuses = _frontend_stage_view("legacy_custom", state_data)
+
+    assert current_stage == 3
+    assert statuses == saved_statuses
+    assert _frontend_stage_summary("legacy_custom", state_data) == (3, 50)
+
+
 def test_gate2_stage_view_overrides_stale_saved_statuses():
     state_data = {
         "currentStageId": 2,

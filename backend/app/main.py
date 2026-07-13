@@ -67,6 +67,40 @@ def _frontend_stage_view(phase: Optional[str], state_data: dict) -> tuple[int, l
         {"id": 4, "status": "not_started"},
     ]
 
+    canonical_stages = {"intake", "outline", "storyboard", "complete"}
+    workflow_stage = state_data.get("workflow_stage")
+    canonical_stage = (
+        workflow_stage
+        if workflow_stage in canonical_stages
+        else phase if phase in canonical_stages else None
+    )
+    if canonical_stage:
+        current_stage = {
+            "intake": 1,
+            "outline": 2,
+            "storyboard": 3,
+            "complete": 4,
+        }[canonical_stage]
+        for status in statuses[: current_stage - 1]:
+            status["status"] = "approved"
+
+        if canonical_stage == "complete":
+            statuses[3]["status"] = "approved"
+        else:
+            artifacts = state_data.get("artifacts") or {}
+            artifact = artifacts.get(canonical_stage) or {}
+            job = state_data.get("job") or {}
+            if canonical_stage in {"outline", "storyboard"}:
+                if job.get("status") == "running" and job.get("kind") == canonical_stage:
+                    statuses[current_stage - 1]["status"] = "generating"
+                elif artifact.get("current_version_id"):
+                    statuses[current_stage - 1]["status"] = "needs_review"
+                else:
+                    statuses[current_stage - 1]["status"] = "in_progress"
+            elif artifact.get("current_version_id"):
+                statuses[0]["status"] = "in_progress"
+        return current_stage, statuses
+
     if phase in {
         "brief_chat",
         "brief_round1",
