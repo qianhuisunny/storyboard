@@ -37,7 +37,8 @@ export interface ReviewBuilderProps {
   previousStageOutput?: Record<string, unknown> | null; // Stage 3 production screens
   processingLog?: ReviewProcessingEntry[];
   onScreensUpdate: (screens: ProductionScreen[]) => void;
-  onExport: () => void;
+  onExport?: () => void;
+  isComplete?: boolean;
 }
 
 // TabToggle props
@@ -52,7 +53,8 @@ export interface UserViewProps {
   projectId: string;
   projectTitle?: string;
   onScreensUpdate: (screens: ProductionScreen[]) => void;
-  onExport: () => void;
+  onExport?: () => void;
+  isComplete?: boolean;
 }
 
 // InputView props - shows Stage 3 output

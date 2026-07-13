@@ -73,6 +73,8 @@ export interface DraftBuilderProps {
   onDraftUpdate: (screens: ProductionScreen[]) => void;
   onConfirm: () => void;
   storyboardEval?: import("../QualityScore").QualityEvalResult | null;
+  onRevise?: (instruction: string) => Promise<void>;
+  isActionPending?: boolean;
 }
 
 // TabToggle props
@@ -89,6 +91,8 @@ export interface UserViewProps {
   onScreensChange: (screens: ProductionScreen[]) => void;
   onConfirm: () => void;
   storyboardEval?: import("../QualityScore").QualityEvalResult | null;
+  onRevise?: (instruction: string) => Promise<void>;
+  isActionPending?: boolean;
 }
 
 // PanelCard props

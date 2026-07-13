@@ -63,4 +63,5 @@ export interface OutlineBuilderProps {
   researchProgress?: { completed: number; total: number } | null;
   outlineEval?: import("../QualityScore").QualityEvalResult | null;
   onGeneratingStateChange?: (isGenerating: boolean) => void;
+  isActionPending?: boolean;
 }

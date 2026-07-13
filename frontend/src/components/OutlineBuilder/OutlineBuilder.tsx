@@ -39,6 +39,7 @@ export default function OutlineBuilder({
   researchProgress = null,
   outlineEval = null,
   onGeneratingStateChange,
+  isActionPending = false,
 }: OutlineBuilderProps) {
   const [isContinuing, setIsContinuing] = useState(false);
   const [isRerunningResearch, setIsRerunningResearch] = useState(false);
@@ -395,7 +396,7 @@ export default function OutlineBuilder({
                 onGeneratingStateChange?.(false);
               }
             }}
-            disabled={isContinuing || sections.length === 0}
+            disabled={isContinuing || isActionPending || sections.length === 0}
           >
             {isContinuing ? (
               <>

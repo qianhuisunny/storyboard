@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { AlertCircle, Menu, X, Cloud, CloudOff, Loader2, RefreshCw } from "lucide-react";
+import { AlertCircle, Menu, X, Cloud, CloudOff, Loader2, RefreshCw, Copy, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StageNavigation, { type Stage, type StageStatus } from "./StageNavigation";
 import StageContent from "./StageContent";
@@ -14,6 +14,7 @@ import {
   isCanonicalIntakeArtifact,
   sendWorkflowEvent,
   sendWorkflowGenerationEvent,
+  WorkflowConflictError,
   type WorkflowResponse,
 } from "@/lib/workflow";
 
@@ -46,6 +47,12 @@ interface PipelineStateResponse {
 
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 type WorkflowLoadState = "loading" | "canonical" | "legacy" | "error";
+type EditableArtifact = "outline" | "storyboard";
+
+interface VersionConflictState {
+  stageId: 2 | 3;
+  message: string;
+}
 
 function stringifyForStageData(content: unknown): string {
   return typeof content === "string" ? content : JSON.stringify(content, null, 2);
@@ -246,16 +253,26 @@ export default function StageLayout() {
   const [workflowLoadAttempt, setWorkflowLoadAttempt] = useState(0);
   const [workflowActionError, setWorkflowActionError] = useState<string | null>(null);
   const [isRetryingJob, setIsRetryingJob] = useState(false);
+  const [isWorkflowActionPending, setIsWorkflowActionPending] = useState(false);
+  const [versionConflict, setVersionConflict] = useState<VersionConflictState | null>(null);
+  const [editorResetGeneration, setEditorResetGeneration] = useState(0);
   const hasLoadedStages = useRef(false);
   const workflowLoadGenerationRef = useRef(0);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousStageIdRef = useRef<number | null>(null);
   const stageDataRef = useRef(stageData);
+  const workflowStateRef = useRef(workflowState);
+  const canonicalSaveInFlightRef = useRef<Promise<WorkflowResponse | null> | null>(null);
+  const suppressedConflictContentRef = useRef<string | null>(null);
   const generateStageRef = useRef<(stageId: number, context?: string, feedback?: string) => Promise<void>>(async () => undefined);
 
   useEffect(() => {
     stageDataRef.current = stageData;
   }, [stageData]);
+
+  useEffect(() => {
+    workflowStateRef.current = workflowState;
+  }, [workflowState]);
 
   const usesCanonicalWorkflow = Boolean(
     workflowLoadState === "canonical"
@@ -350,6 +367,8 @@ export default function StageLayout() {
     setProjectContext(null);
     setProjectLoadError(null);
     setWorkflowActionError(null);
+    setVersionConflict(null);
+    suppressedConflictContentRef.current = null;
     hasLoadedStages.current = false;
 
     const loadSavedStages = async () => {
@@ -449,12 +468,23 @@ export default function StageLayout() {
   }, [projectId, workflowLoadAttempt]);
 
   const handleWorkflowChange = useCallback((nextWorkflow: WorkflowResponse) => {
+    workflowStateRef.current = nextWorkflow;
     setWorkflowState(nextWorkflow);
     const isCanonical = isCanonicalIntakeArtifact(nextWorkflow.artifacts.intake);
     setWorkflowLoadState(isCanonical ? "canonical" : "legacy");
     setWorkflowLoadError(null);
     if (!isCanonical) return;
-    setStageData(hydrateStageDataFromWorkflow(nextWorkflow));
+    const hydrated = hydrateStageDataFromWorkflow(nextWorkflow);
+    for (const stageId of [2, 3] as const) {
+      const localCopy = stageDataRef.current[stageId]?.humanVersion;
+      if (localCopy && localCopy !== hydrated[stageId]?.aiVersion) {
+        hydrated[stageId] = {
+          aiVersion: hydrated[stageId]?.aiVersion ?? null,
+          humanVersion: localCopy,
+        };
+      }
+    }
+    setStageData(hydrated);
     const stageView = deriveStageViewFromWorkflow(nextWorkflow);
     setCurrentStageId(stageView.currentStageId);
     setStages((current) => current.map((stage) => ({
@@ -462,6 +492,196 @@ export default function StageLayout() {
       status: stageView.stageStatuses[stage.id] ?? stage.status,
     })));
   }, []);
+
+  const surfaceWorkflowError = useCallback((caught: unknown, stageId: 2 | 3, content: string) => {
+    if (caught instanceof WorkflowConflictError && caught.code === "version_conflict") {
+      suppressedConflictContentRef.current = content;
+      setVersionConflict({ stageId, message: caught.message });
+      setSaveStatus("error");
+      return;
+    }
+    setWorkflowActionError(caught instanceof Error ? caught.message : "The workflow action failed.");
+    setSaveStatus("error");
+  }, []);
+
+  const saveCanonicalArtifact = useCallback(async (
+    stageId: 2 | 3,
+    content: string,
+  ): Promise<WorkflowResponse | null> => {
+    if (!projectId) return null;
+    if (canonicalSaveInFlightRef.current) {
+      await canonicalSaveInFlightRef.current;
+    }
+
+    const artifactType: EditableArtifact = stageId === 2 ? "outline" : "storyboard";
+    const currentWorkflow = workflowStateRef.current;
+    if (!currentWorkflow || currentWorkflow.workflow_stage !== artifactType) {
+      return null;
+    }
+
+    setSaveStatus("saving");
+    setWorkflowActionError(null);
+    const request = sendWorkflowEvent(projectId, `save_${artifactType}`, {
+      content: parseMaybeJson(content),
+      expected_version_id: currentWorkflow.artifacts[artifactType].current_version_id,
+    }).then((nextWorkflow) => {
+      const newestLocalCopy = stageDataRef.current[stageId]?.humanVersion;
+      handleWorkflowChange(nextWorkflow);
+      if (newestLocalCopy !== null && newestLocalCopy !== undefined && newestLocalCopy !== content) {
+        const serverContent = nextWorkflow.artifacts[artifactType].current_content;
+        setStageData((current) => ({
+          ...current,
+          [stageId]: {
+            aiVersion: serverContent == null ? null : stringifyForStageData(serverContent),
+            humanVersion: newestLocalCopy,
+          },
+        }));
+      } else {
+        suppressedConflictContentRef.current = null;
+      }
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 1800);
+      return nextWorkflow;
+    }).catch((caught: unknown) => {
+      surfaceWorkflowError(caught, stageId, content);
+      return null;
+    }).finally(() => {
+      canonicalSaveInFlightRef.current = null;
+    });
+
+    canonicalSaveInFlightRef.current = request;
+    return request;
+  }, [handleWorkflowChange, projectId, surfaceWorkflowError]);
+
+  useEffect(() => {
+    if (!usesCanonicalWorkflow || isLoadingStages || (currentStageId !== 2 && currentStageId !== 3)) return;
+    const localCopy = stageData[currentStageId]?.humanVersion;
+    if (!localCopy || localCopy === stageData[currentStageId]?.aiVersion) return;
+    if (suppressedConflictContentRef.current === localCopy) return;
+
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => {
+      void saveCanonicalArtifact(currentStageId, localCopy);
+    }, 650);
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, [currentStageId, isLoadingStages, saveCanonicalArtifact, stageData, usesCanonicalWorkflow]);
+
+  const ensureLatestArtifact = useCallback(async (
+    artifactType: EditableArtifact,
+    content: string,
+  ): Promise<WorkflowResponse | null> => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    if (canonicalSaveInFlightRef.current) await canonicalSaveInFlightRef.current;
+    const stageId = artifactType === "outline" ? 2 : 3;
+    let latest = workflowStateRef.current;
+    if (!latest) return null;
+    const serverContent = latest.artifacts[artifactType].current_content;
+    if (serverContent == null || stringifyForStageData(serverContent) !== content) {
+      latest = await saveCanonicalArtifact(stageId, content);
+    }
+    return latest;
+  }, [saveCanonicalArtifact]);
+
+  const handleCanonicalRevise = useCallback(async (
+    artifactType: EditableArtifact,
+    content: string,
+    instruction: string,
+  ) => {
+    if (!projectId || isWorkflowActionPending) return;
+    const stageId = artifactType === "outline" ? 2 : 3;
+    setIsWorkflowActionPending(true);
+    setWorkflowActionError(null);
+    try {
+      const saved = await ensureLatestArtifact(artifactType, content);
+      if (!saved) return;
+      const next = await sendWorkflowGenerationEvent(projectId, `revise_${artifactType}`, {
+        instruction,
+        expected_version_id: saved.artifacts[artifactType].current_version_id,
+      }, handleWorkflowChange);
+      handleWorkflowChange(next);
+    } catch (caught) {
+      surfaceWorkflowError(caught, stageId, content);
+      if (!(caught instanceof WorkflowConflictError)) {
+        try { handleWorkflowChange(await getWorkflow(projectId)); } catch { /* Keep the original error. */ }
+      }
+    } finally {
+      setIsWorkflowActionPending(false);
+    }
+  }, [ensureLatestArtifact, handleWorkflowChange, isWorkflowActionPending, projectId, surfaceWorkflowError]);
+
+  const handleCanonicalApprove = useCallback(async (
+    artifactType: EditableArtifact,
+    content: string,
+  ) => {
+    if (!projectId || isWorkflowActionPending) return;
+    const stageId = artifactType === "outline" ? 2 : 3;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    setIsWorkflowActionPending(true);
+    setWorkflowActionError(null);
+    try {
+      if (canonicalSaveInFlightRef.current) await canonicalSaveInFlightRef.current;
+      const latest = workflowStateRef.current;
+      if (!latest) return;
+      const payload = {
+        content: parseMaybeJson(content),
+        expected_version_id: latest.artifacts[artifactType].current_version_id,
+      };
+      const next = artifactType === "outline"
+        ? await sendWorkflowGenerationEvent(projectId, "approve_outline", payload, handleWorkflowChange)
+        : await sendWorkflowEvent(projectId, "approve_storyboard", payload);
+      handleWorkflowChange(next);
+    } catch (caught) {
+      surfaceWorkflowError(caught, stageId, content);
+      if (!(caught instanceof WorkflowConflictError)) {
+        try { handleWorkflowChange(await getWorkflow(projectId)); } catch { /* Keep the original error. */ }
+      }
+    } finally {
+      setIsWorkflowActionPending(false);
+    }
+  }, [handleWorkflowChange, isWorkflowActionPending, projectId, surfaceWorkflowError]);
+
+  const handleKeepStoryboard = useCallback(async () => {
+    if (!projectId || isWorkflowActionPending) return;
+    const current = workflowStateRef.current;
+    const storyboard = current?.artifacts.storyboard;
+    if (!current || !storyboard?.current_version_id) return;
+    setIsWorkflowActionPending(true);
+    setWorkflowActionError(null);
+    try {
+      handleWorkflowChange(await sendWorkflowEvent(projectId, "keep_storyboard", {
+        expected_version_id: storyboard.current_version_id,
+      }));
+    } catch (caught) {
+      surfaceWorkflowError(caught, 3, stringifyForStageData(storyboard.current_content));
+    } finally {
+      setIsWorkflowActionPending(false);
+    }
+  }, [handleWorkflowChange, isWorkflowActionPending, projectId, surfaceWorkflowError]);
+
+  const reloadVersionConflict = useCallback(async () => {
+    if (!projectId) return;
+    setWorkflowActionError(null);
+    try {
+      if (versionConflict) {
+        stageDataRef.current = {
+          ...stageDataRef.current,
+          [versionConflict.stageId]: {
+            ...stageDataRef.current[versionConflict.stageId],
+            humanVersion: null,
+          },
+        };
+      }
+      handleWorkflowChange(await getWorkflow(projectId));
+      setEditorResetGeneration((generation) => generation + 1);
+      setVersionConflict(null);
+      suppressedConflictContentRef.current = null;
+      setSaveStatus("idle");
+    } catch (caught) {
+      setWorkflowActionError(caught instanceof Error ? caught.message : "Could not reload the latest version.");
+    }
+  }, [handleWorkflowChange, projectId, versionConflict]);
 
   // Save stages function
   const saveStages = useCallback(async () => {
@@ -650,6 +870,19 @@ export default function StageLayout() {
       return;
     }
 
+    if (currentStageId === 2 || currentStageId === 3) {
+      const currentData = stageDataRef.current[currentStageId];
+      if (
+        currentData?.humanVersion
+        && currentData.humanVersion !== currentData.aiVersion
+        && suppressedConflictContentRef.current !== currentData.humanVersion
+      ) {
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+        const saved = await saveCanonicalArtifact(currentStageId, currentData.humanVersion);
+        if (!saved) return;
+      }
+    }
+
     const targetStage = ({ 1: "intake", 2: "outline", 3: "storyboard", 4: "complete" } as const)[stageId as 1 | 2 | 3 | 4];
     if (!targetStage || targetStage === workflowState.workflow_stage) return;
 
@@ -827,6 +1060,21 @@ export default function StageLayout() {
     && activeJobStageId === currentStageId
     && workflowState?.job.status !== "idle";
 
+  const handleRetryCurrentJob = async () => {
+    if (workflowState?.job.kind === "outline") {
+      await handleRetryOutline();
+      return;
+    }
+    const storyboard = workflowState?.artifacts.storyboard;
+    if (workflowState?.job.kind === "storyboard" && storyboard?.current_content) {
+      await handleCanonicalRevise(
+        "storyboard",
+        stringifyForStageData(storyboard.current_content),
+        "Regenerate the storyboard for the currently approved outline.",
+      );
+    }
+  };
+
   const handleRetryOutline = async () => {
     if (!projectId || !workflowState || workflowState.job.kind !== "outline") return;
     setIsRetryingJob(true);
@@ -984,7 +1232,7 @@ export default function StageLayout() {
                 {workflowActionError}
               </p>
             )}
-            {jobAppliesToCurrentStage && workflowState?.job.status === "running" && (
+            {usesCanonicalWorkflow && workflowState?.job.status === "running" && (
               <div
                 role="status"
                 aria-label={`${workflowState.job.kind === "outline" ? "Outline" : "Storyboard"} generation status`}
@@ -999,23 +1247,55 @@ export default function StageLayout() {
                 </div>
               </div>
             )}
-            {jobAppliesToCurrentStage && workflowState?.job.status === "failed" && (
+            {usesCanonicalWorkflow && workflowState?.job.status === "failed" && (
               <div role="alert" className="m-4 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-red-800">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium">Outline generation failed</p>
-                    <p className="mt-1 text-sm">{workflowState.job.error || "Plotline could not generate the outline."}</p>
+                    <p className="font-medium">{workflowState.job.kind === "storyboard" ? "Storyboard" : "Outline"} generation failed</p>
+                    <p className="mt-1 text-sm">{workflowState.job.error || `Plotline could not generate the ${workflowState.job.kind ?? "artifact"}.`}</p>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       className="mt-3 border-red-200 bg-white"
-                      disabled={isRetryingJob}
-                      onClick={() => void handleRetryOutline()}
+                      disabled={isRetryingJob || isWorkflowActionPending}
+                      onClick={() => void handleRetryCurrentJob()}
                     >
                       {isRetryingJob ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
-                      Retry outline
+                      Retry {workflowState.job.kind === "storyboard" ? "storyboard" : "outline"}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+            {usesCanonicalWorkflow && currentStageId === 3 && workflowState?.artifacts.storyboard.needs_update && (
+              <div
+                role="status"
+                aria-label="Storyboard needs update"
+                className="m-4 rounded-2xl border border-amber-200 bg-amber-50 px-5 py-4 text-amber-950"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="font-medium">This storyboard was created from an earlier outline.</p>
+                    <p className="mt-1 text-sm text-amber-800">Regenerate it from the approved outline, or explicitly keep this version.</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isWorkflowActionPending}
+                      onClick={() => void handleCanonicalRevise(
+                        "storyboard",
+                        stringifyForStageData(workflowState.artifacts.storyboard.current_content),
+                        "Regenerate the storyboard for the currently approved outline.",
+                      )}
+                    >
+                      {isWorkflowActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                      Regenerate storyboard
+                    </Button>
+                    <Button type="button" size="sm" variant="outline" disabled={isWorkflowActionPending} onClick={() => void handleKeepStoryboard()}>
+                      Keep as-is
                     </Button>
                   </div>
                 </div>
@@ -1023,6 +1303,7 @@ export default function StageLayout() {
             )}
             {!(jobAppliesToCurrentStage && workflowState?.job.status === "running" && !hasStageContent(currentData)) && (
               <StageContent
+                key={`${currentStageId}-${editorResetGeneration}`}
                 stage={currentStage}
                 aiContent={currentData.aiVersion}
                 humanContent={currentData.humanVersion}
@@ -1034,6 +1315,9 @@ export default function StageLayout() {
                 onStoryboardGeneratingChange={handleStoryboardGeneratingChange}
                 workflow={workflowState}
                 onWorkflowChange={handleWorkflowChange}
+                onCanonicalApprove={handleCanonicalApprove}
+                onCanonicalRevise={handleCanonicalRevise}
+                isWorkflowActionPending={isWorkflowActionPending}
               />
             )}
           </>
@@ -1046,6 +1330,36 @@ export default function StageLayout() {
         onClose={handleRatingClose}
         onSubmit={handleRatingSubmit}
       />
+
+      {versionConflict && (
+        <div className="fixed inset-0 z-[80] flex items-center justify-center bg-[#1C2118]/45 p-4">
+          <div
+            role="alertdialog"
+            aria-label="Version conflict"
+            aria-modal="true"
+            className="w-full max-w-md rounded-2xl border border-[#D9DDD2] bg-white p-6 shadow-2xl"
+          >
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+              <div>
+                <h2 className="font-medium text-[#1C2118]">Version conflict</h2>
+                <p className="mt-2 text-sm leading-6 text-[#626B58]">{versionConflict.message}</p>
+                <p className="mt-2 text-sm leading-6 text-[#626B58]">Reload the canonical version, or keep your local copy open without overwriting the newer work.</p>
+              </div>
+            </div>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <Button type="button" variant="outline" onClick={() => setVersionConflict(null)}>
+                <Copy className="mr-2 h-4 w-4" />
+                Keep my copy
+              </Button>
+              <Button type="button" onClick={() => void reloadVersionConflict()}>
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Reload latest
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

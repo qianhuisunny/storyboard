@@ -39,6 +39,9 @@ interface StageContentProps {
   onStoryboardGeneratingChange?: (isGenerating: boolean) => void;
   workflow?: WorkflowResponse | null;
   onWorkflowChange?: (workflow: WorkflowResponse) => void;
+  onCanonicalApprove?: (artifact: "outline" | "storyboard", content: string) => Promise<void>;
+  onCanonicalRevise?: (artifact: "outline" | "storyboard", content: string, instruction: string) => Promise<void>;
+  isWorkflowActionPending?: boolean;
 }
 
 interface GuidedBriefInitResult {
@@ -329,6 +332,9 @@ export default function StageContent({
   onStoryboardGeneratingChange,
   workflow,
   onWorkflowChange,
+  onCanonicalApprove,
+  onCanonicalRevise,
+  isWorkflowActionPending = false,
 }: StageContentProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [feedback, setFeedback] = useState("");
@@ -534,6 +540,12 @@ export default function StageContent({
   // Track review updates for the Review stage
   const [localReview, setLocalReview] = useState<ProductionScreen[] | null>(null);
 
+  useEffect(() => {
+    if (stage.id === 2) setLocalOutlineText(null);
+    if (stage.id === 3) setLocalDraft(null);
+    if (stage.id === 4) setLocalReview(null);
+  }, [aiContent, stage.id]);
+
   // Quality gate evals
   const [outlineEval, setOutlineEval] = useState<QualityEvalResult | null>(null);
   const [storyboardEval, setStoryboardEval] = useState<QualityEvalResult | null>(null);
@@ -611,6 +623,10 @@ export default function StageContent({
     if (!projectId) return;
     setIsRegeneratingOutline(true);
     try {
+      if (isCanonicalWorkflow && onCanonicalRevise) {
+        await onCanonicalRevise("outline", currentOutlineText, `Revise section ${sectionNumber}: ${instruction}`);
+        return;
+      }
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -631,12 +647,16 @@ export default function StageContent({
     } finally {
       setIsRegeneratingOutline(false);
     }
-  }, [projectId, currentOutlineText, onContentChange]);
+  }, [currentOutlineText, isCanonicalWorkflow, onCanonicalRevise, onContentChange, projectId]);
 
   const handleRefineOutline = useCallback(async (instruction: string) => {
     if (!projectId) return;
     setIsRegeneratingOutline(true);
     try {
+      if (isCanonicalWorkflow && onCanonicalRevise) {
+        await onCanonicalRevise("outline", currentOutlineText, instruction);
+        return;
+      }
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -657,11 +677,15 @@ export default function StageContent({
     } finally {
       setIsRegeneratingOutline(false);
     }
-  }, [projectId, currentOutlineText, onContentChange]);
+  }, [currentOutlineText, isCanonicalWorkflow, onCanonicalRevise, onContentChange, projectId]);
 
   const handleResearchContinue = useCallback(async (filteredEvidence?: EvidenceResearch | null) => {
     console.log("[Outline] handleResearchContinue called, projectId:", projectId);
     if (!projectId) return;
+    if (isCanonicalWorkflow && onCanonicalApprove) {
+      await onCanonicalApprove("outline", currentOutlineText);
+      return;
+    }
     try {
       const stateResp = await fetch(`/api/project/${projectId}/pipeline-state`);
       if (!stateResp.ok) return;
@@ -718,7 +742,7 @@ export default function StageContent({
       console.error("[Outline] Continue failed:", err);
       throw err;
     }
-  }, [projectId, currentOutlineText, onApprove]);
+  }, [currentOutlineText, isCanonicalWorkflow, onApprove, onCanonicalApprove, projectId]);
 
   const handleDraftUpdate = (updatedDraft: ProductionScreen[]) => {
     setLocalDraft(updatedDraft);
@@ -728,8 +752,18 @@ export default function StageContent({
   const handleDraftConfirm = () => {
     const draftToApprove = currentDraft.length > 0 ? currentDraft : draftData;
     if (draftToApprove.length > 0) {
+      if (isCanonicalWorkflow && onCanonicalApprove) {
+        void onCanonicalApprove("storyboard", JSON.stringify(draftToApprove, null, 2));
+        return;
+      }
       onApprove(JSON.stringify(draftToApprove, null, 2));
     }
+  };
+
+  const handleDraftRevise = async (instruction: string) => {
+    const draftToRevise = currentDraft.length > 0 ? currentDraft : draftData;
+    if (!onCanonicalRevise || draftToRevise.length === 0) return;
+    await onCanonicalRevise("storyboard", JSON.stringify(draftToRevise, null, 2), instruction);
   };
 
   const handleReviewUpdate = (updatedReview: ProductionScreen[]) => {
@@ -906,6 +940,7 @@ export default function StageContent({
           researchProgress={researchProgress}
           outlineEval={outlineEval}
           onGeneratingStateChange={onStoryboardGeneratingChange}
+          isActionPending={isWorkflowActionPending}
         />
       </div>
     );
@@ -924,6 +959,8 @@ export default function StageContent({
           onDraftUpdate={handleDraftUpdate}
           onConfirm={handleDraftConfirm}
           storyboardEval={storyboardEval}
+          onRevise={isCanonicalWorkflow ? handleDraftRevise : undefined}
+          isActionPending={isWorkflowActionPending}
         />
       </div>
     );
@@ -939,7 +976,8 @@ export default function StageContent({
           projectTitle="Video Storyboard"
           previousStageOutput={previousStageOutput}
           onScreensUpdate={handleReviewUpdate}
-          onExport={handleReviewConfirm}
+          onExport={isCanonicalWorkflow ? undefined : handleReviewConfirm}
+          isComplete={isCanonicalWorkflow && workflow?.workflow_stage === "complete"}
         />
       </div>
     );

@@ -61,7 +61,7 @@ export default defineConfig({
     // UI tests - depend on setup for auth
     {
       name: 'chromium',
-      testMatch: /storyboard-.*\.spec\.ts/,
+      testMatch: /(?:storyboard-.*|plotline-workflow)\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: '.auth/user.json',

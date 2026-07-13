@@ -43,6 +43,7 @@ export default function UserView({
   screens,
   projectTitle = "Storyboard",
   onExport,
+  isComplete = false,
 }: UserViewProps) {
   const [isExporting, setIsExporting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -314,13 +315,20 @@ export default function UserView({
           {formatDuration(totalDuration)} total &middot;{" "}
           {totalWords} words
         </div>
-        <button
-          onClick={onExport}
-          className="px-4 py-2 bg-[#2D6A4F] text-white rounded-lg hover:bg-[#2D6A4F]/90 transition-colors flex items-center gap-2"
-        >
-          <Check className="w-4 h-4" />
-          Mark as Complete
-        </button>
+        {isComplete ? (
+          <span role="status" className="inline-flex items-center gap-2 rounded-lg bg-[#E6F2EB] px-4 py-2 text-sm font-medium text-[#2D6A4F]">
+            <Check className="w-4 h-4" />
+            Storyboard complete
+          </span>
+        ) : onExport ? (
+          <button
+            onClick={onExport}
+            className="px-4 py-2 bg-[#2D6A4F] text-white rounded-lg hover:bg-[#2D6A4F]/90 transition-colors flex items-center gap-2"
+          >
+            <Check className="w-4 h-4" />
+            Mark as Complete
+          </button>
+        ) : null}
       </footer>
     </div>
   );
