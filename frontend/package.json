@@ -11,7 +11,6 @@
     "test": "playwright test",
     "test:ui": "playwright test --ui",
     "test:headed": "playwright test --headed",
-    "test:auth": "playwright test --project=setup --headed",
     "test:debug": "playwright test --debug"
   },
   "dependencies": {

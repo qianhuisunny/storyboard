@@ -1,87 +1,41 @@
-# Playwright Tests for Plotline
+# Plotline Playwright tests
 
-Automated E2E tests for the Plotline storyboard application.
+The active suite is intentionally split into two projects:
 
-## Quick Start
+| Project | Specs | Purpose |
+|---|---|---|
+| `api` | `api-*.spec.ts` | Small API/client contract checks, including the real SQLite-backed Create intake smoke test |
+| `chromium` | `create-project.spec.ts`, `smart-intake.spec.ts`, `plotline-workflow.spec.ts` | Canonical Create → Smart Intake → Outline → Storyboard → Complete UI behavior |
+
+Plotline's current local workflow uses a server-issued HttpOnly anonymous session,
+so Playwright no longer requires a manually captured Clerk/Google auth state.
+
+## Run
 
 ```bash
 cd frontend
 
-# First time: authenticate (opens browser for manual sign-in)
-npm run test:auth
+# List every classified test without starting a run
+npm test -- --list
 
-# Run all tests headlessly
+# Run the complete active suite
 npm test
 
-# Run tests with browser visible
-npm run test:headed
+# Run one canonical surface
+npm test -- tests/plotline-workflow.spec.ts --project=chromium
 
-# Run with Playwright UI
-npm run test:ui
-
-# Debug a specific test
-npm run test:debug
+# Run API contract checks only
+npm test -- --project=api
 ```
 
-## Test Files
+Playwright starts the Vite frontend and FastAPI backend defined in
+`playwright.config.ts`. Test artifacts are written under `test-results/` and
+`playwright-report/`.
 
-| File | Purpose |
-|------|---------|
-| `auth.setup.ts` | One-time authentication setup (saves Clerk session) |
-| `storyboard-flow.spec.ts` | Full UI flow: onboarding → research trigger |
-| `api-trigger-research.spec.ts` | API-only tests (bypass UI, useful for backend testing) |
+## Retired legacy suites
 
-## Authentication
-
-Clerk authentication is handled via session state:
-
-1. Run `npm run test:auth` once to sign in manually
-2. Session is saved to `.auth/user.json`
-3. All subsequent tests reuse this session
-
-To re-authenticate:
-```bash
-rm -rf .auth/
-npm run test:auth
-```
-
-## Running Specific Tests
-
-```bash
-# Run only API tests (no auth needed)
-npx playwright test api-trigger-research
-
-# Run only storyboard flow tests
-npx playwright test storyboard-flow
-
-# Run a specific test by name
-npx playwright test -g "should fill onboarding form"
-```
-
-## Prerequisites
-
-Both servers must be running:
-
-```bash
-# Terminal 1: Backend
-cd backend && source venv/bin/activate
-uvicorn app.main:app --reload --port 8001
-
-# Terminal 2: Frontend
-cd frontend && npm run dev
-```
-
-Or let Playwright start them automatically (configured in `playwright.config.ts`).
-
-## Test Results
-
-- Screenshots: `test-results/*.png`
-- HTML Report: `playwright-report/index.html` (run `npx playwright show-report`)
-- Traces: Available on test failure
-
-## Tips
-
-- Use `--headed` to watch tests run in a browser
-- Use `--debug` to step through tests with Playwright Inspector
-- Use `--ui` for the interactive test runner
-- Tests have a 2-minute timeout for AI generation delays
+The former research-trigger, multi-round Knowledge Share, old onboarding, and
+manual-auth specs were removed when the corresponding product paths were
+superseded. Their live responsibilities are covered by the canonical specs
+above and by backend workflow API tests; they must not be reintroduced as
+hidden or unclassified tests.

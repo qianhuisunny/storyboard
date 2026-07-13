@@ -1,4 +1,5 @@
 import { expect, test, type Page, type Route } from "@playwright/test";
+import { parseProductionScreens } from "../src/components/DraftBuilder/types";
 
 type Stage = "intake" | "outline" | "storyboard" | "complete";
 type Artifact<T> = {
@@ -22,6 +23,22 @@ type EventRequest = {
 };
 
 const PROJECT_ID = "66666666-6666-4666-8666-666666666666";
+
+test("legacy storyboard fields normalize into the editable display contract", () => {
+  const [screen] = parseProductionScreens([
+    {
+      screen_number: 7,
+      screen_type: "cta",
+      on_screen_visual_keywords: "Large final question; warm brand end card",
+      voiceover_text: "What will you change first?",
+      duration: 8,
+    },
+  ]);
+
+  expect(screen.screen_type).toBe("slides");
+  expect(screen.narrative_role).toBe("cta");
+  expect(screen.visual_direction).toBe("Large final question; warm brand end card");
+});
 const INTAKE = {
   prompt: "Show product teams how to run a calm launch",
   duration_seconds: 300,

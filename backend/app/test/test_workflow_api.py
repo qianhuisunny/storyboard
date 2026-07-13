@@ -252,6 +252,117 @@ async def test_created_project_persists_canonical_create_intake_across_reload(wo
 
 
 @pytest.mark.asyncio
+async def test_cookie_session_api_smoke_reaches_complete_with_mocked_agents(
+    workflow_api,
+):
+    client, _ = workflow_api
+    client.cookies.clear()
+
+    health = await client.get("/health")
+    assert health.status_code == 200
+
+    session = await client.post("/api/session", json={})
+    assert session.status_code == 200
+    assert SESSION_COOKIE in client.cookies
+
+    project_id = "full-api-smoke"
+    created = await client.post(
+        "/api/create-project",
+        json={
+            "projectId": project_id,
+            "typeId": 1,
+            "typeName": "Video storyboard",
+            "userInput": "Exercise the canonical API lifecycle",
+        },
+    )
+    assert created.status_code == 200
+
+    intake_content = {
+        "prompt": "Exercise the canonical API lifecycle",
+        "duration_seconds": 60,
+        "platform": "general",
+        "aspect_ratio": "16:9",
+        "viewer_outcome": "Understand the canonical workflow",
+        "target_audience": "Plotline maintainers",
+        "audience_level": "intermediate",
+        "delivery_tone": "clear",
+        "production_formats": ["slides"],
+        "sources": [],
+    }
+    saved_intake = await client.post(
+        f"/api/project/{project_id}/event",
+        json={
+            "event": "save_intake",
+            "payload": {
+                "content": intake_content,
+                "expected_version_id": None,
+            },
+        },
+    )
+    assert saved_intake.status_code == 200
+    intake = saved_intake.json()["artifacts"]["intake"]
+
+    outlined = await client.post(
+        f"/api/project/{project_id}/event",
+        json={
+            "event": "approve_intake",
+            "payload": {
+                "content": intake_content,
+                "expected_version_id": intake["current_version_id"],
+            },
+        },
+    )
+    assert outlined.status_code == 200
+    outline = outlined.json()["artifacts"]["outline"]
+
+    storyboard_response = await client.post(
+        f"/api/project/{project_id}/event",
+        json={
+            "event": "approve_outline",
+            "payload": {
+                "content": outline["current_content"],
+                "expected_version_id": outline["current_version_id"],
+            },
+        },
+    )
+    assert storyboard_response.status_code == 200
+    storyboard = storyboard_response.json()["artifacts"]["storyboard"]
+    edited_storyboard = [
+        {
+            **storyboard["current_content"][0],
+            "voiceover": "Saved through the canonical API before completion",
+        }
+    ]
+
+    saved_storyboard = await client.post(
+        f"/api/project/{project_id}/event",
+        json={
+            "event": "save_storyboard",
+            "payload": {
+                "content": edited_storyboard,
+                "expected_version_id": storyboard["current_version_id"],
+            },
+        },
+    )
+    assert saved_storyboard.status_code == 200
+    saved = saved_storyboard.json()["artifacts"]["storyboard"]
+
+    completed = await client.post(
+        f"/api/project/{project_id}/event",
+        json={
+            "event": "approve_storyboard",
+            "payload": {
+                "content": saved["current_content"],
+                "expected_version_id": saved["current_version_id"],
+            },
+        },
+    )
+    assert completed.status_code == 200
+    assert completed.json()["workflow_stage"] == "complete"
+    assert completed.json()["artifacts"]["storyboard"]["approved_content"] == edited_storyboard
+
+
+@pytest.mark.asyncio
 async def test_create_project_is_idempotent_for_session_and_rejects_claimed_owner(workflow_api):
     client, _ = workflow_api
     request = {

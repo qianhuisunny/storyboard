@@ -41,16 +41,7 @@ export default defineConfig({
   },
 
   projects: [
-    // Setup project - run this first to authenticate
-    // Uses real Chrome to avoid Google OAuth blocking
-    {
-      name: 'setup',
-      testMatch: /(?:^|[\\/])auth\.setup\.ts$/,
-      use: {
-        channel: 'chrome', // Use installed Chrome instead of Chromium
-      },
-    },
-    // API tests - no auth needed, no UI
+    // API contract tests use the server-issued anonymous session where needed.
     {
       name: 'api',
       testMatch: /(?:^|[\\/])api-[^\\/]*\.spec\.ts$/,
@@ -65,16 +56,6 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
       },
-    },
-    // Retained legacy storyboard specs still exercise the signed-in surface.
-    {
-      name: 'chromium-auth',
-      testMatch: /(?:^|[\\/])storyboard-[^\\/]*\.spec\.ts$/,
-      use: {
-        ...devices['Desktop Chrome'],
-        storageState: '.auth/user.json',
-      },
-      dependencies: ['setup'],
     },
   ],
 
