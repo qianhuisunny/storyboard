@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ensureSession } from "@/lib/session";
+import type { WorkflowResponse } from "@/lib/workflow";
 
 type SourceKind = "file" | "link" | "text";
 type SourceStatus = "pending" | "processing" | "ready" | "failed";
@@ -44,14 +45,6 @@ interface Source {
   path?: string;
   extractedContent?: string;
   error?: string;
-}
-
-interface WorkflowResponse {
-  artifacts?: {
-    intake?: {
-      current_version_id?: string | null;
-    };
-  };
 }
 
 const PLATFORM_OPTIONS = [

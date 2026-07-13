@@ -13,6 +13,8 @@ import { DraftBuilder, parseProductionScreens, type ProductionScreen, type Draft
 import { ReviewBuilder } from "./ReviewBuilder";
 import type { QualityEvalResult } from "./QualityScore";
 import { VIDEO_INTENT_ROUTES, isGuidedBriefType } from "@/lib/videoIntent";
+import SmartIntakeBuilder from "./SmartIntakeBuilder";
+import { isCanonicalIntakeContent, type WorkflowResponse } from "@/lib/workflow";
 
 // Feature flag for new split-screen brief builder
 const USE_SPLIT_BRIEF_BUILDER = true;
@@ -35,6 +37,8 @@ interface StageContentProps {
   onRegenerate: (feedback: string) => void;
   onContentChange: (content: string) => void;
   onStoryboardGeneratingChange?: (isGenerating: boolean) => void;
+  workflow?: WorkflowResponse | null;
+  onWorkflowChange?: (workflow: WorkflowResponse) => void;
 }
 
 interface GuidedBriefInitResult {
@@ -323,6 +327,8 @@ export default function StageContent({
   onRegenerate,
   onContentChange,
   onStoryboardGeneratingChange,
+  workflow,
+  onWorkflowChange,
 }: StageContentProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [feedback, setFeedback] = useState("");
@@ -744,6 +750,23 @@ export default function StageContent({
       setFeedback("");
     }
   };
+
+  const canonicalIntake = workflow?.artifacts.intake.current_content;
+  if (
+    stage.id === 1
+    && projectId
+    && workflow
+    && onWorkflowChange
+    && isCanonicalIntakeContent(canonicalIntake)
+  ) {
+    return (
+      <SmartIntakeBuilder
+        projectId={projectId}
+        workflow={workflow}
+        onWorkflowChange={onWorkflowChange}
+      />
+    );
+  }
 
   if (isGenerating && stage.id !== 2 && stage.id !== 3) {
     return (

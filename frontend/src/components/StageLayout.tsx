@@ -9,12 +9,17 @@ import { useAnalytics } from "@/hooks/useAnalytics";
 import { isGuidedBriefType } from "@/lib/videoIntent";
 import { getAnonymousUserId } from "@/lib/anonymousUser";
 import { ensureSession } from "@/lib/session";
+import {
+  getWorkflow,
+  isCanonicalIntakeContent,
+  type WorkflowResponse,
+} from "@/lib/workflow";
 
 const INITIAL_STAGES: Stage[] = [
-  { id: 1, name: "Video Briefing", description: "Define your video concept and goals", status: "not_started" },
-  { id: 2, name: "Video Outline", description: "Review screen structure and types", status: "not_started" },
-  { id: 3, name: "Storyboard Draft", description: "Full storyboard with visuals and scripts", status: "not_started" },
-  { id: 4, name: "Review and Share", description: "Final review and export", status: "not_started" },
+  { id: 1, name: "Smart Intake", description: "Complete the missing story inputs", status: "not_started" },
+  { id: 2, name: "Outline", description: "Review the story structure", status: "not_started" },
+  { id: 3, name: "Storyboard", description: "Edit visuals and scripts", status: "not_started" },
+  { id: 4, name: "Complete", description: "Review and export", status: "not_started" },
 ];
 
 interface StageData {
@@ -86,6 +91,63 @@ function hydrateStageDataFromPipeline(
   fillStageFromPipeline(next, 3, pipelineData.storyboard, "aiVersion");
 
   return next;
+}
+
+function hydrateStageDataFromWorkflow(
+  restoredData: Record<number, StageData>,
+  workflow: WorkflowResponse,
+): Record<number, StageData> {
+  const next = { ...restoredData };
+  const intake = workflow.artifacts.intake.current_content;
+  const outline = workflow.artifacts.outline.current_content;
+  const storyboard = workflow.artifacts.storyboard.current_content;
+
+  if (intake != null) {
+    next[1] = { aiVersion: null, humanVersion: stringifyForStageData(intake) };
+  }
+  if (outline != null) {
+    next[2] = { aiVersion: stringifyForStageData(outline), humanVersion: null };
+  }
+  if (storyboard != null) {
+    next[3] = { aiVersion: stringifyForStageData(storyboard), humanVersion: null };
+    next[4] = { aiVersion: stringifyForStageData(storyboard), humanVersion: null };
+  }
+  return next;
+}
+
+function deriveStageViewFromWorkflow(workflow: WorkflowResponse): {
+  currentStageId: number;
+  stageStatuses: Record<number, StageStatus>;
+} {
+  const stageIds = { intake: 1, outline: 2, storyboard: 3, complete: 4 } as const;
+  const currentStageId = stageIds[workflow.workflow_stage];
+  const stageStatuses: Record<number, StageStatus> = {
+    1: workflow.artifacts.intake.current_version_id ? "in_progress" : "not_started",
+    2: "not_started",
+    3: "not_started",
+    4: "not_started",
+  };
+
+  if (currentStageId > 1) stageStatuses[1] = "approved";
+  if (currentStageId > 2) stageStatuses[2] = "approved";
+  if (currentStageId > 3) stageStatuses[3] = "approved";
+  if (workflow.workflow_stage === "complete") stageStatuses[4] = "approved";
+
+  if (workflow.workflow_stage === "outline") {
+    stageStatuses[2] = workflow.job.status === "running" && workflow.job.kind === "outline"
+      ? "generating"
+      : workflow.artifacts.outline.current_version_id
+      ? "needs_review"
+      : "in_progress";
+  } else if (workflow.workflow_stage === "storyboard") {
+    stageStatuses[3] = workflow.job.status === "running" && workflow.job.kind === "storyboard"
+      ? "generating"
+      : workflow.artifacts.storyboard.current_version_id
+      ? "needs_review"
+      : "in_progress";
+  }
+
+  return { currentStageId, stageStatuses };
 }
 
 function stageStatusesFromList(statuses: unknown): Record<number, StageStatus> {
@@ -178,6 +240,7 @@ export default function StageLayout() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isLoadingStages, setIsLoadingStages] = useState(true);
   const [showRatingModal, setShowRatingModal] = useState(false);
+  const [workflowState, setWorkflowState] = useState<WorkflowResponse | null>(null);
   const hasLoadedStages = useRef(false);
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const previousStageIdRef = useRef<number | null>(null);
@@ -187,6 +250,10 @@ export default function StageLayout() {
   useEffect(() => {
     stageDataRef.current = stageData;
   }, [stageData]);
+
+  const usesCanonicalWorkflow = Boolean(
+    workflowState && isCanonicalIntakeContent(workflowState.artifacts.intake.current_content),
+  );
 
   // Initialize analytics tracking
   const analytics = useAnalytics(projectId, userId ?? undefined);
@@ -260,15 +327,13 @@ export default function StageLayout() {
       // Always fetch and restore — skip only the "already loaded" early return.
       try {
         await ensureSession();
-        const [stagesResponse, pipelineResponse] = await Promise.all([
+        const [stagesResponse, pipelinePayload] = await Promise.all([
           fetch(`/api/project/${projectId}/stages`),
-          fetch(`/api/project/${projectId}/pipeline-state`),
+          getWorkflow(projectId),
         ]);
 
         const stagesPayload = stagesResponse.ok ? await stagesResponse.json() : {};
-        const pipelinePayload: PipelineStateResponse | null = pipelineResponse.ok
-          ? await pipelineResponse.json()
-          : null;
+        setWorkflowState(pipelinePayload);
 
         const restoredData: Record<number, StageData> = {};
         if (stagesPayload.stages && Object.keys(stagesPayload.stages).length > 0) {
@@ -277,16 +342,22 @@ export default function StageLayout() {
           }
         }
 
-        const hydratedData = hydrateStageDataFromPipeline(restoredData, pipelinePayload);
+        const canonicalIntake = pipelinePayload.artifacts.intake.current_content;
+        const isCanonicalWorkflow = isCanonicalIntakeContent(canonicalIntake);
+        const hydratedData = isCanonicalWorkflow
+          ? hydrateStageDataFromWorkflow(restoredData, pipelinePayload)
+          : hydrateStageDataFromPipeline(restoredData, pipelinePayload as PipelineStateResponse);
         if (Object.keys(hydratedData).length > 0) {
           setStageData(hydratedData);
         }
 
-        const derivedStageView = deriveStageViewFromPipeline(
-          pipelinePayload,
-          stagesPayload.currentStageId,
-          stagesPayload.stageStatuses,
-        );
+        const derivedStageView = isCanonicalWorkflow
+          ? deriveStageViewFromWorkflow(pipelinePayload)
+          : deriveStageViewFromPipeline(
+              pipelinePayload as PipelineStateResponse,
+              stagesPayload.currentStageId,
+              stagesPayload.stageStatuses,
+            );
 
         if (derivedStageView) {
           setCurrentStageId(derivedStageView.currentStageId);
@@ -329,9 +400,21 @@ export default function StageLayout() {
     loadSavedStages();
   }, [projectId]);
 
+  const handleWorkflowChange = useCallback((nextWorkflow: WorkflowResponse) => {
+    setWorkflowState(nextWorkflow);
+    if (!isCanonicalIntakeContent(nextWorkflow.artifacts.intake.current_content)) return;
+    setStageData((current) => hydrateStageDataFromWorkflow(current, nextWorkflow));
+    const stageView = deriveStageViewFromWorkflow(nextWorkflow);
+    setCurrentStageId(stageView.currentStageId);
+    setStages((current) => current.map((stage) => ({
+      ...stage,
+      status: stageView.stageStatuses[stage.id] ?? stage.status,
+    })));
+  }, []);
+
   // Save stages function
   const saveStages = useCallback(async () => {
-    if (!projectId || Object.keys(stageData).length === 0) return;
+    if (!projectId || usesCanonicalWorkflow || Object.keys(stageData).length === 0) return;
 
     setSaveStatus("saving");
     try {
@@ -356,11 +439,11 @@ export default function StageLayout() {
       console.error("Failed to save stages:", error);
       setSaveStatus("error");
     }
-  }, [projectId, stageData, currentStageId, stages]);
+  }, [projectId, stageData, currentStageId, stages, usesCanonicalWorkflow]);
 
   // Auto-save with 2-second debounce
   useEffect(() => {
-    if (!projectId || Object.keys(stageData).length === 0 || isLoadingStages) return;
+    if (!projectId || usesCanonicalWorkflow || Object.keys(stageData).length === 0 || isLoadingStages) return;
 
     // Clear existing timeout
     if (saveTimeoutRef.current) {
@@ -377,7 +460,7 @@ export default function StageLayout() {
         clearTimeout(saveTimeoutRef.current);
       }
     };
-  }, [stageData, currentStageId, stages, projectId, isLoadingStages, saveStages]);
+  }, [stageData, currentStageId, stages, projectId, isLoadingStages, saveStages, usesCanonicalWorkflow]);
 
   // Track stage enter/exit for analytics
   useEffect(() => {
@@ -769,6 +852,8 @@ export default function StageLayout() {
             onRegenerate={handleRegenerate}
             onContentChange={handleContentChange}
             onStoryboardGeneratingChange={handleStoryboardGeneratingChange}
+            workflow={workflowState}
+            onWorkflowChange={handleWorkflowChange}
           />
         ) : null}
       </div>
