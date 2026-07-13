@@ -401,13 +401,17 @@ class ProjectRepository:
     async def create_upload(
         self, project_id: str, filename: str, file_path: str,
         content_type: Optional[str] = None, size_bytes: Optional[int] = None,
+        commit: bool = True,
     ) -> Upload:
         upload = Upload(
             project_id=project_id, filename=filename, file_path=file_path,
             content_type=content_type, size_bytes=size_bytes,
         )
         self.session.add(upload)
-        await self.session.commit()
+        if commit:
+            await self.session.commit()
+        else:
+            await self.session.flush()
         return upload
 
     async def list_uploads(self, project_id: str) -> list[Upload]:

@@ -19,11 +19,19 @@ from app.services.prompt_context import (
     serialized_size,
     truncate_prompt_text,
 )
+from app.services.session_auth import (
+    SESSION_COOKIE,
+    SESSION_MAX_AGE_SECONDS,
+    SessionIdentity,
+    find_session,
+    issue_session,
+    require_session,
+)
 
 from app.utils.json_extractor import extract_json_from_text, convert_to_story_format
-from app.utils.file_extraction import extract_text_from_pdf, extract_text_from_docx, extract_text_from_html
 from app.db import get_db, init_db, ProjectRepository
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from typing import Any, List, Literal, Optional
@@ -40,30 +48,13 @@ from app.services.source_ingestion import (
     MAX_UPLOAD_BYTES,
     SourceIngestionError,
     ensure_contained,
-    extract_with_timeout,
+    extract_source_in_subprocess,
     fetch_public_text,
     truncate_utf8,
     validate_upload_signature,
 )
 
 load_dotenv()
-
-DEFAULT_ANONYMOUS_USER_ID = "anonymous"
-
-
-def _is_local_anonymous_user(user_id: Optional[str]) -> bool:
-    return not user_id or user_id == DEFAULT_ANONYMOUS_USER_ID or user_id.startswith("anon_")
-
-
-def _can_access_project_owner(
-    owner_user_id: str, request_user_id: Optional[str]
-) -> bool:
-    if owner_user_id == (request_user_id or DEFAULT_ANONYMOUS_USER_ID):
-        return True
-    if _is_local_anonymous_user(request_user_id):
-        return owner_user_id in {"", DEFAULT_ANONYMOUS_USER_ID}
-    return False
-
 
 def _frontend_stage_view(phase: Optional[str], state_data: dict) -> tuple[int, list[dict]]:
     """Map backend pipeline phase to the four-stage frontend status model."""
@@ -146,6 +137,42 @@ async def health_check():
     return {"status": "healthy", "service": "backend"}
 
 
+class SessionRequest(BaseModel):
+    legacy_user_id: Optional[str] = Field(
+        default=None,
+        pattern=r"^anon_[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+        max_length=41,
+    )
+
+
+@app.post("/api/session")
+async def establish_session(
+    body: SessionRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Create an opaque browser session, or validate the existing cookie."""
+    existing = await find_session(db, http_request.cookies.get(SESSION_COOKIE))
+    response = JSONResponse({"success": True})
+    if existing is not None:
+        return response
+    try:
+        _, raw_token = await issue_session(db, legacy_user_id=body.legacy_user_id)
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=409, detail="Legacy identity was already claimed")
+    response.set_cookie(
+        SESSION_COOKIE,
+        raw_token,
+        httponly=True,
+        samesite="lax",
+        secure=http_request.url.scheme == "https",
+        max_age=SESSION_MAX_AGE_SECONDS,
+        path="/",
+    )
+    return response
+
+
 @app.get("/api/llm-stats")
 async def llm_stats():
     from app.infra.llm_gateway import llm
@@ -176,13 +203,23 @@ async def _require_project(db: AsyncSession, project_id: str):
     return project
 
 
-async def _require_exact_project_owner(
-    db: AsyncSession, project_id: str, request_user_id: Optional[str]
+async def _require_owned_project(
+    db: AsyncSession, project_id: str, identity: SessionIdentity
 ):
     project = await _require_project(db, project_id)
-    if not request_user_id or project.user_id != request_user_id:
-        raise HTTPException(status_code=403, detail="Project owner identity does not match")
+    if not identity.owns(project.user_id):
+        raise HTTPException(status_code=403, detail="Not authorized to access this project")
     return project
+
+
+async def _owned_project_access(
+    project_id: str,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """FastAPI dependency for legacy project-scoped endpoints."""
+    identity = await require_session(http_request, db)
+    return await _require_owned_project(db, project_id, identity)
 
 
 async def _normalize_pipeline_event(project_id: str, event: str, payload: Optional[dict] = None) -> tuple[str, dict]:
@@ -218,22 +255,28 @@ async def _normalize_pipeline_event(project_id: str, event: str, payload: Option
 
 
 class ProjectRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     projectId: str = Field(min_length=1, max_length=128, pattern=r"^[A-Za-z0-9_-]+$")
     typeId: int
     typeName: str = Field(max_length=255)
     userInput: str = Field(max_length=6000)
-    userId: Optional[str] = Field(default=None, max_length=255)  # Clerk user ID for ownership
 
 
 @app.post("/api/create-project")
-async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get_db)):
+async def create_project(
+    request: ProjectRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Create a new project in SQLite."""
     try:
         repo = ProjectRepository(db)
-        requested_owner = request.userId or DEFAULT_ANONYMOUS_USER_ID
+        identity = await require_session(http_request, db)
+        requested_owner = identity.owner_id
         existing = await repo.get_project(request.projectId)
         if existing:
-            if existing.user_id != requested_owner:
+            if not identity.owns(existing.user_id):
                 raise HTTPException(
                     status_code=409,
                     detail="Project ID is already owned by another user",
@@ -244,14 +287,28 @@ async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get
                 "projectDir": str(_project_root_dir(request.projectId)),
                 "idempotent": True,
             }
-        await repo.create_project(
-            project_id=request.projectId,
-            user_id=requested_owner,
-            title=request.userInput[:100] if request.userInput else "",
-            type_id=request.typeId,
-            type_name=request.typeName,
-            user_input=request.userInput,
-        )
+        try:
+            await repo.create_project(
+                project_id=request.projectId,
+                user_id=requested_owner,
+                title=request.userInput[:100] if request.userInput else "",
+                type_id=request.typeId,
+                type_name=request.typeName,
+                user_input=request.userInput,
+            )
+        except IntegrityError:
+            await db.rollback()
+            existing = await repo.get_project(request.projectId)
+            if existing is None:
+                raise
+            if not identity.owns(existing.user_id):
+                raise HTTPException(status_code=409, detail="Project ID is already in use")
+            return {
+                "success": True,
+                "projectId": request.projectId,
+                "projectDir": str(_project_root_dir(request.projectId)),
+                "idempotent": True,
+            }
 
         # Also create project directory for uploads/links (still on filesystem)
         project_dir = _project_root_dir(request.projectId)
@@ -270,13 +327,16 @@ async def create_project(request: ProjectRequest, db: AsyncSession = Depends(get
 
 
 @app.get("/api/project/{project_id}")
-async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
+async def get_project(
+    project_id: str,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Get project data by ID from SQLite, plus any raw story export files on disk."""
     try:
         repo = ProjectRepository(db)
-        project = await repo.get_project(project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
+        identity = await require_session(http_request, db)
+        project = await _require_owned_project(db, project_id, identity)
 
         stories = []
         project_dir = _project_root_dir(project_id)
@@ -287,7 +347,6 @@ async def get_project(project_id: str, db: AsyncSession = Depends(get_db)):
 
         project_data = {
             "id": project.id,
-            "userId": project.user_id,
             "type": project.type_id,
             "typeName": project.type_name,
             "userInput": project.user_input,
@@ -359,7 +418,12 @@ class SaveStoriesRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/save-stories")
-async def save_stories_to_project(project_id: str, request: SaveStoriesRequest, db: AsyncSession = Depends(get_db)):
+async def save_stories_to_project(
+    project_id: str,
+    request: SaveStoriesRequest,
+    db: AsyncSession = Depends(get_db),
+    _project=Depends(_owned_project_access),
+):
     """Save extracted stories as raw files for an existing DB-backed project."""
     try:
         repo = ProjectRepository(db)
@@ -399,34 +463,72 @@ async def save_stories_to_project(project_id: str, request: SaveStoriesRequest, 
 class CanonicalIntakeSource(BaseModel):
     """Bounded source metadata stored in a canonical intake version."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     id: str = Field(min_length=1, max_length=128)
-    kind: str = Field(min_length=1, max_length=32)
+    kind: Literal["upload", "link", "text"]
     name: str = Field(min_length=1, max_length=255)
     status: Literal["pending", "processing", "ready", "failed"]
     url: Optional[str] = Field(default=None, max_length=2048)
     title: Optional[str] = Field(default=None, max_length=512)
     path: Optional[str] = Field(default=None, max_length=512)
     error: Optional[str] = Field(default=None, max_length=2000)
+    metadata: Optional[dict[str, str | int | float | bool]] = Field(
+        default=None, max_length=20
+    )
 
     @model_validator(mode="after")
-    def validate_metadata_budget(self):
+    def validate_metadata_consistency_and_budget(self):
+        if self.kind == "link" and not self.url:
+            raise ValueError("Link sources require a URL")
+        if self.kind != "link" and self.url is not None:
+            raise ValueError("Only link sources may include a URL")
+        if self.status == "ready":
+            if self.error is not None:
+                raise ValueError("Ready sources cannot include an error")
+            if self.kind in {"upload", "link"} and not self.path:
+                raise ValueError("Ready upload and link sources require a path")
+        elif self.status == "failed":
+            if not self.error:
+                raise ValueError("Failed sources require an error")
+            if self.path is not None:
+                raise ValueError("Failed sources cannot include a path")
+        elif self.path is not None or self.error is not None:
+            raise ValueError("Pending sources cannot include a path or error")
         if serialized_size(self.model_dump()) > 15_000:
             raise ValueError("Source metadata exceeds 15000 characters")
         return self
 
 
 class CanonicalIntakeContent(BaseModel):
-    """Bounded canonical Create/Smart Intake content with compatible extras."""
+    """Typed canonical Create and documented Smart Intake fields."""
 
-    model_config = ConfigDict(extra="allow")
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     prompt: str = Field(default="", max_length=6000)
+    duration_seconds: Optional[
+        Literal[60, 90, 120, 180, 240, 300, 600, 900, 1200]
+    ] = None
+    platform: Optional[Literal["youtube", "short_form", "internal_lms", "general"]] = None
+    aspect_ratio: Optional[Literal["16:9", "4:3", "1:1", "3:4", "9:16"]] = None
     note: Optional[str] = Field(default=None, max_length=20_000)
     notes: Optional[str] = Field(default=None, max_length=20_000)
     source_snapshot: Optional[str] = Field(default=None, max_length=100_000)
     sources: list[CanonicalIntakeSource] = Field(default_factory=list, max_length=20)
+    viewer_outcome: Optional[str] = Field(default=None, max_length=6000)
+    target_audience: Optional[str] = Field(default=None, max_length=6000)
+    audience_level: Optional[str] = Field(default=None, max_length=255)
+    delivery_tone: Optional[str] = Field(default=None, max_length=255)
+    production_formats: Optional[
+        list[Literal["talking_head", "slides", "stock_footage", "real_world"]]
+    ] = Field(default=None, max_length=8)
+    format_or_platform: Optional[str] = Field(default=None, max_length=255)
+    company_or_brand_name: Optional[str] = Field(default=None, max_length=512)
+    call_to_action: Optional[str] = Field(default=None, max_length=6000)
+    constraints: Optional[list[str]] = Field(default=None, max_length=50)
+    smart_intake_extra: Optional[
+        dict[str, str | int | float | bool | list[str]]
+    ] = Field(default=None, max_length=50)
 
     @model_validator(mode="after")
     def validate_total_budget(self):
@@ -448,7 +550,11 @@ class EventRequest(BaseModel):
         content = payload.get("content")
         if not isinstance(content, dict):
             raise ValueError("Canonical intake content must be an object")
-        CanonicalIntakeContent.model_validate(content)
+        validated = CanonicalIntakeContent.model_validate(content)
+        normalized_content = validated.model_dump(
+            mode="json", exclude_none=True, exclude_unset=True
+        )
+        self.payload = {**payload, "content": normalized_content}
         if serialized_size(payload) > 251_000:
             raise ValueError("Canonical intake request exceeds 251000 characters")
         return self
@@ -491,7 +597,12 @@ class SaveChatMessagesRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/event")
-async def process_pipeline_event(project_id: str, request: EventRequest, db: AsyncSession = Depends(get_db)):
+async def process_pipeline_event(
+    project_id: str,
+    request: EventRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Process a state machine event for the storyboard pipeline.
 
@@ -518,7 +629,8 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
     logger.info(f"Processing event: project_id={project_id}, event={request.event}")
 
     try:
-        await _require_project(db, project_id)
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
         if request.event in workflow_service.NEW_EVENTS:
             result = await workflow_service.process_event(
                 project_id,
@@ -601,16 +713,13 @@ async def process_pipeline_event(project_id: str, request: EventRequest, db: Asy
 async def chat_brief(
     project_id: str,
     request: ChatBriefRequest,
-    x_user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """Ask only for missing canonical Smart Intake values."""
     try:
-        project = await _require_project(db, project_id)
-        if not _can_access_project_owner(project.user_id, x_user_id):
-            raise HTTPException(
-                status_code=403, detail="Not authorized to access this project"
-            )
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
 
         # Load system prompt
         prompt_path = Path(__file__).parent.parent.parent / "prompts" / "chat_brief_prompt_v0712.md"
@@ -718,10 +827,15 @@ Respond with the next JSON message."""
 
 
 @app.get("/api/project/{project_id}/chat-messages")
-async def get_chat_messages(project_id: str, db: AsyncSession = Depends(get_db)):
+async def get_chat_messages(
+    project_id: str,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Load persisted Stage 1 chat history for a project."""
     try:
-        await _require_project(db, project_id)
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
         repo = ProjectRepository(db)
         messages = await repo.list_chat_messages(project_id=project_id, stage_id=1)
         return {
@@ -745,10 +859,16 @@ async def get_chat_messages(project_id: str, db: AsyncSession = Depends(get_db))
 
 
 @app.post("/api/project/{project_id}/chat-messages")
-async def save_chat_messages(project_id: str, request: SaveChatMessagesRequest, db: AsyncSession = Depends(get_db)):
+async def save_chat_messages(
+    project_id: str,
+    request: SaveChatMessagesRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Append or update Stage 1 chat messages for a project."""
     try:
-        await _require_project(db, project_id)
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
         repo = ProjectRepository(db)
         await repo.upsert_chat_messages(
             project_id=project_id,
@@ -764,7 +884,12 @@ async def save_chat_messages(project_id: str, request: SaveChatMessagesRequest, 
 
 
 @app.post("/api/project/{project_id}/start")
-async def start_pipeline(project_id: str, request: IntakeFormRequest, db: AsyncSession = Depends(get_db)):
+async def start_pipeline(
+    project_id: str,
+    request: IntakeFormRequest,
+    db: AsyncSession = Depends(get_db),
+    _project=Depends(_owned_project_access),
+):
     """
     Start the storyboard pipeline with an intake form.
 
@@ -791,7 +916,11 @@ async def start_pipeline(project_id: str, request: IntakeFormRequest, db: AsyncS
 
 
 @app.post("/api/project/{project_id}/approve")
-async def approve_current_stage(project_id: str, db: AsyncSession = Depends(get_db)):
+async def approve_current_stage(
+    project_id: str,
+    db: AsyncSession = Depends(get_db),
+    _project=Depends(_owned_project_access),
+):
     """
     Approve the current stage (Gate 1, Gate 2, or Review).
 
@@ -822,7 +951,12 @@ class FeedbackRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/reject")
-async def reject_current_stage(project_id: str, request: FeedbackRequest, db: AsyncSession = Depends(get_db)):
+async def reject_current_stage(
+    project_id: str,
+    request: FeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+    _project=Depends(_owned_project_access),
+):
     """
     Legacy compatibility endpoint.
     Normalizes old reject semantics to the current edit/refine contract.
@@ -852,7 +986,12 @@ async def reject_current_stage(project_id: str, request: FeedbackRequest, db: As
 
 
 @app.post("/api/project/{project_id}/refine")
-async def refine_storyboard(project_id: str, request: FeedbackRequest, db: AsyncSession = Depends(get_db)):
+async def refine_storyboard(
+    project_id: str,
+    request: FeedbackRequest,
+    db: AsyncSession = Depends(get_db),
+    _project=Depends(_owned_project_access),
+):
     """
     Legacy compatibility endpoint.
     Normalizes old refine semantics to the current edit/refine contract.
@@ -882,7 +1021,12 @@ async def refine_storyboard(project_id: str, request: FeedbackRequest, db: Async
 
 
 @app.post("/api/project/{project_id}/go-back/{target}")
-async def go_back_to_stage(project_id: str, target: str, db: AsyncSession = Depends(get_db)):
+async def go_back_to_stage(
+    project_id: str,
+    target: str,
+    db: AsyncSession = Depends(get_db),
+    _project=Depends(_owned_project_access),
+):
     """
     Go back to an earlier stage in the pipeline.
 
@@ -928,7 +1072,11 @@ async def go_back_to_stage(project_id: str, target: str, db: AsyncSession = Depe
 
 
 @app.get("/api/project/{project_id}/pipeline-state")
-async def get_pipeline_state(project_id: str, db: AsyncSession = Depends(get_db)):
+async def get_pipeline_state(
+    project_id: str,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """
     Get the current pipeline state for a project.
 
@@ -938,7 +1086,8 @@ async def get_pipeline_state(project_id: str, db: AsyncSession = Depends(get_db)
     - available_events: What events can be sent next
     """
     try:
-        await _require_project(db, project_id)
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
         return await workflow_service.get_project(project_id)
     except HTTPException:
         raise
@@ -968,16 +1117,20 @@ class SaveStagesRequest(BaseModel):
 
 
 @app.post("/api/project/{project_id}/stages")
-async def save_stages(project_id: str, request: SaveStagesRequest, db: AsyncSession = Depends(get_db)):
+async def save_stages(
+    project_id: str,
+    request: SaveStagesRequest,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Save all stage data for a project (auto-save endpoint)."""
     try:
         # Acquire SQLite's writer lock before reading mutable pipeline state so
         # autosave cannot overwrite a concurrent workflow transition.
         await db.execute(text("BEGIN IMMEDIATE"))
         repo = ProjectRepository(db)
-        project = await repo.get_project(project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
 
         for stage_id_str, stage_data in request.stages.items():
             stage_id = int(stage_id_str)
@@ -1022,13 +1175,16 @@ async def save_stages(project_id: str, request: SaveStagesRequest, db: AsyncSess
 
 
 @app.get("/api/project/{project_id}/stages")
-async def load_stages(project_id: str, db: AsyncSession = Depends(get_db)):
+async def load_stages(
+    project_id: str,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Load all stage data for a project."""
     try:
         repo = ProjectRepository(db)
-        project = await repo.get_project(project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
+        identity = await require_session(http_request, db)
+        project = await _require_owned_project(db, project_id, identity)
 
         snapshots = await repo.get_all_snapshots(project_id)
         ps = await repo.get_pipeline_state(project_id)
@@ -1050,12 +1206,19 @@ async def load_stages(project_id: str, db: AsyncSession = Depends(get_db)):
             "lastSaved": project.updated_at.isoformat() if project.updated_at else None,
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error loading stages: {str(e)}")
 
 
 @app.post("/api/project/{project_id}/screen/{screen_index}/generate-visual")
-async def generate_visual(project_id: str, screen_index: int, db: AsyncSession = Depends(get_db)):
+async def generate_visual(
+    project_id: str,
+    screen_index: int,
+    db: AsyncSession = Depends(get_db),
+    _project=Depends(_owned_project_access),
+):
     repo = ProjectRepository(db)
     project = await repo.get_project(project_id)
     if not project:
@@ -1100,15 +1263,19 @@ async def generate_visual(project_id: str, screen_index: int, db: AsyncSession =
     return {"success": True, "on_screen_visual": on_screen_visual}
 
 @app.get("/api/projects")
-async def list_user_projects(user_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+async def list_user_projects(
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """List all projects for a specific user, including anonymous sessions."""
     try:
         repo = ProjectRepository(db)
-        request_user_id = user_id or DEFAULT_ANONYMOUS_USER_ID
-        db_projects = await repo.list_projects(
-            request_user_id,
-            include_legacy_local=_is_local_anonymous_user(user_id),
-        )
+        identity = await require_session(http_request, db)
+        db_projects = await repo.list_projects(identity.owner_id)
+        if identity.legacy_user_id:
+            legacy = await repo.list_projects(identity.legacy_user_id)
+            known_ids = {project.id for project in db_projects}
+            db_projects.extend(project for project in legacy if project.id not in known_ids)
 
         projects = []
 
@@ -1131,21 +1298,24 @@ async def list_user_projects(user_id: Optional[str] = None, db: AsyncSession = D
         projects.sort(key=lambda p: p.get("lastUpdated") or "", reverse=True)
         return {"success": True, "projects": projects}
 
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error listing projects: {str(e)}")
 
 
 @app.delete("/api/project/{project_id}")
-async def delete_project(project_id: str, user_id: Optional[str] = None, db: AsyncSession = Depends(get_db)):
+async def delete_project(
+    project_id: str,
+    http_request: Request,
+    db: AsyncSession = Depends(get_db),
+):
     """Delete a project owned by the current signed-in or anonymous user."""
     try:
         import shutil
         repo = ProjectRepository(db)
-        project = await repo.get_project(project_id)
-        if not project:
-            raise HTTPException(status_code=404, detail="Project not found")
-        if not _can_access_project_owner(project.user_id, user_id):
-            raise HTTPException(status_code=403, detail="Not authorized to delete this project")
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
         await repo.delete_project(project_id)
 
         # Also delete filesystem directory (uploads, links)
@@ -1169,8 +1339,8 @@ async def delete_project(project_id: str, user_id: Optional[str] = None, db: Asy
 @app.post("/api/project/{project_id}/upload")
 async def upload_file_to_project(
     project_id: str,
+    http_request: Request,
     file: UploadFile = FastAPIFile(...),
-    x_user_id: Optional[str] = Header(None, alias="X-User-ID"),
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1180,7 +1350,8 @@ async def upload_file_to_project(
     Files are saved to data/project_{id}/uploads/
     """
     try:
-        await _require_exact_project_owner(db, project_id, x_user_id)
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
         repo = ProjectRepository(db)
 
         # Find or create project directory
@@ -1236,21 +1407,15 @@ async def upload_file_to_project(
         validate_upload_signature(file_path, file_ext)
 
         # Extract text based on file type
-        extracted_text = ""
-        if file_ext == ".pdf":
-            extracted_text = await extract_with_timeout(
-                extract_text_from_pdf, file_path
-            )
-        elif file_ext in [".txt", ".md"]:
-            extracted_text = (
-                await asyncio.to_thread(
-                    file_path.read_text, "utf-8", "replace"
-                )
-            )[:MAX_EXTRACTED_CHARS]
-        elif file_ext == ".docx":
-            extracted_text = await extract_with_timeout(
-                extract_text_from_docx, file_path
-            )
+        extraction_kind = {
+            ".pdf": "pdf",
+            ".docx": "docx",
+            ".txt": "text",
+            ".md": "text",
+        }[file_ext]
+        extracted_text = await extract_source_in_subprocess(
+            extraction_kind, file_path
+        )
         if extracted_text.startswith("[Error extracting"):
             raise SourceIngestionError("Source file could not be parsed safely")
         extracted_text = truncate_utf8(extracted_text[:MAX_EXTRACTED_CHARS])
@@ -1269,8 +1434,10 @@ async def upload_file_to_project(
             file_path=str(file_path.relative_to(project_dir)),
             content_type=file.content_type,
             size_bytes=size_bytes,
+            commit=False,
         )
-        await repo.update_project_timestamp(project_id)
+        await repo.update_project_timestamp(project_id, commit=False)
+        await db.commit()
 
         return {
             "success": True,
@@ -1280,14 +1447,16 @@ async def upload_file_to_project(
         }
 
     except (HTTPException, SourceIngestionError) as error:
-        if "file_path" in locals() and file_path.exists():
+        await db.rollback()
+        if "file_path" in locals():
             file_path.unlink(missing_ok=True)
             file_path.with_suffix(".extracted.txt").unlink(missing_ok=True)
         if isinstance(error, HTTPException):
             raise
         raise HTTPException(status_code=400, detail=str(error))
     except Exception as e:
-        if "file_path" in locals() and file_path.exists():
+        await db.rollback()
+        if "file_path" in locals():
             file_path.unlink(missing_ok=True)
             file_path.with_suffix(".extracted.txt").unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Error uploading file: {str(e)}")
@@ -1301,7 +1470,7 @@ class FetchLinkRequest(BaseModel):
 async def fetch_link_content(
     project_id: str,
     request: FetchLinkRequest,
-    x_user_id: Optional[str] = Header(None, alias="X-User-ID"),
+    http_request: Request,
     db: AsyncSession = Depends(get_db),
 ):
     """
@@ -1310,7 +1479,8 @@ async def fetch_link_content(
     Extracts text content from web pages and saves metadata.
     """
     try:
-        await _require_exact_project_owner(db, project_id, x_user_id)
+        identity = await require_session(http_request, db)
+        await _require_owned_project(db, project_id, identity)
         repo = ProjectRepository(db)
 
         # Find or create project directory
@@ -1324,13 +1494,9 @@ async def fetch_link_content(
 
         fetched = await fetch_public_text(request.url)
         if fetched.content_type in {"text/html", "application/xhtml+xml"}:
-            try:
-                title, text_content = await asyncio.wait_for(
-                    asyncio.to_thread(extract_text_from_html, fetched.text),
-                    timeout=10.0,
-                )
-            except asyncio.TimeoutError as error:
-                raise SourceIngestionError("Source extraction timed out") from error
+            title, text_content = await extract_source_in_subprocess(
+                "html", fetched.text
+            )
         else:
             title, text_content = "", fetched.text.strip()
         text_content = truncate_utf8(text_content[:MAX_EXTRACTED_CHARS])
@@ -1356,8 +1522,10 @@ async def fetch_link_content(
             file_path=str(content_file.relative_to(project_dir)),
             content_type="text/link",
             size_bytes=len(text_content.encode("utf-8")),
+            commit=False,
         )
-        await repo.update_project_timestamp(project_id)
+        await repo.update_project_timestamp(project_id, commit=False)
+        await db.commit()
 
         return {
             "success": True,
@@ -1368,10 +1536,19 @@ async def fetch_link_content(
         }
 
     except SourceIngestionError as error:
+        await db.rollback()
+        if "content_file" in locals():
+            content_file.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail=str(error))
     except HTTPException:
+        await db.rollback()
+        if "content_file" in locals():
+            content_file.unlink(missing_ok=True)
         raise
     except Exception as e:
+        await db.rollback()
+        if "content_file" in locals():
+            content_file.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail=f"Error fetching link: {str(e)}")
 
 
@@ -2141,7 +2318,11 @@ async def batch_eval_report():
 # ---------------------------------------------------------------------------
 
 @app.post("/api/project/{project_id}/documents/upload")
-async def upload_document(project_id: str, file: UploadFile = FastAPIFile(...)):
+async def upload_document(
+    project_id: str,
+    file: UploadFile = FastAPIFile(...),
+    _project=Depends(_owned_project_access),
+):
     """Upload a PDF document for RAG retrieval."""
     from app.services.rag.store import RAGStore
     import tempfile
@@ -2166,7 +2347,11 @@ async def upload_document(project_id: str, file: UploadFile = FastAPIFile(...)):
 
 
 @app.post("/api/project/{project_id}/documents/url")
-async def add_document_url(project_id: str, request: Request):
+async def add_document_url(
+    project_id: str,
+    request: Request,
+    _project=Depends(_owned_project_access),
+):
     """Fetch and ingest a web URL for RAG retrieval."""
     from app.services.rag.store import RAGStore
 
@@ -2184,7 +2369,7 @@ async def add_document_url(project_id: str, request: Request):
 
 
 @app.get("/api/project/{project_id}/documents")
-async def list_documents(project_id: str):
+async def list_documents(project_id: str, _project=Depends(_owned_project_access)):
     """List all ingested documents for a project."""
     from app.services.rag.store import RAGStore
 
@@ -2194,7 +2379,7 @@ async def list_documents(project_id: str):
 
 
 @app.delete("/api/project/{project_id}/documents")
-async def clear_documents(project_id: str):
+async def clear_documents(project_id: str, _project=Depends(_owned_project_access)):
     """Clear all documents and embeddings for a project."""
     from app.services.rag.store import RAGStore
 
@@ -2204,7 +2389,11 @@ async def clear_documents(project_id: str):
 
 
 @app.post("/api/project/{project_id}/documents/query")
-async def query_documents(project_id: str, request: Request):
+async def query_documents(
+    project_id: str,
+    request: Request,
+    _project=Depends(_owned_project_access),
+):
     """Query documents using RAG retrieval (for testing/debugging)."""
     from app.services.rag.store import RAGStore
 

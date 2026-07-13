@@ -7,6 +7,8 @@ import StageContent from "./StageContent";
 import SatisfactionRatingModal from "./SatisfactionRatingModal";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { isGuidedBriefType } from "@/lib/videoIntent";
+import { getAnonymousUserId } from "@/lib/anonymousUser";
+import { ensureSession } from "@/lib/session";
 
 const INITIAL_STAGES: Stage[] = [
   { id: 1, name: "Video Briefing", description: "Define your video concept and goals", status: "not_started" },
@@ -160,7 +162,7 @@ function deriveStageViewFromPipeline(
 
 export default function StageLayout() {
   const { projectId } = useParams<{ projectId: string }>();
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId] = useState(() => getAnonymousUserId());
   const [projectLoadError, setProjectLoadError] = useState<string | null>(null);
   const navigate = useNavigate();
 
@@ -199,6 +201,7 @@ export default function StageLayout() {
 
       try {
         setProjectLoadError(null);
+        await ensureSession();
 
         // Project persistence is the source of truth for ownership. A local
         // anonymous ID must never stand in for a Clerk-owned project.
@@ -209,11 +212,7 @@ export default function StageLayout() {
 
         const data = await response.json();
         const project = data.success ? data.project : null;
-        const ownerId = typeof project?.userId === "string" ? project.userId.trim() : "";
-        if (!ownerId) {
-          throw new Error("Project owner identity is missing");
-        }
-        setUserId(ownerId);
+        if (!project?.id) throw new Error("Project data is missing");
 
         // Try to load from sessionStorage first
         const storedPrompt = sessionStorage.getItem("storyboardPrompt");
@@ -260,6 +259,7 @@ export default function StageLayout() {
       // StrictMode double-mount guard: ref survives remount but state resets.
       // Always fetch and restore — skip only the "already loaded" early return.
       try {
+        await ensureSession();
         const [stagesResponse, pipelineResponse] = await Promise.all([
           fetch(`/api/project/${projectId}/stages`),
           fetch(`/api/project/${projectId}/pipeline-state`),
@@ -761,7 +761,6 @@ export default function StageLayout() {
         ) : currentStage ? (
           <StageContent
             stage={currentStage}
-            userId={userId}
             aiContent={currentData.aiVersion}
             humanContent={currentData.humanVersion}
             previousStageOutput={previousStageOutput}

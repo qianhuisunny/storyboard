@@ -16,7 +16,6 @@ export interface ChatBriefRequestPayload {
 
 export function requestChatBrief(
   projectId: string,
-  userId: string,
   payload: ChatBriefRequestPayload,
   fetchImpl: typeof fetch = fetch,
 ): Promise<Response> {
@@ -24,7 +23,6 @@ export function requestChatBrief(
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-User-ID": userId,
     },
     body: JSON.stringify(payload),
   });

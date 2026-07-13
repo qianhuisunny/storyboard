@@ -9,10 +9,11 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.db import engine as db_engine
 from app.db.engine import get_db
-from app.db.models import Base
+from app.db.models import AnonymousSession, Base
 from app.db.repository import ProjectRepository
 from app.main import app
 from app.services.workflow import WorkflowService
+from app.services.session_auth import SESSION_COOKIE, hash_session_token
 
 
 async def _outline(context):
@@ -32,8 +33,13 @@ async def workflow_api(tmp_path, monkeypatch):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     async with sessions() as session:
+        session.add_all([
+            AnonymousSession(id="workflow-owner", token_hash=hash_session_token("workflow-token")),
+            AnonymousSession(id="workflow-other", token_hash=hash_session_token("other-token")),
+        ])
+        await session.commit()
         await ProjectRepository(session).create_project(
-            "api-project", "test-user", "API"
+            "api-project", "session:workflow-owner", "API"
         )
 
     async def override_get_db():
@@ -49,6 +55,7 @@ async def workflow_api(tmp_path, monkeypatch):
     )
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        client.cookies.set(SESSION_COOKIE, "workflow-token")
         yield client, service
 
     app.dependency_overrides.clear()
@@ -199,14 +206,13 @@ async def test_created_project_persists_canonical_create_intake_across_reload(wo
             "typeId": 1,
             "typeName": "Video storyboard",
             "userInput": "Something about organizing a team offsite",
-            "userId": "owner-123",
         },
     )
     assert create.status_code == 200
     async with service.sessionmaker() as session:
         project = await ProjectRepository(session).get_project("durable-create")
         assert project is not None
-        assert project.user_id == "owner-123"
+        assert project.user_id == "session:workflow-owner"
 
     intake = {
         "prompt": "Something about organizing a team offsite",
@@ -245,25 +251,28 @@ async def test_created_project_persists_canonical_create_intake_across_reload(wo
 
 
 @pytest.mark.asyncio
-async def test_create_project_is_idempotent_for_exact_owner_only(workflow_api):
+async def test_create_project_is_idempotent_for_session_and_rejects_claimed_owner(workflow_api):
     client, _ = workflow_api
     request = {
         "projectId": "idempotent-create",
         "typeId": 1,
         "typeName": "Video storyboard",
         "userInput": "First prompt",
-        "userId": "anon_exact",
     }
 
     first = await client.post("/api/create-project", json=request)
     repeated = await client.post("/api/create-project", json=request)
-    wrong_owner = await client.post(
+    caller_claim = await client.post(
         "/api/create-project", json={**request, "userId": "user_other"}
     )
 
     assert first.status_code == repeated.status_code == 200
     assert repeated.json()["projectId"] == request["projectId"]
-    assert wrong_owner.status_code == 409
+    assert caller_claim.status_code == 422
+    client.cookies.set(SESSION_COOKIE, "other-token")
+    wrong_session = await client.post("/api/create-project", json=request)
+    assert wrong_session.status_code == 409
+    client.cookies.set(SESSION_COOKIE, "workflow-token")
 
     traversal = await client.post(
         "/api/create-project", json={**request, "projectId": "../../escape"}

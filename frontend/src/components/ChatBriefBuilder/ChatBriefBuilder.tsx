@@ -13,7 +13,6 @@ import { requestChatBrief } from "./chatBriefRequest";
 
 interface ChatBriefBuilderProps {
   projectId: string;
-  userId: string;
   initialFields?: Record<string, BriefField>;
   isAlreadyApproved?: boolean;
   onBriefApprove: (allFields: Record<string, BriefField>) => Promise<void>;
@@ -126,7 +125,6 @@ function messageFingerprint(message: ChatMessage): string {
 
 export default function ChatBriefBuilder({
   projectId,
-  userId,
   initialFields,
   isAlreadyApproved = false,
   onBriefApprove,
@@ -355,7 +353,7 @@ export default function ChatBriefBuilder({
       const sourceContext = sessionStorage.getItem("storyboardContext") || "";
 
       try {
-        const resp = await requestChatBrief(projectId, userId, {
+        const resp = await requestChatBrief(projectId, {
           messages: currentMessages.map((m) => ({
             role: m.role,
             content: m.content,
@@ -435,7 +433,7 @@ export default function ChatBriefBuilder({
         setIsLlmLoading(false);
       }
     },
-    [projectId, userId, addMessages, intentRoute]
+    [projectId, addMessages, intentRoute]
   );
 
   // Handle user answering a Phase 1 question (text or chip)

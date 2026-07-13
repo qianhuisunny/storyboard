@@ -7,9 +7,10 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 
 from app.db import engine as db_engine
 from app.db.engine import get_db
-from app.db.models import Base
+from app.db.models import AnonymousSession, Base
 from app.db.repository import ProjectRepository
 from app.main import app
+from app.services.session_auth import SESSION_COOKIE, hash_session_token
 
 
 def _payload(**updates):
@@ -45,9 +46,14 @@ async def chat_api(tmp_path):
     async with engine.begin() as connection:
         await connection.run_sync(Base.metadata.create_all)
     async with sessions() as session:
+        session.add_all([
+            AnonymousSession(id="chat-owner", token_hash=hash_session_token("chat-token")),
+            AnonymousSession(id="chat-other", token_hash=hash_session_token("chat-other-token")),
+        ])
+        await session.commit()
         repo = ProjectRepository(session)
         await repo.create_project(
-            "chat-project", "owner-123", "Chat API"
+            "chat-project", "session:chat-owner", "Chat API"
         )
         await repo.create_project(
             "clerk-project", "user_clerk_123", "Clerk-owned Chat API"
@@ -60,6 +66,7 @@ async def chat_api(tmp_path):
     app.dependency_overrides[get_db] = override_get_db
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        client.cookies.set(SESSION_COOKIE, "chat-token")
         yield client
 
     app.dependency_overrides.clear()
@@ -163,6 +170,7 @@ async def test_chat_brief_rejects_missing_and_unauthorized_projects_before_llm(
         headers={"X-User-ID": "owner-123"},
         json=_payload(),
     )
+    chat_api.cookies.set(SESSION_COOKIE, "chat-other-token")
     forbidden = await chat_api.post(
         "/api/project/chat-project/chat-brief",
         headers={"X-User-ID": "intruder"},
@@ -177,6 +185,7 @@ async def test_chat_brief_rejects_missing_and_unauthorized_projects_before_llm(
     assert forbidden.status_code == 403
     assert headerless_clerk.status_code == 403
     assert calls == []
+    chat_api.cookies.set(SESSION_COOKIE, "chat-token")
 
 
 @pytest.mark.asyncio

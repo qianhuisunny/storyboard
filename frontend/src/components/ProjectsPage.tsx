@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { getAnonymousUserId } from "@/lib/anonymousUser";
+import { ensureSession } from "@/lib/session";
 
 interface Project {
   id: string;
@@ -54,7 +54,6 @@ const STAGE_NAMES = ["", "Video Briefing", "Video Outline", "Storyboard Draft", 
 
 export default function ProjectsPage() {
   const navigate = useNavigate();
-  const [userId] = useState(() => getAnonymousUserId());
   const [projects, setProjects] = useState<Project[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -62,7 +61,8 @@ export default function ProjectsPage() {
   useEffect(() => {
     const loadProjects = async () => {
       try {
-        const response = await fetch(`/api/projects?user_id=${encodeURIComponent(userId)}`);
+        await ensureSession();
+        const response = await fetch("/api/projects");
         if (response.ok) {
           const data = await response.json();
           setProjects(data.projects || []);
@@ -75,7 +75,7 @@ export default function ProjectsPage() {
     };
 
     loadProjects();
-  }, [userId]);
+  }, []);
 
   const handleDeleteProject = async (projectId: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -84,10 +84,8 @@ export default function ProjectsPage() {
 
     setDeletingId(projectId);
     try {
-      const response = await fetch(
-        `/api/project/${projectId}?user_id=${encodeURIComponent(userId)}`,
-        { method: "DELETE" }
-      );
+      await ensureSession();
+      const response = await fetch(`/api/project/${projectId}`, { method: "DELETE" });
       if (response.ok) {
         setProjects((prev) => prev.filter((p) => p.id !== projectId));
       }

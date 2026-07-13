@@ -27,7 +27,6 @@ interface ApproveOptions {
 
 interface StageContentProps {
   stage: Stage;
-  userId: string;
   aiContent: string | null;
   humanContent: string | null;
   previousStageOutput?: Record<string, unknown> | null;
@@ -316,7 +315,6 @@ function GeneratingProgress({ stageId }: { stageId: number }) {
 
 export default function StageContent({
   stage,
-  userId,
   aiContent,
   humanContent,
   previousStageOutput,
@@ -781,7 +779,6 @@ export default function StageContent({
       <div className="flex-1 flex flex-col" style={{ minHeight: 0, height: "100%" }}>
         <ChatBriefBuilder
           projectId={projectId}
-          userId={userId}
           initialFields={guidedBriefFields}
           isAlreadyApproved={isBriefAlreadyApproved}
           onBriefApprove={handleGuidedBriefApprove}

@@ -29,14 +29,20 @@ async function mockCreateApi(page: Page, options: MockOptions = {}) {
   const createIds: string[] = [];
   const fetchedUrls: string[] = [];
   const uploadedFiles: string[] = [];
+  const sessionRequests: Array<{ legacy_user_id?: string }> = [];
   let projectId: string | null = null;
-  let ownerId: string | null = null;
   let createAttempts = 0;
   let failedAttempts = 0;
   let lostSave = false;
 
+  await page.route("**/api/session", async (route) => {
+    sessionRequests.push(route.request().postDataJSON() as { legacy_user_id?: string });
+    await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ success: true }) });
+  });
+
   await page.route("**/api/create-project", async (route) => {
-    const request = route.request().postDataJSON() as { projectId: string; userId: string };
+    const request = route.request().postDataJSON() as { projectId: string; userId?: string };
+    expect(request.userId).toBeUndefined();
     createIds.push(request.projectId);
     createAttempts += 1;
     if (options.loseCreateBeforePersist && createAttempts === 1) {
@@ -44,7 +50,6 @@ async function mockCreateApi(page: Page, options: MockOptions = {}) {
       return;
     }
     projectId = request.projectId;
-    ownerId = request.userId;
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -61,12 +66,12 @@ async function mockCreateApi(page: Page, options: MockOptions = {}) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ success: true, project: { id: projectId, userId: ownerId } }),
+      body: JSON.stringify({ success: true, project: { id: projectId } }),
     });
   });
 
   await page.route("**/api/project/*/fetch-link", async (route) => {
-    expect(route.request().headers()["x-user-id"]).toBe(ownerId);
+    expect(route.request().headers()["x-user-id"]).toBeUndefined();
     const request = route.request().postDataJSON() as { url: string };
     fetchedUrls.push(request.url);
     const shouldFail = options.failedUrls?.includes(request.url)
@@ -85,7 +90,7 @@ async function mockCreateApi(page: Page, options: MockOptions = {}) {
   });
 
   await page.route("**/api/project/*/upload", async (route) => {
-    expect(route.request().headers()["x-user-id"]).toBe(ownerId);
+    expect(route.request().headers()["x-user-id"]).toBeUndefined();
     const multipart = await route.request().postDataBuffer();
     expect(multipart).not.toBeNull();
     uploadedFiles.push("notes.txt");
@@ -136,7 +141,7 @@ async function mockCreateApi(page: Page, options: MockOptions = {}) {
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(body) });
   });
 
-  return { saves, createIds, fetchedUrls, uploadedFiles };
+  return { saves, createIds, fetchedUrls, uploadedFiles, sessionRequests };
 }
 
 function workflowBody(saves: SavedIntake[]) {
@@ -186,7 +191,7 @@ async function addNote(page: Page, value: string) {
 }
 
 test("Create uses complete RadioGroup and Tabs keyboard semantics and persists canonical values", async ({ page }) => {
-  const { saves } = await mockCreateApi(page);
+  const { saves, sessionRequests } = await mockCreateApi(page);
   await page.goto("/");
   await page.getByLabel("Describe your video").fill("Something about organizing a team offsite");
 
@@ -218,6 +223,8 @@ test("Create uses complete RadioGroup and Tabs keyboard semantics and persists c
   await expect(page).toHaveURL(/\/storyboard\/[0-9a-f-]{36}$/);
 
   expect(saves).toHaveLength(1);
+  expect(sessionRequests).toHaveLength(1);
+  expect(sessionRequests[0].legacy_user_id).toMatch(/^anon_[0-9a-f-]{36}$/i);
   expect(saves[0].content).toMatchObject({
     prompt: "Something about organizing a team offsite",
     duration_seconds: 120,
@@ -238,7 +245,7 @@ test("Sources reports URL validation inline and closes on outside interaction", 
   await expect(page.getByRole("dialog", { name: "Sources" })).toBeHidden();
 });
 
-test("file upload sends exact project owner identity and persists the server path", async ({ page }) => {
+test("file upload relies on the session cookie and persists the server path", async ({ page }) => {
   const { saves, uploadedFiles } = await mockCreateApi(page);
   await page.goto("/");
   await page.getByLabel("Describe your video").fill("Use an uploaded source");
@@ -384,7 +391,7 @@ test("Continue cannot race an active retry", async ({ page }) => {
   await expect(page.getByText("1 source needs attention")).toBeVisible();
   await page.getByRole("button", { name: "Retry failed source" }).click();
 
-  await expect(page.getByRole("button", { name: /Continue without failed/ })).toBeDisabled();
+  await expect(page.getByRole("button", { name: /Continue without failed/ })).toBeHidden();
   await expect(page).toHaveURL(/\/storyboard\/[0-9a-f-]{36}$/);
 });
 

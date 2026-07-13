@@ -20,6 +20,22 @@ class Base(DeclarativeBase):
     pass
 
 
+class AnonymousSession(Base):
+    """Server-issued browser identity; the bearer token is never stored plaintext."""
+
+    __tablename__ = "anonymous_sessions"
+
+    id = Column(Text, primary_key=True, default=lambda: str(uuid4()))
+    token_hash = Column(Text, nullable=False, unique=True, index=True)
+    legacy_user_id = Column(Text, nullable=True, unique=True, index=True)
+    created_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+    last_seen_at = Column(
+        DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc)
+    )
+
+
 class Project(Base):
     __tablename__ = "projects"
 

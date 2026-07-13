@@ -4,14 +4,21 @@ from __future__ import annotations
 
 import asyncio
 import ipaddress
+import multiprocessing
+import queue
 import socket
+import ssl
+import sys
+import time
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Awaitable, Callable, Optional
+from typing import Awaitable, Callable, Literal, Optional
 from urllib.parse import urljoin, urlsplit
 
 import httpx
+import httpcore
+from httpcore._backends.auto import AutoBackend
 
 
 MAX_FETCH_BYTES = 2 * 1024 * 1024
@@ -20,6 +27,9 @@ MAX_EXTRACTED_CHARS = 50_000
 MAX_EXTRACTED_BYTES = 200_000
 MAX_DOCX_FILES = 1_000
 MAX_DOCX_UNCOMPRESSED_BYTES = 25 * 1024 * 1024
+MAX_PDF_PAGES = 200
+MAX_PDF_OBJECTS = 50_000
+MAX_DOCX_PARAGRAPHS = 20_000
 MAX_REDIRECTS = 4
 SAFE_CONTENT_TYPES = {"text/html", "text/plain", "application/xhtml+xml"}
 REDIRECT_STATUSES = {301, 302, 303, 307, 308}
@@ -36,6 +46,70 @@ class FetchedText:
     final_url: str
     content_type: str
     text: str
+
+
+@dataclass(frozen=True)
+class ValidatedTarget:
+    url: str
+    hostname: str
+    pinned_ip: str
+
+
+class PinnedNetworkBackend:
+    """Replace only TCP DNS resolution; httpcore retains the origin and TLS SNI."""
+
+    def __init__(
+        self,
+        *,
+        original_hostname: str,
+        pinned_ip: str,
+        delegate=None,
+    ) -> None:
+        self.original_hostname = original_hostname.rstrip(".").lower()
+        self.pinned_ip = pinned_ip
+        self.delegate = delegate or AutoBackend()
+
+    async def connect_tcp(
+        self,
+        host: str,
+        port: int,
+        timeout: float | None = None,
+        local_address: str | None = None,
+        socket_options=None,
+    ):
+        normalized = host.rstrip(".").lower()
+        if normalized != self.original_hostname:
+            raise SourceIngestionError("Network target did not match the validated host")
+        return await self.delegate.connect_tcp(
+            self.pinned_ip,
+            port,
+            timeout=timeout,
+            local_address=local_address,
+            socket_options=socket_options,
+        )
+
+    async def connect_unix_socket(self, path: str, **kwargs):
+        return await self.delegate.connect_unix_socket(path, **kwargs)
+
+    async def sleep(self, seconds: float) -> None:
+        await self.delegate.sleep(seconds)
+
+
+class PinnedAsyncHTTPTransport(httpx.AsyncHTTPTransport):
+    """httpx transport whose socket connects to a single validated address."""
+
+    def __init__(self, *, hostname: str, pinned_ip: str) -> None:
+        super().__init__(trust_env=False)
+        self._pool = httpcore.AsyncConnectionPool(
+            ssl_context=ssl.create_default_context(),
+            max_connections=1,
+            max_keepalive_connections=0,
+            retries=0,
+            network_backend=PinnedNetworkBackend(
+                original_hostname=hostname,
+                pinned_ip=pinned_ip,
+            ),
+        )
 
 
 def truncate_utf8(value: str, max_bytes: int = MAX_EXTRACTED_BYTES) -> str:
@@ -74,6 +148,15 @@ async def validate_public_url(
     resolver: Resolver = _default_resolver,
 ) -> str:
     """Validate syntax and require every resolved address to be globally routable."""
+    return (await resolve_public_target(url, resolver=resolver)).url
+
+
+async def resolve_public_target(
+    url: str,
+    *,
+    resolver: Resolver = _default_resolver,
+) -> ValidatedTarget:
+    """Validate a URL and bind it to one approved address for the next request."""
     if not isinstance(url, str) or len(url) > 2_048:
         raise SourceIngestionError("URL is invalid or too long")
     if url != url.strip() or any(ord(character) < 32 for character in url):
@@ -103,9 +186,12 @@ async def validate_public_url(
             raise SourceIngestionError("URL hostname did not resolve")
         for address in addresses:
             _require_global_address(address)
+        pinned_ip = addresses[0]
     else:
         _require_global_address(str(literal))
-    return url
+        pinned_ip = str(literal)
+    hostname = parsed.hostname.encode("idna").decode("ascii")
+    return ValidatedTarget(url=url, hostname=hostname, pinned_ip=pinned_ip)
 
 
 async def fetch_public_text(
@@ -119,14 +205,19 @@ async def fetch_public_text(
     """Fetch safe textual content while validating every redirect target."""
     current_url = url
     timeout = httpx.Timeout(connect=5.0, read=10.0, write=5.0, pool=5.0)
-    async with httpx.AsyncClient(
-        timeout=timeout,
-        follow_redirects=False,
-        transport=transport,
-        trust_env=False,
-    ) as client:
-        for redirect_count in range(max_redirects + 1):
-            current_url = await validate_public_url(current_url, resolver=resolver)
+    for redirect_count in range(max_redirects + 1):
+        target = await resolve_public_target(current_url, resolver=resolver)
+        current_url = target.url
+        hop_transport = transport or PinnedAsyncHTTPTransport(
+            hostname=target.hostname,
+            pinned_ip=target.pinned_ip,
+        )
+        async with httpx.AsyncClient(
+            timeout=timeout,
+            follow_redirects=False,
+            transport=hop_transport,
+            trust_env=False,
+        ) as client:
             try:
                 async with client.stream(
                     "GET",
@@ -222,20 +313,137 @@ def validate_upload_signature(path: Path, extension: str) -> None:
             raise SourceIngestionError("Text source contains binary data")
 
 
-async def extract_with_timeout(
-    extractor: Callable[[Path], str],
-    path: Path,
+def _apply_worker_limits(cpu_seconds: int, memory_bytes: int) -> None:
+    try:
+        import resource
+
+        resource.setrlimit(resource.RLIMIT_CPU, (cpu_seconds, cpu_seconds + 1))
+        resource.setrlimit(resource.RLIMIT_FSIZE, (MAX_UPLOAD_BYTES, MAX_UPLOAD_BYTES))
+        # RLIMIT_AS is not reliably enforced by Darwin. Linux provides the
+        # hard address-space boundary used in production containers.
+        if sys.platform.startswith("linux"):
+            resource.setrlimit(resource.RLIMIT_AS, (memory_bytes, memory_bytes))
+    except (ImportError, OSError, ValueError):
+        pass
+
+
+def _extraction_worker(
+    output,
+    kind: str,
+    payload: str,
+    max_chars: int,
+    max_pdf_pages: int,
+    max_pdf_objects: int,
+    worker_delay_seconds: float,
+) -> None:
+    try:
+        _apply_worker_limits(cpu_seconds=5, memory_bytes=512 * 1024 * 1024)
+        if worker_delay_seconds:
+            time.sleep(worker_delay_seconds)
+        if kind == "pdf":
+            import PyPDF2
+
+            with Path(payload).open("rb") as source:
+                reader = PyPDF2.PdfReader(source)
+                if len(reader.pages) > max_pdf_pages:
+                    raise SourceIngestionError("PDF contains too many pages")
+                object_count = int(reader.trailer.get("/Size", 0) or 0)
+                if object_count > max_pdf_objects:
+                    raise SourceIngestionError("PDF contains too many objects")
+                extracted = "".join(
+                    page.extract_text() or "" for page in reader.pages
+                ).strip()
+        elif kind == "docx":
+            from docx import Document
+
+            path = Path(payload)
+            validate_docx_archive(path)
+            document = Document(path)
+            if len(document.paragraphs) > MAX_DOCX_PARAGRAPHS:
+                raise SourceIngestionError("DOCX contains too many paragraphs")
+            extracted = "\n".join(
+                paragraph.text for paragraph in document.paragraphs
+            ).strip()
+        elif kind == "text":
+            extracted = Path(payload).read_text(encoding="utf-8", errors="replace")
+        elif kind == "html":
+            from app.utils.file_extraction import extract_text_from_html
+
+            title, text_content = extract_text_from_html(payload)
+            extracted = (title[:512], truncate_utf8(text_content[:max_chars]))
+            output.put((True, extracted))
+            return
+        else:
+            raise SourceIngestionError("Unsupported extraction type")
+        output.put((True, truncate_utf8(extracted[:max_chars])))
+    except BaseException as error:
+        output.put((False, str(error) or "Source extraction failed"))
+
+
+def _run_extraction_process(
+    kind: str,
+    payload: str,
+    *,
+    timeout_seconds: float,
+    max_chars: int,
+    max_pdf_pages: int,
+    max_pdf_objects: int,
+    worker_delay_seconds: float,
+):
+    context = multiprocessing.get_context("spawn")
+    output = context.Queue(maxsize=1)
+    process = context.Process(
+        target=_extraction_worker,
+        args=(
+            output,
+            kind,
+            payload,
+            max_chars,
+            max_pdf_pages,
+            max_pdf_objects,
+            worker_delay_seconds,
+        ),
+    )
+    process.start()
+    process.join(timeout_seconds)
+    if process.is_alive():
+        process.terminate()
+        process.join(1)
+        if process.is_alive():
+            process.kill()
+            process.join(1)
+        output.close()
+        raise SourceIngestionError("Source extraction timed out")
+    try:
+        succeeded, result = output.get(timeout=0.2)
+    except queue.Empty as error:
+        raise SourceIngestionError("Source extraction process failed") from error
+    finally:
+        output.close()
+    if not succeeded:
+        raise SourceIngestionError(result)
+    return result
+
+
+async def extract_source_in_subprocess(
+    kind: Literal["pdf", "docx", "text", "html"],
+    source: Path | str,
     *,
     timeout_seconds: float = 10.0,
     max_chars: int = MAX_EXTRACTED_CHARS,
-) -> str:
-    try:
-        extracted = await asyncio.wait_for(
-            asyncio.to_thread(extractor, path),
-            timeout=timeout_seconds,
-        )
-    except asyncio.TimeoutError as error:
-        raise SourceIngestionError("Source extraction timed out") from error
-    if not isinstance(extracted, str):
-        raise SourceIngestionError("Source extraction returned invalid content")
-    return truncate_utf8(extracted[:max_chars])
+    max_pdf_pages: int = MAX_PDF_PAGES,
+    max_pdf_objects: int = MAX_PDF_OBJECTS,
+    worker_delay_seconds: float = 0,
+):
+    """Parse hostile formats in a process that can be forcefully terminated."""
+    payload = str(source)
+    return await asyncio.to_thread(
+        _run_extraction_process,
+        kind,
+        payload,
+        timeout_seconds=timeout_seconds,
+        max_chars=max_chars,
+        max_pdf_pages=max_pdf_pages,
+        max_pdf_objects=max_pdf_objects,
+        worker_delay_seconds=worker_delay_seconds,
+    )

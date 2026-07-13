@@ -26,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getAnonymousUserId } from "@/lib/anonymousUser";
+import { ensureSession } from "@/lib/session";
 
 type SourceKind = "file" | "link" | "text";
 type SourceStatus = "pending" | "processing" | "ready" | "failed";
@@ -110,7 +110,6 @@ async function readError(response: Response, fallback: string): Promise<string> 
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
-  const [userId] = useState(() => getAnonymousUserId());
   const [userInput, setUserInput] = useState("");
   const [selectedDuration, setSelectedDuration] = useState(300);
   const [platform, setPlatform] = useState("youtube");
@@ -226,7 +225,6 @@ export default function OnboardingPage() {
         typeId: 1,
         typeName: "Video storyboard",
         userInput: userInput.trim(),
-        userId,
       }),
     });
     if (!response.ok) throw new Error(await readError(response, "Could not create the project."));
@@ -238,10 +236,8 @@ export default function OnboardingPage() {
     const response = await fetch(`/api/project/${allocatedProjectId}`);
     if (response.status === 404) return false;
     if (!response.ok) throw new Error(await readError(response, "Could not confirm the project."));
-    const body = await response.json() as { project?: { id?: string; userId?: string } };
-    if (body.project?.id !== allocatedProjectId || body.project?.userId !== userId) {
-      throw new Error("The allocated project is owned by another user.");
-    }
+    const body = await response.json() as { project?: { id?: string } };
+    if (body.project?.id !== allocatedProjectId) throw new Error("The server returned a different project.");
     return true;
   };
 
@@ -367,11 +363,11 @@ export default function OnboardingPage() {
     if (source.type === "file" && source.file) {
       const formData = new FormData();
       formData.append("file", source.file);
-      response = await fetch(`/api/project/${projectId}/upload`, { method: "POST", headers: { "X-User-ID": userId }, body: formData });
+      response = await fetch(`/api/project/${projectId}/upload`, { method: "POST", body: formData });
     } else if (source.type === "link" && source.url) {
       response = await fetch(`/api/project/${projectId}/fetch-link`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", "X-User-ID": userId },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url: source.url }),
       });
     } else {
@@ -395,7 +391,7 @@ export default function OnboardingPage() {
     if (targets.length === 0) return current;
 
     const targetIds = new Set(targets.map((source) => source.id));
-    setSources((items) => items.map((source) => targetIds.has(source.id) && source.status === "pending" ? { ...source, status: "processing", error: undefined } : source));
+    setSources((items) => items.map((source) => targetIds.has(source.id) ? { ...source, status: "processing", error: undefined } : source));
     const results = await Promise.allSettled(targets.map((source) => processSource(projectId, source)));
     const replacements = new Map<string, Source>();
     results.forEach((result, index) => {
@@ -420,6 +416,7 @@ export default function OnboardingPage() {
     setIsGenerating(true);
     setError(null);
     try {
+      await ensureSession();
       const projectId = await createProject();
       await saveIntake(projectId, sources);
       const processed = await ingestSources(projectId, sources);
@@ -439,6 +436,7 @@ export default function OnboardingPage() {
     setIsGenerating(true);
     setError(null);
     try {
+      await ensureSession();
       const processed = await ingestSources(projectId, sources);
       await saveIntake(projectId, processed);
       if (processed.every((source) => source.status === "ready")) finishCreate(projectId);
