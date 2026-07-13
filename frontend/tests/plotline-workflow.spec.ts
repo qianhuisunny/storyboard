@@ -374,10 +374,12 @@ async function editFirstStoryboardVoiceover(page: Page, value: string) {
 
 async function editOutlineTitle(page: Page, nextTitle: string) {
   const title = page.locator('[contenteditable="true"]').filter({ hasText: "A calm launch" }).first();
-  await title.evaluate((node, value) => {
-    node.textContent = value;
-    node.dispatchEvent(new FocusEvent("focusout", { bubbles: true }));
-  }, nextTitle);
+  await expect(title).toBeVisible();
+  await title.click();
+  await title.press("ControlOrMeta+A");
+  await page.keyboard.type(nextTitle);
+  await page.keyboard.press("Tab");
+  await expect(page.getByText(nextTitle, { exact: true })).toBeVisible();
 }
 
 test("editable Outline and Storyboard persist canonical versions through Complete", async ({ page }) => {
