@@ -33,6 +33,7 @@ type IntakeDraft = {
   production_formats: ProductionFormat[];
   sources: CanonicalIntakeSource[];
   source_contents: Record<string, string>;
+  source_migration_complete: boolean;
 };
 
 const DURATION_OPTIONS = [60, 90, 120, 180, 240, 300, 600, 900, 1200] as const;
@@ -53,6 +54,7 @@ const FORMAT_OPTIONS: Array<[ProductionFormat, string]> = [
 ];
 
 function initialDraft(content: CanonicalIntakeContent): IntakeDraft {
+  const migration = sourceContentsFromIntake(content);
   return {
     prompt: content.prompt,
     duration_seconds: content.duration_seconds,
@@ -64,7 +66,8 @@ function initialDraft(content: CanonicalIntakeContent): IntakeDraft {
     delivery_tone: content.delivery_tone ?? "",
     production_formats: content.production_formats ?? [],
     sources: (content.sources ?? []).map((source) => ({ ...source })),
-    source_contents: sourceContentsFromIntake(content),
+    source_contents: migration.sourceContents,
+    source_migration_complete: migration.complete,
   };
 }
 
@@ -220,15 +223,24 @@ export default function SmartIntakeBuilder({ projectId, workflow, onWorkflowChan
         ...(source.title !== undefined ? { title: source.name.trim() } : {}),
       })),
     };
+    const sourceMembershipOrNameChanged = next.sources.length !== content.sources.length
+      || next.sources.some((source, index) => (
+        source.id !== content.sources[index]?.id
+        || source.name !== content.sources[index]?.name
+      ));
     const sourceContents = normalizeCanonicalSourceContents(
       next.sources,
       draft.source_contents,
     );
-    const sourceSnapshot = deriveCanonicalSourceSnapshot(next.sources, sourceContents);
-    if (Object.keys(sourceContents).length > 0) next.source_contents = sourceContents;
-    else delete next.source_contents;
-    if (sourceSnapshot) next.source_snapshot = sourceSnapshot;
-    else delete next.source_snapshot;
+    if (!draft.source_migration_complete && !sourceMembershipOrNameChanged) {
+      delete next.source_contents;
+    } else {
+      const sourceSnapshot = deriveCanonicalSourceSnapshot(next.sources, sourceContents);
+      if (Object.keys(sourceContents).length > 0) next.source_contents = sourceContents;
+      else delete next.source_contents;
+      if (sourceSnapshot) next.source_snapshot = sourceSnapshot;
+      else delete next.source_snapshot;
+    }
     if (draft.duration_seconds === undefined) delete next.duration_seconds;
     else next.duration_seconds = draft.duration_seconds;
     if (draft.platform === undefined) delete next.platform;

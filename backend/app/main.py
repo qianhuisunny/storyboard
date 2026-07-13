@@ -552,6 +552,26 @@ class CanonicalIntakeContent(BaseModel):
                 total_source_chars += len(extracted)
             if total_source_chars > 100_000:
                 raise ValueError("Structured source content exceeds 100000 characters")
+            blocks = []
+            for source in self.sources:
+                if source.status != "ready":
+                    continue
+                extracted = self.source_contents.get(source.id)
+                if not extracted:
+                    continue
+                label = (
+                    "Link"
+                    if source.kind == "link"
+                    else "File"
+                    if source.kind == "upload"
+                    else "Note"
+                )
+                blocks.append(f"[{label}: {source.name}]\n{extracted}")
+            derived_snapshot = "\n\n---\n\n".join(blocks)
+            if len(derived_snapshot) > 100_000:
+                marker = "\n…[source snapshot truncated]"
+                derived_snapshot = derived_snapshot[: 100_000 - len(marker)] + marker
+            self.source_snapshot = derived_snapshot
         if serialized_size(self.model_dump()) > 250_000:
             raise ValueError("Canonical intake payload exceeds 250000 characters")
         return self

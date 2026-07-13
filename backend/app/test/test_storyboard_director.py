@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.main import CanonicalIntakeContent
 from app.services.agents.storyboard_director import StoryboardDirector
 from app.services.workflow import GenerationContext, _production_outline_generator
 
@@ -141,7 +142,7 @@ def test_director_caps_large_source_values_with_visible_marker():
 
 def test_director_uses_rederived_snapshot_not_orphaned_structured_source_entries():
     director = StoryboardDirector()
-    prompt = director._build_prompt(
+    validated = CanonicalIntakeContent.model_validate(
         {
             "prompt": "Build from retained context",
             "sources": [
@@ -154,12 +155,13 @@ def test_director_uses_rederived_snapshot_not_orphaned_structured_source_entries
             ],
             "source_contents": {
                 "kept": "Retained guidance",
-                "removed": "REMOVED SECRET CONTEXT",
             },
-            "source_snapshot": "[Note: Renamed source]\nRetained guidance",
+            "source_snapshot": "REMOVED SECRET CONTEXT",
         }
-    )
+    ).model_dump(exclude_none=True)
+    prompt = director._build_prompt(validated)
 
+    assert validated["source_snapshot"] == "[Note: Renamed source]\nRetained guidance"
     assert "Renamed source" in prompt
     assert "Retained guidance" in prompt
     assert "REMOVED SECRET CONTEXT" not in prompt

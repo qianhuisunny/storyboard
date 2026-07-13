@@ -51,6 +51,36 @@ function truncateWithMarker(value: string, limit: number, marker: string): strin
   return value.slice(0, limit - marker.length) + marker;
 }
 
+function canonicalSourceLabel(source: CanonicalIntakeSource): "File" | "Link" | "Note" {
+  return source.kind === "link" ? "Link" : source.kind === "upload" ? "File" : "Note";
+}
+
+function canonicalSourceHeader(source: CanonicalIntakeSource): string {
+  return `[${canonicalSourceLabel(source)}: ${source.name}]`;
+}
+
+function blockContentForExactSource(
+  block: string,
+  source: CanonicalIntakeSource,
+): string | null {
+  const normalized = block.replace(/\r\n/g, "\n");
+  const header = canonicalSourceHeader(source);
+  if (normalized === header) return "";
+  if (!normalized.startsWith(`${header}\n`)) return null;
+  return normalized.slice(header.length + 1).trim();
+}
+
+function contentFromSingleFallbackBlock(block: string): string {
+  const normalized = block.replace(/\r\n/g, "\n").trim();
+  const firstNewline = normalized.indexOf("\n");
+  if (firstNewline < 0) return normalized;
+  const firstLine = normalized.slice(0, firstNewline);
+  const isKnownHeader = ["[File: ", "[Link: ", "[Note: "].some(
+    (prefix) => firstLine.startsWith(prefix) && firstLine.endsWith("]"),
+  );
+  return isKnownHeader ? normalized.slice(firstNewline + 1).trim() : normalized;
+}
+
 export function normalizeCanonicalSourceContents(
   sources: CanonicalIntakeSource[],
   sourceContents: Record<string, string>,
@@ -78,26 +108,72 @@ export function normalizeCanonicalSourceContents(
   return normalized;
 }
 
+export interface SourceContentMigration {
+  sourceContents: Record<string, string>;
+  complete: boolean;
+}
+
 export function sourceContentsFromIntake(
   content: CanonicalIntakeContent,
-): Record<string, string> {
+): SourceContentMigration {
   if (content.source_contents !== undefined) {
-    return normalizeCanonicalSourceContents(content.sources, content.source_contents);
+    return {
+      sourceContents: normalizeCanonicalSourceContents(content.sources, content.source_contents),
+      complete: true,
+    };
   }
 
   const readySources = content.sources.filter((source) => source.status === "ready");
-  const sections = typeof content.source_snapshot === "string"
-    ? content.source_snapshot.split(/\r?\n\r?\n---\r?\n\r?\n/)
-    : [];
+  const snapshot = typeof content.source_snapshot === "string"
+    ? content.source_snapshot.trim()
+    : "";
+  if (!snapshot) return { sourceContents: {}, complete: true };
+
+  const startsWithKnownHeader = ["[File: ", "[Link: ", "[Note: "].some(
+    (prefix) => snapshot.startsWith(prefix),
+  );
+  if (readySources.length === 1 && !startsWithKnownHeader) {
+    return {
+      sourceContents: normalizeCanonicalSourceContents(
+        content.sources,
+        { [readySources[0].id]: snapshot },
+      ),
+      complete: true,
+    };
+  }
+
+  const sections = snapshot
+    .split(/\r?\n\r?\n---\r?\n\r?\n/)
+    .filter((section) => section.trim());
   const migrated: Record<string, string> = {};
-  readySources.forEach((source, index) => {
-    const section = sections[index];
-    if (!section) return;
-    const match = section.match(/^\[(?:File|Link|Note):[^\]]*\]\r?\n([\s\S]*)$/);
-    const extracted = (match?.[1] ?? "").trim();
-    if (extracted) migrated[source.id] = extracted;
-  });
-  return normalizeCanonicalSourceContents(content.sources, migrated);
+  const usedSourceIds = new Set<string>();
+  const unmatchedSections: string[] = [];
+
+  for (const section of sections) {
+    const matchedSource = readySources.find((source) => (
+      !usedSourceIds.has(source.id)
+      && blockContentForExactSource(section, source) !== null
+    ));
+    if (!matchedSource) {
+      unmatchedSections.push(section);
+      continue;
+    }
+    usedSourceIds.add(matchedSource.id);
+    const extracted = blockContentForExactSource(section, matchedSource);
+    if (extracted) migrated[matchedSource.id] = extracted;
+  }
+
+  const unmatchedSources = readySources.filter((source) => !usedSourceIds.has(source.id));
+  if (unmatchedSections.length === 1 && unmatchedSources.length === 1) {
+    const fallback = contentFromSingleFallbackBlock(unmatchedSections[0]);
+    if (fallback) migrated[unmatchedSources[0].id] = fallback;
+    unmatchedSections.length = 0;
+  }
+
+  return {
+    sourceContents: normalizeCanonicalSourceContents(content.sources, migrated),
+    complete: unmatchedSections.length === 0,
+  };
 }
 
 export function deriveCanonicalSourceSnapshot(
@@ -108,8 +184,7 @@ export function deriveCanonicalSourceSnapshot(
     if (source.status !== "ready") return [];
     const extracted = sourceContents[source.id];
     if (!extracted) return [];
-    const label = source.kind === "link" ? "Link" : source.kind === "upload" ? "File" : "Note";
-    return [`[${label}: ${source.name}]\n${extracted}`];
+    return [`${canonicalSourceHeader(source)}\n${extracted}`];
   });
   return truncateWithMarker(
     blocks.join("\n\n---\n\n"),

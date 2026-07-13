@@ -438,9 +438,7 @@ async def test_real_approve_threads_only_retained_structured_source_context_to_d
             }
         ],
         "source_contents": {"source-1": "Retained launch guidance"},
-        "source_snapshot": (
-            "[Link: Renamed launch playbook]\nRetained launch guidance"
-        ),
+        "source_snapshot": "REMOVED SECRET CONTEXT",
     }
 
     response = await client.post(
@@ -452,7 +450,12 @@ async def test_real_approve_threads_only_retained_structured_source_context_to_d
     )
 
     assert response.status_code == 200
-    assert response.json()["artifacts"]["intake"]["current_content"] == content
+    persisted = response.json()["artifacts"]["intake"]["current_content"]
+    assert persisted["source_contents"] == content["source_contents"]
+    assert persisted["source_snapshot"] == (
+        "[Link: Renamed launch playbook]\nRetained launch guidance"
+    )
+    assert "REMOVED SECRET CONTEXT" not in persisted["source_snapshot"]
     assert "Renamed launch playbook" in prompts[0]
     assert "Retained launch guidance" in prompts[0]
     assert "REMOVED SECRET CONTEXT" not in prompts[0]
