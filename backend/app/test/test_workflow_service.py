@@ -520,6 +520,55 @@ async def test_expired_generation_lease_is_failed_and_retry_can_start(tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_get_project_expires_and_persists_an_abandoned_generation_lease(tmp_path):
+    engine, sessions = await _workflow_database(tmp_path)
+    service = WorkflowService(sessions, _outline, _storyboard)
+    initial = await service.process_event(
+        "workflow-project",
+        "approve_intake",
+        {"content": {"prompt": "Observe lease"}, "expected_version_id": None},
+    )
+    intake_id = initial["artifacts"]["intake"]["approved_version_id"]
+
+    async with sessions() as session:
+        repo = ProjectRepository(session)
+        row = await repo.get_pipeline_state("workflow-project")
+        state = StoryboardState(**repo.parse_state_data(row))
+        state.job = JobOverlay(
+            status="running",
+            job_id="abandoned-read-job",
+            kind="outline",
+            input_version_id=intake_id,
+            target_version_id=initial["artifacts"]["outline"]["current_version_id"],
+            started_at=(
+                datetime.now(timezone.utc) - timedelta(minutes=16)
+            ).isoformat(),
+        )
+        await repo.update_pipeline_state(
+            "workflow-project",
+            "outline",
+            "pending",
+            state.model_dump(),
+        )
+
+    observed = await service.get_project("workflow-project")
+    assert observed["job"]["status"] == "failed"
+    assert observed["job"]["error"] == "Generation job lease expired"
+
+    reloaded = await service.get_project("workflow-project")
+    assert reloaded["job"] == observed["job"]
+
+    async with sessions() as session:
+        repo = ProjectRepository(session)
+        row = await repo.get_pipeline_state("workflow-project")
+        persisted = StoryboardState(**repo.parse_state_data(row))
+        assert persisted.job.status == "failed"
+        assert persisted.job.error == "Generation job lease expired"
+
+    await engine.dispose()
+
+
+@pytest.mark.asyncio
 async def test_cancelled_generation_persists_failure_and_preserves_current(tmp_path):
     engine, sessions = await _workflow_database(tmp_path)
     service = WorkflowService(sessions, _outline, _storyboard)
@@ -681,6 +730,7 @@ async def test_late_result_is_history_only_when_input_and_job_have_changed(tmp_p
             job_id="replacement-job",
             kind="outline",
             input_version_id=replacement.id,
+            started_at=datetime.now(timezone.utc).isoformat(),
         )
         await repo.update_pipeline_state(
             "workflow-project", "outline", "pending", state.model_dump(), commit=False

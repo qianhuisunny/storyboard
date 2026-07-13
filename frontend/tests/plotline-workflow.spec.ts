@@ -132,6 +132,7 @@ type MockOptions = {
   deferFirstStoryboardSave?: boolean;
   deferSecondStoryboardSave?: boolean;
   startFromCreate?: boolean;
+  settleRunningJobAfterReads?: number;
 };
 
 async function mockWorkflow(page: Page, options: MockOptions = {}) {
@@ -174,6 +175,7 @@ async function mockWorkflow(page: Page, options: MockOptions = {}) {
   let releaseStoryboardRevision: (() => void) | null = null;
   let releaseFirstStoryboardSave: (() => void) | null = null;
   let storyboardSaveCount = 0;
+  let pipelineReadCount = 0;
 
   const refresh = () => {
     workflow = workflowBody(stage, outline, storyboard, job, intake);
@@ -195,7 +197,18 @@ async function mockWorkflow(page: Page, options: MockOptions = {}) {
     stages: { 2: { aiVersion: "STALE SNAPSHOT MUST NOT RENDER", humanVersion: null } },
     currentStageId: 1,
   }));
-  await page.route(`**/api/project/${PROJECT_ID}/pipeline-state`, (route) => json(route, workflow));
+  await page.route(`**/api/project/${PROJECT_ID}/pipeline-state`, (route) => {
+    pipelineReadCount += 1;
+    if (
+      options.settleRunningJobAfterReads
+      && pipelineReadCount >= options.settleRunningJobAfterReads
+      && job.status === "running"
+    ) {
+      job = { status: "idle", job_id: null, kind: null, input_version_id: null, error: null };
+      refresh();
+    }
+    return json(route, workflow);
+  });
   await page.route(`**/api/project/${PROJECT_ID}/event`, async (route) => {
     const request = route.request().postDataJSON() as EventRequest;
     events.push(request);
@@ -363,6 +376,7 @@ async function mockWorkflow(page: Page, options: MockOptions = {}) {
     releaseStoryboardRevision: () => releaseStoryboardRevision?.(),
     releaseFirstStoryboardSave: () => releaseFirstStoryboardSave?.(),
     releaseSecondStoryboardSave: () => releaseFirstStoryboardSave?.(),
+    getPipelineReadCount: () => pipelineReadCount,
     forceComplete() {
       stage = "complete";
       workflow = workflowBody(stage, outline, storyboard, job, intake);
@@ -829,6 +843,20 @@ test("a backend-observed running job locks every canonical mutation action", asy
   await expect(page.getByRole("button", { name: "Approve & Finalize Storyboard" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Regenerate storyboard" })).toBeDisabled();
   await expect(page.getByRole("button", { name: "Keep as-is" })).toBeDisabled();
+});
+
+test("a refreshed tab polls a running canonical job until the backend settles it", async ({ page }) => {
+  const mock = await mockWorkflow(page, {
+    initialStage: "outline",
+    initialJob: { status: "running", job_id: "outline-running", kind: "outline", input_version_id: "intake-v1", error: null },
+    settleRunningJobAfterReads: 2,
+  });
+  await page.goto(`/storyboard/${PROJECT_ID}`);
+
+  await expect(page.getByText("Generating your outline", { exact: true })).toBeVisible();
+  await expect(page.getByText("Generating your outline", { exact: true })).toBeHidden({ timeout: 5_000 });
+  await expect(page.getByRole("button", { name: "Approve & Generate Storyboard" })).toBeEnabled();
+  expect(mock.getPipelineReadCount()).toBeGreaterThanOrEqual(2);
 });
 
 test("the version-conflict dialog traps focus, closes on Escape, and restores focus", async ({ page }) => {

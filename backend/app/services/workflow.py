@@ -12,7 +12,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.db.engine import AsyncSessionLocal
-from app.db.repository import ProjectRepository
+from app.db.repository import PipelineStateConflictError, ProjectRepository
 from app.services.state import JobOverlay, StateManager, StoryboardState
 
 
@@ -248,6 +248,15 @@ class WorkflowService:
         async with self.sessionmaker() as session:
             repo = ProjectRepository(session)
             state = await self._load_state(repo, project_id)
+            if self._expire_generation_lease(state):
+                try:
+                    await self._persist_state(repo, state)
+                    await session.commit()
+                except PipelineStateConflictError:
+                    # A concurrent transition won the compare-and-swap. Return
+                    # that newer state instead of overwriting it from a read.
+                    await session.rollback()
+                    state = await self._load_state(repo, project_id)
             versions = {
                 artifact_type: await repo.list_artifact_versions(
                     project_id, artifact_type

@@ -25,6 +25,7 @@ const INITIAL_STAGES: Stage[] = [
   { id: 3, name: "Storyboard", description: "Edit visuals and scripts", status: "not_started" },
   { id: 4, name: "Complete", description: "Review and export", status: "not_started" },
 ];
+const RUNNING_JOB_POLL_INTERVAL_MS = 1_000;
 
 interface StageData {
   aiVersion: string | null;
@@ -479,6 +480,48 @@ export default function StageLayout() {
       status: stageView.stageStatuses[stage.id] ?? stage.status,
     })));
   }, []);
+
+  useEffect(() => {
+    if (
+      !projectId
+      || workflowLoadState !== "canonical"
+      || workflowState?.job.status !== "running"
+    ) return;
+
+    let active = true;
+    let timerId: number | undefined;
+    const controller = new AbortController();
+    const poll = async () => {
+      try {
+        const nextWorkflow = await getWorkflow(projectId, fetch, controller.signal);
+        if (active) handleWorkflowChange(nextWorkflow);
+      } catch (error) {
+        if (
+          active
+          && !(error instanceof DOMException && error.name === "AbortError")
+        ) {
+          console.error("Failed to refresh running workflow job:", error);
+        }
+      } finally {
+        if (active) {
+          timerId = window.setTimeout(
+            () => void poll(),
+            RUNNING_JOB_POLL_INTERVAL_MS,
+          );
+        }
+      }
+    };
+
+    timerId = window.setTimeout(
+      () => void poll(),
+      RUNNING_JOB_POLL_INTERVAL_MS,
+    );
+    return () => {
+      active = false;
+      controller.abort();
+      if (timerId !== undefined) window.clearTimeout(timerId);
+    };
+  }, [handleWorkflowChange, projectId, workflowLoadState, workflowState?.job.status]);
 
   const surfaceWorkflowError = useCallback((caught: unknown, stageId: 2 | 3, content: string) => {
     if (caught instanceof WorkflowConflictError && caught.code === "version_conflict") {
