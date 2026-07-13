@@ -1,143 +1,299 @@
+from pathlib import Path
+
 import pytest
 
-from app.services.quality_gate import DimensionScore, GutScore, QualityEvalResult, QualityGate
-from app.services.state import StateManager
+from app.services.orchestrator import StoryboardOrchestrator
+from app.services.quality_gate import QualityGate
 
 
-class DummyAgent:
-    def __init__(self):
-        self.system_prompt = "SYSTEM"
-        self.calls = 0
+VALID_OUTLINE = """Section 1 — Set up
 
-    def run(self, state):
-        self.calls += 1
-        return "outline text"
+Purpose
+Frame the problem with a concrete example.
 
+Entry assumption
+None — cold open.
 
-def _failed_grade(score: float = 6.2) -> QualityEvalResult:
-    return QualityEvalResult(
-        passed=False,
-        gut=GutScore(score=score, feedback="The outline feels unfinished."),
-        dimensions=[
-            DimensionScore(
-                dimension="narrative_completeness",
-                score=5.0,
-                feedback="The ending feels cut off before the final takeaway lands.",
-            )
-        ],
-        composite_score=score,
-        attempt=0,
-        total_attempts=0,
-    )
+Exit state
+The viewer recognizes the failure mode.
 
+Duration
+4
 
-class FailingQualityGate:
-    async def run_with_gate(self, agent, state, stage, **kwargs):
-        output = agent.run(state)
-        return output, _failed_grade()
+Talking points
+- Show the failed handoff.
 
+Section 2 — Act
 
-def test_outline_dimensions_include_narrative_completeness():
-    from app.services.quality_gate import OUTLINE_DIMENSIONS
+Purpose
+Give the viewer one usable next step.
 
-    assert any(name == "narrative_completeness" for name, _desc in OUTLINE_DIMENSIONS)
+Entry assumption
+The viewer recognizes the failure mode.
+
+Exit state
+The viewer can run the check today.
+
+Duration
+6 seconds
+
+Talking points
+- Run the handoff check before launch.
+"""
 
 
-def test_brief_context_includes_duration_and_ordered_talking_points():
-    gate = QualityGate()
-    brief = {
-        "fields": {
-            "viewer_outcome": {"value": "Help PMs explain the strategy", "source": "extracted", "confirmed": True},
-            "target_audience": {"value": "Product managers", "source": "extracted", "confirmed": True},
-            "audience_level": {"value": "intermediate", "source": "extracted", "confirmed": True},
-            "point_of_view": {"value": "Use narrative examples, not feature lists", "source": "generated", "confirmed": True},
-            "duration": {"value": "180", "source": "extracted", "confirmed": True},
-            "misconceptions": {"value": "A conclusion can just restate the body", "source": "generated", "confirmed": True},
-            "must_avoid": {"value": ["generic inspiration"], "source": "generated", "confirmed": True},
-            "core_talking_points": {
-                "value": ["Open with a painful failure mode", "Show the decision framework", "Close with one concrete next step"],
-                "source": "generated",
-                "confirmed": True,
-            },
-        }
+def _screen(number: int = 1, **updates) -> dict:
+    screen = {
+        "screen_number": number,
+        "section_number": 1,
+        "section_title": "Set up",
+        "screen_type": "slides",
+        "voiceover_text": "Here is the failed handoff and why it matters.",
+        "visual_direction": ["Two-column handoff diagram"],
+        "action_notes": "Reveal the missing owner.",
     }
-
-    context = gate._build_brief_context(brief)
-
-    assert "Target duration (seconds): 180" in context
-    assert "Core talking points in order:" in context
-    assert "1. Open with a painful failure mode" in context
-    assert "3. Close with one concrete next step" in context
-    assert "Must avoid:\n- generic inspiration" in context
+    screen.update(updates)
+    return screen
 
 
-@pytest.mark.asyncio
-async def test_run_with_gate_retries_failed_output():
-    gate = QualityGate(max_attempts=2)
-    agent = DummyAgent()
+class SequenceAgent:
+    def __init__(self, outputs):
+        self.outputs = list(outputs)
+        self.calls = []
+        self.system_prompt = "UNCHANGED SYSTEM PROMPT"
 
-    async def fake_evaluate(stage, brief, output, outline=None):
-        return _failed_grade()
-
-    gate.evaluate = fake_evaluate
-
-    output, result = await gate.run_with_gate(agent=agent, state=type("State", (), {"story_brief": {}})(), stage="outline")
-
-    assert output == "outline text"
-    assert result.passed is False
-    assert result.total_attempts == 2
-    assert agent.calls == 2
+    def run(self, state, **kwargs):
+        self.calls.append(kwargs)
+        index = min(len(self.calls) - 1, len(self.outputs) - 1)
+        return self.outputs[index]
 
 
-@pytest.mark.asyncio
-async def test_run_with_gate_restores_prompt_when_retry_agent_raises():
-    gate = QualityGate(max_attempts=2)
+def test_outline_deterministic_validation_covers_contract_and_exact_duration():
+    gate = QualityGate()
 
-    class ExplodingRetryAgent(DummyAgent):
-        def run(self, state):
-            self.calls += 1
-            if self.calls == 2:
-                raise RuntimeError("retry generation failed")
-            return "first outline"
-
-    agent = ExplodingRetryAgent()
-
-    async def fake_evaluate(stage, brief, output, outline=None):
-        return _failed_grade()
-
-    gate.evaluate = fake_evaluate
-
-    with pytest.raises(RuntimeError, match="retry generation failed"):
-        await gate.run_with_gate(
-            agent=agent,
-            state=type("State", (), {"story_brief": {}})(),
-            stage="outline",
-        )
-
-    assert agent.system_prompt == "SYSTEM"
-
-
-@pytest.mark.asyncio
-async def test_orchestrator_stops_when_outline_quality_gate_fails(make_orchestrator, make_state, patch_state_manager):
-    orch = make_orchestrator()
-    orch.quality_gate = FailingQualityGate()
-
-    manager = StateManager("test-project")
-    state = make_state(
-        phase="gate1",
-        story_brief={"fields": {
-            "viewer_outcome": {"value": "Learn ML", "source": "extracted", "confirmed": True},
-            "target_audience": {"value": "Engineers", "source": "extracted", "confirmed": True},
-            "core_talking_points": {"value": ["Hook", "Body", "Closing"], "source": "generated", "confirmed": True},
-        }},
-        brief_locked=True,
+    assert gate.validate_structure(
+        "outline", {"duration_seconds": 10}, VALID_OUTLINE
+    ) == []
+    assert gate.validate_structure(
+        "outline", {"duration_seconds": 11}, VALID_OUTLINE
+    ) == ["Outline section durations total 10 seconds; expected exactly 11 seconds"]
+    assert gate.validate_structure("outline", {}, "not an outline")
+    assert gate.validate_structure(
+        "outline", {}, VALID_OUTLINE.replace("Frame the problem with a concrete example.", "")
     )
-    await manager.save(state)
+    assert gate.validate_structure(
+        "outline", {}, VALID_OUTLINE.replace("4", "0", 1)
+    )
+    assert gate.validate_structure(
+        "outline", {}, VALID_OUTLINE.replace("- Show the failed handoff.", "")
+    )
 
-    result = await orch.process_event("test-project", "approve", {})
-    reloaded = await manager.load()
 
-    assert result["success"] is False
-    assert "quality gate failed" in result["error"].lower()
-    assert reloaded.phase == "gate1"
-    assert reloaded.screen_outline is None
+@pytest.mark.parametrize(
+    "storyboard",
+    [
+        [],
+        ["not a screen"],
+        [{key: value for key, value in _screen().items() if key != "action_notes"}],
+        [_screen(screen_number=2)],
+        [_screen(screen_type="unsupported_format")],
+        [_screen(visual_direction="not a list")],
+        [_screen(duration=0)],
+    ],
+)
+def test_storyboard_deterministic_validation_rejects_structural_errors(storyboard):
+    assert QualityGate().validate_structure("storyboard", {}, storyboard)
+
+
+def test_storyboard_deterministic_validation_accepts_server_computed_fields_as_optional():
+    gate = QualityGate()
+
+    assert gate.validate_structure("storyboard", {}, [_screen()]) == []
+    assert gate.validate_structure(
+        "storyboard",
+        {},
+        [_screen(duration=3.5, on_screen_visual="/placeholder.png")],
+    ) == []
+
+
+@pytest.mark.asyncio
+async def test_evaluate_runs_one_holistic_review_without_dimensions_and_includes_outline(monkeypatch):
+    gate = QualityGate()
+    calls = []
+
+    async def fake_call(stage, prompt, label="holistic"):
+        calls.append((stage, prompt, label))
+        return {
+            "score": 8.5,
+            "passed": True,
+            "feedback": "The storyboard is clear and faithful.",
+            "strengths": ["Concrete visual progression"],
+            "issues": [],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", fake_call)
+    result = await gate.evaluate(
+        "storyboard",
+        {"prompt": "Explain handoffs", "duration_seconds": 10},
+        [_screen()],
+        outline=VALID_OUTLINE,
+    )
+
+    assert len(calls) == 1
+    assert VALID_OUTLINE in calls[0][1]
+    assert "Here is the failed handoff" in calls[0][1]
+    assert "Mode:" not in calls[0][1]
+    assert result.passed is True
+    assert result.review_passed is True
+    assert result.advisory is False
+    assert result.dimensions is None
+    assert result.strengths == ["Concrete visual progression"]
+    assert result.issues == []
+    assert result.to_dict()["review_passed"] is True
+
+
+@pytest.mark.asyncio
+async def test_structural_failure_retries_once_without_calling_reviewer(monkeypatch):
+    gate = QualityGate(max_attempts=9)
+    agent = SequenceAgent(["invalid", VALID_OUTLINE])
+    review_calls = []
+
+    async def fake_call(*args, **kwargs):
+        review_calls.append((args, kwargs))
+        return {
+            "score": 9,
+            "passed": True,
+            "feedback": "Ready.",
+            "strengths": [],
+            "issues": [],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", fake_call)
+    state = type("State", (), {"story_brief": {"duration_seconds": 10}})()
+
+    output, result = await gate.run_with_gate(agent, state, "outline")
+
+    assert gate.max_attempts == 2
+    assert output == VALID_OUTLINE
+    assert result.passed is True
+    assert len(agent.calls) == 2
+    assert "quality_feedback" in agent.calls[1]
+    assert "structural" in agent.calls[1]["quality_feedback"].lower()
+    assert len(review_calls) == 1
+    assert agent.system_prompt == "UNCHANGED SYSTEM PROMPT"
+
+
+@pytest.mark.asyncio
+async def test_second_structural_failure_remains_blocking_and_skips_review(monkeypatch):
+    gate = QualityGate()
+    agent = SequenceAgent(["invalid one", "invalid two"])
+    review_calls = []
+    monkeypatch.setattr(
+        gate,
+        "_async_call_eval",
+        lambda *args, **kwargs: review_calls.append((args, kwargs)),
+    )
+    state = type("State", (), {"story_brief": {"duration_seconds": 10}})()
+
+    output, result = await gate.run_with_gate(agent, state, "outline")
+
+    assert output == "invalid two"
+    assert result.passed is False
+    assert result.review_passed is False
+    assert result.advisory is False
+    assert result.deterministic_issues
+    assert result.attempt == 2
+    assert result.total_attempts == 2
+    assert len(review_calls) == 0
+
+
+@pytest.mark.asyncio
+async def test_second_subjective_failure_is_advisory_and_nonblocking(monkeypatch):
+    gate = QualityGate()
+    agent = SequenceAgent([VALID_OUTLINE, VALID_OUTLINE])
+    review_calls = []
+
+    async def low_review(stage, prompt, label="holistic"):
+        review_calls.append((stage, prompt, label))
+        return {
+            "score": 5.5,
+            "passed": False,
+            "feedback": "The opening still feels generic.",
+            "strengths": ["Clear ending"],
+            "issues": ["Opening lacks tension"],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", low_review)
+    state = type("State", (), {"story_brief": {"duration_seconds": 10}})()
+
+    output, result = await gate.run_with_gate(agent, state, "outline")
+
+    assert output == VALID_OUTLINE
+    assert len(review_calls) == 2
+    assert len(agent.calls) == 2
+    assert agent.calls[0] == {}
+    assert "The opening still feels generic." in agent.calls[1]["quality_feedback"]
+    assert result.passed is True
+    assert result.review_passed is False
+    assert result.advisory is True
+    assert result.composite_score == 5.5
+    assert result.feedback == "The opening still feels generic."
+    assert result.dimensions is None
+    assert agent.system_prompt == "UNCHANGED SYSTEM PROMPT"
+
+
+@pytest.mark.asyncio
+async def test_direct_evaluate_subjective_miss_is_advisory_for_workflow_revision(monkeypatch):
+    gate = QualityGate()
+
+    async def low_review(*_args, **_kwargs):
+        return {
+            "score": 6,
+            "passed": False,
+            "feedback": "Could be sharper.",
+            "strengths": [],
+            "issues": ["Generic opening"],
+        }
+
+    monkeypatch.setattr(gate, "_async_call_eval", low_review)
+    result = await gate.evaluate(
+        "outline", {"duration_seconds": 10}, VALID_OUTLINE
+    )
+
+    assert result.passed is True
+    assert result.review_passed is False
+    assert result.advisory is True
+    StoryboardOrchestrator()._raise_if_quality_gate_failed("Outline", result)
+
+
+def test_orchestrator_blocks_structural_failure():
+    gate = QualityGate()
+    result = gate._structural_failure_result(
+        ["Could not parse any Section blocks"], attempt=2
+    )
+
+    with pytest.raises(ValueError, match="quality gate failed"):
+        StoryboardOrchestrator()._raise_if_quality_gate_failed("Outline", result)
+
+
+def test_quality_prompts_are_holistic_and_exclude_legacy_taxonomy():
+    gate = QualityGate()
+    root = Path(__file__).parents[3]
+    banned = (
+        "mode:",
+        "dimension",
+        "point_of_view",
+        "point of view",
+        "intent route",
+        "content mode",
+        "primary_pattern",
+        "secondary_patterns",
+        "core_talking_points",
+        "core talking points",
+        "pattern layer",
+    )
+
+    for filename in gate.stage_prompts.values():
+        prompt = (root / "prompts" / filename).read_text(encoding="utf-8").lower()
+        for term in banned:
+            assert term not in prompt

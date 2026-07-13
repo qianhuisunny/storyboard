@@ -99,4 +99,3 @@ Before outputting, verify:
 - The outline fits the duration exactly
 - Talking points are concrete, not topic labels
 - `must_avoid` is respected
-

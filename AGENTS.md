@@ -193,11 +193,11 @@ BriefBuilder         → structures a creative brief from intake form (chat-base
       ↓ brief
 StoryboardDirector   → determines scene structure and flow
       ↓ outline
-      [QualityGate]  → auto-grades outline (gut check + 5 dimensions), retries once if below 7.0
+      [QualityGate]  → validates outline structure + one holistic review, retries generation once
       ↓ graded outline
 StoryboardWriter     → writes detailed screen-by-screen content (includes duration calculation)
       ↓ storyboard
-      [QualityGate]  → auto-grades storyboard (5 dimensions) + cross-stage handoff check
+      [QualityGate]  → validates storyboard structure + one holistic review with outline context
       ↓ final_storyboard
 ```
 
@@ -210,9 +210,9 @@ Note: All LLM calls use OpenAI gpt-4o (Anthropic API deactivated). Model set in 
 | Agent / Service | Prompt File |
 |-----------|------------|
 | `agents/brief_builder.py` | `prompts/CONTENT_SPINE_PROMPT_v0603.md` (Round 3 only; Rounds 1-2 are deterministic route-aware seeds) |
-| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0603.md` |
-| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0603.md` |
-| `services/quality_gate.py` | `prompts/OUTLINE_EVAL_PROMPT_v0419.md` (outline), `prompts/STORYBOARD_EVAL_PROMPT.md` (storyboard) |
+| `agents/storyboard_director.py` | `prompts/storyboard_director_prompt_v0712.md` |
+| `agents/storyboard_writer.py` | `prompts/storyboard_writer_prompt_v0712.md` |
+| `services/quality_gate.py` | `prompts/OUTLINE_EVAL_PROMPT_v0712.md` (outline), `prompts/STORYBOARD_EVAL_PROMPT_v0712.md` (storyboard) |
 | `main.py` (chat-brief endpoint) | `prompts/chat_brief_prompt_v0603.md` |
 
 ### Agent Structure Pattern

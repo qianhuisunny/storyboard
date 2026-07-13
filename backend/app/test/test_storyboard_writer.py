@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -9,6 +10,25 @@ from app.services.workflow import (
     GenerationContext,
     _production_outline_generator,
     _production_storyboard_generator,
+)
+
+
+BANNED_PROMPT_TERMS = (
+    "point_of_view",
+    "point of view",
+    "intent_route",
+    "intent route",
+    "content_mode",
+    "content mode",
+    "video_type",
+    "primary_pattern",
+    "secondary_patterns",
+    "core_talking_points",
+    "core talking points",
+    "misconceptions",
+    "must_avoid",
+    "must avoid",
+    "pattern layer",
 )
 
 
@@ -41,6 +61,155 @@ def _make_screen(voiceover_text: str) -> dict:
         "visual_direction": ["Checklist", "One highlighted next step"],
         "action_notes": "Wrap with a practical action.",
     }
+
+
+def _canonical_intake() -> dict:
+    return {
+        "prompt": "Show founders how to prepare a useful customer interview.",
+        "viewer_outcome": "Draft an interview guide with unbiased questions.",
+        "target_audience": "Early-stage founders",
+        "audience_level": "Beginner",
+        "duration_seconds": 7,
+        "platform": "YouTube",
+        "aspect_ratio": "16:9",
+        "delivery_tone": "Practical and candid",
+        "production_formats": ["slides", "talking_head"],
+        "source_snapshot": "The source highlights three biased question patterns.",
+        "sources": [{"name": "Interview guide", "kind": "url"}],
+        "point_of_view": "legacy value",
+        "intent_route": "tutorial_demo",
+        "content_mode": "educational",
+        "video_type": "knowledge_sharing",
+        "primary_pattern": "steps",
+        "secondary_patterns": ["mistakes"],
+        "core_talking_points": ["legacy required spine"],
+        "misconceptions": "legacy misconception",
+        "must_avoid": ["legacy restriction"],
+    }
+
+
+def _assert_no_banned_terms(text: str) -> None:
+    lowered = text.lower()
+    for term in BANNED_PROMPT_TERMS:
+        assert term not in lowered
+
+
+def test_writer_context_and_prompt_use_canonical_intake_and_sources_only():
+    writer = StoryboardWriter()
+    intake = _canonical_intake()
+    sections = writer.validate_outline_contract(VALID_OUTLINE)
+    allowed_types = writer._get_allowed_screen_types(intake)
+    writer._compute_section_budgets(sections, allowed_types)
+
+    context = writer._extract_brief_context(intake)
+    prompt = writer._build_full_storyboard_prompt(
+        sections=sections,
+        all_evidence={},
+        full_outline=VALID_OUTLINE,
+        brief_context=context,
+        allowed_types=allowed_types,
+        target_duration=writer._get_target_duration(intake),
+    )
+
+    assert set(context) == {
+        "prompt",
+        "viewer_outcome",
+        "target_audience",
+        "audience_level",
+        "duration_seconds",
+        "platform",
+        "aspect_ratio",
+        "delivery_tone",
+        "production_formats",
+        "source_snapshot",
+        "sources",
+    }
+    for expected in (
+        "Show founders how to prepare a useful customer interview.",
+        "Draft an interview guide with unbiased questions.",
+        "Early-stage founders",
+        "Beginner",
+        "7",
+        "YouTube",
+        "16:9",
+        "Practical and candid",
+        "slides",
+        "talking_head",
+        "The source highlights three biased question patterns.",
+        "Interview guide",
+        VALID_OUTLINE,
+    ):
+        assert expected in prompt
+    _assert_no_banned_terms(prompt)
+
+
+def test_writer_screen_types_prefer_canonical_formats_with_legacy_fallback():
+    writer = StoryboardWriter()
+
+    assert writer._get_allowed_screen_types(
+        {
+            "production_formats": ["slides"],
+            "on_camera_presence": "yes",
+        }
+    ) == ["slides"]
+    assert writer._get_allowed_screen_types(
+        {
+            "fields": {
+                "broll_type": {"value": ["whiteboard", "screen_recording"]},
+                "on_camera_presence": {"value": "yes"},
+            }
+        }
+    ) == ["whiteboard_animation", "screen_recording", "talking_head"]
+    assert writer._get_allowed_screen_types({}) == [
+        "slides",
+        "whiteboard_animation",
+    ]
+
+
+def test_writer_update_prompt_preserves_unaffected_screens_and_exact_schema():
+    writer = StoryboardWriter()
+    intake = _canonical_intake()
+    sections = writer.validate_outline_contract(VALID_OUTLINE)
+    allowed_types = writer._get_allowed_screen_types(intake)
+    writer._compute_section_budgets(sections, allowed_types)
+    existing = [_make_screen("Keep this opening exactly as written.")]
+
+    prompt = writer._build_full_storyboard_prompt(
+        sections=sections,
+        all_evidence={},
+        full_outline=VALID_OUTLINE,
+        brief_context=writer._extract_brief_context(intake),
+        allowed_types=allowed_types,
+        target_duration=7,
+        revision_instruction="Change only the final action.",
+        existing_storyboard=existing,
+        quality_feedback="The previous ending was vague.",
+    )
+
+    assert "EXISTING STORYBOARD" in prompt
+    assert "Keep this opening exactly as written." in prompt
+    assert "Change only the final action." in prompt
+    assert "preserve unaffected screens" in prompt.lower()
+    assert "The previous ending was vague." in prompt
+    for field in (
+        "screen_number",
+        "section_number",
+        "section_title",
+        "screen_type",
+        "voiceover_text",
+        "visual_direction",
+        "action_notes",
+    ):
+        assert field in prompt
+    _assert_no_banned_terms(prompt)
+
+
+def test_writer_active_system_prompt_excludes_legacy_taxonomy():
+    writer = StoryboardWriter()
+    prompt_path = Path(__file__).parents[3] / "prompts" / writer.prompt_file
+    prompt = prompt_path.read_text(encoding="utf-8")
+
+    _assert_no_banned_terms(prompt)
 
 
 def test_validate_outline_contract_rejects_invalid_duration():
@@ -238,6 +407,7 @@ def test_duration_retry_keeps_revision_and_existing_screen_context(monkeypatch):
     )
     existing = [_make_screen("Distinct existing screen to preserve")]
     instruction = "Keep the original example and sharpen only the closing action."
+    quality_feedback = "The previous draft did not land a specific next step."
     retry_prompts = []
 
     monkeypatch.setattr(
@@ -273,9 +443,12 @@ def test_duration_retry_keeps_revision_and_existing_screen_context(monkeypatch):
         state,
         revision_instruction=instruction,
         existing_storyboard=existing,
+        quality_feedback=quality_feedback,
     )
 
     assert retry_prompts
     assert instruction in retry_prompts[0]
+    assert quality_feedback in retry_prompts[0]
     assert "Distinct existing screen to preserve" in retry_prompts[0]
     assert "The current draft needs focused revision" in retry_prompts[0]
+    _assert_no_banned_terms(retry_prompts[0])
