@@ -69,7 +69,7 @@ function App() {
         {/* Main Content */}
         <div className="flex-1 overflow-auto">
           <Routes>
-            <Route path="/" element={<OnboardingPage />} />
+            <Route path="/" element={<Navigate to="/projects" replace />} />
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />

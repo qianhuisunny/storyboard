@@ -64,6 +64,47 @@ async def _establish_session(client: AsyncClient) -> None:
 
 
 @pytest.mark.asyncio
+async def test_returning_browser_identity_recovers_projects_after_cookie_loss(
+    isolated_api,
+):
+    owner, _ = isolated_api
+    legacy_user_id = f"anon_{uuid4()}"
+    first_session = await owner.post(
+        "/api/session",
+        json={"legacy_user_id": legacy_user_id},
+    )
+    assert first_session.status_code == 200
+
+    created = await owner.post(
+        "/api/create-project",
+        json={
+            "projectId": "recover-after-cookie-loss",
+            "typeId": 1,
+            "typeName": "Video storyboard",
+            "userInput": "Recover me",
+        },
+    )
+    assert created.status_code == 200
+
+    owner.cookies.clear()
+    recovered_session = await owner.post(
+        "/api/session",
+        json={"legacy_user_id": legacy_user_id},
+    )
+    assert recovered_session.status_code == 200
+    assert "plotline_session=" in recovered_session.headers["set-cookie"]
+
+    recovered_project = await owner.get(
+        "/api/project/recover-after-cookie-loss"
+    )
+    assert recovered_project.status_code == 200
+    projects = await owner.get("/api/projects")
+    assert [item["id"] for item in projects.json()["projects"]] == [
+        "recover-after-cookie-loss"
+    ]
+
+
+@pytest.mark.asyncio
 async def test_opaque_sessions_isolate_every_project_surface(isolated_api):
     owner, other = isolated_api
     await _establish_session(owner)
