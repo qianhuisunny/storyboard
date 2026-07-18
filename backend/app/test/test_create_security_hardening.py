@@ -144,6 +144,54 @@ async def test_opaque_sessions_isolate_every_project_surface(isolated_api):
 
 
 @pytest.mark.asyncio
+async def test_analytics_dashboard_counts_database_projects_per_session(
+    isolated_api,
+):
+    owner, other = isolated_api
+    await _establish_session(owner)
+    await _establish_session(other)
+
+    for project_id in ("analytics-one", "analytics-two"):
+        created = await owner.post(
+            "/api/create-project",
+            json={
+                "projectId": project_id,
+                "typeId": 1,
+                "typeName": "Video storyboard",
+                "userInput": project_id,
+            },
+        )
+        assert created.status_code == 200
+
+    other_created = await other.post(
+        "/api/create-project",
+        json={
+            "projectId": "analytics-private",
+            "typeId": 1,
+            "typeName": "Video storyboard",
+            "userInput": "private",
+        },
+    )
+    assert other_created.status_code == 200
+
+    owner_dashboard = await owner.get(
+        "/api/admin/analytics/dashboard?range=30d"
+    )
+    assert owner_dashboard.status_code == 200, owner_dashboard.text
+    owner_data = owner_dashboard.json()
+    assert owner_data["total_projects"] == 2
+    assert owner_data["completed_projects"] == 0
+    assert owner_data["funnel"]["stage_1"] == 2
+    assert owner_data["funnel"]["stage_2"] == 0
+
+    other_dashboard = await other.get(
+        "/api/admin/analytics/dashboard?range=all"
+    )
+    assert other_dashboard.status_code == 200
+    assert other_dashboard.json()["total_projects"] == 1
+
+
+@pytest.mark.asyncio
 async def test_session_rejects_caller_claimed_signed_in_identity(isolated_api):
     owner, _ = isolated_api
     response = await owner.post(

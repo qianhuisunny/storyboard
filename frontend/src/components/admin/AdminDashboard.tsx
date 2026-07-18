@@ -24,7 +24,7 @@ import {
   AlertCircle,
   ShieldCheck,
 } from "lucide-react";
-import { getAnonymousUserId } from "@/lib/anonymousUser";
+import { ensureSession } from "@/lib/session";
 
 // Types
 interface DashboardData {
@@ -55,10 +55,10 @@ const TIME_RANGE_OPTIONS: { value: TimeRange; label: string }[] = [
 
 export function AdminDashboard() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [userId] = useState(() => getAnonymousUserId());
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const timeRange = (searchParams.get("range") as TimeRange) || "30d";
 
@@ -83,13 +83,9 @@ export function AdminDashboard() {
       setError(null);
 
       try {
+        await ensureSession();
         const response = await fetch(
-          `/api/admin/analytics/dashboard?range=${timeRange}`,
-          {
-            headers: {
-              "X-User-Id": userId,
-            },
-          }
+          `/api/admin/analytics/dashboard?range=${timeRange}`
         );
 
         if (!response.ok) {
@@ -109,7 +105,7 @@ export function AdminDashboard() {
     };
 
     fetchData();
-  }, [timeRange, userId]);
+  }, [timeRange, refreshKey]);
 
   useEffect(() => {
     fetch("/api/quality-log/stats/summary")
@@ -120,10 +116,7 @@ export function AdminDashboard() {
 
   const handleRefresh = () => {
     setData(null);
-    setLoading(true);
-    // Trigger refetch
-    const event = new Event("refetch");
-    window.dispatchEvent(event);
+    setRefreshKey((current) => current + 1);
   };
 
   if (error) {
@@ -238,9 +231,8 @@ export function AdminDashboard() {
                   {[
                     { key: 1, label: "Briefing", color: "bg-blue-500", diffable: false },
                     { key: 2, label: "Outline", color: "bg-purple-500", diffable: true, route: "outline" },
-                    { key: 3, label: "Evidence Research", color: "bg-green-500", diffable: false },
-                    { key: 4, label: "Storyboard Draft", color: "bg-yellow-500", diffable: true, route: "storyboard" },
-                    { key: 5, label: "Review & Share", color: "bg-orange-500", diffable: false },
+                    { key: 3, label: "Storyboard Draft", color: "bg-yellow-500", diffable: true, route: "storyboard" },
+                    { key: 4, label: "Review & Share", color: "bg-orange-500", diffable: false },
                   ].map(({ key: stage, label, color, diffable, route }) => {
                     const count = data.funnel?.[`stage_${stage}`] || 0;
                     const total = data.total_projects || 1;

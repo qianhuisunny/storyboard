@@ -39,7 +39,7 @@ from typing import Any, List, Literal, Optional
 import asyncio
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from uuid import uuid4
 from dotenv import load_dotenv
@@ -135,6 +135,112 @@ def _frontend_stage_summary(phase: Optional[str], state_data: dict) -> tuple[int
     current_stage, statuses = _frontend_stage_view(phase, state_data)
     approved_count = sum(1 for status in statuses if status.get("status") == "approved")
     return current_stage, int((approved_count / 4) * 100)
+
+
+def _analytics_cutoff(time_range: str) -> Optional[datetime]:
+    """Return a UTC-naive cutoff matching the database's project timestamps."""
+    days = {"7d": 7, "30d": 30, "90d": 90}
+    if time_range == "all":
+        return None
+    return datetime.utcnow() - timedelta(days=days[time_range])
+
+
+def _is_at_or_after(
+    value: Optional[datetime | str],
+    cutoff: Optional[datetime],
+) -> bool:
+    if cutoff is None:
+        return True
+    if value is None:
+        return False
+    comparable = (
+        datetime.fromisoformat(value.replace("Z", "+00:00"))
+        if isinstance(value, str)
+        else value
+    )
+    if comparable.tzinfo is not None:
+        comparable = comparable.astimezone(timezone.utc).replace(tzinfo=None)
+    return comparable >= cutoff
+
+
+async def _database_dashboard_data(
+    db: AsyncSession,
+    identity: SessionIdentity,
+    time_range: str,
+) -> dict:
+    """Aggregate durable project analytics from the SQL source of truth."""
+    repo = ProjectRepository(db)
+    cutoff = _analytics_cutoff(time_range)
+    projects = [
+        project
+        for project in await repo.list_projects(identity.owner_id)
+        if _is_at_or_after(project.created_at, cutoff)
+    ]
+
+    funnel = {f"stage_{stage}": 0 for stage in range(1, 5)}
+    completed_projects = 0
+    for project in projects:
+        pipeline_state = await repo.get_pipeline_state(project.id)
+        state_data = repo.parse_state_data(pipeline_state) if pipeline_state else {}
+        current_stage, statuses = _frontend_stage_view(
+            pipeline_state.phase if pipeline_state else None,
+            state_data,
+        )
+        highest_stage = max(1, min(4, current_stage))
+        for stage in range(1, highest_stage + 1):
+            funnel[f"stage_{stage}"] += 1
+
+        is_complete = (
+            pipeline_state is not None
+            and pipeline_state.phase in {"complete", "done"}
+        ) or (
+            len(statuses) >= 4
+            and all(status.get("status") == "approved" for status in statuses[:4])
+        )
+        if is_complete:
+            completed_projects += 1
+
+    previous_count = len(projects)
+    dropoff_rates = {}
+    for stage in range(1, 5):
+        current_count = funnel[f"stage_{stage}"]
+        dropoff_rates[f"stage_{stage}"] = (
+            round((1 - current_count / previous_count) * 100, 1)
+            if previous_count
+            else 0
+        )
+        previous_count = current_count
+    funnel["dropoff_rates"] = dropoff_rates
+
+    session_created_at = (
+        await db.execute(
+            text(
+                "SELECT created_at FROM anonymous_sessions "
+                "WHERE id = :session_id"
+            ),
+            {"session_id": identity.id},
+        )
+    ).scalar_one_or_none()
+    new_registrations = int(_is_at_or_after(session_created_at, cutoff))
+    total_projects = len(projects)
+
+    return {
+        "time_range": time_range,
+        "total_projects": total_projects,
+        "completed_projects": completed_projects,
+        "completion_rate": (
+            completed_projects / total_projects if total_projects else 0
+        ),
+        "new_registrations": new_registrations,
+        "avg_rating": 0,
+        "rating_distribution": {rating: 0 for rating in range(1, 6)},
+        "performance_by_stage": {},
+        "behavior_summary": {},
+        "field_edit_patterns": {},
+        "funnel": funnel,
+        "recent_feedback": [],
+    }
+
 
 if os.getenv("SENTRY_DSN"):
     sentry_sdk.init(
@@ -1934,22 +2040,19 @@ def verify_admin(user_id: Optional[str]) -> bool:
 
 @app.get("/api/admin/analytics/dashboard")
 async def get_admin_dashboard(
-    range: str = "30d",
-    user_id: Optional[str] = Header(None, alias="X-User-Id"),
+    http_request: Request,
+    range: Literal["7d", "30d", "90d", "all"] = "30d",
+    db: AsyncSession = Depends(get_db),
 ):
     """
-    Get aggregated analytics data for the admin dashboard.
+    Get database-backed analytics for the current browser identity.
 
     Query params:
     - range: Time range (7d, 30d, 90d, all)
-
-    Requires admin privileges.
     """
     try:
-        if not verify_admin(user_id):
-            raise HTTPException(status_code=403, detail="Admin access required")
-
-        dashboard_data = analytics_tracker.get_dashboard_data(time_range=range)
+        identity = await require_session(http_request, db)
+        dashboard_data = await _database_dashboard_data(db, identity, range)
         return {"success": True, **dashboard_data}
 
     except HTTPException:
