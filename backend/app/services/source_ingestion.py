@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import ipaddress
 import multiprocessing
+import os
 import queue
 import socket
 import ssl
@@ -328,6 +329,52 @@ def _apply_worker_limits(cpu_seconds: int, memory_bytes: int) -> None:
         pass
 
 
+def _extract_source_content(
+    kind: str,
+    payload: str,
+    max_chars: int,
+    max_pdf_pages: int,
+    max_pdf_objects: int,
+    worker_delay_seconds: float,
+) -> str | tuple[str, str]:
+    if worker_delay_seconds:
+        time.sleep(worker_delay_seconds)
+    if kind == "pdf":
+        import PyPDF2
+
+        with Path(payload).open("rb") as source:
+            reader = PyPDF2.PdfReader(source)
+            if len(reader.pages) > max_pdf_pages:
+                raise SourceIngestionError("PDF contains too many pages")
+            object_count = int(reader.trailer.get("/Size", 0) or 0)
+            if object_count > max_pdf_objects:
+                raise SourceIngestionError("PDF contains too many objects")
+            extracted = "".join(
+                page.extract_text() or "" for page in reader.pages
+            ).strip()
+    elif kind == "docx":
+        from docx import Document
+
+        path = Path(payload)
+        validate_docx_archive(path)
+        document = Document(path)
+        if len(document.paragraphs) > MAX_DOCX_PARAGRAPHS:
+            raise SourceIngestionError("DOCX contains too many paragraphs")
+        extracted = "\n".join(
+            paragraph.text for paragraph in document.paragraphs
+        ).strip()
+    elif kind == "text":
+        extracted = Path(payload).read_text(encoding="utf-8", errors="replace")
+    elif kind == "html":
+        from app.utils.file_extraction import extract_text_from_html
+
+        title, text_content = extract_text_from_html(payload)
+        return title[:512], truncate_utf8(text_content[:max_chars])
+    else:
+        raise SourceIngestionError("Unsupported extraction type")
+    return truncate_utf8(extracted[:max_chars])
+
+
 def _extraction_worker(
     output,
     kind: str,
@@ -339,44 +386,15 @@ def _extraction_worker(
 ) -> None:
     try:
         _apply_worker_limits(cpu_seconds=5, memory_bytes=512 * 1024 * 1024)
-        if worker_delay_seconds:
-            time.sleep(worker_delay_seconds)
-        if kind == "pdf":
-            import PyPDF2
-
-            with Path(payload).open("rb") as source:
-                reader = PyPDF2.PdfReader(source)
-                if len(reader.pages) > max_pdf_pages:
-                    raise SourceIngestionError("PDF contains too many pages")
-                object_count = int(reader.trailer.get("/Size", 0) or 0)
-                if object_count > max_pdf_objects:
-                    raise SourceIngestionError("PDF contains too many objects")
-                extracted = "".join(
-                    page.extract_text() or "" for page in reader.pages
-                ).strip()
-        elif kind == "docx":
-            from docx import Document
-
-            path = Path(payload)
-            validate_docx_archive(path)
-            document = Document(path)
-            if len(document.paragraphs) > MAX_DOCX_PARAGRAPHS:
-                raise SourceIngestionError("DOCX contains too many paragraphs")
-            extracted = "\n".join(
-                paragraph.text for paragraph in document.paragraphs
-            ).strip()
-        elif kind == "text":
-            extracted = Path(payload).read_text(encoding="utf-8", errors="replace")
-        elif kind == "html":
-            from app.utils.file_extraction import extract_text_from_html
-
-            title, text_content = extract_text_from_html(payload)
-            extracted = (title[:512], truncate_utf8(text_content[:max_chars]))
-            output.send((True, extracted))
-            return
-        else:
-            raise SourceIngestionError("Unsupported extraction type")
-        output.send((True, truncate_utf8(extracted[:max_chars])))
+        extracted = _extract_source_content(
+            kind,
+            payload,
+            max_chars,
+            max_pdf_pages,
+            max_pdf_objects,
+            worker_delay_seconds,
+        )
+        output.send((True, extracted))
     except BaseException as error:
         try:
             output.send((False, str(error) or "Source extraction failed"))
@@ -480,6 +498,22 @@ async def extract_source_in_subprocess(
 ):
     """Parse hostile formats in a process that can be forcefully terminated."""
     payload = str(source)
+    if os.getenv("VERCEL"):
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(
+                    _extract_source_content,
+                    kind,
+                    payload,
+                    max_chars,
+                    max_pdf_pages,
+                    max_pdf_objects,
+                    worker_delay_seconds,
+                ),
+                timeout=timeout_seconds,
+            )
+        except asyncio.TimeoutError as error:
+            raise SourceIngestionError("Source extraction timed out") from error
     return await asyncio.to_thread(
         _run_extraction_process,
         kind,

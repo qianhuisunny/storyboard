@@ -679,9 +679,10 @@ class WorkflowService:
 
     @asynccontextmanager
     async def _write_session(self) -> AsyncIterator[AsyncSession]:
-        """Acquire SQLite's write lock before reading any mutable state."""
+        """Open a write transaction before reading any mutable state."""
         async with self.sessionmaker() as session:
-            await session.execute(text("BEGIN IMMEDIATE"))
+            if session.get_bind().dialect.name == "sqlite":
+                await session.execute(text("BEGIN IMMEDIATE"))
             try:
                 yield session
                 await session.commit()

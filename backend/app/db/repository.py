@@ -1,11 +1,12 @@
-"""Data access layer for SQLite-backed project data."""
+"""Data access layer for SQLAlchemy-backed project data."""
 
 import json
 from datetime import datetime, timezone
 from typing import Any, Optional
 from uuid import uuid4
 
-from sqlalchemy import func, insert, literal, or_, select, update
+from sqlalchemy import cast, func, insert, literal, or_, select, update
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -142,9 +143,15 @@ class ProjectRepository:
         expected_revision: Any = _NO_REVISION_CHECK,
     ):
         if expected_revision is not _NO_REVISION_CHECK:
-            revision_value = func.json_extract(
-                PipelineState.state_data, "$.state_revision"
-            )
+            dialect_name = self.session.get_bind().dialect.name
+            if dialect_name == "postgresql":
+                revision_value = cast(
+                    PipelineState.state_data, JSONB
+                )["state_revision"].astext
+            else:
+                revision_value = func.json_extract(
+                    PipelineState.state_data, "$.state_revision"
+                )
             revision_match = (
                 revision_value.is_(None)
                 if expected_revision is None

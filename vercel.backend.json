@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "fluid": true,
+  "functions": {
+    "server.py": {
+      "maxDuration": 300,
+      "excludeFiles": "{frontend/**,docs/**,data/**,backend/data/**,backend/app/test/**,backend/app/services/video/tests/**,backend/app/services/video/remotion/**,hackathon-april-12/**,来时路/**}"
+    }
+  }
+}

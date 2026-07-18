@@ -10,11 +10,10 @@ from typing import Optional
 from .chunker import chunk_text
 from .document_processor import process_pdf, process_url
 from .embeddings import embed_texts, find_similar
+from app.services.project_storage import project_data_root
 
 
-# Resolve data directory
-REPO_ROOT = Path(__file__).parent.parent.parent.parent.parent
-DATA_DIR = REPO_ROOT / "data"
+DATA_DIR = project_data_root()
 
 
 class RAGStore:

@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Header, Request, UploadFile, File as FastAPIFile, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 from app.services.orchestrator import orchestrator
 from app.services.analytics import analytics_tracker
 from app.services.state import StateManager
@@ -14,6 +14,7 @@ from app.services.workflow import (
 )
 from app.infra.quality_log import qlog
 from app.services.image_generator import ImageGenerator
+from app.services.project_storage import project_data_root, project_storage
 from app.services.prompt_context import (
     render_prompt_value,
     serialized_size,
@@ -139,7 +140,7 @@ if os.getenv("SENTRY_DSN"):
     sentry_sdk.init(
         dsn=os.getenv("SENTRY_DSN"),
         traces_sample_rate=0.1,
-        environment=os.getenv("FLY_APP_NAME", "local"),
+        environment=os.getenv("VERCEL_ENV") or os.getenv("FLY_APP_NAME", "local"),
     )
 
 
@@ -224,7 +225,7 @@ async def test_endpoint():
 
 def _project_root_dir(project_id: str) -> Path:
     """Filesystem directory for project-owned raw files such as uploads and links."""
-    data_root = Path(__file__).parent.parent.parent / "data"
+    data_root = project_data_root()
     return ensure_contained(data_root / f"project_{project_id}", data_root)
 
 
@@ -303,7 +304,7 @@ async def create_project(
     http_request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a new project in SQLite."""
+    """Create a new project in the configured database."""
     try:
         repo = ProjectRepository(db)
         identity = await require_session(http_request, db)
@@ -366,7 +367,7 @@ async def get_project(
     http_request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Get project data by ID from SQLite, plus any raw story export files on disk."""
+    """Get project data by ID, plus any local raw story export files."""
     try:
         repo = ProjectRepository(db)
         identity = await require_session(http_request, db)
@@ -1193,9 +1194,11 @@ async def save_stages(
 ):
     """Save all stage data for a project (auto-save endpoint)."""
     try:
-        # Acquire SQLite's writer lock before reading mutable pipeline state so
-        # autosave cannot overwrite a concurrent workflow transition.
-        await db.execute(text("BEGIN IMMEDIATE"))
+        # SQLite needs an explicit writer lock. Postgres begins a transaction
+        # automatically and the state revision compare-and-swap below protects
+        # against concurrent workflow updates.
+        if db.get_bind().dialect.name == "sqlite":
+            await db.execute(text("BEGIN IMMEDIATE"))
         repo = ProjectRepository(db)
         identity = await require_session(http_request, db)
         await _require_owned_project(db, project_id, identity)
@@ -1316,19 +1319,61 @@ async def generate_visual(
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Image generation failed: {str(e)}")
 
-    # Save to frontend/public/generated/
-    output_dir = Path(__file__).parent.parent.parent / "frontend" / "public" / "generated" / project_id
-    output_dir.mkdir(parents=True, exist_ok=True)
-    output_path = output_dir / f"screen_{screen_index}.png"
-    output_path.write_bytes(image_bytes)
+    if project_storage.remote_enabled:
+        relative_asset_path = f"generated/screen_{screen_index}.png"
+        await project_storage.put_bytes(
+            project_id,
+            relative_asset_path,
+            image_bytes,
+            content_type="image/png",
+            overwrite=True,
+        )
+        on_screen_visual = (
+            f"/api/project/{project_id}/assets/{relative_asset_path}"
+        )
+    else:
+        output_dir = (
+            Path(__file__).parent.parent.parent
+            / "frontend"
+            / "public"
+            / "generated"
+            / project_id
+        )
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / f"screen_{screen_index}.png"
+        output_path.write_bytes(image_bytes)
+        on_screen_visual = f"/generated/{project_id}/screen_{screen_index}.png"
 
     # Update screen's on_screen_visual in the snapshot
-    on_screen_visual = f"/generated/{project_id}/screen_{screen_index}.png"
     screens[screen_index]["on_screen_visual"] = on_screen_visual
     updated_data = json.dumps(screens if isinstance(screens_data, list) else {**screens_data, "screens": screens})
     await repo.save_stage_snapshot(project_id, 3, human_version=updated_data)
 
     return {"success": True, "on_screen_visual": on_screen_visual}
+
+
+@app.get("/api/project/{project_id}/assets/{asset_path:path}")
+async def get_project_asset(
+    project_id: str,
+    asset_path: str,
+    _project=Depends(_owned_project_access),
+):
+    """Serve a private project artifact through the authenticated API."""
+    try:
+        asset = await project_storage.get_bytes(project_id, asset_path)
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    if asset is None:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    headers = {}
+    if asset.get("etag"):
+        headers["ETag"] = asset["etag"]
+    return Response(
+        content=asset["content"],
+        media_type=asset.get("content_type") or "application/octet-stream",
+        headers=headers,
+    )
+
 
 @app.get("/api/projects")
 async def list_user_projects(
@@ -1390,6 +1435,7 @@ async def delete_project(
         project_dir = _project_root_dir(project_id)
         if project_dir.exists():
             shutil.rmtree(project_dir)
+        await project_storage.delete_project(project_id)
 
         return {"success": True, "message": "Project deleted successfully"}
 
@@ -1499,19 +1545,35 @@ async def upload_file_to_project(
         await repo.create_upload(
             project_id=project_id,
             filename=display_name,
-            file_path=str(file_path.relative_to(project_dir)),
+            file_path=await project_storage.put_file(
+                project_id,
+                str(file_path.relative_to(project_dir)),
+                file_path,
+                content_type=file.content_type,
+            ),
             content_type=file.content_type,
             size_bytes=size_bytes,
             commit=False,
         )
+        await project_storage.put_file(
+            project_id,
+            str(text_file.relative_to(project_dir)),
+            text_file,
+            content_type="text/plain",
+        )
         await repo.update_project_timestamp(project_id, commit=False)
         await db.commit()
+
+        stored_path = str(file_path.relative_to(project_dir))
+        if project_storage.remote_enabled:
+            file_path.unlink(missing_ok=True)
+            text_file.unlink(missing_ok=True)
 
         return {
             "success": True,
             "filename": display_name,
             "content": extracted_text[:MAX_EXTRACTED_CHARS],
-            "path": str(file_path.relative_to(project_dir)),
+            "path": stored_path,
         }
 
     except (HTTPException, SourceIngestionError) as error:
@@ -1587,7 +1649,12 @@ async def fetch_link_content(
         await repo.create_upload(
             project_id=project_id,
             filename=title[:255],
-            file_path=str(content_file.relative_to(project_dir)),
+            file_path=await project_storage.put_file(
+                project_id,
+                str(content_file.relative_to(project_dir)),
+                content_file,
+                content_type="text/plain",
+            ),
             content_type="text/link",
             size_bytes=len(text_content.encode("utf-8")),
             commit=False,
@@ -1595,12 +1662,16 @@ async def fetch_link_content(
         await repo.update_project_timestamp(project_id, commit=False)
         await db.commit()
 
+        stored_path = str(content_file.relative_to(project_dir))
+        if project_storage.remote_enabled:
+            content_file.unlink(missing_ok=True)
+
         return {
             "success": True,
             "url": fetched.final_url,
             "title": title,
             "content": text_content,
-            "path": str(content_file.relative_to(project_dir)),
+            "path": stored_path,
         }
 
     except SourceIngestionError as error:

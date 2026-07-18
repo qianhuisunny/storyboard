@@ -1,11 +1,10 @@
-"""
-Async SQLite engine via SQLAlchemy 2.0 + aiosqlite.
-"""
+"""Async SQLAlchemy engine for local SQLite and hosted Postgres."""
 
 import os
 from pathlib import Path
 
 from sqlalchemy import event
+from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -15,12 +14,31 @@ from sqlalchemy.ext.asyncio import (
 
 # Default DB path: data/plotline.db (relative to repo root)
 _default_db_path = Path(__file__).parent.parent.parent.parent / "data" / "plotline.db"
-DATABASE_URL = os.environ.get("DATABASE_URL", f"sqlite+aiosqlite:///{_default_db_path}")
+_raw_database_url = os.environ.get(
+    "DATABASE_URL",
+    f"sqlite+aiosqlite:///{_default_db_path}",
+)
 
 
-def create_sqlite_async_engine(database_url: str, **kwargs) -> AsyncEngine:
-    """Create an async engine with SQLite referential integrity enabled."""
-    database_engine = create_async_engine(database_url, **kwargs)
+def normalize_async_database_url(database_url: str) -> str:
+    """Select an async SQLAlchemy driver without changing credentials/options."""
+    url = make_url(database_url)
+    if url.drivername in {"postgres", "postgresql", "postgresql+psycopg2"}:
+        url = url.set(drivername="postgresql+psycopg")
+    return url.render_as_string(hide_password=False)
+
+
+DATABASE_URL = normalize_async_database_url(_raw_database_url)
+
+
+def create_database_async_engine(database_url: str, **kwargs) -> AsyncEngine:
+    """Create an async engine with safe defaults for the selected backend."""
+    normalized_url = normalize_async_database_url(database_url)
+    url = make_url(normalized_url)
+    if url.get_backend_name() == "postgresql":
+        kwargs.setdefault("pool_pre_ping", True)
+        kwargs.setdefault("pool_recycle", 300)
+    database_engine = create_async_engine(normalized_url, **kwargs)
     if database_engine.url.get_backend_name() == "sqlite":
 
         @event.listens_for(database_engine.sync_engine, "connect")
@@ -34,7 +52,12 @@ def create_sqlite_async_engine(database_url: str, **kwargs) -> AsyncEngine:
     return database_engine
 
 
-engine = create_sqlite_async_engine(DATABASE_URL, echo=False)
+def create_sqlite_async_engine(database_url: str, **kwargs) -> AsyncEngine:
+    """Backward-compatible alias retained for temp/test database callers."""
+    return create_database_async_engine(database_url, **kwargs)
+
+
+engine = create_database_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -47,7 +70,7 @@ async def get_db() -> AsyncSession:
 async def init_db():
     """Create all tables (for development / first run)."""
     from .models import Base
-    # Ensure the data directory exists
-    _default_db_path.parent.mkdir(parents=True, exist_ok=True)
+    if engine.url.get_backend_name() == "sqlite":
+        _default_db_path.parent.mkdir(parents=True, exist_ok=True)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

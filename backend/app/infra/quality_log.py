@@ -1,9 +1,16 @@
 import json
+import os
 import sqlite3
 import time
 from pathlib import Path
 
-_DB_PATH = Path(__file__).parent.parent.parent.parent / "data" / "plotline.db"
+_LOCAL_DB_PATH = Path(__file__).parent.parent.parent.parent / "data" / "plotline.db"
+_DB_PATH = Path(
+    os.getenv(
+        "QUALITY_LOG_DB_PATH",
+        "/tmp/plotline-quality.db" if os.getenv("VERCEL") else str(_LOCAL_DB_PATH),
+    )
+)
 
 _CREATE_TABLE = """
 CREATE TABLE IF NOT EXISTS quality_log (
