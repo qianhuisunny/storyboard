@@ -20,7 +20,7 @@ import "./App.css";
 function AppHeader() {
   return (
     <header className="bg-[var(--header-background)] text-[var(--header-foreground)] border-b border-[var(--header-border)] flex-shrink-0 flex items-center justify-between" style={{ height: "54px", padding: "0 22px" }}>
-      <Link to="/onboarding" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
+      <Link to="/" className="flex items-center space-x-3 hover:opacity-80 transition-opacity">
         <h1 className="text-[20px] text-[#3A6B47]" style={{ fontFamily: "'Fraunces', serif", fontWeight: 400, letterSpacing: "-0.3px" }}>
           Plotline
         </h1>
@@ -69,7 +69,7 @@ function App() {
         {/* Main Content */}
         <div className="flex-1 overflow-auto">
           <Routes>
-            <Route path="/" element={<Navigate to="/projects" replace />} />
+            <Route path="/" element={<OnboardingPage />} />
             <Route path="/landing" element={<LandingPage />} />
             <Route path="/projects" element={<ProjectsPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />
