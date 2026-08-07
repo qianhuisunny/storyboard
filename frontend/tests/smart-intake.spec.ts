@@ -331,7 +331,7 @@ test("Save persists edited canonical intake without moving stages and refresh re
   expect(mock.events[1].payload.content.viewer_outcome).toBe("Ship the launch using every handoff");
 });
 
-test("Save and Generate Outline sends current edits, shows the job overlay, and lands on editable Outline", async ({ page }) => {
+test("Save and Generate Outline sends current edits, keeps the loading animation visible, and lands on editable Outline", async ({ page }) => {
   const mock = await mockSmartIntake(page, { deferApproval: true });
   await page.goto(`/storyboard/${PROJECT_ID}`);
 
@@ -343,7 +343,9 @@ test("Save and Generate Outline sends current edits, shows the job overlay, and 
   await page.getByRole("button", { name: "Real-world" }).click();
   await page.getByRole("button", { name: "Save & Generate Outline" }).click();
 
-  await expect(page.getByRole("status", { name: "Outline generation status" })).toContainText("Generating your outline");
+  const outlineGeneration = page.getByRole("status", { name: "Outline generation status" });
+  await expect(outlineGeneration).toContainText("Generating your outline");
+  await expect(outlineGeneration.locator("p").filter({ hasText: "Generating outline..." })).toBeVisible();
   await expect(page.getByRole("button", { name: /Outline Generating/ })).toBeVisible();
   expect(mock.events[0]).toMatchObject({
     event: "approve_intake",
@@ -630,7 +632,9 @@ test("generation failure reloads the persisted job, preserves the last outline, 
   await expect(page.locator('[contenteditable="true"]').filter({ hasText: "Last valid outline" }).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Retry outline" }).click();
-  await expect(page.getByRole("status", { name: "Outline generation status" })).toContainText("Generating your outline");
+  const outlineGeneration = page.getByRole("status", { name: "Outline generation status" });
+  await expect(outlineGeneration).toContainText("Generating your outline");
+  await expect(outlineGeneration.locator("p").filter({ hasText: "Generating outline..." })).toBeVisible();
   await expect(page.locator('[contenteditable="true"]').filter({ hasText: "A clearer launch" }).first()).toBeVisible();
   expect(mock.events.map((event) => event.event)).toEqual([
     "approve_intake",
@@ -687,12 +691,15 @@ test("canonical projects suppress legacy guided initialization even with stale o
   expect(mock.events.filter((event) => event.event === "submit_guided_brief")).toEqual([]);
 });
 
-test("sidebar back navigation reopens Intake before allowing a canonical save", async ({ page }) => {
+test("sidebar back navigation requires an explicit Intake unlock before allowing a canonical save", async ({ page }) => {
   const mock = await mockSmartIntake(page, { initialStage: "outline", initialOutline: OUTLINE });
   await page.goto(`/storyboard/${PROJECT_ID}`);
 
   await page.getByRole("button", { name: /Smart Intake Approved/ }).click();
   await expect(page.getByRole("heading", { name: "Smart Intake" })).toBeVisible();
+  await expect(page.getByRole("status", { name: "Smart Intake locked" })).toBeVisible();
+  expect(mock.events).toEqual([]);
+  await page.getByRole("button", { name: "Unlock to edit" }).click();
   await page.getByLabel("Video brief").fill("Edited after outline");
   await page.getByRole("button", { name: "Save", exact: true }).click();
 

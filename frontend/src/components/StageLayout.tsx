@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import * as Dialog from "@radix-ui/react-dialog";
-import { AlertCircle, Menu, X, Cloud, CloudOff, Loader2, RefreshCw, Copy, RotateCcw } from "lucide-react";
+import { AlertCircle, Menu, X, Cloud, CloudOff, Loader2, RefreshCw, Copy, RotateCcw, LockKeyhole, Unlock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import StageNavigation, { type Stage, type StageStatus } from "./StageNavigation";
 import StageContent from "./StageContent";
+import OutlineLoadingView from "./OutlineLoadingView";
 import SatisfactionRatingModal from "./SatisfactionRatingModal";
+import StoryboardLoadingPanel from "./StoryboardLoadingPanel";
 import { useAnalytics } from "@/hooks/useAnalytics";
 import { isGuidedBriefType } from "@/lib/videoIntent";
 import { getAnonymousUserId } from "@/lib/anonymousUser";
@@ -26,6 +28,38 @@ const INITIAL_STAGES: Stage[] = [
   { id: 4, name: "Complete", description: "Review and export", status: "not_started" },
 ];
 const RUNNING_JOB_POLL_INTERVAL_MS = 1_000;
+const WORKFLOW_STAGE_IDS = { intake: 1, outline: 2, storyboard: 3, complete: 4 } as const;
+
+function GenerationLoadingView({
+  kind,
+}: {
+  kind: "outline" | "storyboard";
+}) {
+  const isOutline = kind === "outline";
+  const title = isOutline ? "Video Outline" : "Storyboard Draft";
+
+  return (
+    <section
+      role="status"
+      aria-label={`${isOutline ? "Outline" : "Storyboard"} generation status`}
+      className="flex min-h-0 flex-1 flex-col bg-background"
+    >
+      <div className="shrink-0 border-b border-border px-6 py-4 sm:px-10 sm:py-5">
+        <h2 className="text-xl font-semibold">{title}</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Generating your {kind}...
+        </p>
+      </div>
+      <div className="flex flex-1 items-center justify-center overflow-y-auto px-6 py-6 sm:px-10">
+        {isOutline ? (
+          <OutlineLoadingView />
+        ) : (
+          <StoryboardLoadingPanel loaderState={{ kind: "indeterminate" }} />
+        )}
+      </div>
+    </section>
+  );
+}
 
 interface StageData {
   aiVersion: string | null;
@@ -129,8 +163,7 @@ function deriveStageViewFromWorkflow(workflow: WorkflowResponse): {
   currentStageId: number;
   stageStatuses: Record<number, StageStatus>;
 } {
-  const stageIds = { intake: 1, outline: 2, storyboard: 3, complete: 4 } as const;
-  const currentStageId = stageIds[workflow.workflow_stage];
+  const currentStageId = WORKFLOW_STAGE_IDS[workflow.workflow_stage];
   const stageStatuses: Record<number, StageStatus> = {
     1: workflow.artifacts.intake.current_version_id ? "in_progress" : "not_started",
     2: "not_started",
@@ -930,25 +963,9 @@ export default function StageLayout() {
       }
     }
 
-    const targetStage = ({ 1: "intake", 2: "outline", 3: "storyboard", 4: "complete" } as const)[stageId as 1 | 2 | 3 | 4];
-    if (!targetStage || targetStage === workflowState.workflow_stage) return;
-
-    let event: string | null = null;
-    if (workflowState.workflow_stage === "complete") {
-      event = ({ intake: "reopen_intake", outline: "reopen_outline", storyboard: "reopen_storyboard" } as const)[targetStage as "intake" | "outline" | "storyboard"] ?? null;
-    } else if (targetStage === "intake" && ["outline", "storyboard"].includes(workflowState.workflow_stage)) {
-      event = "edit_intake";
-    } else if (targetStage === "outline" && workflowState.workflow_stage === "storyboard") {
-      event = "edit_outline";
-    }
-
-    if (!event || !workflowState.allowed_events.includes(event)) return;
-    setWorkflowActionError(null);
-    try {
-      handleWorkflowChange(await sendWorkflowEvent(projectId, event, {}));
-    } catch (caught) {
-      setWorkflowActionError(caught instanceof Error ? caught.message : "Could not reopen this stage.");
-    }
+    // Navigation is read-only. Reopening an approved stage is a separate,
+    // explicit action because it invalidates the stages that follow it.
+    setCurrentStageId(stageId);
   };
 
   const handleApprove = async (
@@ -1106,7 +1123,49 @@ export default function StageLayout() {
   const jobAppliesToCurrentStage = usesCanonicalWorkflow
     && activeJobStageId === currentStageId
     && workflowState?.job.status !== "idle";
+  const activeGenerationKind = jobAppliesToCurrentStage
+    && workflowState?.job.status === "running"
+    ? workflowState.job.kind
+    : null;
   const workflowMutationLocked = isWorkflowActionPending || workflowState?.job.status === "running";
+  const workflowStageId = workflowState ? WORKFLOW_STAGE_IDS[workflowState.workflow_stage] : null;
+  const isViewingLockedStage = Boolean(
+    usesCanonicalWorkflow
+    && workflowStageId
+    && currentStageId < workflowStageId
+    && currentStage?.status === "approved",
+  );
+
+  const handleUnlockStage = async () => {
+    if (!projectId || !workflowState || !isViewingLockedStage || workflowMutationLocked) return;
+
+    const targetStage = ({ 1: "intake", 2: "outline", 3: "storyboard" } as const)[currentStageId as 1 | 2 | 3];
+    if (!targetStage) return;
+
+    let event: string | null = null;
+    if (workflowState.workflow_stage === "complete") {
+      event = ({
+        intake: "reopen_intake",
+        outline: "reopen_outline",
+        storyboard: "reopen_storyboard",
+      } as const)[targetStage];
+    } else if (targetStage === "intake" && ["outline", "storyboard"].includes(workflowState.workflow_stage)) {
+      event = "edit_intake";
+    } else if (targetStage === "outline" && workflowState.workflow_stage === "storyboard") {
+      event = "edit_outline";
+    }
+
+    if (!event || !workflowState.allowed_events.includes(event)) return;
+    setIsWorkflowActionPending(true);
+    setWorkflowActionError(null);
+    try {
+      handleWorkflowChange(await sendWorkflowEvent(projectId, event, {}));
+    } catch (caught) {
+      setWorkflowActionError(caught instanceof Error ? caught.message : "Could not unlock this stage.");
+    } finally {
+      setIsWorkflowActionPending(false);
+    }
+  };
 
   const handleRetryInitialOutline = async () => {
     if (!projectId || !workflowState || workflowState.job.kind !== "outline") return;
@@ -1340,7 +1399,7 @@ export default function StageLayout() {
                 {workflowActionError}
               </p>
             )}
-            {usesCanonicalWorkflow && workflowState?.job.status === "running" && (
+            {usesCanonicalWorkflow && workflowState?.job.status === "running" && !activeGenerationKind && (
               <div
                 role="status"
                 aria-label={`${workflowState.job.kind === "outline" ? "Outline" : "Storyboard"} generation status`}
@@ -1377,7 +1436,35 @@ export default function StageLayout() {
                 </div>
               </div>
             )}
-            {usesCanonicalWorkflow && currentStageId === 3 && workflowState?.artifacts.storyboard.needs_update && (
+            {isViewingLockedStage && (
+              <div
+                role="status"
+                aria-label={`${currentStage.name} locked`}
+                className="m-4 flex flex-col gap-3 rounded-2xl border border-[#C9D8C8] bg-[#F1F6F1] px-5 py-4 text-[#274F32] sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="flex min-w-0 items-start gap-3">
+                  <LockKeyhole className="mt-0.5 h-5 w-5 shrink-0" />
+                  <div>
+                    <p className="font-medium">{currentStage.name} is locked</p>
+                    <p className="mt-0.5 text-sm text-[#526A57]">
+                      You are viewing the approved version. Unlock it only when you are ready to update this stage and the stages after it.
+                    </p>
+                  </div>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  className="shrink-0 border-[#A8C8AD] bg-white text-[#274F32] hover:bg-[#E8F0E9]"
+                  disabled={workflowMutationLocked}
+                  onClick={() => void handleUnlockStage()}
+                >
+                  {isWorkflowActionPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Unlock className="mr-2 h-4 w-4" />}
+                  Unlock to edit
+                </Button>
+              </div>
+            )}
+            {usesCanonicalWorkflow && !activeGenerationKind && currentStageId === 3 && workflowState?.artifacts.storyboard.needs_update && (
               <div
                 role="status"
                 aria-label="Storyboard needs update"
@@ -1409,24 +1496,32 @@ export default function StageLayout() {
                 </div>
               </div>
             )}
-            {!(jobAppliesToCurrentStage && workflowState?.job.status === "running" && !hasStageContent(currentData)) && (
-              <StageContent
-                key={`${currentStageId}-${editorResetGeneration}`}
-                stage={currentStage}
-                aiContent={currentData.aiVersion}
-                humanContent={currentData.humanVersion}
-                previousStageOutput={previousStageOutput}
-                isGenerating={isGenerating}
-                onApprove={handleApprove}
-                onRegenerate={handleRegenerate}
-                onContentChange={handleContentChange}
-                onStoryboardGeneratingChange={handleStoryboardGeneratingChange}
-                workflow={workflowState}
-                onWorkflowChange={handleWorkflowChange}
-                onCanonicalApprove={handleCanonicalApprove}
-                onCanonicalRevise={handleCanonicalRevise}
-                isWorkflowActionPending={workflowMutationLocked}
-              />
+            {activeGenerationKind ? (
+              <GenerationLoadingView kind={activeGenerationKind} />
+            ) : (
+              <div
+                className="flex min-h-0 flex-1 flex-col"
+                aria-disabled={isViewingLockedStage || undefined}
+                inert={isViewingLockedStage || undefined}
+              >
+                <StageContent
+                  key={`${currentStageId}-${editorResetGeneration}`}
+                  stage={currentStage}
+                  aiContent={currentData.aiVersion}
+                  humanContent={currentData.humanVersion}
+                  previousStageOutput={previousStageOutput}
+                  isGenerating={isGenerating}
+                  onApprove={handleApprove}
+                  onRegenerate={handleRegenerate}
+                  onContentChange={handleContentChange}
+                  onStoryboardGeneratingChange={handleStoryboardGeneratingChange}
+                  workflow={workflowState}
+                  onWorkflowChange={handleWorkflowChange}
+                  onCanonicalApprove={handleCanonicalApprove}
+                  onCanonicalRevise={handleCanonicalRevise}
+                  isWorkflowActionPending={workflowMutationLocked || isViewingLockedStage}
+                />
+              </div>
             )}
           </>
         ) : null}

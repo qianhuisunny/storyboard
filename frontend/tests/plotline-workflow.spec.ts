@@ -635,17 +635,17 @@ test("Reload latest discards the isolated stale-tab copy", async ({ page }) => {
   expect(mock.events.filter((item) => item.event === "save_outline")).toHaveLength(1);
 });
 
-test("leaving an edited artifact flushes its canonical version before reopening upstream", async ({ page }) => {
+test("leaving an edited artifact flushes it, then requires an explicit unlock upstream", async ({ page }) => {
   const mock = await mockWorkflow(page);
   await page.goto(`/storyboard/${PROJECT_ID}`);
 
   await editOutlineTitle(page, "Flush this outline before leaving");
   await page.getByRole("button", { name: "Smart Intake" }).click();
 
-  await expect.poll(() => mock.events.map((item) => item.event).slice(0, 2)).toEqual([
-    "save_outline",
-    "edit_intake",
-  ]);
+  await expect.poll(() => mock.events.map((item) => item.event)).toEqual(["save_outline"]);
+  await expect(page.getByRole("status", { name: "Smart Intake locked" })).toBeVisible();
+  await page.getByRole("button", { name: "Unlock to edit" }).click();
+  await expect.poll(() => mock.events.map((item) => item.event)).toEqual(["save_outline", "edit_intake"]);
   expect(mock.events[0].payload.content).toContain("Flush this outline before leaving");
 });
 
@@ -671,7 +671,7 @@ test("failed stale Storyboard keeps panels and offers one explicit regenerate or
   await expect(page.getByRole("status", { name: "Storyboard needs update" })).toHaveCount(0);
 });
 
-test("generation disables duplicate submission and Complete reopens every retained artifact", async ({ page }) => {
+test("generation disables duplicate submission and Complete keeps retained artifacts locked until unlock", async ({ page }) => {
   const mock = await mockWorkflow(page, {
     initialStage: "storyboard",
     initialStoryboard: STORYBOARD,
@@ -682,8 +682,9 @@ test("generation disables duplicate submission and Complete reopens every retain
 
   const regenerate = page.getByRole("button", { name: "Regenerate storyboard" });
   await regenerate.click();
-  await expect(regenerate).toBeDisabled();
-  await regenerate.click({ force: true });
+  await expect(page.getByRole("status", { name: "Storyboard generation status" })).toContainText("Generating your storyboard");
+  await expect(page.getByText("Drafting the opening shot", { exact: true })).toBeVisible();
+  await expect(regenerate).toHaveCount(0);
   expect(mock.events.filter((item) => item.event === "revise_storyboard")).toHaveLength(1);
   mock.releaseStoryboardRevision();
   await expect(page.getByText("The revised calm launch starts before launch day.", { exact: true }).first()).toBeVisible();
@@ -699,7 +700,9 @@ test("generation disables duplicate submission and Complete reopens every retain
     await page.reload();
     await expect(page.getByRole("heading", { name: "Review & Share" })).toBeVisible();
     await page.getByRole("button", { name: label }).click();
-    await expect.poll(() => mock.events.at(-1)?.event).toBe(event);
+    await expect(page.getByText("Approved", { exact: true })).toHaveCount(4);
+    await expect(page.getByRole("status", { name: `${label} locked` })).toBeVisible();
+    expect(mock.events.at(-1)?.event).not.toBe(event);
     if (label === "Smart Intake") {
       await expect(page.getByLabel("Video brief")).toHaveValue(INTAKE.prompt);
     } else if (label === "Outline") {
@@ -707,6 +710,8 @@ test("generation disables duplicate submission and Complete reopens every retain
     } else {
       await expect(page.getByText("The revised calm launch starts before launch day.", { exact: true }).first()).toBeVisible();
     }
+    await page.getByRole("button", { name: "Unlock to edit" }).click();
+    await expect.poll(() => mock.events.at(-1)?.event).toBe(event);
   }
 });
 
@@ -797,6 +802,7 @@ test("retry selects initial generation or retained-artifact revision from job li
       await page.goto(`/storyboard/${PROJECT_ID}`);
       await page.getByRole("button", { name: /Retry (outline|storyboard)/ }).click();
       await expect.poll(() => mock.events.map((item) => item.event).slice(-retryCase.expected.length)).toEqual(retryCase.expected);
+      await expect(page.getByRole("button", { name: /Retry (outline|storyboard)/ })).toHaveCount(0);
       await page.unrouteAll({ behavior: "wait" });
     });
   }
@@ -820,16 +826,20 @@ test("Keep as-is flushes an edited stale Storyboard before recording the overrid
   expect((mock.events.at(-2)?.payload.content as typeof STORYBOARD)[0].voiceover_text).toBe("Keep this edited stale storyboard.");
 });
 
-test("a backend-observed running job locks every canonical mutation action", async ({ page }) => {
+test("a backend-observed running job keeps the animated loader in place of stale editor content", async ({ page }) => {
   await mockWorkflow(page, {
     initialStage: "outline",
     initialJob: { status: "running", job_id: "outline-running", kind: "outline", input_version_id: "outline-v1", error: null },
   });
   await page.goto(`/storyboard/${PROJECT_ID}`);
 
-  await expect(page.getByRole("button", { name: "Approve & Generate Storyboard" })).toBeDisabled();
-  await expect(page.getByTitle("Regenerate entire outline")).toBeDisabled();
-  await expect(page.getByTitle("Regenerate this section").first()).toBeDisabled();
+  const outlineGeneration = page.getByRole("status", { name: "Outline generation status" });
+  await expect(outlineGeneration).toContainText("Generating your outline");
+  await expect(outlineGeneration.locator("p").filter({ hasText: "Generating outline..." })).toBeVisible();
+  await expect(page.getByText("A calm launch", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Approve & Generate Storyboard" })).toHaveCount(0);
+  await expect(page.getByTitle("Regenerate entire outline")).toHaveCount(0);
+  await expect(page.getByTitle("Regenerate this section")).toHaveCount(0);
 
   await page.unrouteAll({ behavior: "wait" });
   await mockWorkflow(page, {
@@ -839,10 +849,14 @@ test("a backend-observed running job locks every canonical mutation action", asy
     initialJob: { status: "running", job_id: "storyboard-running", kind: "storyboard", input_version_id: "storyboard-v1", error: null },
   });
   await page.reload();
-  await expect(page.getByRole("button", { name: "Revise with AI" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Approve & Finalize Storyboard" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Regenerate storyboard" })).toBeDisabled();
-  await expect(page.getByRole("button", { name: "Keep as-is" })).toBeDisabled();
+  const storyboardGeneration = page.getByRole("status", { name: "Storyboard generation status" });
+  await expect(storyboardGeneration).toContainText("Generating your storyboard");
+  await expect(page.getByText("Drafting the opening shot", { exact: true })).toBeVisible();
+  await expect(page.getByText("A calm launch starts before launch day.", { exact: true })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Revise with AI" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Approve & Finalize Storyboard" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Regenerate storyboard" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Keep as-is" })).toHaveCount(0);
 });
 
 test("a refreshed tab polls a running canonical job until the backend settles it", async ({ page }) => {
@@ -853,8 +867,9 @@ test("a refreshed tab polls a running canonical job until the backend settles it
   });
   await page.goto(`/storyboard/${PROJECT_ID}`);
 
-  await expect(page.getByText("Generating your outline", { exact: true })).toBeVisible();
-  await expect(page.getByText("Generating your outline", { exact: true })).toBeHidden({ timeout: 5_000 });
+  const outlineGeneration = page.getByRole("status", { name: "Outline generation status" });
+  await expect(outlineGeneration).toContainText("Generating your outline");
+  await expect(outlineGeneration).toBeHidden({ timeout: 5_000 });
   await expect(page.getByRole("button", { name: "Approve & Generate Storyboard" })).toBeEnabled();
   expect(mock.getPipelineReadCount()).toBeGreaterThanOrEqual(2);
 });
@@ -947,6 +962,8 @@ test("editing an Outline retains the existing Storyboard and marks its lineage s
   const mock = await mockWorkflow(page, { initialStage: "storyboard", initialStoryboard: STORYBOARD });
   await page.goto(`/storyboard/${PROJECT_ID}`);
   await page.getByRole("button", { name: "Outline" }).click();
+  await expect(page.getByRole("status", { name: "Outline locked" })).toBeVisible();
+  await page.getByRole("button", { name: "Unlock to edit" }).click();
   await expect(page.getByRole("heading", { name: "Video Outline", level: 2 })).toBeVisible();
   await editOutlineTitle(page, "An outline changed after storyboard generation");
   await expect.poll(() => mock.events.at(-1)?.event).toBe("save_outline");
