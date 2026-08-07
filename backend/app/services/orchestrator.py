@@ -185,6 +185,10 @@ class StoryboardOrchestrator:
             ("brief_review", "brief_approve"): self._handle_brief_approve,
             ("brief_review", "edit"): self._handle_edit_brief,
             ("brief_chat", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_round1", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_round2", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("brief_round3", "chat_brief_approve"): self._handle_chat_brief_approve,
+            ("angle_selection", "chat_brief_approve"): self._handle_chat_brief_approve,
             ("brief_review", "chat_brief_approve"): self._handle_chat_brief_approve,
         }
         return handlers.get((phase, event))
@@ -275,7 +279,7 @@ class StoryboardOrchestrator:
         if "fields" in state.story_brief:
             # New guided brief schema: {fields: {field_name: {value, source, confirmed}}}
             fields = state.story_brief.get("fields", {})
-            required_new = ["viewer_outcome", "target_audience", "core_talking_points"]
+            required_new = ["viewer_outcome", "target_audience"]
             missing = []
             for f in required_new:
                 field_data = fields.get(f, {})

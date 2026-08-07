@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Clock, Edit } from "lucide-react";
 import { cn } from "@/lib/utils";
 import StoryboardImage from "@/components/StoryboardImage";
+import { getTypeColor, getTypeLabel } from "@/components/storyboardPanelUtils";
 
 export interface StoryboardPanelType {
   id: string;
@@ -22,28 +23,6 @@ interface StoryboardPanelProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
 }
-
-export const getTypeColor = (type: StoryboardPanelType["type"]) => {
-  const colors = {
-    "stock-video": "bg-[#3A6B47]",
-    screencast: "bg-[#2D6A4F]",
-    "talking-head": "bg-[#626B58]",
-    cta: "bg-[#A63228]",
-    "text-overlay": "bg-[#7A5C1E]",
-  };
-  return colors[type];
-};
-
-export const getTypeLabel = (type: StoryboardPanelType["type"]) => {
-  const labels = {
-    "stock-video": "Stock Video",
-    screencast: "Screencast",
-    "talking-head": "Talking Head",
-    cta: "Call to Action",
-    "text-overlay": "Text Overlay",
-  };
-  return labels[type];
-};
 
 const StoryboardPanel: React.FC<StoryboardPanelProps> = ({
   panel,

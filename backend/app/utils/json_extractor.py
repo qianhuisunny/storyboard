@@ -39,22 +39,13 @@ def clean_json_string(json_str: str) -> str:
     json_str = re.sub(r'^```json\s*\n?', '', json_str, flags=re.MULTILINE)
     json_str = re.sub(r'\n?```\s*$', '', json_str, flags=re.MULTILINE)
 
-    # Remove any trailing text after the JSON (like the summary you provided)
-    # Look for the end of the JSON array
-    bracket_count = 0
-    last_bracket_index = -1
-
-    for i, char in enumerate(json_str):
-        if char == '[':
-            bracket_count += 1
-        elif char == ']':
-            bracket_count -= 1
-            if bracket_count == 0:
-                last_bracket_index = i
-                break
-
-    if last_bracket_index != -1:
-        json_str = json_str[:last_bracket_index + 1]
+    # Keep exactly the first complete top-level JSON value. JSONDecoder handles
+    # nested arrays/objects and brackets inside strings correctly.
+    try:
+        _value, end = json.JSONDecoder().raw_decode(json_str)
+        json_str = json_str[:end]
+    except json.JSONDecodeError:
+        pass
 
     return json_str
 

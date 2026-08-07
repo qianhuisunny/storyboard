@@ -41,10 +41,9 @@ const TYPE_BADGE_COLORS: Record<string, string> = {
 
 export default function UserView({
   screens,
-  projectId: _projectId,
   projectTitle = "Storyboard",
-  onScreensUpdate: _onScreensUpdate,
   onExport,
+  isComplete = false,
 }: UserViewProps) {
   const [isExporting, setIsExporting] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -194,15 +193,15 @@ export default function UserView({
     <div className="h-full flex flex-col bg-muted/10">
       {/* Header */}
       <header className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border bg-background">
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <h2 className="text-xl font-semibold text-foreground mb-1">Review & Share</h2>
             <p className="text-sm text-muted-foreground">
               Review your storyboard. Export or share when ready.
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-4 mr-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3 lg:mr-4">
               <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                 <Clock className="w-4 h-4" />
                 <span>{formatDuration(totalDuration)}</span>
@@ -316,13 +315,20 @@ export default function UserView({
           {formatDuration(totalDuration)} total &middot;{" "}
           {totalWords} words
         </div>
-        <button
-          onClick={onExport}
-          className="px-4 py-2 bg-[#2D6A4F] text-white rounded-lg hover:bg-[#2D6A4F]/90 transition-colors flex items-center gap-2"
-        >
-          <Check className="w-4 h-4" />
-          Mark as Complete
-        </button>
+        {isComplete ? (
+          <span role="status" className="inline-flex items-center gap-2 rounded-lg bg-[#E6F2EB] px-4 py-2 text-sm font-medium text-[#2D6A4F]">
+            <Check className="w-4 h-4" />
+            Storyboard complete
+          </span>
+        ) : onExport ? (
+          <button
+            onClick={onExport}
+            className="px-4 py-2 bg-[#2D6A4F] text-white rounded-lg hover:bg-[#2D6A4F]/90 transition-colors flex items-center gap-2"
+          >
+            <Check className="w-4 h-4" />
+            Mark as Complete
+          </button>
+        ) : null}
       </footer>
     </div>
   );

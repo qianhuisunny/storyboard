@@ -44,6 +44,8 @@ export function SplitBriefBuilder({
 
   // Store angle ref for Round 3 research
   const angleRef = useRef<{ audienceLevel: string; keyTakeaway: string; durationMinutes: number; questions: string[] } | null>(null);
+  const generateFinalBriefRef = useRef<(() => Promise<void>) | null>(null);
+  const createFallbackBriefRef = useRef<(() => StoryBrief) | null>(null);
 
   // Callback to start Round 3 research after Round 1 completes
   const startRound3Research = useCallback(async () => {
@@ -74,7 +76,7 @@ export function SplitBriefBuilder({
       } else {
         setResearchError("Failed to run Round 3 research");
       }
-    } catch (err) {
+    } catch {
       setResearchError("Network error during Round 3 research");
     }
   }, [projectId, onboardingData, setResearchPhase, setRound3Complete, setResearchError]);
@@ -148,7 +150,7 @@ export function SplitBriefBuilder({
                   } else {
                     setResearchError("Failed to run research");
                   }
-                } catch (err) {
+                } catch {
                   setResearchError("Network error during research");
                 }
               }
@@ -170,7 +172,7 @@ export function SplitBriefBuilder({
 
       if (turn === 3) {
         // Generate final brief after confirming turn 3
-        await generateFinalBrief();
+        await generateFinalBriefRef.current?.();
       }
     },
     [
@@ -243,14 +245,16 @@ export function SplitBriefBuilder({
         onComplete(brief);
       } else {
         // Fallback: create brief from available data
-        const fallbackBrief = createFallbackBrief();
+        const fallbackBrief = createFallbackBriefRef.current?.();
+        if (!fallbackBrief) return;
         setFinalBrief(fallbackBrief);
         onComplete(fallbackBrief);
       }
     } catch (err) {
       console.error("Error generating brief:", err);
       // Fallback: create brief from available data
-      const fallbackBrief = createFallbackBrief();
+      const fallbackBrief = createFallbackBriefRef.current?.();
+      if (!fallbackBrief) return;
       setFinalBrief(fallbackBrief);
       onComplete(fallbackBrief);
     }
@@ -299,6 +303,11 @@ export function SplitBriefBuilder({
       unresolved_questions: [],
     });
   }, [onboardingData, state.gapAnswers]);
+
+  useEffect(() => {
+    createFallbackBriefRef.current = createFallbackBrief;
+    generateFinalBriefRef.current = generateFinalBrief;
+  }, [createFallbackBrief, generateFinalBrief]);
 
   // Handle send to storyboard
   const handleSendToStoryboard = useCallback(() => {

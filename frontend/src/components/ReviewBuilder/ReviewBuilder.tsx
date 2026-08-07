@@ -11,6 +11,7 @@ export default function ReviewBuilder({
   projectTitle,
   onScreensUpdate,
   onExport,
+  isComplete,
 }: ReviewBuilderProps) {
   return (
     <div className="review-builder h-full flex flex-col">
@@ -20,6 +21,7 @@ export default function ReviewBuilder({
         projectTitle={projectTitle}
         onScreensUpdate={onScreensUpdate}
         onExport={onExport}
+        isComplete={isComplete}
       />
     </div>
   );

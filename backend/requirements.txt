@@ -14,8 +14,10 @@ svix==1.84.1
 lxml==6.0.2
 sqlalchemy[asyncio]>=2.0
 aiosqlite>=0.20
+psycopg[binary]==3.3.4
 alembic>=1.13
 sentry-sdk[fastapi]>=2.0
+vercel==0.7.1
 byteplus-python-sdk-v2>=1.0
 pytest>=9.0
 pytest-asyncio>=0.23

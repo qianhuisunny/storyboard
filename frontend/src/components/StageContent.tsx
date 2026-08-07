@@ -13,6 +13,8 @@ import { DraftBuilder, parseProductionScreens, type ProductionScreen, type Draft
 import { ReviewBuilder } from "./ReviewBuilder";
 import type { QualityEvalResult } from "./QualityScore";
 import { VIDEO_INTENT_ROUTES, isGuidedBriefType } from "@/lib/videoIntent";
+import SmartIntakeBuilder from "./SmartIntakeBuilder";
+import { isCanonicalIntakeArtifact, type WorkflowResponse } from "@/lib/workflow";
 
 // Feature flag for new split-screen brief builder
 const USE_SPLIT_BRIEF_BUILDER = true;
@@ -35,6 +37,11 @@ interface StageContentProps {
   onRegenerate: (feedback: string) => void;
   onContentChange: (content: string) => void;
   onStoryboardGeneratingChange?: (isGenerating: boolean) => void;
+  workflow?: WorkflowResponse | null;
+  onWorkflowChange?: (workflow: WorkflowResponse) => void;
+  onCanonicalApprove?: (artifact: "outline" | "storyboard", content: string) => Promise<void>;
+  onCanonicalRevise?: (artifact: "outline" | "storyboard", content: string, instruction: string) => Promise<void>;
+  isWorkflowActionPending?: boolean;
 }
 
 interface GuidedBriefInitResult {
@@ -135,7 +142,16 @@ async function initializeGuidedBriefProject(
       };
     }
 
-    if (stateData.phase === "brief_chat" || stateData.phase === "brief_review") {
+    const activeBriefPhases = [
+      "brief_chat",
+      "brief_round1",
+      "brief_round2",
+      "brief_round3",
+      "angle_selection",
+      "brief_review",
+    ];
+
+    if (activeBriefPhases.includes(stateData.phase)) {
       console.log("[Brief] Restoring chat brief state, fields:", Object.keys(briefFields));
       return {
         briefFields,
@@ -143,7 +159,7 @@ async function initializeGuidedBriefProject(
       };
     }
 
-    if (stateData.phase && !["intake", "brief_chat", "brief_review"].includes(stateData.phase)) {
+    if (stateData.phase && stateData.phase !== "intake" && !activeBriefPhases.includes(stateData.phase)) {
       console.log(
         "[Brief] Project already past brief stage, phase:",
         stateData.phase,
@@ -273,7 +289,7 @@ function GeneratingProgress({ stageId }: { stageId: number }) {
       setTimeout(() => setActiveStep(idx + 1), step.delay)
     );
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [steps]);
 
   return (
     <div className="flex flex-col items-center gap-6" style={{ maxWidth: 360 }}>
@@ -323,6 +339,11 @@ export default function StageContent({
   onRegenerate,
   onContentChange,
   onStoryboardGeneratingChange,
+  workflow,
+  onWorkflowChange,
+  onCanonicalApprove,
+  onCanonicalRevise,
+  isWorkflowActionPending = false,
 }: StageContentProps) {
   const { projectId } = useParams<{ projectId: string }>();
   const [feedback, setFeedback] = useState("");
@@ -331,6 +352,9 @@ export default function StageContent({
 
   // Get onboarding data for SplitBriefBuilder
   const onboardingData = useMemo(() => getOnboardingDataFromSession(), []);
+  const isCanonicalWorkflow = Boolean(
+    workflow && isCanonicalIntakeArtifact(workflow.artifacts.intake),
+  );
 
   const currentContent = humanContent ?? aiContent ?? "";
   const hasChanges = humanContent !== null && humanContent !== aiContent;
@@ -349,6 +373,7 @@ export default function StageContent({
   // Check if this project should use the guided intent-aware brief flow.
   // Priority: session storage onboarding data → saved brief content (for existing projects)
   const isGuidedBrief = useMemo(() => {
+    if (isCanonicalWorkflow) return false;
     if (onboardingData) {
       return Boolean(onboardingData.intentRoute) || isGuidedBriefType(onboardingData.videoType);
     }
@@ -367,7 +392,7 @@ export default function StageContent({
       }
     }
     return false;
-  }, [onboardingData, humanContent, aiContent, stage.id]);
+  }, [isCanonicalWorkflow, onboardingData, humanContent, aiContent, stage.id]);
 
   useEffect(() => {
     if (Object.keys(guidedBriefFields).length > 0 || Object.keys(savedGuidedBriefFields).length === 0) return;
@@ -376,7 +401,7 @@ export default function StageContent({
 
   // Initialize guided brief flow
   useEffect(() => {
-    if (isGuidedBrief && projectId && USE_GUIDED_BRIEF_FLOW && stage.id === 1 && !guidedBriefInitStartedRef.current) {
+    if (!isCanonicalWorkflow && isGuidedBrief && projectId && USE_GUIDED_BRIEF_FLOW && stage.id === 1 && !guidedBriefInitStartedRef.current) {
       let active = true;
       guidedBriefInitStartedRef.current = true;
 
@@ -407,7 +432,7 @@ export default function StageContent({
         guidedBriefInitStartedRef.current = false;
       };
     }
-  }, [isGuidedBrief, projectId, stage.id, stage.status, onboardingData]);
+  }, [isCanonicalWorkflow, isGuidedBrief, projectId, stage.id, stage.status, onboardingData]);
 
   // Handle brief approval for guided brief projects
   const handleGuidedBriefApprove = useCallback(
@@ -485,25 +510,27 @@ export default function StageContent({
 
   // For Draft stage, parse the AI content into production screens array
   const draftData = useMemo<ProductionScreen[]>(() => {
-    if (stage.id !== 3 || !aiContent) return [];
+    const authoritativeContent = humanContent ?? aiContent;
+    if (stage.id !== 3 || !authoritativeContent) return [];
     try {
-      const parsed = typeof aiContent === "string" ? JSON.parse(aiContent) : aiContent;
+      const parsed = typeof authoritativeContent === "string" ? JSON.parse(authoritativeContent) : authoritativeContent;
       return parseProductionScreens(parsed);
     } catch {
       return [];
     }
-  }, [stage.id, aiContent]);
+  }, [stage.id, humanContent, aiContent]);
 
   // For Review stage, parse the AI content into production screens array
   const reviewData = useMemo<ProductionScreen[]>(() => {
-    if (stage.id !== 4 || !aiContent) return [];
+    const authoritativeContent = humanContent ?? aiContent;
+    if (stage.id !== 4 || !authoritativeContent) return [];
     try {
-      const parsed = typeof aiContent === "string" ? JSON.parse(aiContent) : aiContent;
+      const parsed = typeof authoritativeContent === "string" ? JSON.parse(authoritativeContent) : authoritativeContent;
       return parseProductionScreens(parsed);
     } catch {
       return [];
     }
-  }, [stage.id, aiContent]);
+  }, [stage.id, humanContent, aiContent]);
 
 
   // Track brief updates for the Brief stage
@@ -523,6 +550,12 @@ export default function StageContent({
 
   // Track review updates for the Review stage
   const [localReview, setLocalReview] = useState<ProductionScreen[] | null>(null);
+
+  useEffect(() => {
+    if (stage.id === 2) setLocalOutlineText(null);
+    if (stage.id === 3) setLocalDraft(null);
+    if (stage.id === 4) setLocalReview(null);
+  }, [aiContent, humanContent, stage.id]);
 
   // Quality gate evals
   const [outlineEval, setOutlineEval] = useState<QualityEvalResult | null>(null);
@@ -601,6 +634,10 @@ export default function StageContent({
     if (!projectId) return;
     setIsRegeneratingOutline(true);
     try {
+      if (isCanonicalWorkflow && onCanonicalRevise) {
+        await onCanonicalRevise("outline", currentOutlineText, `Revise section ${sectionNumber}: ${instruction}`);
+        return;
+      }
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -621,12 +658,16 @@ export default function StageContent({
     } finally {
       setIsRegeneratingOutline(false);
     }
-  }, [projectId, currentOutlineText, onContentChange]);
+  }, [currentOutlineText, isCanonicalWorkflow, onCanonicalRevise, onContentChange, projectId]);
 
   const handleRefineOutline = useCallback(async (instruction: string) => {
     if (!projectId) return;
     setIsRegeneratingOutline(true);
     try {
+      if (isCanonicalWorkflow && onCanonicalRevise) {
+        await onCanonicalRevise("outline", currentOutlineText, instruction);
+        return;
+      }
       const response = await fetch(`/api/project/${projectId}/event`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -647,11 +688,15 @@ export default function StageContent({
     } finally {
       setIsRegeneratingOutline(false);
     }
-  }, [projectId, currentOutlineText, onContentChange]);
+  }, [currentOutlineText, isCanonicalWorkflow, onCanonicalRevise, onContentChange, projectId]);
 
   const handleResearchContinue = useCallback(async (filteredEvidence?: EvidenceResearch | null) => {
     console.log("[Outline] handleResearchContinue called, projectId:", projectId);
     if (!projectId) return;
+    if (isCanonicalWorkflow && onCanonicalApprove) {
+      await onCanonicalApprove("outline", currentOutlineText);
+      return;
+    }
     try {
       const stateResp = await fetch(`/api/project/${projectId}/pipeline-state`);
       if (!stateResp.ok) return;
@@ -708,7 +753,7 @@ export default function StageContent({
       console.error("[Outline] Continue failed:", err);
       throw err;
     }
-  }, [projectId, currentOutlineText, onApprove]);
+  }, [currentOutlineText, isCanonicalWorkflow, onApprove, onCanonicalApprove, projectId]);
 
   const handleDraftUpdate = (updatedDraft: ProductionScreen[]) => {
     setLocalDraft(updatedDraft);
@@ -718,8 +763,18 @@ export default function StageContent({
   const handleDraftConfirm = () => {
     const draftToApprove = currentDraft.length > 0 ? currentDraft : draftData;
     if (draftToApprove.length > 0) {
+      if (isCanonicalWorkflow && onCanonicalApprove) {
+        void onCanonicalApprove("storyboard", JSON.stringify(draftToApprove, null, 2));
+        return;
+      }
       onApprove(JSON.stringify(draftToApprove, null, 2));
     }
+  };
+
+  const handleDraftRevise = async (instruction: string) => {
+    const draftToRevise = currentDraft.length > 0 ? currentDraft : draftData;
+    if (!onCanonicalRevise || draftToRevise.length === 0) return;
+    await onCanonicalRevise("storyboard", JSON.stringify(draftToRevise, null, 2), instruction);
   };
 
   const handleReviewUpdate = (updatedReview: ProductionScreen[]) => {
@@ -744,6 +799,22 @@ export default function StageContent({
       setFeedback("");
     }
   };
+
+  if (
+    stage.id === 1
+    && projectId
+    && workflow
+    && onWorkflowChange
+    && isCanonicalWorkflow
+  ) {
+    return (
+      <SmartIntakeBuilder
+        projectId={projectId}
+        workflow={workflow}
+        onWorkflowChange={onWorkflowChange}
+      />
+    );
+  }
 
   if (isGenerating && stage.id !== 2 && stage.id !== 3) {
     return (
@@ -880,6 +951,7 @@ export default function StageContent({
           researchProgress={researchProgress}
           outlineEval={outlineEval}
           onGeneratingStateChange={onStoryboardGeneratingChange}
+          isActionPending={isWorkflowActionPending}
         />
       </div>
     );
@@ -898,6 +970,8 @@ export default function StageContent({
           onDraftUpdate={handleDraftUpdate}
           onConfirm={handleDraftConfirm}
           storyboardEval={storyboardEval}
+          onRevise={isCanonicalWorkflow ? handleDraftRevise : undefined}
+          isActionPending={isWorkflowActionPending}
         />
       </div>
     );
@@ -913,7 +987,8 @@ export default function StageContent({
           projectTitle="Video Storyboard"
           previousStageOutput={previousStageOutput}
           onScreensUpdate={handleReviewUpdate}
-          onExport={handleReviewConfirm}
+          onExport={isCanonicalWorkflow ? undefined : handleReviewConfirm}
+          isComplete={isCanonicalWorkflow && workflow?.workflow_stage === "complete"}
         />
       </div>
     );

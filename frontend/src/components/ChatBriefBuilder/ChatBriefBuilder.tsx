@@ -9,6 +9,7 @@ import ChatInput from "./ChatInput";
 import BriefReview from "../BriefBuilder/RoundForms/BriefReview";
 import OutlineLoadingView from "../OutlineLoadingView";
 import type { BriefField } from "../BriefBuilder/types";
+import { requestChatBrief } from "./chatBriefRequest";
 
 interface ChatBriefBuilderProps {
   projectId: string;
@@ -22,7 +23,7 @@ type Phase = 1 | 2 | 3;
 
 type ActiveSection = "core_intent" | "content_spine" | "review";
 
-function sectionForPhase(phase: Phase, _questionIndex: number): ActiveSection {
+function sectionForPhase(phase: Phase): ActiveSection {
   if (phase === 1) return "core_intent";
   if (phase === 2) return "content_spine";
   return "review";
@@ -183,7 +184,7 @@ export default function ChatBriefBuilder({
     if (targetPhase < phase) {
       setPhase(targetPhase);
     }
-  }, [phase]);
+  }, [isAlreadyApproved, phase]);
 
   useEffect(() => {
     if (!isAlreadyApproved) return;
@@ -352,29 +353,22 @@ export default function ChatBriefBuilder({
       const sourceContext = sessionStorage.getItem("storyboardContext") || "";
 
       try {
-        const resp = await fetch(
-          `/api/project/${projectId}/chat-brief`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              messages: currentMessages.map((m) => ({
-                role: m.role,
-                content: m.content,
-                fieldKey: m.fieldKey,
-              })),
-              fields_so_far: fieldsSoFar,
-              onboarding: {
-                topic,
-                duration,
-                audience,
-                intent_route: intentRoute,
-                content_mode: sessionStorage.getItem("storyboardContentMode") || "",
-                source_context: sourceContext,
-              },
-            }),
-          }
-        );
+        const resp = await requestChatBrief(projectId, {
+          messages: currentMessages.map((m) => ({
+            role: m.role,
+            content: m.content,
+            fieldKey: m.fieldKey,
+          })),
+          fields_so_far: fieldsSoFar,
+          onboarding: {
+            topic,
+            duration,
+            audience,
+            intent_route: intentRoute,
+            content_mode: sessionStorage.getItem("storyboardContentMode") || "",
+            source_context: sourceContext,
+          },
+        });
 
         if (!resp.ok) {
           throw new Error(`Chat brief request failed: ${resp.status}`);
@@ -588,7 +582,7 @@ export default function ChatBriefBuilder({
     setIsEditingReview(false);
   }, []);
 
-  const activeSection = sectionForPhase(phase, questionIndex);
+  const activeSection = sectionForPhase(phase);
   const coreIntentMessages = messages.filter((msg) => msg.phase === 1);
   const contentSpineMessages = messages.filter((msg) => msg.phase === 2);
 

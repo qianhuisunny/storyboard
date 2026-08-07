@@ -50,6 +50,10 @@ export interface ProductionScreen {
   text_overlay?: string;
 }
 
+type PersistedProductionScreen = Partial<ProductionScreen> & {
+  on_screen_visual_keywords?: string;
+};
+
 // Processing log entry for draft generation
 export interface DraftProcessingEntry {
   id: string;
@@ -73,6 +77,8 @@ export interface DraftBuilderProps {
   onDraftUpdate: (screens: ProductionScreen[]) => void;
   onConfirm: () => void;
   storyboardEval?: import("../QualityScore").QualityEvalResult | null;
+  onRevise?: (instruction: string) => Promise<void>;
+  isActionPending?: boolean;
 }
 
 // TabToggle props
@@ -89,6 +95,8 @@ export interface UserViewProps {
   onScreensChange: (screens: ProductionScreen[]) => void;
   onConfirm: () => void;
   storyboardEval?: import("../QualityScore").QualityEvalResult | null;
+  onRevise?: (instruction: string) => Promise<void>;
+  isActionPending?: boolean;
 }
 
 // PanelCard props
@@ -127,12 +135,14 @@ export interface OutputViewProps {
 /**
  * Normalize a production screen object to ensure all fields exist.
  */
-export function normalizeProductionScreen(raw: Partial<ProductionScreen>, index: number): ProductionScreen {
+export function normalizeProductionScreen(raw: PersistedProductionScreen, index: number): ProductionScreen {
+  const isLegacyCta = raw.screen_type === "cta";
   return {
     screen_number: raw.screen_number ?? index + 1,
-    screen_type: raw.screen_type ?? "slides",
+    screen_type: isLegacyCta ? "slides" : raw.screen_type ?? "slides",
+    narrative_role: raw.narrative_role ?? (isLegacyCta ? "cta" : undefined),
     voiceover_text: raw.voiceover_text ?? "",
-    visual_direction: raw.visual_direction ?? [],
+    visual_direction: raw.visual_direction ?? raw.on_screen_visual_keywords ?? [],
     on_screen_visual: raw.on_screen_visual ?? "",
     action_notes: raw.action_notes ?? "",
     text_overlay: raw.text_overlay ?? "",
@@ -151,7 +161,7 @@ export function parseProductionScreens(data: unknown): ProductionScreen[] {
     : typeof data === "object" && data !== null && Array.isArray((data as { screens?: unknown }).screens)
     ? (data as { screens: unknown[] }).screens
     : [];
-  return arr.map((item, index) => normalizeProductionScreen(item as Partial<ProductionScreen>, index));
+  return arr.map((item, index) => normalizeProductionScreen(item as PersistedProductionScreen, index));
 }
 
 /**

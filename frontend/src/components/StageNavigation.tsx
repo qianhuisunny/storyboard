@@ -26,7 +26,7 @@ const statusLabels: Record<StageStatus, string> = {
   generating: "Generating…",
 };
 
-/** Visual stage item for the 5-stage sidebar display */
+/** Visual stage item for the four-stage workflow sidebar. */
 interface VisualStage {
   visualNumber: number;
   name: string;
@@ -41,8 +41,7 @@ export default function StageNavigation({
   currentStageId,
   onStageSelect,
 }: StageNavigationProps) {
-  // Build 4 visual stages from 4 internal stages
-  // Internal stages: 1=Brief, 2=Outline, 3=Draft, 4=Review
+  // Internal ids remain numeric while the product contract uses four named stages.
   const internalStage = (id: number) => stages.find((s) => s.id === id);
 
   const brief = internalStage(1);
@@ -53,7 +52,7 @@ export default function StageNavigation({
   const visualStages: VisualStage[] = [
     {
       visualNumber: 1,
-      name: "Video Briefing",
+      name: "Smart Intake",
       status: brief?.status ?? "not_started",
       isActive: currentStageId === 1,
       isClickable: brief ? brief.status !== "not_started" || 1 <= currentStageId : false,
@@ -61,7 +60,7 @@ export default function StageNavigation({
     },
     {
       visualNumber: 2,
-      name: "Video Outline",
+      name: "Outline",
       status: outline?.status ?? "not_started",
       isActive: currentStageId === 2,
       isClickable: outline ? outline.status !== "not_started" || 2 <= currentStageId : false,
@@ -69,7 +68,7 @@ export default function StageNavigation({
     },
     {
       visualNumber: 3,
-      name: "Storyboard Draft",
+      name: "Storyboard",
       status: draft?.status ?? "not_started",
       isActive: currentStageId === 3,
       isClickable: draft ? draft.status !== "not_started" && draft.status !== "generating" || 3 <= currentStageId : false,
@@ -77,7 +76,7 @@ export default function StageNavigation({
     },
     {
       visualNumber: 4,
-      name: "Review and Share",
+      name: "Complete",
       status: review?.status ?? "not_started",
       isActive: currentStageId === 4,
       isClickable: review ? review.status !== "not_started" || 4 <= currentStageId : false,

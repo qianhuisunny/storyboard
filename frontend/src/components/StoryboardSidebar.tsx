@@ -2,7 +2,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getTypeColor, getTypeLabel } from "@/components/StoryboardPanel";
+import { getTypeColor, getTypeLabel } from "@/components/storyboardPanelUtils";
 import type { StoryboardPanelType } from "@/components/StoryboardPanel";
 
 interface StoryboardSidebarProps {

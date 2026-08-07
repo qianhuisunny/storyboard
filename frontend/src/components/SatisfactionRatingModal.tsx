@@ -78,7 +78,7 @@ export function SatisfactionRatingModal({
     try {
       await onSubmit(rating, feedback);
       onClose();
-    } catch (err) {
+    } catch {
       setError("Failed to submit rating. Please try again.");
     } finally {
       setIsSubmitting(false);

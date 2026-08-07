@@ -35,11 +35,11 @@ export default function OutlineBuilder({
   onRegenerateSection,
   onRefineOutline,
   isResearching = false,
-  isRegenerating: _isRegenerating = false,
   researchResults = null,
   researchProgress = null,
   outlineEval = null,
   onGeneratingStateChange,
+  isActionPending = false,
 }: OutlineBuilderProps) {
   const [isContinuing, setIsContinuing] = useState(false);
   const [isRerunningResearch, setIsRerunningResearch] = useState(false);
@@ -275,6 +275,7 @@ export default function OutlineBuilder({
                   {onRefineOutline && (
                     <button
                       onClick={() => setShowOutlineRegenPopover((v) => !v)}
+                      disabled={isActionPending}
                       className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all justify-self-center"
                       title="Regenerate entire outline"
                     >
@@ -308,6 +309,7 @@ export default function OutlineBuilder({
                     onRemoveSection={handleRemoveSection}
                     onRegenerateSection={onRegenerateSection ? handleRegenerateSection : undefined}
                     regeneratingSectionNumber={regeneratingSectionNumber}
+                    disabled={isActionPending}
                   />
                 </div>
               </div>
@@ -396,7 +398,7 @@ export default function OutlineBuilder({
                 onGeneratingStateChange?.(false);
               }
             }}
-            disabled={isContinuing || sections.length === 0}
+            disabled={isContinuing || isActionPending || sections.length === 0}
           >
             {isContinuing ? (
               <>

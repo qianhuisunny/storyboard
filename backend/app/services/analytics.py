@@ -17,6 +17,8 @@ from pathlib import Path
 from typing import Dict, List, Literal, Optional, Union
 from pydantic import BaseModel, Field
 
+from app.services.project_storage import project_data_root
+
 
 # =============================================================================
 # DATA MODELS
@@ -122,8 +124,8 @@ class AnalyticsTracker:
     - Global: data/_analytics/global.json
     """
 
-    def __init__(self, data_dir: str = "data"):
-        self.data_dir = Path(data_dir)
+    def __init__(self, data_dir: Optional[str] = None):
+        self.data_dir = Path(data_dir) if data_dir is not None else project_data_root()
         self._ensure_analytics_dir()
 
     def _ensure_analytics_dir(self):

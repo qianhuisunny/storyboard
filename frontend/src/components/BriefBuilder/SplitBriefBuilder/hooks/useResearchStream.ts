@@ -194,6 +194,7 @@ export function useResearchPolling({
 }) {
   const intervalRef = useRef<NodeJS.Timeout | undefined>(undefined);
   const [isPolling, setIsPolling] = useState(false);
+  const stopPollingRef = useRef<() => void>(() => undefined);
 
   const startPolling = useCallback(async () => {
     if (!enabled || !projectId) return;
@@ -208,7 +209,7 @@ export function useResearchPolling({
       if (!response.ok) {
         throw new Error("Failed to start research");
       }
-    } catch (err) {
+    } catch {
       onError("Failed to start research");
       setIsPolling(false);
       return;
@@ -222,10 +223,10 @@ export function useResearchPolling({
 
         if (data.status === "complete") {
           onResearchComplete(data.findings);
-          stopPolling();
+          stopPollingRef.current();
         } else if (data.status === "error") {
           onError(data.error || "Research failed");
-          stopPolling();
+          stopPollingRef.current();
         }
       } catch (err) {
         console.error("Polling error:", err);
@@ -239,6 +240,10 @@ export function useResearchPolling({
     }
     setIsPolling(false);
   }, []);
+
+  useEffect(() => {
+    stopPollingRef.current = stopPolling;
+  }, [stopPolling]);
 
   useEffect(() => {
     return () => {

@@ -2,6 +2,7 @@
 Orchestrator transition tests for the streamlined Knowledge Share flow.
 """
 import pytest
+from app.services.agents.storyboard_director import StoryboardDirector
 from app.services.state import StateManager, StoryboardState
 from app.test.conftest import MOCK_INTAKE_FORM, MOCK_OUTLINE, MOCK_STORYBOARD
 
@@ -31,6 +32,60 @@ class TestKnowledgeShareTransitions:
         assert result["phase"] == "gate1"
         assert result.get("story_brief") is not None
         assert result.get("brief_locked") is False
+
+    @pytest.mark.parametrize(
+        "phase",
+        ["brief_round1", "brief_round2", "brief_round3", "angle_selection"],
+    )
+    async def test_restored_brief_phase_uses_existing_approval_path_to_outline(
+        self, phase, make_orchestrator, patch_state_manager
+    ):
+        orch = make_orchestrator()
+        manager = StateManager("test-project")
+        retained = {
+            "topic": {
+                "value": f"Retained {phase} topic",
+                "source": "extracted",
+                "confirmed": False,
+            }
+        }
+        await manager.save(StoryboardState(
+            project_id="test-project",
+            phase=phase,
+            story_brief={"fields": retained, "legacy_marker": phase},
+        ))
+        confirmed = {
+            "viewer_outcome": {
+                "value": "Advance the restored brief",
+                "source": "extracted",
+                "confirmed": True,
+            },
+            "target_audience": {
+                "value": "Legacy project owners",
+                "source": "extracted",
+                "confirmed": True,
+            },
+        }
+
+        finalized = await orch.process_event(
+            "test-project",
+            "chat_brief_approve",
+            {"all_fields": confirmed},
+        )
+
+        assert finalized["success"] is True
+        assert finalized["phase"] == "gate1"
+        assert finalized["story_brief"] == {
+            "fields": {**retained, **confirmed},
+            "legacy_marker": phase,
+        }
+
+        outlined = await orch.process_event("test-project", "approve", {})
+        assert outlined["success"] is True
+        assert outlined["phase"] == "gate2"
+        assert outlined["screen_outline"] == MOCK_OUTLINE
+        persisted = await manager.load()
+        assert persisted.story_brief == finalized["story_brief"]
 
     async def test_approve_alias_from_brief_review_routes_to_brief_approve(self, make_orchestrator, patch_state_manager):
         orch = make_orchestrator()
@@ -78,7 +133,6 @@ class TestGateTransitions:
             story_brief={"fields": {
                 "viewer_outcome": {"value": "Learn ML", "source": "extracted", "confirmed": True},
                 "target_audience": {"value": "Engineers", "source": "extracted", "confirmed": True},
-                "core_talking_points": {"value": ["A", "B"], "source": "generated", "confirmed": True},
             }},
             brief_locked=True,
         )
@@ -87,6 +141,41 @@ class TestGateTransitions:
         assert result["success"] is True
         assert result["phase"] == "gate2"
         assert result.get("screen_outline") is not None
+
+    async def test_gate1_flat_legacy_brief_retains_goal_and_key_points_in_director_prompt(
+        self, make_orchestrator, make_state, patch_state_manager
+    ):
+        orch = make_orchestrator()
+        captured = []
+
+        class CapturingDirector:
+            prompt_file = StoryboardDirector.prompt_file
+
+            def run(self, state, **_kwargs):
+                captured.append(StoryboardDirector()._build_prompt(state.story_brief))
+                return MOCK_OUTLINE
+
+        orch.agents["director"] = CapturingDirector()
+        manager = StateManager("test-project")
+        flat_brief = {
+            "video_goal": "Teach safe deployments",
+            "target_audience": "Engineering leads",
+            "key_points": ["Stop the rollout", "Restore service"],
+        }
+        await manager.save(
+            make_state(
+                phase="gate1",
+                story_brief=flat_brief,
+                brief_locked=True,
+            )
+        )
+
+        result = await orch.process_event("test-project", "approve", {})
+
+        assert result["success"] is True
+        assert "Teach safe deployments" in captured[0]
+        assert "Stop the rollout" in captured[0]
+        assert (await manager.load()).story_brief == flat_brief
 
     async def test_gate2_approve_generates_storyboard(self, make_orchestrator, make_state, patch_state_manager):
         orch = make_orchestrator()

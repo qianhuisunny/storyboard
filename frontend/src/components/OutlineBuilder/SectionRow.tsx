@@ -119,7 +119,6 @@ function BulletBlock({
 export default function SectionRow({
   section,
   index,
-  totalSections: _totalSections,
   onUpdate,
   onRemove,
   onRegenerate,
@@ -236,10 +235,11 @@ export default function SectionRow({
             <X className="w-4 h-4" />
           </button>
         )}
-        {!disabled && onRegenerate && (
+        {onRegenerate && (
           <button
             onClick={() => setShowRegenPopover((v) => !v)}
-            className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all"
+            disabled={disabled}
+            className="w-7 h-7 flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all disabled:opacity-40"
             title="Regenerate this section"
           >
             <Sparkles className="w-[15px] h-[15px]" />

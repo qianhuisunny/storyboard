@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Clock, Film, FileText, Layers } from "lucide-react";
+import { Plus, Clock, Film, FileText, Layers, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import PanelCard from "./PanelCard";
 import type { UserViewProps, ProductionScreen } from "../types";
 import { calculateTotalDuration, formatDuration, normalizeProductionScreen } from "../types";
 import { QualityScore } from "../../QualityScore";
+import { RegenPopover } from "../../OutlineBuilder/RegenPopover";
 
 /**
  * UserView - Visual editor for the storyboard draft.
@@ -17,8 +18,11 @@ export default function UserView({
   onScreensChange,
   onConfirm,
   storyboardEval,
+  onRevise,
+  isActionPending = false,
 }: UserViewProps) {
   const [expandedIndex, setExpandedIndex] = useState<number | null>(0);
+  const [showRevise, setShowRevise] = useState(false);
 
   const totalDuration = calculateTotalDuration(screens);
   const totalWords = screens.reduce(
@@ -98,7 +102,7 @@ export default function UserView({
       {/* Header with Summary */}
       <header className="px-6 sm:px-10 py-4 sm:py-5 border-b border-border bg-background">
         <div className="w-full">
-          <div className="flex items-start justify-between gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
             <div>
               <h2 className="text-xl font-semibold text-foreground mb-1">
                 Storyboard Draft
@@ -109,7 +113,7 @@ export default function UserView({
             </div>
 
             {/* Stats Summary */}
-            <div className="flex items-center gap-4">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 rounded-lg">
                 <Clock className="w-4 h-4 text-muted-foreground" />
                 <span className="text-sm font-medium">
@@ -265,24 +269,50 @@ export default function UserView({
 
       {/* Footer Actions */}
       <footer className="px-6 sm:px-10 py-4 border-t border-border bg-muted/20">
-        <div className="w-full flex items-center justify-between">
+        {showRevise && onRevise && (
+          <div className="mb-4 ml-auto w-full max-w-xl">
+            <RegenPopover
+              title="Revise storyboard with AI"
+              onRegenerate={(instruction) => {
+                void onRevise(instruction);
+                setShowRevise(false);
+              }}
+              onClose={() => setShowRevise(false)}
+              isRegenerating={isActionPending}
+            />
+          </div>
+        )}
+        <div className="w-full flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div className="text-base text-muted-foreground">
             {screens.length} panel{screens.length !== 1 ? "s" : ""} &middot;{" "}
             {formatDuration(totalDuration)} total &middot;{" "}
             {totalWords} words
           </div>
-          <button
-            onClick={onConfirm}
-            disabled={screens.length < 3}
-            className={cn(
-              "px-4 py-2 bg-primary text-primary-foreground rounded-md transition-colors",
-              screens.length < 3
-                ? "opacity-50 cursor-not-allowed"
-                : "hover:bg-primary/90"
+          <div className="flex flex-wrap gap-2 sm:justify-end">
+            {onRevise && (
+              <button
+                type="button"
+                onClick={() => setShowRevise((current) => !current)}
+                disabled={isActionPending}
+                className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-muted/40 disabled:opacity-50"
+              >
+                <Sparkles className="h-4 w-4" />
+                Revise with AI
+              </button>
             )}
-          >
-            Approve & Finalize Storyboard
-          </button>
+            <button
+              onClick={onConfirm}
+              disabled={screens.length < 3 || isActionPending}
+              className={cn(
+                "px-4 py-2 bg-primary text-primary-foreground rounded-md transition-colors",
+                screens.length < 3 || isActionPending
+                  ? "opacity-50 cursor-not-allowed"
+                  : "hover:bg-primary/90"
+              )}
+            >
+              Approve & Finalize Storyboard
+            </button>
+          </div>
         </div>
       </footer>
     </div>

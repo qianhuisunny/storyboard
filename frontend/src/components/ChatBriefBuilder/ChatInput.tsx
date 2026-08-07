@@ -7,9 +7,42 @@ interface ChatInputProps {
   placeholder?: string;
 }
 
+interface SpeechRecognitionAlternativeLike {
+  transcript: string;
+}
+
+interface SpeechRecognitionResultLike {
+  readonly isFinal: boolean;
+  readonly 0?: SpeechRecognitionAlternativeLike;
+}
+
+interface SpeechRecognitionEventLike {
+  readonly results: ArrayLike<SpeechRecognitionResultLike>;
+}
+
+interface SpeechRecognitionLike {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((event: SpeechRecognitionEventLike) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  abort(): void;
+  start(): void;
+  stop(): void;
+}
+
+type SpeechRecognitionConstructor = new () => SpeechRecognitionLike;
+
+interface SpeechRecognitionWindow extends Window {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+}
+
 const SpeechRecognition =
   typeof window !== "undefined"
-    ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    ? (window as SpeechRecognitionWindow).SpeechRecognition ||
+      (window as SpeechRecognitionWindow).webkitSpeechRecognition
     : null;
 
 const FILLER_WORDS = new Set([
@@ -85,7 +118,7 @@ export default function ChatInput({
   const [text, setText] = useState("");
   const [isListening, setIsListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const prefixTextRef = useRef("");
   const finalTranscriptRef = useRef("");
   const liveTranscriptRef = useRef("");
@@ -159,7 +192,7 @@ export default function ChatInput({
     liveTranscriptRef.current = "";
     shouldSubmitSpeechRef.current = true;
 
-    recognition.onresult = (event: any) => {
+    recognition.onresult = (event: SpeechRecognitionEventLike) => {
       const finalParts: string[] = [];
       const interimParts: string[] = [];
 

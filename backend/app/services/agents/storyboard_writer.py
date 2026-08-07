@@ -5,9 +5,12 @@ Takes Director's text outline + evidence research → single LLM call for entire
 post-processes with DurationCalculator → returns production-ready screen list.
 """
 
-import json
 import re
 from typing import Any, Optional
+
+from app.services.legacy_storyboard import legacy_section_assignments
+from app.services.production_formats import resolve_production_formats
+from app.services.prompt_context import render_prompt_value
 
 from .base import BaseAgent
 from .duration_calculator import DurationCalculator
@@ -36,9 +39,8 @@ class StoryboardWriter(BaseAgent):
     Output: list of 7-field screen dicts
     """
 
-    prompt_file = "storyboard_writer_prompt_v0603.md"
+    prompt_file = "storyboard_writer_prompt_v0712.md"
     SECTION_DURATION_TOLERANCE = 0.20
-    MAX_SECTION_RETRY_ATTEMPTS = 1
 
     def __init__(self):
         super().__init__()
@@ -63,6 +65,11 @@ class StoryboardWriter(BaseAgent):
         story_brief = state.story_brief or {}
         evidence_research = getattr(state, "evidence_research", None) or {}
         project_id = getattr(state, "project_id", None)
+        revision_instruction = kwargs.get("revision_instruction")
+        existing_storyboard = kwargs.get("existing_storyboard")
+        quality_feedback = kwargs.get("quality_feedback")
+        if existing_storyboard is None:
+            existing_storyboard = getattr(state, "storyboard", None)
 
         # 1. Parse outline into sections (stores target_seconds on each section)
         sections = self.validate_outline_contract(outline_text)
@@ -93,6 +100,9 @@ class StoryboardWriter(BaseAgent):
             brief_context=brief_context,
             allowed_types=allowed_types,
             target_duration=target_duration,
+            revision_instruction=revision_instruction,
+            existing_storyboard=existing_storyboard,
+            quality_feedback=quality_feedback,
         )
         all_screens = self._call_storyboard_llm(user_prompt, project_id)
         if not all_screens:
@@ -104,7 +114,8 @@ class StoryboardWriter(BaseAgent):
         if target_duration > 0:
             all_screens = self._validate_and_retry_sections(
                 all_screens, sections, all_evidence, brief_context,
-                allowed_types, project_id,
+                allowed_types, project_id, revision_instruction,
+                existing_storyboard, quality_feedback,
             )
 
         # 7. Ensure sequential numbering
@@ -227,8 +238,10 @@ class StoryboardWriter(BaseAgent):
         is_minutes = "min" in duration_str.lower()
         clean = re.sub(r"\s*min(utes?)?\s*", "", duration_str, flags=re.IGNORECASE).strip()
 
+        if not re.search(r"\S\s*[—–-]\s*\S", clean):
+            return None
         parts = [part.strip() for part in re.split(r"[—–\-]", clean) if part.strip()]
-        if not parts:
+        if len(parts) != 2:
             return None
 
         def to_seconds(t: str) -> Optional[int]:
@@ -242,22 +255,15 @@ class StoryboardWriter(BaseAgent):
                 val = float(t)
                 if val <= 0:
                     return None
-                return int(val * 60) if is_minutes else int(val)
+                return round(val * 60) if is_minutes else round(val)
             except ValueError:
                 return None
 
-        if len(parts) >= 2:
-            min_sec = to_seconds(parts[0])
-            max_sec = to_seconds(parts[1])
-            if min_sec is None or max_sec is None:
-                return None
-            return (min(min_sec, max_sec), max(min_sec, max_sec))
-        elif len(parts) == 1:
-            seconds = to_seconds(parts[0])
-            if seconds is None:
-                return None
-            return (seconds, seconds)
-        return None
+        min_sec = to_seconds(parts[0])
+        max_sec = to_seconds(parts[1])
+        if min_sec is None or max_sec is None or min_sec <= 0 or max_sec <= 0:
+            return None
+        return (min(min_sec, max_sec), max(min_sec, max_sec))
 
     def _parse_target_seconds(self, duration_str: str) -> Optional[int]:
         """Parse Director's Duration field as a single target in seconds.
@@ -267,11 +273,13 @@ class StoryboardWriter(BaseAgent):
         """
         if not duration_str or not duration_str.strip():
             return None
-        clean = re.sub(r"\s*(seconds?|s)\s*$", "", duration_str.strip(), flags=re.IGNORECASE)
-        try:
-            return int(float(clean))
-        except ValueError:
-            pass
+        canonical = re.fullmatch(
+            r"\s*([1-9]\d*)\s*(?:seconds?|secs?|s)?\s*",
+            duration_str,
+            re.IGNORECASE,
+        )
+        if canonical:
+            return int(canonical.group(1))
         parsed = self._parse_duration_range(duration_str)
         if parsed:
             return (parsed[0] + parsed[1]) // 2
@@ -290,12 +298,23 @@ class StoryboardWriter(BaseAgent):
             raise ValueError("Could not parse any sections from outline")
 
         errors = []
+        section_numbers = [section.get("section_number") for section in sections]
+        if section_numbers != list(range(1, len(sections) + 1)):
+            errors.append(
+                "Section numbers must be unique and sequential from 1"
+            )
         for section in sections:
             section_number = section.get("section_number", "?")
             if not section.get("title", "").strip():
                 errors.append(f"Section {section_number} is missing a title")
             if not section.get("purpose", "").strip():
                 errors.append(f"Section {section_number} is missing Purpose")
+            if not section.get("entry_assumption", "").strip():
+                errors.append(
+                    f"Section {section_number} is missing Entry assumption"
+                )
+            if not section.get("exit_state", "").strip():
+                errors.append(f"Section {section_number} is missing Exit state")
             duration_raw = section.get("duration_range", "")
             target_sec = self._parse_target_seconds(duration_raw)
             if not duration_raw.strip():
@@ -318,72 +337,138 @@ class StoryboardWriter(BaseAgent):
     # Brief Context Extraction
     # =========================================================================
 
+    @staticmethod
+    def _unwrap_brief_value(value: Any) -> Any:
+        if isinstance(value, dict) and "value" in value:
+            return value["value"]
+        return value
+
+    @staticmethod
+    def _brief_value_present(value: Any) -> bool:
+        if value is None:
+            return False
+        if isinstance(value, str):
+            return bool(value.strip())
+        if isinstance(value, (list, tuple, dict, set)):
+            return bool(value)
+        return True
+
+    def _extract_brief_aliases(
+        self, story_brief: dict, aliases: tuple[str, ...], default=None
+    ) -> Any:
+        story_brief = story_brief or {}
+        for name in aliases:
+            if name in story_brief:
+                value = self._unwrap_brief_value(story_brief[name])
+                if self._brief_value_present(value):
+                    return value
+        fields = story_brief.get("fields", {})
+        if isinstance(fields, dict):
+            for name in aliases:
+                if name in fields:
+                    value = self._unwrap_brief_value(fields[name])
+                    if self._brief_value_present(value):
+                        return value
+        return default
+
     def _extract_brief_field(self, story_brief: dict, field_name: str, default=None):
-        """Extract a field from story_brief, handling both new and legacy formats."""
-        if "fields" in story_brief:
-            field = story_brief["fields"].get(field_name, {})
-            if isinstance(field, dict) and "value" in field:
-                return field["value"]
-        return story_brief.get(field_name, default)
+        """Compatibility helper for a direct key or old nested field."""
+        return self._extract_brief_aliases(story_brief, (field_name,), default)
+
+    def _brief_has_field(self, story_brief: dict, name: str) -> bool:
+        if name in (story_brief or {}):
+            return True
+        fields = (story_brief or {}).get("fields", {})
+        return isinstance(fields, dict) and name in fields
 
     def _extract_brief_context(self, story_brief: dict) -> dict:
-        """Extract relevant fields from story brief for the user prompt."""
-        return {
-            "intent_route": self._extract_brief_field(story_brief, "intent_route", self._extract_brief_field(story_brief, "video_type", "")),
-            "content_mode": self._extract_brief_field(story_brief, "content_mode", ""),
-            "format_style": self._extract_brief_field(story_brief, "format_style", ""),
-            "platform": self._extract_brief_field(story_brief, "platform", ""),
-            "target_audience": self._extract_brief_field(story_brief, "target_audience", ""),
-            "audience_level": self._extract_brief_field(story_brief, "audience_level", "intermediate"),
-            "delivery_tone": self._extract_brief_field(story_brief, "delivery_tone", ""),
-            "point_of_view": self._extract_brief_field(story_brief, "point_of_view", ""),
-            "duration": self._extract_brief_field(story_brief, "duration", "60"),
-            "viewer_outcome": self._extract_brief_field(story_brief, "viewer_outcome", ""),
-        }
+        """Return only canonical intake and source values that are present."""
+        definitions = (
+            ("prompt", ("prompt", "topic", "description", "video_goal")),
+            ("viewer_outcome", ("viewer_outcome",)),
+            ("target_audience", ("target_audience",)),
+            ("audience_level", ("audience_level",)),
+            ("platform", ("platform",)),
+            ("aspect_ratio", ("aspect_ratio",)),
+            ("delivery_tone", ("delivery_tone",)),
+            ("source_snapshot", ("source_snapshot", "source_context", "key_points")),
+            ("sources", ("sources",)),
+        )
+        context = {}
+        for canonical, aliases in definitions:
+            value = self._extract_brief_aliases(story_brief, aliases)
+            if self._brief_value_present(value):
+                context[canonical] = value
 
-    def _get_allowed_screen_types(self, story_brief: dict) -> list:
-        """Derive allowed screen types from broll_type + on_camera_presence."""
-        broll = self._extract_brief_field(story_brief, "broll_type", [])
-        if isinstance(broll, str):
-            broll = [broll] if broll else []
+        duration_value = self._extract_brief_aliases(
+            story_brief, ("duration_seconds", "duration")
+        )
+        duration = self._parse_positive_duration(duration_value)
+        if duration is not None:
+            context["duration_seconds"] = duration
 
-        # Map brief broll_type values to valid screen types
-        type_map = {
-            "slides": "slides",
-            "whiteboard_animation": "whiteboard_animation",
-            "whiteboard": "whiteboard_animation",  # legacy
-            "diagrams": "whiteboard_animation",     # legacy
-            "screen_recording": "screen_recording",
-            "code_editor": "code_editor",
-            "stock_footage": "stock_footage",
-            "real_world": "real_world",
-        }
+        formats_declared = self._brief_has_field(
+            story_brief, "production_formats"
+        ) or self._brief_has_field(story_brief, "broll_type")
+        formats = self._get_allowed_screen_types(
+            story_brief, fallback=formats_declared
+        )
+        if formats:
+            context["production_formats"] = formats
+        return context
 
-        allowed = []
-        for b in broll:
-            mapped = type_map.get(b.lower().strip(), b.lower().strip())
-            if mapped not in allowed:
-                allowed.append(mapped)
+    def _get_allowed_screen_types(
+        self, story_brief: dict, fallback: bool = True
+    ) -> list:
+        """Use canonical production formats, with old visual fields as fallback."""
+        uses_legacy_fields = not self._brief_has_field(
+            story_brief, "production_formats"
+        )
+        formats = self._extract_brief_aliases(
+            story_brief, ("production_formats",), []
+        )
+        if uses_legacy_fields:
+            formats = self._extract_brief_aliases(story_brief, ("broll_type",), [])
+        if isinstance(formats, str):
+            formats = [formats] if formats else []
 
-        # Add talking_head if on-camera presence is enabled
-        on_camera = self._extract_brief_field(story_brief, "on_camera_presence", "")
-        if on_camera and on_camera.lower() not in ("no", "none", ""):
-            if "talking_head" not in allowed:
-                allowed.append("talking_head")
+        additional = []
+        if uses_legacy_fields:
+            on_camera = self._extract_brief_aliases(
+                story_brief, ("on_camera_presence",), ""
+            )
+            if str(on_camera).strip().lower() not in {
+                "", "no", "none", "false", "0"
+            }:
+                additional.append("talking_head")
 
-        # Fallback if empty
-        if not allowed:
-            allowed = ["slides", "whiteboard_animation"]
+        return resolve_production_formats(
+            formats,
+            fallback_when_empty=fallback,
+            additional=additional,
+        )
 
-        return allowed
+    @staticmethod
+    def _parse_positive_duration(value: Any) -> Optional[float]:
+        if isinstance(value, bool) or value is None:
+            return None
+        if isinstance(value, str):
+            clean = re.sub(
+                r"\s*(seconds?|secs?|s)\s*$", "", value.strip(), flags=re.IGNORECASE
+            )
+            value = clean
+        try:
+            duration = float(value)
+        except (ValueError, TypeError):
+            return None
+        return duration if duration > 0 else None
 
     def _get_target_duration(self, story_brief: dict) -> float:
-        """Get target duration in seconds from brief."""
-        duration = self._extract_brief_field(story_brief, "duration", "60")
-        try:
-            return float(duration)
-        except (ValueError, TypeError):
-            return 60.0
+        """Get a safe positive target duration for deterministic budgeting."""
+        value = self._extract_brief_aliases(
+            story_brief, ("duration_seconds", "duration")
+        )
+        return self._parse_positive_duration(value) or 60.0
 
     # =========================================================================
     # Word Budget Computation & Per-Section Validation
@@ -403,7 +488,8 @@ class StoryboardWriter(BaseAgent):
 
     def _validate_and_retry_sections(
         self, screens, sections, all_evidence, brief_context,
-        allowed_types, project_id,
+        allowed_types, project_id, revision_instruction=None,
+        existing_storyboard=None, quality_feedback=None,
     ) -> list:
         """Validate each section's duration; retry individual failing sections."""
         screens_by_section: dict[int, list] = {}
@@ -431,6 +517,7 @@ class StoryboardWriter(BaseAgent):
             retry_screens = self._retry_section(
                 section, sec_screens, validation, all_evidence,
                 brief_context, allowed_types, project_id,
+                revision_instruction, existing_storyboard, quality_feedback,
             )
             if retry_screens is not None:
                 screens_by_section[sec_num] = retry_screens
@@ -450,9 +537,13 @@ class StoryboardWriter(BaseAgent):
     def _retry_section(
         self, section, current_screens, validation, all_evidence,
         brief_context, allowed_types, project_id,
+        revision_instruction=None, existing_storyboard=None,
+        quality_feedback=None,
     ) -> Optional[list]:
         """Retry generation for a single failing section. Returns new screens or None."""
         title = section.get("title", "")
+        title_prompt = render_prompt_value(title, 500)
+        purpose_prompt = render_prompt_value(section.get("purpose", ""), 2000)
         target_sec = section.get("target_seconds", 0)
         word_budget = section.get("word_budget", 0)
         direction = validation["direction"]
@@ -460,37 +551,63 @@ class StoryboardWriter(BaseAgent):
 
         evidence = all_evidence.get(title, [])
         evidence_text = self._format_evidence_for_prompt(evidence)
-        tp_text = "\n".join(f"- {tp}" for tp in section.get("talking_points", []))
+        tp_text = render_prompt_value(
+            "\n".join(
+                f"- {tp}" for tp in section.get("talking_points", [])
+            ),
+            5000,
+        )
 
         if direction == "over":
             adjust = "SHORTEN voiceover text — cut filler, tighten phrasing, remove redundant screens."
         else:
             adjust = "EXPAND voiceover text — add detail, examples, or split concepts across more screens."
 
-        prompt = f"""Rewrite ONLY the screens for Section {section['section_number']} — {title}.
+        revision_context = ""
+        if revision_instruction:
+            revision_context += (
+                "\nOriginal revision request (continue to follow it exactly):\n"
+                f"{render_prompt_value(revision_instruction, 2000)}\n"
+            )
+        if existing_storyboard is not None:
+            revision_context += (
+                "\nExisting storyboard supplied for this revision:\n"
+                f"{render_prompt_value(existing_storyboard, 8000)}\n"
+            )
+        if quality_feedback:
+            revision_context += (
+                "\nHolistic review feedback to address:\n"
+                f"{render_prompt_value(quality_feedback, 3000)}\n"
+            )
+        current_screen_context = render_prompt_value(current_screens, 6000)
+
+        intake_context = self._format_brief_context_for_prompt(brief_context)
+        prompt = f"""Rewrite ONLY the screens for Section {section['section_number']} — {title_prompt}.
 
 The current section is {deviation:.0f}% {direction} its {target_sec}s target.
 Word budget for this section: ~{word_budget} words.
 
 Section details:
-Purpose: {section.get('purpose', '')}
+Purpose: {purpose_prompt}
 Talking points:
 {tp_text}
 
-Evidence research:
+Supporting evidence:
 {evidence_text}
 
-Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
-Intent route: {brief_context['intent_route']}
-Content mode: {brief_context['content_mode']}
-Tone: {brief_context['delivery_tone']}
+Approved intake values:
+{intake_context}
+
+Current generated screens for this section:
+{current_screen_context}
+{revision_context}
 
 {adjust}
 
 Return a JSON array of screens for this section only. Each element has exactly 7 fields:
 - screen_number (integer)
 - section_number ({section['section_number']})
-- section_title ("{title}")
+- section_title ("{title_prompt}")
 - screen_type (one of: {', '.join(allowed_types)})
 - voiceover_text
 - visual_direction (array of 2-4 elements)
@@ -587,11 +704,37 @@ Return a JSON array of screens for this section only. Each element has exactly 7
                 lines.append(f"  Sources: {'; '.join(sources)}")
             lines.append("")
 
-        return "\n".join(lines)
+        return render_prompt_value("\n".join(lines), 5000)
 
     # =========================================================================
     # Full Storyboard Prompt (single LLM call)
     # =========================================================================
+
+    @staticmethod
+    def _format_brief_context_for_prompt(brief_context: dict) -> str:
+        labels = (
+            ("prompt", "Video goal"),
+            ("viewer_outcome", "Viewer outcome"),
+            ("target_audience", "Target audience"),
+            ("audience_level", "Audience level"),
+            ("duration_seconds", "Total duration (seconds)"),
+            ("platform", "Platform"),
+            ("aspect_ratio", "Aspect ratio"),
+            ("delivery_tone", "Delivery tone"),
+            ("production_formats", "Production formats"),
+            ("source_snapshot", "Source snapshot"),
+            ("sources", "Sources"),
+        )
+        lines = []
+        for key, label in labels:
+            if key not in brief_context:
+                continue
+            value = brief_context[key]
+            cap = 4000 if key in {"source_snapshot", "sources"} else 1000
+            rendered = render_prompt_value(value, cap)
+            lines.append(f"{label}: {rendered}")
+        rendered_context = "\n".join(lines) or "No additional intake values were provided."
+        return render_prompt_value(rendered_context, 10000)
 
     def _build_full_storyboard_prompt(
         self,
@@ -601,6 +744,9 @@ Return a JSON array of screens for this section only. Each element has exactly 7
         brief_context: dict,
         allowed_types: list,
         target_duration: float,
+        revision_instruction: Optional[str] = None,
+        existing_storyboard: Optional[list] = None,
+        quality_feedback: Optional[str] = None,
     ) -> str:
         """Construct the user prompt for the full storyboard in one LLM call."""
 
@@ -630,20 +776,48 @@ Evidence research:
 {evidence_text}"""
             section_blocks.append(block)
 
-        sections_text = "\n\n".join(section_blocks)
+        # The duplicated outline views serve different purposes (verbatim edit
+        # fidelity vs. computed budgets/evidence). Their 8k + 10k caps keep the
+        # complete contextual payload below roughly 45k characters.
+        sections_text = render_prompt_value("\n\n".join(section_blocks), 10000)
+
+        revision_context = ""
+        if existing_storyboard:
+            existing_text = render_prompt_value(existing_storyboard, 8000)
+            instruction_text = (
+                f"\nUser instruction: {render_prompt_value(revision_instruction, 2000)}\n"
+                if revision_instruction
+                else ""
+            )
+            revision_context = f"""
+
+=== EXISTING STORYBOARD ===
+{existing_text}
+{instruction_text}
+
+Update the existing storyboard against the approved outline instead of regenerating it from scratch. Preserve unaffected screens and their exact details. Return the complete updated storyboard using the same exact screen schema.
+"""
+        elif revision_instruction:
+            revision_context = f"""
+
+=== REVISION REQUEST ===
+Apply this instruction while producing the storyboard: {render_prompt_value(revision_instruction, 2000)}
+"""
+
+        feedback_context = ""
+        if quality_feedback:
+            feedback_context = f"""
+
+=== HOLISTIC REVIEW FEEDBACK ===
+Address this feedback in the result: {render_prompt_value(quality_feedback, 3000)}
+"""
+
+        intake_context = self._format_brief_context_for_prompt(brief_context)
 
         prompt = f"""Generate the COMPLETE storyboard for this video — all sections, all screens, in one pass.
 
-=== STORY BRIEF ===
-Intent route: {brief_context['intent_route']}
-Content mode: {brief_context['content_mode']}
-Format style: {brief_context['format_style']}
-Platform: {brief_context['platform']}
-Audience: {brief_context['target_audience']} (level: {brief_context['audience_level']})
-Tone: {brief_context['delivery_tone']}
-Point of View: {brief_context['point_of_view']}
-Viewer outcome: {brief_context['viewer_outcome']}
-Total video duration: {target_duration}s
+=== APPROVED INTAKE ===
+{intake_context}
 
 === REQUIRED SCREEN TYPES ===
 The user selected these visual formats: {', '.join(allowed_types)}
@@ -651,10 +825,12 @@ Default behavior: USE these types. Every type the user selected should appear in
 You may use any type from the allowed list as many times as needed. But do NOT drop a user-selected type without justification.
 
 === FULL OUTLINE ===
-{full_outline}
+{render_prompt_value(full_outline, 8000)}
 
 === SECTIONS WITH EVIDENCE ===
 {sections_text}
+{revision_context}
+{feedback_context}
 
 === INSTRUCTIONS ===
 **Word budget (hard):** Each section above has a word budget — the approximate number of voiceover words that will produce the target duration at ~2.2 words/second. Stay within ±20% of each section's word budget. This is the primary duration control mechanism.
@@ -689,9 +865,9 @@ Follow your system prompt rules strictly. Every sentence of voiceover must teach
         for screen in screens:
             # Validate screen_type
             st = screen.get("screen_type", "slides")
-            if st not in PLACEHOLDER_IMAGES:
+            if st not in PLACEHOLDER_IMAGES or st not in allowed_types:
                 st = allowed_types[0] if allowed_types else "slides"
-                screen["screen_type"] = st
+            screen["screen_type"] = st
 
             # Calculate duration from voiceover word count
             voiceover = screen.get("voiceover_text", "")
@@ -740,15 +916,88 @@ Follow your system prompt rules strictly. Every sentence of voiceover must teach
     def _process_legacy_screens(self, screen_list: list, story_brief: dict) -> list:
         """Backward compat: process pre-built screen list by adding visual assets."""
         storyboard = []
-        for screen in screen_list:
-            screen_type = screen.get("screen_type", "slides")
-            storyboard.append({
-                "screen_number": screen.get("screen_number", 1),
-                "screen_type": screen_type,
-                "duration": screen.get("duration", 6.0),
-                "voiceover_text": screen.get("voiceover_text", ""),
-                "visual_direction": screen.get("visual_direction", []),
-                "on_screen_visual": PLACEHOLDER_IMAGES.get(screen_type, "/placeholders/slides_and_diagrams.png"),
-                "action_notes": screen.get("action_notes", ""),
-            })
+        allowed_types = self._get_allowed_screen_types(story_brief)
+        formats_declared = self._brief_has_field(
+            story_brief, "production_formats"
+        ) or self._brief_has_field(story_brief, "broll_type")
+        assignments = legacy_section_assignments(screen_list)
+        for index, (screen, section) in enumerate(
+            zip(screen_list, assignments), start=1
+        ):
+            if not isinstance(screen, dict):
+                raise ValueError("Legacy storyboard screens must be objects")
+            migrated = dict(screen)
+            original_screen_number = screen.get("screen_number")
+            if (
+                original_screen_number != index
+                and original_screen_number is not None
+            ):
+                migrated.setdefault("legacy_screen_number", original_screen_number)
+            original_section_number = screen.get("section_number")
+            if (
+                original_section_number != section[0]
+                and original_section_number is not None
+            ):
+                migrated.setdefault("legacy_section_number", original_section_number)
+            original_section_title = screen.get("section_title")
+            if (
+                original_section_title
+                and str(original_section_title).strip() != section[1]
+            ):
+                migrated.setdefault("legacy_section_title", original_section_title)
+
+            original_screen_type = screen.get("screen_type", "slides")
+            resolved_type = resolve_production_formats(
+                [original_screen_type], fallback_when_empty=False
+            )
+            screen_type = resolved_type[0] if resolved_type else allowed_types[0]
+            if formats_declared and screen_type not in allowed_types:
+                screen_type = allowed_types[0]
+            if screen_type != original_screen_type:
+                migrated.setdefault("legacy_screen_type", original_screen_type)
+            voiceover = screen.get("voiceover_text")
+            if not isinstance(voiceover, str):
+                voiceover = screen.get("voiceover") or screen.get("Description") or ""
+            visual_direction = screen.get("visual_direction", [])
+            if isinstance(visual_direction, str):
+                visual_direction = [visual_direction]
+            elif not isinstance(visual_direction, list):
+                visual_direction = []
+            if (
+                len(visual_direction) == 1
+                and isinstance(visual_direction[0], str)
+                and visual_direction[0].strip()
+            ):
+                # Persisted pre-v0712 storyboards allowed one visual direction.
+                # Repeat that exact direction to satisfy the current 2–4 item
+                # production contract without inventing new legacy content.
+                visual_direction = [visual_direction[0], visual_direction[0]]
+            action_notes = screen.get("action_notes")
+            if not isinstance(action_notes, str):
+                action_notes = screen.get("Notes") or ""
+            duration = screen.get("duration", 6.0)
+            if (
+                isinstance(duration, bool)
+                or not isinstance(duration, (int, float))
+                or duration <= 0
+            ):
+                duration = 6.0
+
+            migrated.update(
+                {
+                    "screen_number": index,
+                    "section_number": section[0],
+                    "section_title": section[1],
+                    "screen_type": screen_type,
+                    "duration": duration,
+                    "voiceover_text": str(voiceover),
+                    "visual_direction": visual_direction,
+                    "on_screen_visual": screen.get("on_screen_visual")
+                    or PLACEHOLDER_IMAGES.get(
+                        screen_type, "/placeholders/slides_and_diagrams.png"
+                    ),
+                    "action_notes": str(action_notes),
+                }
+            )
+            storyboard.append(migrated)
         return storyboard

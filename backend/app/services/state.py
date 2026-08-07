@@ -5,15 +5,65 @@ State transitions live here; persistence goes through SQLite via SQLAlchemy.
 No pipeline state is written to `state.json`.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, List, Literal, Union
-from pydantic import BaseModel, Field
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from uuid import uuid4
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
 
-from app.db.engine import AsyncSessionLocal
+from app.db.engine import AsyncSessionLocal, create_sqlite_async_engine
 from app.db.models import Base
 from app.db.repository import ProjectRepository
+
+
+ArtifactType = Literal["intake", "outline", "storyboard"]
+WorkflowStage = Literal["intake", "outline", "storyboard", "complete"]
+
+LEGACY_WORKFLOW_STAGES: dict[str, WorkflowStage] = {
+    "intake": "intake",
+    "research": "intake",
+    "brief": "intake",
+    "brief_chat": "intake",
+    "brief_round1": "intake",
+    "brief_round2": "intake",
+    "brief_round3": "intake",
+    "angle_selection": "intake",
+    "brief_review": "intake",
+    "gate1": "intake",
+    "outline": "outline",
+    "gate2": "outline",
+    "outline_research": "outline",
+    "write": "storyboard",
+    "storyboard": "storyboard",
+    "review": "storyboard",
+    "complete": "complete",
+    "done": "complete",
+}
+
+
+class ArtifactPointers(BaseModel):
+    current_version_id: Optional[str] = None
+    approved_version_id: Optional[str] = None
+    needs_update: bool = False
+
+
+def default_artifact_pointers() -> dict[ArtifactType, ArtifactPointers]:
+    return {
+        "intake": ArtifactPointers(),
+        "outline": ArtifactPointers(),
+        "storyboard": ArtifactPointers(),
+    }
+
+
+class JobOverlay(BaseModel):
+    status: Literal["idle", "running", "failed"] = "idle"
+    job_id: Optional[str] = None
+    kind: Optional[Literal["outline", "storyboard"]] = None
+    input_version_id: Optional[str] = None
+    target_version_id: Optional[str] = None
+    started_at: Optional[str] = None
+    error: Optional[str] = None
 
 
 class RevisionRecord(BaseModel):
@@ -26,21 +76,38 @@ class RevisionRecord(BaseModel):
 
 class StoryboardState(BaseModel):
     """Complete state for a storyboard project through the pipeline."""
+
+    model_config = ConfigDict(extra="allow")
+
     project_id: str
     phase: Literal[
         "intake",         # Initial state, waiting for intake form
         "research",       # Reserved for future researcher reintroduction
         "brief",          # Brief Builder is running (legacy)
         "brief_chat",     # Active chat-assisted guided brief building
+        "brief_round1",   # Historical guided brief round 1
+        "brief_round2",   # Historical guided brief round 2
+        "brief_round3",   # Historical guided brief round 3
+        "angle_selection",  # Historical research angle selection
         "brief_review",   # NEW: Final brief review before locking
         "gate1",          # Human review of Story Brief
         "outline",        # Storyboard Director is running
+        "storyboard",     # New canonical storyboard stage
+        "complete",       # New canonical completed stage
         "gate2",          # Human review of Screen Outline
         "outline_research",  # Reserved for future outline research flow
         "write",          # Storyboard Writer is running
         "review",         # Final review (optional refinements)
         "done"            # Complete
     ] = "intake"
+
+    # New workflow contract. Legacy phase/content fields remain available below.
+    workflow_stage: WorkflowStage = "intake"
+    artifacts: dict[ArtifactType, ArtifactPointers] = Field(
+        default_factory=default_artifact_pointers
+    )
+    job: JobOverlay = Field(default_factory=JobOverlay)
+    state_revision: Optional[str] = None
 
     # Accumulated data through pipeline
     intake_form: Optional[dict] = None
@@ -72,12 +139,57 @@ class StoryboardState(BaseModel):
     outline_locked: bool = False
 
     # Timestamps
-    created_at: str = Field(default_factory=lambda: datetime.now().isoformat())
-    updated_at: str = Field(default_factory=lambda: datetime.now().isoformat())
+    created_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+    updated_at: str = Field(
+        default_factory=lambda: datetime.now(timezone.utc).isoformat()
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def hydrate_workflow_contract(cls, value):
+        """Add workflow metadata to legacy state blobs without moving content."""
+        if not isinstance(value, dict):
+            return value
+
+        data = dict(value)
+        if data.get("workflow_stage") is None:
+            data["workflow_stage"] = LEGACY_WORKFLOW_STAGES.get(
+                data.get("phase", "intake"), "intake"
+            )
+
+        if "artifacts" in data:
+            supplied = data.get("artifacts") or {}
+            defaults = default_artifact_pointers()
+            data["artifacts"] = {
+                artifact_type: supplied.get(artifact_type, defaults[artifact_type])
+                for artifact_type in defaults
+            }
+        return data
 
 
 class StateManager:
     """Manages state persistence and transitions for a project."""
+
+    WORKFLOW_ALLOWED_EVENTS = {
+        "intake": ["save_intake", "approve_intake"],
+        "outline": [
+            "save_outline",
+            "revise_outline",
+            "approve_outline",
+            "edit_intake",
+        ],
+        "storyboard": [
+            "save_storyboard",
+            "revise_storyboard",
+            "approve_storyboard",
+            "edit_outline",
+            "edit_intake",
+            "keep_storyboard",
+        ],
+        "complete": ["reopen_intake", "reopen_outline", "reopen_storyboard"],
+    }
 
     # Valid state transitions: (current_phase, event) -> next_phase
     TRANSITIONS = {
@@ -103,6 +215,10 @@ class StateManager:
         ("intake", "submit_guided_brief"): "brief_chat",
         ("intake", "submit_knowledge_share"): "brief_chat",
         ("brief_chat", "chat_brief_approve"): "gate1",
+        ("brief_round1", "chat_brief_approve"): "gate1",
+        ("brief_round2", "chat_brief_approve"): "gate1",
+        ("brief_round3", "chat_brief_approve"): "gate1",
+        ("angle_selection", "chat_brief_approve"): "gate1",
         ("brief_review", "chat_brief_approve"): "gate1",
         ("brief_review", "brief_approve"): "gate1",                # Legacy compatibility
         ("brief_review", "approve"): "gate1",                      # Public alias for final brief approval
@@ -125,7 +241,7 @@ class StateManager:
         else:
             db_path = self.data_dir / "plotline.db"
             db_path.parent.mkdir(parents=True, exist_ok=True)
-            self._owned_engine = create_async_engine(
+            self._owned_engine = create_sqlite_async_engine(
                 f"sqlite+aiosqlite:///{db_path}",
                 echo=False,
             )
@@ -169,19 +285,36 @@ class StateManager:
                     project_id=self.project_id,
                     user_id="",
                     title="",
+                    commit=False,
                 )
-            await repo.update_pipeline_state(
-                project_id=self.project_id,
-                phase=state.phase,
-                status="pending",
-                state_data=state.model_dump(),
-            )
+            ps = await repo.get_pipeline_state(self.project_id)
+            if ps is None:
+                state.state_revision = str(uuid4())
+                await repo.update_pipeline_state(
+                    project_id=self.project_id,
+                    phase=state.phase,
+                    status="pending",
+                    state_data=state.model_dump(),
+                )
+            else:
+                expected_revision = repo.parse_state_data(ps).get(
+                    "state_revision"
+                )
+                state.state_revision = str(uuid4())
+                await repo.update_pipeline_state(
+                    project_id=self.project_id,
+                    phase=state.phase,
+                    status="pending",
+                    state_data=state.model_dump(),
+                    expected_revision=expected_revision,
+                )
         return state
 
     async def save(self, state: StoryboardState) -> None:
         """Persist state to SQLite."""
         await self._ensure_tables()
-        state.updated_at = datetime.now().isoformat()
+        state.updated_at = datetime.now(timezone.utc).isoformat()
+        expected_revision = state.state_revision
         async with self._sessionmaker() as session:
             repo = ProjectRepository(session)
             project = await repo.get_project(self.project_id)
@@ -190,14 +323,25 @@ class StateManager:
                     project_id=self.project_id,
                     user_id="",
                     title="",
+                    commit=False,
+                )
+                ps = await repo.get_pipeline_state(self.project_id)
+                expected_revision = repo.parse_state_data(ps).get(
+                    "state_revision"
                 )
             status = "completed" if state.phase == "done" else "pending"
-            await repo.update_pipeline_state(
-                project_id=self.project_id,
-                phase=state.phase,
-                status=status,
-                state_data=state.model_dump(),
-            )
+            state.state_revision = str(uuid4())
+            try:
+                await repo.update_pipeline_state(
+                    project_id=self.project_id,
+                    phase=state.phase,
+                    status=status,
+                    state_data=state.model_dump(),
+                    expected_revision=expected_revision,
+                )
+            except BaseException:
+                state.state_revision = expected_revision
+                raise
 
     def transition(self, state: StoryboardState, event: str) -> StoryboardState:
         """
@@ -221,6 +365,30 @@ class StateManager:
             )
 
         state.phase = self.TRANSITIONS[key]
+        state.workflow_stage = LEGACY_WORKFLOW_STAGES[state.phase]
+        return state
+
+    def allowed_events(self, state: StoryboardState) -> List[str]:
+        """Return the sole allowed-event contract for the four-stage workflow."""
+        return list(self.WORKFLOW_ALLOWED_EVENTS[state.workflow_stage])
+
+    def mark_upstream_changed(
+        self,
+        state: StoryboardState,
+        artifact_type: Literal["intake", "outline"],
+    ) -> StoryboardState:
+        """Mark existing downstream versions stale while retaining all pointers."""
+        downstream = {
+            "intake": ("outline", "storyboard"),
+            "outline": ("storyboard",),
+        }
+        if artifact_type not in downstream:
+            raise ValueError(f"Unsupported upstream artifact type: {artifact_type}")
+
+        for downstream_type in downstream[artifact_type]:
+            pointers = state.artifacts[downstream_type]
+            if pointers.current_version_id is not None:
+                pointers.needs_update = True
         return state
 
     def _valid_events_for_phase(self, phase: str) -> List[str]:
@@ -271,7 +439,7 @@ class StateManager:
         state.revision_history.append(RevisionRecord(
             gate=gate,
             feedback=feedback,
-            timestamp=datetime.now().isoformat(),
+            timestamp=datetime.now(timezone.utc).isoformat(),
             resolved=False
         ))
 
@@ -335,6 +503,7 @@ class StateManager:
             state.revision_count_gate2 = 0
             state.revision_history = []
             state.phase = "intake"
+            state.workflow_stage = "intake"
 
         elif target_gate == 1:
             # Go back to Gate 1 - unlock brief, clear outline, storyboard and research
@@ -344,6 +513,7 @@ class StateManager:
             state.storyboard = None
             state.evidence_research = None
             state.phase = "gate1"
+            state.workflow_stage = "intake"
 
         elif target_gate == 2:
             # Go back to Gate 2 - unlock outline, clear storyboard and research
@@ -351,5 +521,6 @@ class StateManager:
             state.storyboard = None
             state.evidence_research = None
             state.phase = "gate2"
+            state.workflow_stage = "outline"
 
         return state

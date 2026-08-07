@@ -408,3 +408,25 @@ Chose **parallel** section calls for demo speed. Trade-off: no cross-section sou
 | `frontend/src/components/OutlineBuilder/RegenPopover.tsx` | New: Claude Chat-style regen popover |
 | `frontend/src/components/OutlineBuilder/types.ts` | Added `researchProgress` prop |
 | `frontend/src/components/StageContent.tsx` | Progressive parallel fetch, filtered evidence on approve |
+
+---
+
+## 2026-07-17 — Vercel Backend Migration and Project Recovery
+
+**Problem:** The production frontend proxied `/api` to an older Fly.io backend
+that did not implement the current session API. The Fly instance also depended
+on instance-local SQLite/files, so My Projects appeared empty.
+
+**Root Cause:** The frontend and backend deployments had drifted, and the
+persistence layer was tied to one server filesystem.
+
+**Fix:** Deployed the current FastAPI app as a Vercel Function, moved relational
+state to Neon Postgres, moved project files to private Vercel Blob storage, and
+migrated the local SQLite project history. Session-owned local projects were
+mapped back to the browser's legacy anonymous identity before being claimed by
+the current production session.
+
+**Prevention:** Keep the frontend rewrite and backend deployment config in the
+repository, use hosted persistence for production, and smoke-test the real
+same-origin session, project CRUD, stage loading, and file upload flow before
+moving the production alias.

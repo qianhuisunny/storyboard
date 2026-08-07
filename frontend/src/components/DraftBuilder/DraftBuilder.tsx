@@ -12,6 +12,8 @@ export default function DraftBuilder({
   onDraftUpdate,
   onConfirm,
   storyboardEval,
+  onRevise,
+  isActionPending,
 }: DraftBuilderProps) {
   return (
     <div className="draft-builder h-full flex flex-col">
@@ -22,6 +24,8 @@ export default function DraftBuilder({
         onScreensChange={onDraftUpdate}
         onConfirm={onConfirm}
         storyboardEval={storyboardEval}
+        onRevise={onRevise}
+        isActionPending={isActionPending}
       />
     </div>
   );

@@ -18,7 +18,12 @@ interface Story {
   screen_number?: number;
   on_screen_visual_keywords?: string;
   image_url?: string;
-  [key: string]: any;
+  Description?: string;
+  description?: string;
+  Duration?: number;
+  ImageUrl?: string;
+  Notes?: string;
+  notes?: string;
 }
 
 interface StoryboardEditorProps {
